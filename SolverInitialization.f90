@@ -309,6 +309,13 @@ subroutine Initialization()
 					node(element(i).node(1:element(i).nnum)).dof(7)=0 !beam2d Mz/=0
 					allocate(element(i).km(6,6),element(i).gforce(6),element(i).Dgforce(6),element(i).gforceILS(6))
 				end if
+				
+				if(element(i).ifreedof>0) then
+                    n1=freedof(element(i).ifreedof).newnode
+					node(n1).dof=inactive
+					node(n1).dof(freedof(element(i).ifreedof).dof)=0
+                endif
+                
 				element(i).gforce=0.D0
 				element(i).Dgforce=0.D0
 				element(i).gforceILS=0.0D0
@@ -786,6 +793,13 @@ subroutine Initialization()
 		end do
 	end do
 	nuvar=ndof
+	
+	do i=1,nfreedof
+		dof1(freedof(i).dof)=node(freedof(i).newnode).dof(freedof(i).dof)
+		node(freedof(i).newnode).dof=node(freedof(i).node).dof
+        node(freedof(i).newnode).ndof=node(freedof(i).node).ndof
+		node(freedof(i).newnode).dof(freedof(i).dof)=dof1(freedof(i).dof)
+	enddo
 	
 	!Initialize the element positioning vector
 	!initialize the band width of each dof

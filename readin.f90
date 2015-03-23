@@ -1,7 +1,7 @@
 
 
  subroutine readin(itype)
-	use solverds
+	use SOLVERLIB
     use ds_hyjump
     use ExcaDS
 	use dflib
@@ -227,7 +227,22 @@
 		end do
     end do
 	
-    
+    if(nfreedof>0) then
+		call enlarge_node(node,nnum,nfreedof,k)
+        do i=1,nfreedof
+           do j=1,element(freedof(i).element).nnum
+                if(element(freedof(i).element).node(j)==freedof(i).node) then
+                    element(freedof(i).element).ifreedof=i
+                    freedof(i).newnode=k
+                    element(freedof(i).element).node(j)=k
+                    node(k)=node(freedof(i).node)                    
+                    k=k+1
+                    exit
+                endif                
+           enddo                       
+        enddo    
+        
+	endif
 
 	
 	!if(solver_control.bfgm==lacy) then
@@ -902,7 +917,21 @@ subroutine solvercommand(term,unit)
 			bd_num=bd_num+nbf1
 			deallocate(bf1)	
 			
-			
+        case('hinge','freedof')
+            print *, 'Reading HINGE/FREEDOF data...'
+  			do i=1,pro_num
+				select case(property(i).name)
+					case('num')
+						nfreedof=int(property(i).value)
+					case default
+						call Err_msg(property(i).name)
+				end select
+            end do 
+            allocate(freedof(nfreedof))
+            do i=1,nfreedof
+                call skipcomment(unit)
+				read(unit,*) freedof(i).element,freedof(i).node,freedof(i).dof
+            enddo
 		case('seepage face')
 			print *,'Reading Nodes In SEEPAGEFACE data...'
 			n3=0
@@ -1878,6 +1907,13 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) = "//E:{EXVALUE(1:NKP,1:2)}  //控制点上作用的上下限值(先各点下限(exvalue(:,1))，后各点上限(exvalue(:,2))) 如果isexvalue=1."
  	README(IPP(I)) = "//{A0,A,B,C,D,E}*NUM。   //共NUM组"
 	
+	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//HINGE,NUM=...(I) //(此功能目前仅对beam2d及beam单元有效)"  
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD HINGE IS USED TO INPUT HINGE/FREEDOF DATA..."//'"'
+	README(IPP(I)) = "//A:{ELEMENT,NODE,DOF}  //(要释放的自由度所在的)单元，节点和自由度编号。" 
+ 	README(IPP(I)) = "//{A}*NUM。   //共NUM组"
+	    
+    
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//MATERIAL,MATID=...(I),[TYPE=...(I)],[ISFF=YES|NO],[NAME=...(c)],ISSF=...(I)//MATID=材料号，TYPE=材料类型，ISFF=是否为依赖某场变量,NAME=材料文字注释.此关键词可重复出现.ISSF=是否输入材料参数的步函数(0N1Y)" 
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD MATERIAL IS USED TO INPUT MATERIAL INFOMATION."//'"'

@@ -232,7 +232,7 @@
 	integer,parameter::LA04=-2  !HSL LA04 SOLVER
 	integer,parameter::LPSOLVER=-3 !USING LP_SOLVE TO SOLVE LIMIT ANALYSIS PROBLEM.
 	integer,parameter::MOSEK=-4  !MOSEK OPTIMIZTION SOLVER.
-	real(kind=DPN),parameter::UM=1.0d10
+	real(kind=DPN),parameter::UM=1.0d20
 
 	!material type constants
 	integer,parameter::ELASTIC=1 !elastic material

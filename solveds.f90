@@ -46,6 +46,8 @@ module solverds
 		integer::nspr=0 ! the patch number sharing the element
 		integer::layer=1 !element layer, for horizontal seepage analysis; 
 						!for sectional seepage analysis, =1, all nodes are under water table,=-1,all nodes are above water talbe,=0 cross the water table
+		integer::ifreedof=-1 !>0,表铰接点,指向freedof(ifreedof)
+		
 		!integer::status=1 !=1,fixed(default); =2,slip;=0:free.
 		integer::referencestep=1 !=i,表明此单元变形计算初始参考状态起点为第i步结束的位移场。        
 		integer::system=0 !local coordinate system, =0,global coordinate
@@ -155,6 +157,13 @@ module solverds
 	type(bc_tydef),allocatable::bc_disp(:),bc_load(:),bf(:),NSeep(:),IniValue(:),CFN(:)
 	integer::bd_num=0,bl_num=0,bfnum=0,NumNSeep=0,Niniv=0,NCFN=0	
 	real(kind=DPN),allocatable::iniValueDof(:) 
+    
+    type hinge_typef
+        integer::element,node,dof=7 !单元号，节点号，自由度
+		integer::newnode=0 !指向与节点Node为重合的节点node(newnode)。
+    endtype
+    type(hinge_typef),allocatable::FreeDOF(:)
+    integer::Nfreedof=0
 	
 	integer,allocatable::IsBCChange(:)
 		
@@ -514,6 +523,17 @@ MODULE SOLVERLIB
 	        integer,intent(out)::iel        
         ENDSUBROUTINE
 
+        subroutine enlarge_node(EL,NEL,enel,iel)
+        !扩大EL数组,同时update总的单元数NEL=NEL+enel
+        !Enel:扩大的单元个数
+        !iel,:扩容部分的起位
+            USE solverds
+	        integer,intent(in)::enel
+            INTEGER,INTENT(IN OUT)::NEL
+            type(node_tydef),INTENT(IN OUT),ALLOCATABLE::EL(:)
+	        integer,intent(out)::iel        
+        ENDSUBROUTINE		
+		
         SUBROUTINE invert(matrix)
             !
             ! This subroutine inverts a small square matrix onto itself.
@@ -578,9 +598,33 @@ subroutine enlarge_element(EL,NEL,enel,iel)
 	allocate(EL,SOURCE=ELEMENT1)
 	deallocate(element1)
 	
-    endsubroutine    
+endsubroutine    
 
-  
+subroutine enlarge_node(EL,NEL,enel,iel)
+!扩大EL数组,同时update总的单元数NEL=NEL+enel
+!Enel:扩大的单元个数
+!iel,:扩容部分的起位
+	use solverds	
+	implicit none
+	integer,intent(in)::enel
+    INTEGER,INTENT(IN OUT)::NEL
+    type(node_tydef),INTENT(IN OUT),ALLOCATABLE::EL(:)
+	integer,intent(out)::iel
+	type(node_tydef),ALLOCATABLE::element1(:)
+	
+	IF(ENEL<1) RETURN
+	
+	allocate(element1(NEL+enel))
+	element1(1:NEL)=EL
+	if(allocated(EL)) deallocate(EL)
+	iel=NEL+1
+	NEL=NEL+enel	
+	allocate(EL,SOURCE=ELEMENT1)
+	deallocate(element1)
+	
+endsubroutine
+
+
     
 SUBROUTINE invert(matrix)
 !
