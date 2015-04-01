@@ -44,7 +44,7 @@ Module ExcaDS
 		integer::nseg=1,nnode=0,nel=0,system=0
         integer,allocatable::mat(:),kpoint(:)        
 		integer,allocatable::node(:),element(:)
-		integer,allocatable::element_sp(:,:)
+		integer,allocatable::element_sp(:,:) !节点的土弹簧单元号
 		integer,allocatable::node2BCload(:)
         real(double),allocatable::Beamresult(:,:,:) !(node,13,istep),/dis,M,Q,Load/
 		INTEGER::NVA=14
@@ -516,7 +516,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		
 		n1=pile(ipile).node(pile(ipile).nnode)
 		allocate(pile(ipile).element_sp(2,pile(ipile).node(1):n1))
-		pile(ipile).element_sp=0.d0
+		pile(ipile).element_sp=0
 		nel1=2*pile(ipile).nnode
 		CALL enlarge_element(ELEMENT,ENUM,NEL1,N1)
 		
@@ -930,6 +930,10 @@ subroutine Initialize_soilspringEelement_EXCA(ipile,istep,aside,aop,soil)
 
 			
 			inode1=element(ieL1).node
+			if(element(ieL1).ifreedof>0) then
+				if(inode1(1)==freedof(element(ieL1).ifreedof).newnode) inode1(1)=freedof(element(ieL1).ifreedof).node
+				if(inode1(2)==freedof(element(ieL1).ifreedof).newnode) inode1(2)=freedof(element(ieL1).ifreedof).node
+			endif
 			iel2=pile(ipile).element_sp(aop,inode1)
 			element(iel2).isactive=1
 			
@@ -1338,6 +1342,10 @@ subroutine Beam_Result_EXCA(istep)
 			
 			iel1=pile(IPILE).element(j)
 			nnode1=element(iel1).node
+			if(element(ieL1).ifreedof>0) then
+				if(nnode1(1)==freedof(element(ieL1).ifreedof).newnode) nnode1(1)=freedof(element(ieL1).ifreedof).node
+				if(nnode1(2)==freedof(element(ieL1).ifreedof).newnode) nnode1(2)=freedof(element(ieL1).ifreedof).node
+			endif            
 			do k=1,2
 				!displacement
                 IF(ISEXCA2D==1) THEN
@@ -1935,7 +1943,7 @@ ENDSUBROUTINE
                     
                 enddo    
             CASE DEFAULT
-                PRINT *, "TO BE IMPROVED."
+                PRINT *, "TO BE IMPROVED.SUB=PLOTDATA"
 				
             end select
             
