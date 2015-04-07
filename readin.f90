@@ -998,6 +998,10 @@ subroutine solvercommand(term,unit)
 						n3=int(property(i).value)
 					case('kmethod')
 						n4=int(property(i).value)
+                    case('rf_epp')
+                        solver_control.rf_epp=int(property(i).value)
+                    case('rf_app')
+                        solver_control.rf_app=int(property(i).value)                        
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -1834,7 +1838,7 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//STEP FUNCTION,NUM=...(I),STEP=...(I)   //NUM=步方程的个数,STEP=步数."  
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD BC IS USED TO STEP FUNCTION DATA."//'"'
-	README(IPP(I)) = "//{FACTOR(1)(R),FACTOR(2)(R),...,FACTOR(STEP)(R),TITILE(A)& 
+	README(IPP(I)) = "//{FACTOR(1)(R),FACTOR(2)(R),...,FACTOR(STEP)(R),TITLE(A)& 
                          \N// FACTOR(ISTEP)=第ISTEP步边界或荷载的系数. &
                          \N//当FACTOR(ISTEP)=-999时,此边界或荷载在此步中失效（无作用）. &
                          \N//!表单元生死时，0为死1为生。"C  
@@ -1860,7 +1864,10 @@ subroutine write_readme_feasolver()
     README(IPP(I)) = "//注：对于/=4(Chow)，目前只能处理NSEGMENT=2的情况，即斜坡段+水平段，且上游在左下游在右.默认水平段与斜坡段的交点为第二段的第一个节点。"
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//SOILPROFILE,NUM=(I),spmethod=(I),kmethod=(I)   //spmethod=土压力计算方法，0，郎肯； kmethod=基床系数的计算方法，0，m法；1，(E,V)法；2,zhu;3 biot;4 vesic;-1,按直接输入"  
+	README(IPP(I)) = "//SOILPROFILE,NUM=(I),spmethod=(I),kmethod=(I),rf_epp=(I),rf_app=(I)   //spmethod=土压力计算方法，0，郎肯； &
+        \n// kmethod=基床系数的计算方法，0，m法；1，(E,V)法；2,zhu;3 biot;4 vesic;-1,按直接输入. &
+        \n// rf_epp=被动侧土弹簧抗力限值是否要减掉初始的主动土压力.(0N1Y). &
+        \n// RF_APP=0 !主动侧主动土压力荷载，开挖面以下是否按倒三角折减.(0N1Y)."  
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT SOILPROFILE DATA."//'"'
 	README(IPP(I))=  "//A0:{TITLE(C)}  //土层剖面的名字"  
 	README(IPP(I)) = "//A:{NASOIL(I),NPSOIL(I),BEAMID(I),NACTION(I),NSTRUT}  //主动侧土层数(负数表主动土压力为负，被动为正，反之亦然。)，被动侧土层数，地基梁号,约束(力，位移，弹簧)个数,支撑个数" 
@@ -1871,7 +1878,7 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) = "//F:{NO_ACTION(I)}*NACTION   //约束号，共NACTION个" 
 	README(IPP(I)) = "//G:{NO_STRUT(I)}*NSTRUT   //支撑号，共NSTRUT个" 
 	README(IPP(I)) = "//{A0,A,B,C,D,E,F,G}*NUM。   //共NUM组"
-	README(IPP(I)) = "//注意：\n1)每一时间步，土层按顺序从上而下输入，不同时间步间的土层可以重叠。 &
+	README(IPP(I)) = "//注意：\n1)每一时间步，土层按顺序从上而下输入，不同时间步间的土层可以重叠,同一时间步有效各土层不要出现重叠和空隙。 &
 						\n//2)各时间步地下水位处要分层;桩顶处要分层(如果桩在土里面);桩的材料分界处要分层。 &
 						\n//3)考虑渗透力时，假定awL>pwL. &
 						\n//4)如果水面高于地表，将水等效为为土层（令c,phi,模量均设为0，渗透系数<=0)"C
@@ -2188,7 +2195,9 @@ subroutine translatetoproperty(term)
 		ne=index(str(i),'=')
 		if(ne>0) then
 			property(i-1).name=str(i)(1:ne-1)
+            !ns=len_trim(str(i))
 			ns=len_trim(str(i))-ne
+            
 			call inp_ch_c_to_int_c(str(i)(ne+1:len_trim(str(i))),ns,property(i-1).value,property(i-1).cvalue)
 		else
 			property(i-1).name=str(i)(1:len_trim(str(i)))

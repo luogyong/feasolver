@@ -943,7 +943,11 @@ subroutine spring_update2(iel,istep,iiter,Ddis,nDdis)
 			!if(element(iel).mat==-1) nc1=2
 			!if(element(iel).mat==-2) nc1=2
             nc1=2
-			t1=-element(iel).sign*abs(element(iel).property(3)-element(iel).property(nc1))
+			if(solver_control.rf_epp==0) then
+                t1=-element(iel).sign*abs(element(iel).property(3)-element(iel).property(nc1))
+            else
+                t1=-element(iel).sign*abs(element(iel).property(3))
+            endif
 			minv1=min(t1,0.d0)
 			maxv1=max(t1,0.d0)
 		endif
@@ -955,18 +959,21 @@ subroutine spring_update2(iel,istep,iiter,Ddis,nDdis)
     !    minelasticX1=minv1/km1
     !    maxelasticX1=maxV1/km1
     !endif
-    
+	
+    !gforce1(1)=element(iel).gforce(1)+element(iel).km(1,1)*Ddis(1)
     gforce1=km1*(DX+Ddis(1))
+	
     if(element(iel).mat>0.and.element(iel).ec==spring)  then
         gforce1=gforce1+matproperty(element(iel).mat,4,istep)
     endif
-    !gforce1(1)=element(iel).gforce(1)+element(iel).km(1,1)*Ddis(1)
     if(gforce1(1)>maxv1) then
         gforce1=maxv1
         km1=0.0d0+element(iel).km(1,1)/2.0
     elseif(gforce1(1)<minv1) then
         gforce1=minv1
         km1=0.d0+element(iel).km(1,1)/2.0
+	else
+		!km1=(element(iel).property(4)+element(iel).km(1,1))/2.0
     endif
     
     element(iel).dgforce(1)=gforce1(1)-element(iel).gforce(1)

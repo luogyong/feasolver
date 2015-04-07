@@ -22,7 +22,7 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 	end if
 
 	call lowcase(str,istr)
-	select case(str)
+	select case(trim(str))
 		!material type constants
 		case('elastic')
 			value=ELASTIC
