@@ -443,8 +443,14 @@ subroutine solvercommand(term,unit)
 			do i=1,nkp
 				call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
 				!read(unit,*) n1,kpoint(1:ndimension,n1)
-                kpoint(1:ndimension,int(ar(1)))=ar(2:ndimension+1)
-                if(n1>ndimension+1) kpoint(ndimension+1,int(ar(1)))=ar(ndimension+2)                
+                n2=int(ar(1))
+                kpoint(1:ndimension,n2)=ar(2:ndimension+1)
+                if(n1>ndimension+1) kpoint(ndimension+1,n2)=ar(ndimension+2)
+                if(kpoint(1,n2)<Minx) minx=kpoint(1,n2)
+                if(kpoint(1,n2)>MaxX) maxX=kpoint(1,n2)
+                if(kpoint(2,n2)<MinY) minY=kpoint(2,n2)
+                if(kpoint(2,n2)>Minx) maxY=kpoint(2,n2)
+                
             end do
             TOF1=.FALSE.
 			do i=1,nkp-1
@@ -460,6 +466,28 @@ subroutine solvercommand(term,unit)
                 ENDDO
             end do            
             IF(TOF1) STOP "ERROR STOP IN KPOINT READ IN."
+        case('line')
+            print *, 'Reading geometry LINE data...'
+            do i=1,pro_num
+                select case(property(i).name)
+					case('num')
+						nline=int(property(i).value)                                            
+					case default
+						call Err_msg(property(i).name)
+				end select    
+            end do
+            allocate(line(nline))
+            do i=1,nline
+                call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+                n2=int(ar(1))
+                line(n2).mat=int(ar(2))
+                n3=int(ar(3))
+                line(n2).npoint=n3
+                allocate(line(n2).point(n3))
+                line(n2).point(1:n3)=int(ar(4:3+n3))
+                if(nset==1) line(n2).title=set(1)
+            enddo
+            
 		case('hbeam','pile') !for retaining structure
 			print *, 'Reading beam/pile(Retaining Structure) data...'
 			do i=1, pro_num
@@ -1902,6 +1930,12 @@ subroutine write_readme_feasolver()
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT KeyPoint DATA."//'"'
 	README(IPP(I)) = "//A:{NO(I),XY(1:NDIMENSION),[ELEMENTSIZE(R)]}  //点号，XY(1:NDIMENSION),[ELEMENT SIZE]" 
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"	
+    
+ 	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//LINE,NUM=...(I)"  
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT GEOMETRY LINE DATA."//'"'
+	README(IPP(I)) = "//A:{NO(I),MATID(I),NPOINT(I),IPOINT(I),[TITLE(A)]}  //线号，材料号(投影)，控制点个数，控制点号(共NPOINT个)，名字" 
+ 	README(IPP(I)) = "//{A}*NUM。   //共NUM组"   
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//ACTION,NUM=...(I)"  

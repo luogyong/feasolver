@@ -4,10 +4,8 @@
 module solverds
 
     
-	
-	include 'constant.h'
-    
-   
+	include 'double.h'
+	include 'constant.h'   
     
 	type node_tydef
 		real(kind=DPN)::coord(3)=0.0D0 !coordinates (x,y,z)
