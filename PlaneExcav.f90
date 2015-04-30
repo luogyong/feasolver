@@ -1161,8 +1161,14 @@ subroutine ep_Cal(isp,istep,soil,sign)
 	delta1=matproperty(soil.mat,8,istep)/180*PI()
 	if(abs(fi1)<1e-7) then
 		CDelta1=0.d0
-	else
-		CDelta1=asin(sin(delta1)/sin(fi1))
+    else
+        if(delta1>fi1) then
+            stop "InputDataError. The wall friction angle > soil friction angle. sub=ep_Cal"
+        else
+            CDelta1=asin(sin(delta1)/sin(fi1))            
+        endif
+        
+		
 	endif
 	
 	select case(soilprofile(isp).spm)
@@ -1222,6 +1228,7 @@ subroutine waterpressure_cal(isoilprofile,istep)
 	
 	R1=0.0d0
 	do i=1,soilprofile(isoilprofile).nasoil
+        soilprofile(isoilprofile).asoil(i).pw=0.0d0
 		if(sf(soilprofile(isoilprofile).asoil(i).sf).factor(istep)==0) cycle
         !简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
 	    if(kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(2))<awl1) then!水位处必须分层
@@ -1251,6 +1258,7 @@ subroutine waterpressure_cal(isoilprofile,istep)
 	enddo
 	
 	do i=soilprofile(isoilprofile).npsoil,1,-1
+        soilprofile(isoilprofile).psoil(i).pw=0.d0
 		if(sf(soilprofile(isoilprofile).psoil(i).sf).factor(istep)==0) cycle
 		
         !简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
