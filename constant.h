@@ -1,5 +1,5 @@
 	!constants
-	INTEGER,PARAMETER::DPN=KIND(1.0D0)
+	!INTEGER,PARAMETER::DPN=KIND(1.0D0)
 	integer,parameter::inactive=-9999999
 	integer,parameter::MNDOF=9
 	integer,parameter::maximat=50,maxiet=500,maxilf=10,maxset=100

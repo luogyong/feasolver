@@ -1,6 +1,39 @@
-Module ExcaDS
+Module Geometry
     
     INTEGER,PARAMETER::Double=KIND(1.0D0)
+    real(double),allocatable::kpoint(:,:)
+    integer::nkp=0
+    real(double)::MinX=1.D20,MaxX=-1.D20,MinY=1.D20,MaxY=-1.D20
+    
+    type line_tydef
+        integer::npoint=0
+        integer,allocatable::Point(:)
+        integer::mat=-1
+        character(64)::title=''
+    end type
+    type(line_tydef),allocatable::line(:)
+    integer::nline=0
+    
+    type lineloop_tydef
+        integer::nline=0
+        integer,allocatable::line(:)
+    end type
+    type(lineloop_tydef),allocatable::lineloop(:)
+    integer::nlineloop=0
+    
+   
+        
+    
+    
+End module
+    
+    
+    
+Module ExcaDS
+    
+    use Geometry
+    
+    !INTEGER,PARAMETER::Double=KIND(1.0D0)
     INTEGER::showvalue,CGSTEP=0
     REAL(DOUBLE)::DEFAULTSIZE=0.2D0
     INTEGER::BGC=1,linecolor=0,IsMarker=0,IsThinLine=0 !»æÍ¼±³¾°É«£ºÄ¬ÈÏºÚÉ«£¬=0£¬°×É«
@@ -10,8 +43,8 @@ Module ExcaDS
  !   end type
     !integer::nsoil=0
     !type(soil_tydef),allocatable::soil(:)
-    real(double),allocatable::kpoint(:,:)
-    integer::nkp=0
+    !real(double),allocatable::kpoint(:,:)
+    !integer::nkp=0
 	integer,allocatable::kpnode(:),KPELEMENT(:,:)
     
 	
@@ -1056,7 +1089,7 @@ function interpolation(x,y,nx,xi)
         endif
     enddo
     if(i==nx) then
-        stop "xi is out side the range.function=Interpolation()"
+        stop "xi is out of the range.function=Interpolation()"
     endif
     
     
