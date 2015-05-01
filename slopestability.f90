@@ -3,15 +3,15 @@ Module DS_SlopeStability
     integer,parameter::double=kind(1.0D0)
     
     integer::width_slice=0.5
-    real(double),allocatable::Xslice(:)
+    real(double),allocatable::Xslice(:),Yslice(:,:)
     integer::nXslice=0
+    
     
     type slice_line_tydef
         integer::NV=0
         INTEGER,ALLOCATABLE::MAT(:)
-        REAL(DOUBLE),ALLOCATABLE::V(:,:) !V(1,),Y;V(2,):SIGMAT(竖向总应力);V(3,):SIGMA(竖向有效应力);V(4,):PW（孔压）;
-        
-        
+        RAEL(DOUBLE)::WATERLEVEL=-1.0D6
+        REAL(DOUBLE),ALLOCATABLE::V(:,:) !V(1,),Y;V(2,):SIGMAT(竖向总应力);V(3,):PW（孔压）;   
     endtype
     
     TYPE(slice_line_tydef),ALLOCATABLE::sliceLine(:)
@@ -70,7 +70,7 @@ subroutine GenSliceLine()
             endif
         enddo
 				
-        allocate(Xslice,source=x2(minloc(x2,x2>=minX):maxloc(x2,x2<=maxX)))
+        allocate(Xslice,source=x2(minloc(x2,1,x2>=minX):maxloc(x2,1,x2<=maxX)))
         nXslice=size(Xslice)        
         deallocate(X1,X2)
         NSLICELINE=NXSLICE
@@ -82,7 +82,8 @@ subroutine GenSliceLine()
     
 end subroutine
     
-SUBROUTINE GEN_SLICE_LINE_DATA()    
+SUBROUTINE GEN_SLICE_LINE_DATA()  
+    USE Geometry
     USE DS_SlopeStability
     IMPLICIT NONE
     INCLUDE 'DOUBLE.H'
@@ -110,34 +111,109 @@ SUBROUTINE GEN_SLICE_LINE_DATA()
                     POINT1(J)=T1
                     N2=MAT1(I)
                     MAT1(I)=MAT1(J)
-                    MAT(J)=N2                    
+                    MAT1(J)=N2                    
                 ENDIF                                
             ENDDO            
         ENDDO
         
-        SLICELINE(K).NV=
+        
+        !SLICELINE(K).NV=
     END DO
     
-END SUBROUTINE
+    END SUBROUTINE
+
     
-SUBROUTINE Divideline()
+
+SUBROUTINE SLICELINEDATA()
+    USE DS_SlopeStability
+    USE Geometry
+    IMPLICIT NONE
+    include 'double.h'
+    INTEGER::I,J,K,MAT1(100),N1
+    REAL(DPN)::Y1(100),T1
+    
+    DO I=1,NSLICELINE
+        Y1(1:NGEOLINE)=YSLICE(:,I)
+        FORALL(J=1:NGEOLINE) MAT1(J)=J
+        !SORT,Z2A
+        DO J=1,NGEOLINE-1
+            DO K=J+1,NGEOLINE
+                IF(Y1(K)>Y1(J)) THEN
+                    T1=Y1(J)
+                    Y1(J)=Y1(K)
+                    Y1(J)=T1
+                    N1=MAT1(J)
+                    MAT1(J)=MAT1(K)
+                    MAT1(K)=N1                    
+                ENDIF                                
+            ENDDO            
+        ENDDO
+        
+        SLICELINE(I).NV=COUNT(Y1(1:NGEOLINE)>ERRORVALUE)
+        ALLOCATE(SLICELINE(I).MAT(SLICELINE(I).NV),SLICELINE(I).VALUE(3,SLICELINE(I).NV))
+        SLICELINE(I).MAT=MAT1(1:SLICELINE(I).NV)
+        SLICELINE(I).VALUE(1,:)=Y1(1:SLICELINE(I).VALUE)
+        
+    ENDDO
+        
+    
+ENDSUBROUTINE
+    
+SUBROUTINE SliceGrid()
+
+!Assume: only one intersection between one line and one sliceline.
+
     use Geometry
     use DS_SlopeStability
     implicit none
-    integer::i,j
-    DO K=1,NSLICE
-
+    include 'double.h'
+    integer::i,j,k,N1
+    real(DPN)::X1,Y1,X2,Y2,YI1
     
-     
+    allocate(YSlice(nline,nXslice))
+    YSLICE=ERRORVALUE
+    
+    do i=1,nGEOline
+        K=1 
+        !Assumption of GeoLine：1)points must be ordered from a2z. 2) no reverse is allowed.
+        do j=1,GEOline(i).npoint-1
+            X1=kpoint(1,GEOline(i).point(j))
+            Y1=kpoint(2,GEOline(i).point(j))
+            X2=kpoint(1,GEOline(i).point(j+1))
+            Y2=kpoint(2,GEOline(i).point(j+1))
+            if(abs(X1-X2)<1E-6) CYCLE
+            if(x2<x1) THEN
+                PRINT *, "INPUTERROR. No Reverse is allowed in Gline(I). SUB=SliceGrid. I=",I
+                STOP
+            ENDIF            
+            DO WHILE(k<=nXslice)
+               CALL SegInterpolate(X1,Y1,X2,Y2,XSLICE(K),YI1) 
+               IF(YI1/=ERRORVALUE) THEN
+                   YSLICE(I,K)=YI1
+                   K=K+1
+               ELSE
+                   EXIT     
+               endIF  
+            end do 
+        enddo        
+    end do
+    
+    !INTERSECT IN WATERLEVE LINE
+    
+    
+    
     
 
 END SUBROUTINE
+    
+    
 
 subroutine SegInterpolate(X1,Y1,X2,Y2,Xi,Yi)
     implicit none
     include 'double.h'
     real(DPN),intent(in)::X1,Y1,X2,Y2,Xi
     real(DPN),intent(out)::Yi
+    REAL(DPN)::T1
     
     IF(XI<MIN(X1,X2).OR.XI>MAX(X1,X2)) THEN
         YI=ERRORVALUE
@@ -153,3 +229,5 @@ subroutine SegInterpolate(X1,Y1,X2,Y2,Xi,Yi)
     
     
 endsubroutine
+    
+    
