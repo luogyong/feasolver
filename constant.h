@@ -315,5 +315,6 @@
 	integer,parameter::step=2 !在步初，瞬间施加全部的量。
 	integer,parameter::ReRamp=-1 !在一步内随时间线性减小。
 	
-	
+	!slopestability
+	integer,parameter::MatWater=9999
 	

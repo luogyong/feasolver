@@ -1,21 +1,28 @@
 
 Module DS_SlopeStability
     integer,parameter::double=kind(1.0D0)
-    
-    integer::width_slice=0.5
+	integer::SS_PWM=0
+	INTEGER::MAXNIGC=100
+	!=0,water pressure calculated from the input waterlevel line.(default case)
+    !=1,water pressure interpolated from the finite element seepage calculation.
+	
+    REAL(DOUBLE)::width_slice=0.5
     real(double),allocatable::Xslice(:),Yslice(:,:)
     integer::nXslice=0
     
+    real(double),ALLOCATABLE::InsectGC(:,:) !圆形滑弧与地质线的交点
+    INTEGER::NIGC=0
     
     type slice_line_tydef
         integer::NV=0
         INTEGER,ALLOCATABLE::MAT(:)
-        RAEL(DOUBLE)::WATERLEVEL=-1.0D6
+		!assume that: matid for the water level line is MatWater=9999. 
+        REAL(DOUBLE)::WATERLEVEL=-1.0D6
         REAL(DOUBLE),ALLOCATABLE::V(:,:) !V(1,),Y;V(2,):SIGMAT(竖向总应力);V(3,):PW（孔压）;   
     endtype
     
-    TYPE(slice_line_tydef),ALLOCATABLE::sliceLine(:)
-    INTEGER::NSLICELINE=0
+    TYPE(slice_line_tydef),ALLOCATABLE::sliceLine(:),SLICELINE_C(:) 
+    INTEGER::NSLICELINE=0,NSLICELINE_C=0
     
 
     
@@ -82,58 +89,23 @@ subroutine GenSliceLine()
     
 end subroutine
     
-SUBROUTINE GEN_SLICE_LINE_DATA()  
-    USE Geometry
-    USE DS_SlopeStability
-    IMPLICIT NONE
-    INCLUDE 'DOUBLE.H'
-    INTEGER::I,J,K,N1,MAT1(100),N2
-    REAL(DPN)::POINT1(100),YI1,T1
-    
-    DO K=1,NXSLICE
-        N1=0
-        do i=1,nline
-            do j=1,line(i).npoint-1
-               CALL SegInterpolate(KPOINT(1,J),KPOINT(2,J),KPOINT(1,J+1),KPOINT(2,J+1),XSLICE(K),YI1) 
-               IF(YI1/=ERRORVALUE) THEN
-                   N1=N1+1
-                   POINT1(N1)=YI1
-                   MAT1(N1)=LINE(I).MAT
-                endIF
-            enddo
-        ENDDO
-        !SORT,Z2A
-        DO I=1,N1-1
-            DO J=I+1,N1
-                IF(POINT1(J)>POINT1(I)) THEN
-                    T1=POINT1(I)
-                    POINT1(I)=POINT1(J)
-                    POINT1(J)=T1
-                    N2=MAT1(I)
-                    MAT1(I)=MAT1(J)
-                    MAT1(J)=N2                    
-                ENDIF                                
-            ENDDO            
-        ENDDO
-        
-        
-        !SLICELINE(K).NV=
-    END DO
-    
-    END SUBROUTINE
+   
 
-    
-
-SUBROUTINE SLICELINEDATA()
+SUBROUTINE SLICELINEDATA(YSLE,NYSLE,SLEDATA,NSLEDATA)
     USE DS_SlopeStability
     USE Geometry
     IMPLICIT NONE
     include 'double.h'
+	include 'constant.h'
+    INTEGER,INTENT(IN)::NYSLE,NSLEDATA
+    REAL(DPN),INTENT(IN)::YSLE(NGEOLINE,NYSLE)
+    TYPE(slice_line_tydef)::SLEDATA(NSLEDATA)
+    
     INTEGER::I,J,K,MAT1(100),N1
     REAL(DPN)::Y1(100),T1
     
-    DO I=1,NSLICELINE
-        Y1(1:NGEOLINE)=YSLICE(:,I)
+    DO I=1,NSLEDATA
+        Y1(1:NGEOLINE)=YSLE(:,I)
         FORALL(J=1:NGEOLINE) MAT1(J)=J
         !SORT,Z2A
         DO J=1,NGEOLINE-1
@@ -149,17 +121,32 @@ SUBROUTINE SLICELINEDATA()
             ENDDO            
         ENDDO
         
-        SLICELINE(I).NV=COUNT(Y1(1:NGEOLINE)>ERRORVALUE)
-        ALLOCATE(SLICELINE(I).MAT(SLICELINE(I).NV),SLICELINE(I).VALUE(3,SLICELINE(I).NV))
-        SLICELINE(I).MAT=MAT1(1:SLICELINE(I).NV)
-        SLICELINE(I).VALUE(1,:)=Y1(1:SLICELINE(I).VALUE)
-        
+        SLEDATA(I).NV=COUNT(Y1(1:NGEOLINE)>ERRORVALUE)
+        ALLOCATE(SLEDATA(I).MAT(SLEDATA(I).NV),SLEDATA(I).V(3,SLEDATA(I).NV))
+        SLEDATA(I).MAT=MAT1(1:SLEDATA(I).NV)
+        SLEDATA(I).V(1,1:SLEDATA(I).NV)=Y1(1:SLEDATA(I).NV)
+        !waterlevel
+		if(SS_PWM==0) then
+			do j=1,ngeoline
+				if(SLEDATA(i).mat(j)==matwater) then
+					SLEDATA(i).waterlevel=SLEDATA(I).V(1,j)
+					exit
+				endif
+			enddo
+		elseif(SS_PWM==1) then
+			print *, "To Be Improved. Interpolate from FE Seepage Calculation."
+			stop
+		else
+			print *, "PoreWater Pressure is not considered."
+		endif
+		
     ENDDO
         
     
 ENDSUBROUTINE
     
-SUBROUTINE SliceGrid()
+SUBROUTINE SliceGrid(XSLE,YSLE,nXSLE,nYSLE)
+!FIND INTERSECTION POINTS (YSEL(NGEOLINE,NXSLE)) BETWEEN GEOLINE(NGEOLINE) AND SLICE LINES（XSLE(NXSLE)）  
 
 !Assume: only one intersection between one line and one sliceline.
 
@@ -167,11 +154,15 @@ SUBROUTINE SliceGrid()
     use DS_SlopeStability
     implicit none
     include 'double.h'
+    INTEGER,INTENT(IN)::NXSLE,NYSLE
+    REAL(DPN),INTENT(IN)::XSLE(NXSLE)
+    REAL(DPN),INTENT(OUT)::YSLE(NYSLE,NXSLE) !NYSEL=NGEOLINE
+    
     integer::i,j,k,N1
     real(DPN)::X1,Y1,X2,Y2,YI1
     
-    allocate(YSlice(nline,nXslice))
-    YSLICE=ERRORVALUE
+    !allocate(YSlice(NGEOLINE,nXslice))
+    YSLE=ERRORVALUE
     
     do i=1,nGEOline
         K=1 
@@ -186,10 +177,10 @@ SUBROUTINE SliceGrid()
                 PRINT *, "INPUTERROR. No Reverse is allowed in Gline(I). SUB=SliceGrid. I=",I
                 STOP
             ENDIF            
-            DO WHILE(k<=nXslice)
-               CALL SegInterpolate(X1,Y1,X2,Y2,XSLICE(K),YI1) 
+            DO WHILE(k<=NXSLE)
+               CALL SegInterpolate(X1,Y1,X2,Y2,XSLE(K),YI1) 
                IF(YI1/=ERRORVALUE) THEN
-                   YSLICE(I,K)=YI1
+                   YSLE(I,K)=YI1
                    K=K+1
                ELSE
                    EXIT     
@@ -198,13 +189,131 @@ SUBROUTINE SliceGrid()
         enddo        
     end do
     
-    !INTERSECT IN WATERLEVE LINE
-    
-    
-    
-    
+    !INTERSECT IN WATERLEVE LINE   
 
 END SUBROUTINE
+
+    !圆弧与地质线的交点
+SUBROUTINE CIRCLE_GEOLINE(XC,YC,RC)
+    USE DS_SlopeStability
+    USE Geometry
+    IMPLICIT NONE
+    INCLUDE 'DOUBLE.H'
+    REAL(DPN),INTENT(IN)::XC,YC,RC
+    INTEGER::I,J,K,N1,NORDER1(MAXNIGC),NI1
+    
+    REAL(DPN)::X1,Y1,X2,Y2,T1,T2,XI1(2),YI1(2),TA1(MAXNIGC)
+    
+	ALLOCATE(InsectGC(2,MAXNIGC))
+	INSECTGC=0.D0
+	
+    do i=1,nGEOline
+        !Assumption of GeoLine：1)points must be ordered from a2z. 2) no reverse is allowed.
+        do j=1,GEOline(i).npoint-1
+            X1=kpoint(1,GEOline(i).point(j))
+            Y1=kpoint(2,GEOline(i).point(j))
+            X2=kpoint(1,GEOline(i).point(j+1))
+            Y2=kpoint(2,GEOline(i).point(j+1))
+
+            !if(abs(X1-X2)<1E-6) CYCLE
+            if(x2<x1) THEN
+                PRINT *, "INPUTERROR. No Reverse is allowed in Gline(I). SUB=SliceGrid. I=",I
+                STOP
+            ENDIF
+
+			CALL INSECT_SEG_CIRCLE(XC,YC,RC,X1,Y1,X2,Y2,XI1,YI1,NI1)
+			DO K=1,NI1
+				NIGC=NIGC+1
+				IF(NIGC>MAXNIGC) STOP "ERROR IN ARRAY SIZES.InsectGC,SUB=CIRCLE_GEOLINE."
+				InsectGC(1,NIGC)=XI1(K)
+				InsectGC(2,NIGC)=YI1(K)
+			ENDDO           
+        enddo        
+    end do
+	
+	!REMOVED DUPLICATED(X) ELEMENT IN INSECTGC.
+	!SORT INSECTGC A2Z BY X 	
+	CALL SORT_A2Z(InsectGC(1,:),NIGC,NORDER1)
+	TA1=INSECTGC(2,:)
+	DO I=1,NIGC
+		INSECTGC(2,I)=TA1(NORDER1(I))
+	ENDDO
+    J=1
+	DO I=2,NIGC
+		IF(ABS(INSECTGC(1,J)-INSECTGC(1,I))>1D-6) THEN
+			J=J+1
+			INSECTGC(:,J)=INSECTGC(:,I)
+		ENDIF
+	ENDDO
+	NIGC=J	
+    
+    !DEALLOCATE(TA1,NORDER1)
+    
+END SUBROUTINE
+
+SUBROUTINE INSECT_SEG_CIRCLE(XC,YC,RC,X1,Y1,X2,Y2,XI,YI,NI)
+!find the intersection point (xi(2),yi(2)) between
+!a line segment(x1,y1),(x2,y2) and 
+!a circle (xc,yc,Rc)
+!if NI=0,1,2, there is 0,1,and 2 intersections.
+	IMPLICIT NONE
+	INCLUDE 'DOUBLE.H'
+	REAL(DPN),INTENT(IN)::XC,YC,RC,X1,Y1,X2,Y2
+	REAL(DPN),INTENT(OUT)::XI(2),YI(2)
+	INTEGER,INTENT(OUT)::NI
+	
+	REAL(DPN)::T1,T2,S1,YC1,A1,B1,C1,T3
+	INTEGER::I
+	
+	NI=0
+	
+	IF(ABS(X1-X2)>1E-6) THEN
+		S1=(Y2-Y1)/(X2-X1)
+		YC1=S1*X1-Y1+YC
+		A1=1+S1**2
+		B1=-(2*XC+2*S1*YC1)
+		C1=XC**2+YC1**2-RC**2
+		T1=(B1**2-4*A1*C1)
+		IF(T1>0.D0) THEN
+			T1=T1**0.5
+			XI(1)=(-B1+T1)/(2*A1)
+			XI(2)=(-B1-T1)/(2*A1)
+			DO I=1,2
+				IF(MIN(X1,X2)<=XI(I).AND.MAX(X1,X2)>=XI(I)) THEN
+					NI=NI+1
+					YI(NI)=S1*(XI(I)-X1)+Y1
+				ENDIF
+			ENDDO
+		ENDIF
+	ELSE
+		T1=RC**2-(X1-XC)**2
+		IF(T1>0.D0) THEN
+			T1=T1**0.5
+			YI(1)=YC+T1
+			YI(2)=YC-T1
+			DO I=1,2
+				IF(MIN(Y1,Y2)<=YI(I).AND.MAX(Y1,Y2)>=YI(I)) THEN
+					NI=NI+1
+					XI(NI)=X1 !x1=x2					
+				ENDIF
+			ENDDO			
+		ENDIF
+	ENDIF
+	
+	
+ENDSUBROUTINE
+    
+SUBROUTINE CIRCLE_SLICE(XC,YC,RC,XSLICE,YSLICE,NX)
+    IMPLICIT NONE
+    INCLUDE 'DOUBLE.H'
+    INTEGER,INTENT(IN)::NX
+    REAL(DPN),INTENT(IN)::XC,YC,RC,XSLICE(NX)
+    REAL(DPN),INTENT(OUT)::YSLICE(NX)
+    
+    YSLICE=0.D0
+    
+    
+ENDSUBROUTINE
     
     
 
@@ -230,4 +339,34 @@ subroutine SegInterpolate(X1,Y1,X2,Y2,Xi,Yi)
     
 endsubroutine
     
+
+SUBROUTINE SORT_A2Z(X,NX,NORDER)
+!SORT X(NX) IN A2Z ORDER. THE NEW ORDER IS STORED IN NORDER(NX).
+	IMPLICIT NONE
+	INCLUDE "DOUBLE.H"
+	INTEGER,INTENT(IN)::NX
+	REAL(DPN),INTENT(IN OUT)::X(NX)
+	INTEGER,INTENT(OUT)::NORDER(NX)
+	
+	INTEGER::I,J,N1
+    REAL(DPN)::T1
+	
+	DO I=1,NX
+		NORDER(I)=I
+	ENDDO
+	
+	DO I=1,NX-1		
+		DO J=I+1,NX
+			IF(X(J)<X(I)) THEN
+				N1=NORDER(I)				
+				NORDER(I)=NORDER(J)
+				NORDER(J)=N1
+				T1=X(I)
+				X(I)=X(J)
+				X(J)=T1				
+			ENDIF
+		ENDDO
+	ENDDO
+	
+ENDSUBROUTINE
     
