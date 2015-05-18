@@ -24,9 +24,12 @@ Module DS_SlopeStability
     TYPE(slice_line_tydef),ALLOCATABLE::sliceLine(:),SLICELINE_C(:) 
     INTEGER::NSLICELINE=0,NSLICELINE_C=0
     
-
+    
     
 End Module
+    
+     
+    
     
 subroutine GenSliceLine()
 

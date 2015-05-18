@@ -417,7 +417,7 @@ module solverds
 	
 	real(kind=DPN)::BARFAMILY_DIAGRAM_SCALE(12)=0.0D0 !先存绝对最大值，后存画图放大系数，DISX,DISY,DISZ,RX,RY,RZ,FX,FY,FZ,MX,MY,MZ
 	real(kind=DPN)::barfamily_minxyz(3)=1.0d20,barfamily_maxxyz(3)=-1.0d20 !
-    INTEGER::ISEXCA2D=0,ISHBEAM=0
+    INTEGER::ISEXCA2D=0,ISHBEAM=0,ISSLOPE=0
 	REAL(KIND=DPN)::GA=10.0D0
     
    
