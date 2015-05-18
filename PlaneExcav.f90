@@ -411,6 +411,7 @@ SUBROUTINE ACTION_EXCA(ISTEP)
 					element(iel2(1:nc1)).property(3)=element(iel2(1:nc1)).property(3)+(v1(1)+v1(2))*t1/2.
 					element(iel2(1:nc1)).property(5)=element(iel2(1:nc1)).property(5)+t1*2
 				case(1)
+					!print *, nnode1
 					bc_disp(action(iac1).node2bcdisp(nnode1(1:nc1))).value=v1(1:nc1) !位移边界没有叠加性						
 				case(0)
 					bc_load(action(iac1).node2bcload(nnode1(1:nc1))).value=bc_load(action(iac1).node2bcload(nnode1(1:nc1))).value+(v1(1)+v1(2))*t1/2.
@@ -733,7 +734,9 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 				CALL enlarge_bc(BC_DISP,BD_NUM,NNODE1,N1)
 				action(iac1).nbcnode=nnode1
 				action(iac1).ibcnode=n1
+				!print *,nnode1,n1
 				allocate(action(iac1).node2bcdisp(nnum))
+				action(iac1).node2bcdisp=0
 				!BC_DISP.SF=
 				IF(ACTION(IAC1).NDIM==1) THEN
 					bc_disp(n1:).node=UNSET(ACTION(IAC1).iunset).NODE						
@@ -744,7 +747,8 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 				
 				!bc_disp(n1:).sf=action(iac1).sf
 				
-				forall (k=n1:bd_num) action(iac1).node2bcdisp(bc_disp(k).node)=k	
+				forall (k=n1:bd_num) action(iac1).node2bcdisp(bc_disp(k).node)=k
+				!print *, action(iac1).node2bcdisp
 			case(0) !生成力边界
 
 				CALL enlarge_bc(BC_LOAD,BL_NUM,NNODE1,N1)
@@ -1153,6 +1157,11 @@ subroutine EarthPressure(istep)
                 T1=MAX((wL1-kpoint(ndimension,soilprofile(i).Psoil(j).z(1)))*GA,0.d0)
 				soilprofile(i).psoil(j).SigmaVT(1)=T1+soilprofile(i).pLoad*sf(soilprofile(i).sf_pload).factor(istep)
 				soilprofile(i).psoil(j).SigmaV(1)=soilprofile(i).psoil(j).SigmaVT(1)-soilprofile(i).psoil(j).pw(1)
+                if( soilprofile(i).psoil(j).SigmaV(1)<=0) then
+                    print *, 'The effective vertical stress is <0 in soilprofile(i).psoil(j).SigmaV1. i,j=',i,j
+                    soilprofile(i).psoil(j).SigmaV(1)=0.d0
+                endif
+                
                 soilprofile(i).zp=soilprofile(i).psoil(j).z(1)
 				tof1=.false.
             else
@@ -1166,6 +1175,12 @@ subroutine EarthPressure(istep)
             t1=kpoint(ndimension,soilprofile(i).psoil(j).z(1))-kpoint(ndimension,soilprofile(i).psoil(j).z(2))
 			soilprofile(i).psoil(j).SigmaVT(2)=soilprofile(i).psoil(j).SigmaVT(1)+gamma1*(t1)
             soilprofile(i).psoil(j).SigmaV(2)=soilprofile(i).psoil(j).SigmaVT(2)-soilprofile(i).psoil(j).pw(2)
+            
+            if( soilprofile(i).psoil(j).SigmaV(2)<=0) then
+                print *, 'The effective vertical stress is <0 in soilprofile(i).psoil(j).Sigma2. i,j=',i,j
+                soilprofile(i).psoil(j).SigmaV(2)=0.d0
+            endif
+                
 			
 			!fi1=material(soilprofile(i).psoil(j).mat).property(2)/180.d0*PI()*SF(material(soilprofile(i).psoil(j).mat).sf(2)).factor(istep)
 			
@@ -1195,8 +1210,14 @@ subroutine ep_Cal(isp,istep,soil,sign)
 	delta1=matproperty(soil.mat,8,istep)/180*PI()
 	if(abs(fi1)<1e-7) then
 		CDelta1=0.d0
-	else
-		CDelta1=asin(sin(delta1)/sin(fi1))
+    else
+        if(delta1>fi1) then
+            stop "InputDataError. The wall friction angle > soil friction angle. sub=ep_Cal"
+        else
+            CDelta1=asin(sin(delta1)/sin(fi1))            
+        endif
+        
+		
 	endif
 	
 	select case(soilprofile(isp).spm)
@@ -1256,6 +1277,7 @@ subroutine waterpressure_cal(isoilprofile,istep)
 	
 	R1=0.0d0
 	do i=1,soilprofile(isoilprofile).nasoil
+        soilprofile(isoilprofile).asoil(i).pw=0.0d0
 		if(sf(soilprofile(isoilprofile).asoil(i).sf).factor(istep)==0) cycle
         !简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
 	    if(kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(2))<awl1) then!水位处必须分层
@@ -1285,6 +1307,7 @@ subroutine waterpressure_cal(isoilprofile,istep)
 	enddo
 	
 	do i=soilprofile(isoilprofile).npsoil,1,-1
+        soilprofile(isoilprofile).psoil(i).pw=0.d0
 		if(sf(soilprofile(isoilprofile).psoil(i).sf).factor(istep)==0) cycle
 		
         !简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
