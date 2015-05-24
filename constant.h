@@ -217,105 +217,108 @@
 	integer,parameter::discharge=66
 	integer,parameter::PHead=67
 	integer,parameter::kr_spg=68
-	integer,parameter::mw_spg=69
-	
-	integer::minet=10000,maxet=-10000   !the ultimate element type number. 
-	!solver method
-	integer,parameter::DIRECTI=1 !direct iterative algorithm, recompute the stiffness at each iteration
-	integer,parameter::N_R=2 !Newton-Raphson method or tangential stiffness method,recompute the stiffness at each iteration
-	integer,parameter::INISTIFF=3 !Initial stiffness method,computer the stiffness only at the beginning of the compution precedure
-	integer,parameter::CINIATAN=4 !Combined initial and tangential stiffness approach, recompute the stiffness at 
-								!the first iteration of each load increment only.
-	integer,parameter::CINIATAN2=5 !Combined initial and tangential stiffness approach, recompute the stiffness at 
-								!the second iteration of each load increment only.
-	integer,parameter::LELASTIC=6 !LINEAR ELASTIC SOLVER
-	integer,parameter::LA04=-2  !HSL LA04 SOLVER
-	integer,parameter::LPSOLVER=-3 !USING LP_SOLVE TO SOLVE LIMIT ANALYSIS PROBLEM.
-	integer,parameter::MOSEK=-4  !MOSEK OPTIMIZTION SOLVER.
-	real(kind=DPN),parameter::UM=1.0d20
+integer, parameter::mw_spg = 69
 
-	!material type constants
-	integer,parameter::ELASTIC=1 !elastic material
-	integer,parameter::LA_MC=2 !Mohr_Coloumb material for limit analysis
-	integer,parameter::CONDUCT=3 !
-	integer,parameter::MISES=4
-	integer,parameter::MC=5 !mohr-coloumb
-	integer,parameter::CamClay=6 !modified Camclay
-	integer,parameter::EIP_BAR=7 !弹理想塑性杆或弹簧。
-	integer,parameter::EIP_BEAM=8 !弹理想塑性梁。
-	
-	!Seepage Parameters to control nonlinear conductivity 
-	integer,parameter::step_spg=7 !step funtion >=0,kr=1; <0,kr=1e-6.
-	integer,parameter::linear_spg=8 !default case. linear function, <-epsilon1,kr=1e-6;>epsilon2,kr=1; others, intepolating.
-	integer,parameter::VG_SPG=9	!simulating the unsaturated soil behavior using the van genuchten model.
-	integer,parameter::LR_SPG=10	!simulating the unsaturated soil behavior using the Leong and Rahardjo model.
-	!Refer to Leong, E.C. and Rahardjo, H. (1997). “A review of soil-water characteristic curve equations”, J of Geotechnical and Geo-environment Engineering, 123(12), p1106-1117.
-	integer,parameter::EXP_SPG=11	!simulating the unsaturated soil behavior using the exponent model.
-	
-	
-	!node coordinates input format constants
-	integer,parameter::POINT=1
-	integer,parameter::BLOCK=2
+integer::minet = 10000, maxet = -10000   !the ultimate element type number.
+!solver method
+integer, parameter::DIRECTI = 1 !direct iterative algorithm, recompute the stiffness at each iteration
+integer, parameter::N_R = 2 !Newton - Raphson method or tangential stiffness method, recompute the stiffness at each iteration
+integer, parameter::INISTIFF = 3 !Initial stiffness method, computer the stiffness only at the beginning of the compution precedure
+integer, parameter::CINIATAN = 4 !Combined initial and tangential stiffness approach, recompute the stiffness at
+!the first iteration of each load increment only.
+integer, parameter::CINIATAN2 = 5 !Combined initial and tangential stiffness approach, recompute the stiffness at
+!the second iteration of each load increment only.
+integer, parameter::LELASTIC = 6 !LINEAR ELASTIC SOLVER
+integer, parameter::LA04 = -2  !HSL LA04 SOLVER
+integer, parameter::LPSOLVER = -3 !USING LP_SOLVE TO SOLVE LIMIT ANALYSIS PROBLEM.
+integer, parameter::MOSEK = -4  !MOSEK OPTIMIZTION SOLVER.
+real(kind = DPN), parameter::UM = 1.0d20
 
-	integer,parameter::YES=1
-	integer,parameter::NO=0
-	
-	!element class
-	integer,parameter::CPE=0	!plane strain solid
-	integer,parameter::CPS=1	!plane stress solid
-	integer,parameter::CAX=2	!axisymmetric solid
-	integer,parameter::C3D=3	!3-d solid
-	integer,parameter::CND=4 	!conduction element,conductive problem
-	integer,parameter::SPG=5 	!3D SEEPAGE element,seepage problem
-	integer,parameter::LMT=6 	!LIMIT ANALYSIS ELEMENT,limit analysis problem
-	integer,parameter::SLD=7  !solid problem
-	integer,parameter::CPL=8	!3D COUPLED ELEMENT,coupled problem
-	integer,parameter::SPG2D=9 !2D SEEPAGE ELEMENT
-	integer,parameter::CPL2D=10 !2D COUPLED ELEMENT
-	integer,parameter::STRU=11 !STRUCTURE ELEMENT
-	integer,parameter::CAX_SPG=12 !AXIAL SYMMETRICAL SEEPAGE PROBLEM.
-	integer,parameter::PIPE=13 !PIPE FLOW ELEMENT
-	integer,parameter::PE=14 !Penelty element
-	integer,parameter::spring=15 !spring like element
-	integer,parameter::soilspring=16 !soil spring
-	integer,parameter::CAX_CPL=17
-	
-	!method for mapping the values in integration points to nodes
-	integer,parameter::SHT=1
-	integer,parameter::SPR=2
-	integer,parameter::AVG=3
-	integer,parameter::EXPO=4
-	
-	!parameters for plastic body force generation method
-	integer,parameter::VISCOP=1 !viscoplasticity method
-	integer,parameter::INISTRESS=2 !INITIAL STRESS MEHTOD 
-	integer,parameter::consistent=3 !fully implicit constitutive integration scheme and consistent tangent modulus
-	integer,parameter::continuum=4 !semi-implicit constitutive integration scheme and continuum tangent modulus
-	integer,parameter::constant=5
-	integer,parameter::iniflux=6 !for spg analysis, bathe method.
-	integer,parameter::lacy=7	!for spg analysis, lacy and Jean method.
- 	!parameters for geostatic initial stress calculation
-	integer,parameter::CAL_GEO=1
-	integer,parameter::KO_GEO=2
-	!load type
-!	integer,parameter::NF=1
-!	integer,parameter::BF=2
-	
-	!special value
-	integer,parameter::SV=-9999999
-	
-	!system constant
-	integer,parameter::sys_cylinder=-999
-	integer,parameter::sys_sphere=-9999
-	integer,parameter::sys_local=-99 !for bar family element.
-	
-	
-	!bc or load partern
-	integer,parameter::ramp=1 !在一步内随时间线性施加。
-	integer,parameter::step=2 !在步初，瞬间施加全部的量。
-	integer,parameter::ReRamp=-1 !在一步内随时间线性减小。
-	
-	!slopestability
-	integer,parameter::MatWater=9999
-	
+!material type constants
+integer, parameter::ELASTIC = 1 !elastic material
+integer, parameter::LA_MC = 2 !Mohr_Coloumb material for limit analysis
+integer, parameter::CONDUCT = 3 !
+integer, parameter::MISES = 4
+integer, parameter::MC = 5 !mohr - coloumb
+integer, parameter::CamClay = 6 !modified Camclay
+integer, parameter::EIP_BAR = 7 !弹理想塑性杆或弹簧。
+integer, parameter::EIP_BEAM = 8 !弹理想塑性梁。
+
+!Seepage Parameters to control nonlinear conductivity
+integer, parameter::step_spg = 7 !step funtion >= 0, kr = 1; < 0, kr = 1e-6.
+integer, parameter::linear_spg = 8 !default case.linear function, <-epsilon1, kr = 1e-6; >epsilon2, kr = 1; others, intepolating.
+integer, parameter::VG_SPG = 9	!simulating the unsaturated soil behavior using the van genuchten model.
+integer, parameter::LR_SPG = 10	!simulating the unsaturated soil behavior using the Leong and Rahardjo model.
+!Refer to Leong, E.C.and Rahardjo, H. (1997).“A review of soil - water characteristic curve equations”, J of Geotechnical and Geo - environment Engineering, 123(12), p1106 - 1117.
+integer, parameter::EXP_SPG = 11	!simulating the unsaturated soil behavior using the exponent model.
+
+
+!node coordinates input format constants
+integer, parameter::POINT = 1
+integer, parameter::BLOCK = 2
+
+integer, parameter::YES = 1
+integer, parameter::NO = 0
+
+!element class
+integer, parameter::CPE = 0	!plane strain solid
+integer, parameter::CPS = 1	!plane stress solid
+integer, parameter::CAX = 2	!axisymmetric solid
+integer, parameter::C3D = 3	!3 - d solid
+integer, parameter::CND = 4 	!conduction element, conductive problem
+integer, parameter::SPG = 5 	!3D SEEPAGE element, seepage problem
+integer, parameter::LMT = 6 	!LIMIT ANALYSIS ELEMENT, limit analysis problem
+integer, parameter::SLD = 7  !solid problem
+integer, parameter::CPL = 8	!3D COUPLED ELEMENT, coupled problem
+integer, parameter::SPG2D = 9 !2D SEEPAGE ELEMENT
+integer, parameter::CPL2D = 10 !2D COUPLED ELEMENT
+integer, parameter::STRU = 11 !STRUCTURE ELEMENT
+integer, parameter::CAX_SPG = 12 !AXIAL SYMMETRICAL SEEPAGE PROBLEM.
+integer, parameter::PIPE = 13 !PIPE FLOW ELEMENT
+integer, parameter::PE = 14 !Penelty element
+integer, parameter::spring = 15 !spring like element
+integer, parameter::soilspring = 16 !soil spring
+integer, parameter::CAX_CPL = 17
+integer,parameter::SSA=18 !SLOPE STABILITY ANALYSIS
+
+!method for mapping the values in integration points to nodes
+integer, parameter::SHT = 1
+integer, parameter::SPR = 2
+integer, parameter::AVG = 3
+integer, parameter::EXPO = 4
+
+!parameters for plastic body force generation method
+integer, parameter::VISCOP = 1 !viscoplasticity method
+integer, parameter::INISTRESS = 2 !INITIAL STRESS MEHTOD
+integer, parameter::consistent = 3 !fully implicit constitutive integration scheme and consistent tangent modulus
+integer, parameter::continuum = 4 !semi - implicit constitutive integration scheme and continuum tangent modulus
+integer, parameter::constant = 5
+integer, parameter::iniflux = 6 !for spg analysis, bathe method.
+integer, parameter::lacy = 7	!for spg analysis, lacy and Jean method.
+!parameters for geostatic initial stress calculation
+integer, parameter::CAL_GEO = 1
+integer, parameter::KO_GEO = 2
+!load type
+!integer, parameter::NF = 1
+!integer, parameter::BF = 2
+
+!special value
+integer, parameter::SV = -9999999
+
+!system constant
+integer, parameter::sys_cylinder = -999
+integer, parameter::sys_sphere = -9999
+integer, parameter::sys_local = -99 !for bar family element.
+
+
+!bc or load partern
+integer, parameter::ramp = 1 !在一步内随时间线性施加。
+integer, parameter::step = 2 !在步初，瞬间施加全部的量。
+integer, parameter::ReRamp = -1 !在一步内随时间线性减小。
+
+!slopestability
+integer, parameter::MatWater = 9999
+integer, parameter::BISHOP = 2,ORDINARY=1,SPENCER=3,JANBU=4,GLE=5
+integer,parameter::CIRCULAR=1,NONCIRCULAR=0
+
 	

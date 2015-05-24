@@ -52,6 +52,7 @@
 		EXCAMSGFILE=trim(drive)//trim(dir)//trim(name)//'_exca_msg.dat'
 		EXCAB_BEAMRES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_res.dat'
 		EXCAB_STRURES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_stru.dat'
+        Slope_file=trim(drive)//trim(dir)//trim(name)//'_slope_res.dat'
 	end if
 	open(99,file=resultfile3,status='replace')
 	!the default value of Title=resultfile2.
@@ -128,6 +129,10 @@
         msg=INSERTMENUQQ (5, 4, $MENUENABLED, 'BGC_BLACK'c, SETBGCOLOR)
         !solver_control.ismkl=NO
     ENDIF    
+    
+    IF(ISSLOPE/=0) THEN
+        CALL Gen_slope_model()
+    ENDIF
     
     
 	LF1D(0,1)=0.0D0
@@ -396,6 +401,7 @@ subroutine solvercommand(term,unit)
 	use solverlib
 	use ExcaDSLIB
     use ds_hyjump
+    USE DS_SlopeStability
 	implicit none
     
 	integer::unit
@@ -501,26 +507,33 @@ subroutine solvercommand(term,unit)
                 ENDDO
             end do            
             IF(TOF1) STOP "ERROR STOP IN KPOINT READ IN."
-        case('line')
-            print *, 'Reading geometry LINE data...'
+        case('geoline')
+            print *, 'Reading geological LINE data...'
             do i=1,pro_num
                 select case(property(i).name)
 					case('num')
-						nline=int(property(i).value)                                            
+						ngeoline=int(property(i).value)                                            
 					case default
 						call Err_msg(property(i).name)
 				end select    
             end do
-            allocate(line(nline))
-            do i=1,nline
+            allocate(geoline(ngeoline))
+            do i=1,ngeoline
                 call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
                 n2=int(ar(1))
-                line(n2).mat=int(ar(2))
+                geoline(n2).mat=int(ar(2))
                 n3=int(ar(3))
-                line(n2).npoint=n3
-                allocate(line(n2).point(n3))
-                line(n2).point(1:n3)=int(ar(4:3+n3))
-                if(nset==1) line(n2).title=set(1)
+                geoline(n2).npoint=n3
+                allocate(geoline(n2).point(n3))
+                
+                geoline(n2).point(1:n3)=int(ar(4:3+n3))
+                do j=2,n3
+                    if(kpoint(1,geoline(n2).point(j-1))>kpoint(1,geoline(n2).point(j))) then
+                        print *, "x(j-1)>x(j) in geoline(i). j,i=",j,n2
+                        stop
+                    endif
+                enddo
+                if(nset==1) geoline(n2).title=set(1)
             enddo
             
 		case('hbeam','pile') !for retaining structure
@@ -1117,6 +1130,7 @@ subroutine solvercommand(term,unit)
 				select case(property(i).name)
 					case('type') 
 						solver_control.type=int(property(i).value)
+						if(solver_control.type==ssa) isslope=1
 					case('solver')
 						solver_control.solver=int(property(i).value)
 !					case('nincrement','ninc')
@@ -1185,7 +1199,7 @@ subroutine solvercommand(term,unit)
 					case default
 						call Err_msg(property(i).name)
 				end select
-			end do						
+            end do						
 !			if(associated(solver_control.factor)) then
 !				read(unit,*)   solver_control.factor
 !			else
@@ -1193,6 +1207,20 @@ subroutine solvercommand(term,unit)
 !				allocate(solver_control.factor(1))
 !				solver_control.factor(1)=1.0
 !			end if
+        CASE('slopeparameter')
+            print *,'Reading SLOPE PARAMETER data...'
+            do i=1,pro_num
+				select case(property(i).name)
+                case('slopemthod','sm')
+                    slopeparameter.slopemethod=int(property(i).value)
+                case('optimizationmthod','om') 
+                    slopeparameter.optmethod=int(property(i).value)
+                case('slipshape','ss')
+                    slopeparameter.slipshape=int(property(i).value)
+                case('slicewdith','sw')
+                    slopeparameter.slicewidth=property(i).value
+                endselect
+            enddo
 		case('ueset')
 			print *, 'Reading USER DEFINED ELEMENT SET data'
 			if(nueset==1) then !intialize ueset(0)
@@ -1815,7 +1843,7 @@ subroutine write_readme_feasolver()
 	integer::i,j,item
 	LOGICAL(4)::tof,pressed
 	!integer,external::ipp
-	integer,parameter::nreadme=1024
+	integer,parameter::nreadme=2048
 	character(1024)::readme(nreadme)
 	
     print *, "The help file is in d:\README_FEASOLVER.TXT."
@@ -1967,11 +1995,12 @@ subroutine write_readme_feasolver()
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"	
     
  	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//LINE,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT GEOMETRY LINE DATA."//'"'
+	README(IPP(I)) = "//GEOLINE,NUM=...(I)"  
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT GEOLOGICAL LINE DATA."//'"'
 	README(IPP(I)) = "//A:{NO(I),MATID(I),NPOINT(I),IPOINT(I),[TITLE(A)]}  //线号，材料号(投影)，控制点个数，控制点号(共NPOINT个)，名字" 
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"   
-	
+	README(IPP(I)) = "//注意：1）按X从左至右的顺序输入,既x1<=x2<=..<=xn" 
+    
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//ACTION,NUM=...(I)"  
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT Laction DATA..."//'"'
@@ -1988,7 +2017,14 @@ subroutine write_readme_feasolver()
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD HINGE IS USED TO INPUT HINGE/FREEDOF DATA..."//'"'
 	README(IPP(I)) = "//A:{ELEMENT,NODE,DOF}  //(要释放的自由度所在的)单元，节点和自由度编号。" 
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"
-	    
+    
+	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//SLOPEPARAMETER,SLOPEMETHOD=0|1|2|3|4|5,OPTIMIZATIONMETHOD=1,SLIPSHAPE=CIRCULAR|NONCIRCULAR,SLICEWIDTH=0.5" 
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD HINGE IS USED TO INPUT HINGE/FREEDOF DATA..."//'"'
+	README(IPP(I)) = "//SLOPEMETHOD:边坡分析方法，1，ordinary,2,bishop,3,spencer,4,janbu,5,gle; 0 for all." 
+ 	README(IPP(I)) = "//OMTIMIZATION,搜寻方法，1，grid;"	
+    README(IPP(I)) = "//SLIPSHAPE,滑弧形状，1,circular;0,noncircular;"
+    README(IPP(I)) = "//SLICEWIDTH,土条宽度,(0.5,bydefault)"
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//MATERIAL,MATID=...(I),[TYPE=...(I)],[ISFF=YES|NO],[NAME=...(c)],ISSF=...(I)//MATID=材料号，TYPE=材料类型，ISFF=是否为依赖某场变量,NAME=材料文字注释.此关键词可重复出现.ISSF=是否输入材料参数的步函数(0N1Y)" 

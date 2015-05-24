@@ -333,6 +333,22 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 			value=springy
 		case('soilspringz')
 			value=springz
+		case('bishop')
+			value=bishop
+		case('ordinary')
+			value=ordinary
+		case('janbu')
+			value=janbu
+		case('spencer')
+			value=spencer
+		case('gle')
+			value=gle
+		CASE('circular')
+			value=circular
+		CASE('noncircular')
+			value=noncircular
+		CASE('ssa')
+			value=ssa		
 		case default
 			cvalue=str
 			print *, 'No such Constant:'//trim(str)//',It will be returned as a character variable.'

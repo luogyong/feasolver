@@ -1,12 +1,13 @@
 
 Module DS_SlopeStability
-    integer,parameter::double=kind(1.0D0)
-	integer::SS_PWM=0
-	INTEGER::MAXNIGC=100
+    integer,parameter,private::double=kind(1.0D0)
+	integer::SS_PWM=0	
 	!=0,water pressure calculated from the input waterlevel line.(default case)
     !=1,water pressure interpolated from the finite element seepage calculation.
-	
-    REAL(DOUBLE)::width_slice=0.5
+	INTEGER::MAXNIGC=100
+ 
+    
+    
     real(double),allocatable::Xslice(:),Yslice(:,:)
     integer::nXslice=0
     
@@ -24,12 +25,36 @@ Module DS_SlopeStability
     TYPE(slice_line_tydef),ALLOCATABLE::sliceLine(:),SLICELINE_C(:) 
     INTEGER::NSLICELINE=0,NSLICELINE_C=0
     
+    type slope_typde
+          INTEGER::SLOPEMethod=2 !BISHOP,BY DEFAULT. =0, CAL BY ALL.
+          !BISHOP = 2,ORDINARY=1,SPENCER=3,JANBU=4,MP=5
+          INTEGER::SLIPSHAPE=1 !=1,CIRCULAR,=2,NONCIRCULAR
+          INTEGER::OPTMETHOD=1
+          !=1,GRID;
+          REAL(DOUBLE)::SLICEWIDTH=0.5D0     
+    endtype
+    TYPE(slope_typde)::SLOPEPARAMETER
     
     
 End Module
     
      
+subroutine Gen_slope_model()
+    USE Geometry
+    use DS_SlopeStability
+    implicit none
     
+    call GenSliceLine()
+    
+    call SliceGrid(xslice,Yslice,nXslice,nGeoline)
+    
+    call SLICELINEDATA(Yslice,nXslice,sliceLine,NSLICELINE)
+    
+    CALL checkdata()
+    
+    
+    
+endsubroutine
     
 subroutine GenSliceLine()
 
@@ -45,10 +70,10 @@ subroutine GenSliceLine()
     
     allocate(x1,source=kpoint(1,1:nkp))
     sizeX1=size(x1)
-    call sortqq(loc(x1),sizeX1,DPN)
+    call sortqq(loc(x1),sizeX1,SRT$REAL8)
     if(sizeX1/=size(x1)) stop "Error in sortqq.sub=GenSliceLine1"
     
-    n1=int((maxX-minX)/width_slice)
+    n1=int((maxX-minX)/SLOPEPARAMETER.SLICEWIDTH)
     
     Iminx1=int(minX)
     JmaxX1=int(maxX)+1
@@ -56,9 +81,9 @@ subroutine GenSliceLine()
     allocate(x2(n1))
     x2=0
     sizeX2=1
-    x2(i)=Iminx1
+    x2(1)=Iminx1
     do while (x2(sizeX2)<JmaxX1)
-       x2(sizeX2+1)=x2(sizeX2)+width_slice
+       x2(sizeX2+1)=x2(sizeX2)+SLOPEPARAMETER.SLICEWIDTH
        sizeX2=sizeX2+1
        if(sizeX2>n1) then
             stop "SizeError.sub=GenSliceLine1."
@@ -69,7 +94,7 @@ subroutine GenSliceLine()
         x2(sizeX2+1:sizeX2+sizeX1)=x1
         sizeX2=sizeX2+sizeX1
         n2=sizeX2
-        call sortqq(loc(x2),n2,DPN)
+        call sortqq(loc(x2),n2,SRT$REAL8)
         if(sizeX2/=n2) stop "Error in sortqq.sub=GenSliceLine2."
         !remove diplicated element
         j=1
@@ -85,6 +110,8 @@ subroutine GenSliceLine()
         deallocate(X1,X2)
         NSLICELINE=NXSLICE
         ALLOCATE(SLICELINE(NSLICELINE))
+        allocate(YSlice(NGEOLINE,nXslice))
+        YSLICE=0.D0
     else
         stop "SizeError.sub=GenSliceLine2."
     endif
@@ -109,14 +136,14 @@ SUBROUTINE SLICELINEDATA(YSLE,NYSLE,SLEDATA,NSLEDATA)
     
     DO I=1,NSLEDATA
         Y1(1:NGEOLINE)=YSLE(:,I)
-        FORALL(J=1:NGEOLINE) MAT1(J)=J
+        FORALL(J=1:NGEOLINE) MAT1(J)=geoline(j).mat
         !SORT,Z2A
         DO J=1,NGEOLINE-1
             DO K=J+1,NGEOLINE
                 IF(Y1(K)>Y1(J)) THEN
                     T1=Y1(J)
                     Y1(J)=Y1(K)
-                    Y1(J)=T1
+                    Y1(K)=T1
                     N1=MAT1(J)
                     MAT1(J)=MAT1(K)
                     MAT1(K)=N1                    
@@ -130,7 +157,7 @@ SUBROUTINE SLICELINEDATA(YSLE,NYSLE,SLEDATA,NSLEDATA)
         SLEDATA(I).V(1,1:SLEDATA(I).NV)=Y1(1:SLEDATA(I).NV)
         !waterlevel
 		if(SS_PWM==0) then
-			do j=1,ngeoline
+			do j=1,SLEDATA(I).NV
 				if(SLEDATA(i).mat(j)==matwater) then
 					SLEDATA(i).waterlevel=SLEDATA(I).V(1,j)
 					exit
@@ -168,7 +195,7 @@ SUBROUTINE SliceGrid(XSLE,YSLE,nXSLE,nYSLE)
     YSLE=ERRORVALUE
     
     do i=1,nGEOline
-        K=1 
+        
         !Assumption of GeoLine£º1)points must be ordered from a2z. 2) no reverse is allowed.
         do j=1,GEOline(i).npoint-1
             X1=kpoint(1,GEOline(i).point(j))
@@ -179,15 +206,15 @@ SUBROUTINE SliceGrid(XSLE,YSLE,nXSLE,nYSLE)
             if(x2<x1) THEN
                 PRINT *, "INPUTERROR. No Reverse is allowed in Gline(I). SUB=SliceGrid. I=",I
                 STOP
-            ENDIF            
+            ENDIF  
+            K=1 
             DO WHILE(k<=NXSLE)
                CALL SegInterpolate(X1,Y1,X2,Y2,XSLE(K),YI1) 
                IF(YI1/=ERRORVALUE) THEN
-                   YSLE(I,K)=YI1
-                   K=K+1
-               ELSE
-                   EXIT     
-               endIF  
+                   YSLE(I,K)=YI1                   
+                   !EXIT     
+               endIF
+               K=K+1
             end do 
         enddo        
     end do
@@ -373,3 +400,44 @@ SUBROUTINE SORT_A2Z(X,NX,NORDER)
 	
 ENDSUBROUTINE
     
+SUBROUTINE SLOPEMODEL_PLT(xmin,ymin,xmax,ymax,WXY)
+    USE Geometry
+    USE DS_SlopeStability
+    USE IFQWIN
+    IMPLICIT NONE
+    INCLUDE 'DOUBLE.H'
+    REAL(DPN),INTENT(IN)::xmin,ymin,xmax,ymax
+    TYPE (wxycoord),INTENT(IN)::wxy
+    INTEGER(4)::STATUS
+    INTEGER::I,J,K,N1,N2
+    REAL(DPN)::X1,Y1
+    
+    DO I=1,NGEOLINE
+        call setc(GEOLINE(I).mat)
+        DO J=1,GEOLINE(I).NPOINT-1
+            N1=GEOLINE(I).POINT(J)            
+            IF(KPOINT(1,N1)<XMIN) CYCLE
+            IF(KPOINT(1,N1)>XMAX) CYCLE
+            IF(KPOINT(2,N1)<YMIN) CYCLE
+            IF(KPOINT(2,N1)>YMAX) CYCLE
+            CALL moveto_w(KPOINT(1,N1),KPOINT(2,N1),wxy)
+            N2=GEOLINE(I).POINT(J+1)
+            status=lineto_w(KPOINT(1,N2),KPOINT(2,N2))            
+        ENDDO
+    ENDDO
+    
+    DO I=1,NSLICELINE
+        X1=XSLICE(I)
+        DO J=1,SLICELINE(I).NV-1
+            Y1=SLICELINE(I).V(1,J)
+            CALL moveto_w(X1,Y1,wxy)
+            call setc(SLICELINE(I).mat(J))
+            Y1=SLICELINE(I).V(1,J+1)
+            status=lineto_w(X1,Y1)  
+        ENDDO
+    ENDDO
+        
+    
+    
+    
+ENDSUBROUTINE

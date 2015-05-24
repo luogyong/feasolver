@@ -22,10 +22,6 @@ Module Geometry
     type(lineloop_tydef),allocatable::lineloop(:)
     integer::nlineloop=0
     
-   
-        
-    
-    
 End module
     
     
@@ -1605,6 +1601,7 @@ ENDSUBROUTINE
 
   subroutine checkdata()
       use excaDS
+      !USE DS_SlopeStability
       use solverds
 	  use ifqwin
       use IFCORE
@@ -1620,7 +1617,7 @@ ENDSUBROUTINE
 	  TYPE (windowconfig):: thescreen 
 	  common /c2/ thescreen
  	  EXTERNAL  shown,showY,SHOWBW,SHOWBC,SHOWELNUM,SHOWELMAT,SHOWCANCEL,CHECKSOIL,SHOWET
-	  EXTERNAL	SHOWNA
+	  EXTERNAL	SHOWNA,SHOWSLOPE
       EXTERNAL  checkgraph
 	  integer(4)          oldcolor,event,ix,iy,res,result,ikeystate,iunit
 	  INTEGER(2)          status
@@ -1668,8 +1665,11 @@ ENDSUBROUTINE
 	result = INSERTMENUQQ (6, 7, $MENUENABLED, 'ELEMENT_TYPE'c, SHOWET)
 	result = INSERTMENUQQ (6, 8, $MENUENABLED, 'CHECKSOIL'c, CHECKSOIL)
 	result = INSERTMENUQQ (6, 9, $MENUENABLED, 'NACTION'c, SHOWNA)
-	result = INSERTMENUQQ (6, 10, $MENUENABLED, 'CANCEL'c, SHOWCANCEL)
-								
+    result = INSERTMENUQQ (6, 10, $MENUENABLED, 'SLOPESTABILITY'c, SHOWSLOPE)
+	result = INSERTMENUQQ (6, 11, $MENUENABLED, 'CANCEL'c, SHOWCANCEL)
+
+	IF(ISSLOPE/=0) SHOWVALUE=11
+    
 	oldcolor=setbkcolorrgb(#00)
 	oldcolor=setcolorrgb(#0000ff)
     CALL CLEARSCREEN( $GCLEARSCREEN )
@@ -1830,8 +1830,10 @@ ENDSUBROUTINE
 		call moveto_w(x1,y1,wxy)		
 		status=lineto_w(x2,y2)
 		
-	  end do
+      end do
+      
 	  
+      
 	  call  PLOTDATA(xmin,ymin,xmax,ymax,size)
   
 
@@ -1840,6 +1842,12 @@ ENDSUBROUTINE
 
    end subroutine
 
+   	subroutine SHOWSLOPE()
+		use EXCADS
+		implicit none
+		showvalue=11
+	end subroutine
+   
 	subroutine showY()
 		use EXCADS
 		implicit none
@@ -1900,11 +1908,14 @@ ENDSUBROUTINE
 		use EXCADS
 		implicit none
 		showvalue=9
-    end subroutine				
+    end subroutine
+    
+    
     
 	subroutine PLOTDATA(xmin,ymin,xmax,ymax,size)
 		USE solverds
         use EXCADS
+        !USE DS_SlopeStability
 		use dflib
 		implicit none
 		integer::n1,n2,i,J,flag
@@ -2054,9 +2065,13 @@ ENDSUBROUTINE
                             
                     enddo
                     
-                enddo    
+                enddo
+            CASE(11) !SLOPE MODEL
+                CALL SLOPEMODEL_PLT(xmin,ymin,xmax,ymax,WXY)
+                
+                
             CASE DEFAULT
-                PRINT *, "TO BE IMPROVED.SUB=PLOTDATA"
+                !PRINT *, "TO BE IMPROVED.SUB=PLOTDATA"
 				
             end select
             
