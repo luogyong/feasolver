@@ -22,6 +22,9 @@ Module Geometry
     type(lineloop_tydef),allocatable::lineloop(:)
     integer::nlineloop=0
     
+    INTEGER(1) VFILLMASK(8)  /Z'08',Z'08',Z'08',Z'08',Z'08',Z'08',Z'08',Z'08'/
+    INTEGER(1) HFILLMASK(8)  /Z'FF',Z'00',Z'00',Z'00',Z'00',Z'00',Z'00',Z'00'/
+    INTEGER(1) FILLMASK(8)  /Z'FF',Z'FF',Z'FF',Z'FF',Z'FF',Z'FF',Z'FF',Z'FF'/
 End module
     
     
@@ -113,6 +116,7 @@ Module ExcaDS
 	endtype 
 	type(action_tydef),allocatable::action(:)
 	integer::naction=0
+    REAL(DOUBLE)::MAXACTION=0.D0
 	
     contains
     
@@ -1072,8 +1076,9 @@ function interpolation(x,y,nx,xi)
 	real(double)::interpolation,t1
 	integer::i
     
-
-    if(nx==1) then
+    interpolation=0.D0
+    
+    if(nx==1.AND.ABS(XI-X(1))<1.D-6) then
        interpolation=y(1)
        return
     endif

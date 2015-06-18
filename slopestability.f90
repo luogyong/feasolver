@@ -14,26 +14,36 @@ Module DS_SlopeStability
     real(double),ALLOCATABLE::InsectGC(:,:) !圆形滑弧与地质线的交点
     INTEGER::NIGC=0
     
+    type slope_load_tydef
+        INTEGER::dof,dim
+        real(double)::v=0.D0
+    endtype
+    
     type slice_line_tydef
-        integer::NV=0
+        integer::NV=0,NLOAD=0
         INTEGER,ALLOCATABLE::MAT(:)
 		!assume that: matid for the water level line is MatWater=9999. 
-        REAL(DOUBLE)::WATERLEVEL=-1.0D6
-        REAL(DOUBLE),ALLOCATABLE::V(:,:) !V(1,),Y;V(2,):SIGMAT(竖向总应力);V(3,):PW（孔压）;   
+        REAL(DOUBLE)::WATERLEVEL=-1.0D6        
+        REAL(DOUBLE),ALLOCATABLE::V(:,:) !V(1,),Y;V(2,):SIGMAT(竖向总应力);   
+        TYPE(slope_load_tydef),ALLOCATABLE::LOAD(:) !APPLIED DISTRIBUTED SURFACE LOAD(WATER PRESSURE EXCLUDED.).
     endtype
+    
+    !TYPE SLICE_S
+    
     
     TYPE(slice_line_tydef),ALLOCATABLE::sliceLine(:),SLICELINE_C(:) 
     INTEGER::NSLICELINE=0,NSLICELINE_C=0
     
-    type slope_typde
+    type slope_typdef
           INTEGER::SLOPEMethod=2 !BISHOP,BY DEFAULT. =0, CAL BY ALL.
-          !BISHOP = 2,ORDINARY=1,SPENCER=3,JANBU=4,MP=5
+          !BISHOP = 2,ORDINARY=1,SPENCER=3,JANBU=4,GLE=5
           INTEGER::SLIPSHAPE=1 !=1,CIRCULAR,=2,NONCIRCULAR
           INTEGER::OPTMETHOD=1
           !=1,GRID;
-          REAL(DOUBLE)::SLICEWIDTH=0.5D0     
+          REAL(DOUBLE)::SLICEWIDTH=0.5D0
+          REAL(DOUBLE)::KX=0.D0,KY=0.0D0 !SEISMIC COEFFICIENT TO ACCOUNT FOR A DYNAMIC HORIZONTAL FORCE.
     endtype
-    TYPE(slope_typde)::SLOPEPARAMETER
+    TYPE(slope_typdef)::SLOPEPARAMETER
     
     
 End Module
@@ -124,14 +134,14 @@ end subroutine
 SUBROUTINE SLICELINEDATA(YSLE,NYSLE,SLEDATA,NSLEDATA)
     USE DS_SlopeStability
     USE Geometry
+    USE solverds
     IMPLICIT NONE
-    include 'double.h'
-	include 'constant.h'
+
     INTEGER,INTENT(IN)::NYSLE,NSLEDATA
     REAL(DPN),INTENT(IN)::YSLE(NGEOLINE,NYSLE)
     TYPE(slice_line_tydef)::SLEDATA(NSLEDATA)
     
-    INTEGER::I,J,K,MAT1(100),N1
+    INTEGER::I,J,K,MAT1(100),N1,ERR1
     REAL(DPN)::Y1(100),T1
     
     DO I=1,NSLEDATA
@@ -152,9 +162,11 @@ SUBROUTINE SLICELINEDATA(YSLE,NYSLE,SLEDATA,NSLEDATA)
         ENDDO
         
         SLEDATA(I).NV=COUNT(Y1(1:NGEOLINE)>ERRORVALUE)
-        ALLOCATE(SLEDATA(I).MAT(SLEDATA(I).NV),SLEDATA(I).V(3,SLEDATA(I).NV))
+        ALLOCATE(SLEDATA(I).MAT(SLEDATA(I).NV),SLEDATA(I).V(2,SLEDATA(I).NV),STAT=ERR1)
         SLEDATA(I).MAT=MAT1(1:SLEDATA(I).NV)
+        SLEDATA(I).V=0.D0
         SLEDATA(I).V(1,1:SLEDATA(I).NV)=Y1(1:SLEDATA(I).NV)
+        
         !waterlevel
 		if(SS_PWM==0) then
 			do j=1,SLEDATA(I).NV
@@ -162,18 +174,76 @@ SUBROUTINE SLICELINEDATA(YSLE,NYSLE,SLEDATA,NSLEDATA)
 					SLEDATA(i).waterlevel=SLEDATA(I).V(1,j)
 					exit
 				endif
-			enddo
+            enddo
+            
+            !TOTAL VERTICAL STRESS
+            !SLEDATA(I).V(2,1)=MAX((SLEDATA(i).waterlevel-SLEDATA(I).V(1,1))*GA,0.0D0)        
+            DO J=2,SLEDATA(I).NV
+                IF(SLEDATA(I).MAT(J-1)/=MatWater) THEN
+                    T1=MATERIAL(SLEDATA(I).MAT(J-1)).PROPERTY(3)
+                ELSE
+                    T1=GA
+                ENDIF
+                SLEDATA(I).V(2,J)=SLEDATA(I).V(2,J-1)+(SLEDATA(I).V(1,J-1)-SLEDATA(I).V(1,J))*T1
+            ENDDO            
+            
 		elseif(SS_PWM==1) then
 			print *, "To Be Improved. Interpolate from FE Seepage Calculation."
 			stop
 		else
 			print *, "PoreWater Pressure is not considered."
-		endif
-		
+        endif
+
+		CALL SURFACELOAD_SLOPE(I)
+        
     ENDDO
         
     
+    ENDSUBROUTINE 
+    
+SUBROUTINE  SURFACELOAD_SLOPE(ISL)
+!CALCULATE APPLIED SURFACE DISTRIBUTED LOADS AT ISLICE LOCATION IN HORIZONTAL AND VERTICAL DIRECTIONS. 
+!HEREIN, WATER PRESSURE IS NOT INCLUDED. IT WILL BE HANDLE IN A DIFFERENT WAY.
+    USE DS_SlopeStability 
+    USE ExcaDS
+    IMPLICIT NONE
+    INCLUDE 'DOUBLE.H'
+    INTEGER,INTENT(IN)::ISL
+    INTEGER::I,N1,NAT1
+    REAL(DPN)::XI,YI,T1,T2
+    REAL(DPN),EXTERNAL::MultiSegInterpolate
+    TYPE(slope_load_tydef)::AT1(10)
+    
+    XI=XSLICE(ISL)
+    YI=SLICELINE(ISL).V(1,1)
+    NAT1=0
+    DO I=1,NACTION
+        IF(ACTION(I).TYPE/=0) CYCLE
+        IF(ACTION(I).DOF==1) THEN
+            N1=2
+            T2=YI
+        ELSE
+            N1=1
+            T2=XI
+        ENDIF
+        T1=MultiSegInterpolate(KPOINT(N1,ACTION(I).KPOINT(1:ACTION(I).NKP)),ACTION(I).VALUE(1:ACTION(I).NKP),ACTION(I).NKP,T2)
+        IF(ABS(T1-ERRORVALUE)>1.D-6) THEN
+            NAT1=NAT1+1
+            IF(NAT1>10) STOP 'SIZEERROR IN SURFACELOAD_SLOPE.'
+            AT1(NAT1).V=T1
+            AT1(NAT1).DIM=ACTION(I).NDIM
+            AT1(NAT1).DOF=ACTION(I).DOF
+        ENDIF      
+        
+    ENDDO
+	
+    SLICELINE(ISL).NLOAD=NAT1
+    ALLOCATE(SLICELINE(ISL).LOAD,SOURCE=AT1(1:NAT1))
+    
+    
 ENDSUBROUTINE
+    
+    
     
 SUBROUTINE SliceGrid(XSLE,YSLE,nXSLE,nYSLE)
 !FIND INTERSECTION POINTS (YSEL(NGEOLINE,NXSLE)) BETWEEN GEOLINE(NGEOLINE) AND SLICE LINES（XSLE(NXSLE)）  
@@ -368,7 +438,38 @@ subroutine SegInterpolate(X1,Y1,X2,Y2,Xi,Yi)
     
     
 endsubroutine
+
+
+function MultiSegInterpolate(x,y,nx,xi)
+!x,y must be in order.
+!if
+	implicit none
+	include 'double.h'
+    integer,intent(in)::nx
+	real(DPN),intent(in)::x(nx),y(nx),xi
+	real(DPN)::MultiSegInterpolate,t1
+	integer::i
     
+    MultiSegInterpolate=ERRORVALUE
+    
+    if(nx==1.AND.ABS(XI-X(1))<1.D-6) then
+       MultiSegInterpolate=y(1)
+       return
+    endif
+    do i=1,nx-1
+        if((xi<=x(i+1).and.xi>=x(i)).or.(xi<=x(i).and.xi>=x(i+1))) then
+	        t1=x(i+1)-x(i)
+	        if(abs(t1)<1e-7) then
+		        print *, "Warning! 分母=0,function=MultiSegInterpolate()"
+		        MultiSegInterpolate=(y(i)+y(i+1))/2.0d0
+	        else
+		        MultiSegInterpolate=(y(i+1)-y(i))/(t1)*(xi-x(i))+y(i)
+            endif
+            return
+        endif
+    enddo    
+    
+endfunction
 
 SUBROUTINE SORT_A2Z(X,NX,NORDER)
 !SORT X(NX) IN A2Z ORDER. THE NEW ORDER IS STORED IN NORDER(NX).
@@ -403,23 +504,25 @@ ENDSUBROUTINE
 SUBROUTINE SLOPEMODEL_PLT(xmin,ymin,xmax,ymax,WXY)
     USE Geometry
     USE DS_SlopeStability
+    USE ExcaDS
     USE IFQWIN
     IMPLICIT NONE
     INCLUDE 'DOUBLE.H'
     REAL(DPN),INTENT(IN)::xmin,ymin,xmax,ymax
     TYPE (wxycoord),INTENT(IN)::wxy
+    TYPE (wxycoord)::WXY1
+    TYPE (windowconfig):: thescreen 
+	common /c2/ thescreen
+    TYPE(xycoord)::POLY1(100)
     INTEGER(4)::STATUS
     INTEGER::I,J,K,N1,N2
-    REAL(DPN)::X1,Y1
+    REAL(DPN)::X1,Y1,SCALE1
     
     DO I=1,NGEOLINE
+        CALL SETLINEWIDTHQQ (3)
         call setc(GEOLINE(I).mat)
         DO J=1,GEOLINE(I).NPOINT-1
             N1=GEOLINE(I).POINT(J)            
-            IF(KPOINT(1,N1)<XMIN) CYCLE
-            IF(KPOINT(1,N1)>XMAX) CYCLE
-            IF(KPOINT(2,N1)<YMIN) CYCLE
-            IF(KPOINT(2,N1)>YMAX) CYCLE
             CALL moveto_w(KPOINT(1,N1),KPOINT(2,N1),wxy)
             N2=GEOLINE(I).POINT(J+1)
             status=lineto_w(KPOINT(1,N2),KPOINT(2,N2))            
@@ -427,6 +530,7 @@ SUBROUTINE SLOPEMODEL_PLT(xmin,ymin,xmax,ymax,WXY)
     ENDDO
     
     DO I=1,NSLICELINE
+        CALL SETLINEWIDTHQQ (1)
         X1=XSLICE(I)
         DO J=1,SLICELINE(I).NV-1
             Y1=SLICELINE(I).V(1,J)
@@ -437,7 +541,92 @@ SUBROUTINE SLOPEMODEL_PLT(xmin,ymin,xmax,ymax,WXY)
         ENDDO
     ENDDO
         
-    
+    DO I=1,NACTION
+        
+        
+            
+            DO J=1,ACTION(I).NKP
+                IF(ACTION(I).NDIM==1) SCALE1=40.D0
+                IF(ACTION(I).NDIM==0) SCALE1=20.D0    
+                CALL GETVIEWCOORD_W(KPOINT(1,ACTION(I).KPOINT(J)),KPOINT(2,ACTION(I).KPOINT(J)),POLY1(J))
+                IF(ACTION(I).DOF==2) THEN 
+                    POLY1(2*ACTION(I).NKP-J+1).XCOORD=POLY1(J).XCOORD
+                    POLY1(2*ACTION(I).NKP-J+1).YCOORD=POLY1(J).YCOORD+INT(ACTION(I).VALUE(J)/MAXACTION*THESCREEN.NUMYPIXELS/SCALE1)
+                 ENDIF
+                 IF(ACTION(I).DOF==1) THEN
+                
+                
+                    POLY1(2*ACTION(I).NKP-J+1).YCOORD=POLY1(J).YCOORD
+                    POLY1(2*ACTION(I).NKP-J+1).XCOORD=POLY1(J).XCOORD-INT(ACTION(I).VALUE(J)/MAXACTION*THESCREEN.NUMYPIXELS/SCALE1)
+                ENDIF
+
+                IF(ACTION(I).NDIM==1.AND.J==ACTION(I).NKP) THEN 
+                    IF(ACTION(I).DOF==2) THEN
+                        call setc(4)
+                        CALL SETFILLMASK(VFILLMASK)
+                    ELSE
+                        call setc(2)
+                        CALL SETFILLMASK(HFILLMASK)
+                    ENDIF
+                    
+                    status=POLYGON($GFILLINTERIOR,POLY1,INT2(2*ACTION(I).NKP))
+                    CALL SETFILLMASK(FILLMASK)
+                
+                ELSEIF(ACTION(I).NDIM==0) THEN 
+                    
+                    
+                    CALL GETWINDOWCOORD(POLY1(2*ACTION(I).NKP-J+1).XCOORD,POLY1(2*ACTION(I).NKP-J+1).YCOORD,WXY1) 
+                    call setc(1)
+                    CALL SETFILLMASK(FILLMASK)
+                    
+                    CALL ARROW_PLOT(WXY1.WX,WXY1.WY,KPOINT(1,ACTION(I).KPOINT(J)),KPOINT(2,ACTION(I).KPOINT(J)),WXY)
+                ENDIF
+        ENDDO
+
+         
+    ENDDO
     
     
 ENDSUBROUTINE
+
+SUBROUTINE ARROW_PLOT(X1,Y1,X2,Y2,WXY) 
+    USE IFQWIN
+    IMPLICIT NONE
+    INCLUDE 'DOUBLE.H'
+    REAL(DPN),INTENT(IN)::X1,Y1,X2,Y2    
+    TYPE (wxycoord),INTENT(IN)::wxy
+    TYPE(xycoord)::POLY1(3)
+    REAL(DPN)::UARROW1(2,2),SCALE1,TRANS1(2,2),COS1,SIN1
+    INTEGER(4)::STATUS
+    TYPE (windowconfig):: thescreen 
+	common /c2/ thescreen
+    
+    
+    CALL moveto_w(X1,Y1,wxy)
+    status=lineto_w(X2,Y2)
+    
+    UARROW1(1,1)=-1.D0
+    UARROW1(2,1)=3**0.5/3
+    UARROW1(1,2)=-1.D0
+    UARROW1(2,2)=-UARROW1(2,1)
+    SCALE1=((X1-X2)**2+(Y1-Y2)**2)**0.5
+    COS1=(X2-X1)/SCALE1
+    SIN1=(Y2-Y1)/SCALE1
+    TRANS1(1,1)=COS1
+    TRANS1(1,2)=SIN1
+    TRANS1(2,1)=-SIN1
+    TRANS1(2,2)=COS1
+    UARROW1=MATMUL(TRANS1,UARROW1)
+    UARROW1=UARROW1*thescreen.numxpixels/300.D0
+    CALL GETVIEWCOORD_W(X2,Y2,POLY1(1))
+    UARROW1(1,:)=UARROW1(1,:)+POLY1(1).XCOORD
+    UARROW1(2,:)=UARROW1(2,:)+POLY1(1).YCOORD 
+    POLY1(2).XCOORD=INT(UARROW1(1,1))
+    POLY1(2).YCOORD=INT(UARROW1(2,1))
+    POLY1(3).XCOORD=INT(UARROW1(1,2))
+    POLY1(3).YCOORD=INT(UARROW1(2,2))    
+    !CALL GETVIEWCOORD_W(UARROW1(1,1),UARROW1(2,1),POLY1(2))
+    !CALL GETVIEWCOORD_W(UARROW1(1,2),UARROW1(2,2),POLY1(3))
+    
+    status=POLYGON($GFILLINTERIOR,POLY1,3)
+END SUBROUTINE

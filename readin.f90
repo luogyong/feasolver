@@ -639,6 +639,7 @@ subroutine solvercommand(term,unit)
 				read(unit,*) action(i).kpoint
 				call skipcomment(unit)
 				read(unit,*) action(i).value
+                MAXACTION=MAX(ABS(MAXVAL(ACTION(I).value)),ABS(MINVAL(ACTION(I).VALUE)),MAXACTION)                
 				if(n3==1) then
 					call skipcomment(unit)
 					read(unit,*) action(i).vsf
@@ -2063,7 +2064,7 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) ="//hy,hz分别为梁截面在y'和z'轴方向(局部坐标)的高度，为后处理转化为六面体单元时所用. \N"C
 	README(IPP(I)) ="//当为支护桩时，hy,hz分别为桩径和桩距，计算作用于支护桩上的土压力和土弹簧的刚度用 \N"C
 	README(IPP(I)) ="//10. CASE(PIPE2,PPIPE2) : PROPERTY(1)=R(管半径,L)  .(2)=LAMDA(管壁摩阻系数)	.(3)=EPSLON(管壁的绝对粗糙度,L)	.(4)=V(运动粘滞系数L**2/T)"C
-	README(IPP(I)) ="//11. CASE(ExcavationSoil) : PROPERTY(1:8)=黏聚力，摩擦角，天然/饱和重度，变形模量，泊松比,渗透系数，水平基床系数(F/L**3),墙土间摩擦角（度）"C
+	README(IPP(I)) ="//11. CASE(ExcavationSoil/SLOPESOIL) : PROPERTY(1:8)=黏聚力，摩擦角，天然/饱和重度，变形模量，泊松比,渗透系数，水平基床系数(F/L**3),墙土间摩擦角（度）"C
 	README(IPP(I)) ="//12. CASE(spirng) : PROPERTY(1:3)=k,minV(发生负位移),maxV(发生正位移)，预加力，预加位移"C
 
 						
