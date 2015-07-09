@@ -1064,7 +1064,9 @@ subroutine solvercommand(term,unit)
                     case('rf_epp')
                         solver_control.rf_epp=int(property(i).value)
                     case('rf_app')
-                        solver_control.rf_app=int(property(i).value)                        
+                        solver_control.rf_app=int(property(i).value)
+                    case('iniepp')
+						solver_control.iniepp=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -1927,10 +1929,11 @@ subroutine write_readme_feasolver()
     README(IPP(I)) = "//注：对于/=4(Chow)，目前只能处理NSEGMENT=2的情况，即斜坡段+水平段，且上游在左下游在右.默认水平段与斜坡段的交点为第二段的第一个节点。"
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//SOILPROFILE,NUM=(I),spmethod=(I),kmethod=(I),rf_epp=(I),rf_app=(I)   //spmethod=土压力计算方法，0，郎肯； &
+	README(IPP(I)) = "//SOILPROFILE,NUM=(I),spmethod=(I),kmethod=(I),rf_epp=(I),rf_app=(I),iniepp=(I)   //spmethod=土压力计算方法，0，郎肯； &
         \n// kmethod=基床系数的计算方法，0，m法；1，(E,V)法；2,zhu;3 biot;4 vesic;-1,按直接输入. &
         \n// rf_epp=被动侧土弹簧抗力限值是否要减掉初始的主动土压力.(0N1Y). &
-        \n// RF_APP=0 !主动侧主动土压力荷载，开挖面以下是否按倒三角折减.(0N1Y)."  
+        \n// RF_APP=0 !主动侧主动土压力荷载，开挖面以下是否按倒三角折减.(0N1Y). & 
+		\n// iniepp=2 !被动侧土弹簧土压力初始值(位移=0时的土压力),2=主动土压力，1=静止土压力."
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT SOILPROFILE DATA."//'"'
 	README(IPP(I))=  "//A0:{TITLE(C)}  //土层剖面的名字"  
 	README(IPP(I)) = "//A:{NASOIL(I),NPSOIL(I),BEAMID(I),NACTION(I),NSTRUT}  //主动侧土层数(负数表主动土压力为负，被动为正，反之亦然。)，被动侧土层数，地基梁号,约束(力，位移，弹簧)个数,支撑个数" 

@@ -944,7 +944,7 @@ subroutine spring_update2(iel,istep,iiter,Ddis,nDdis)
 			!if(element(iel).mat==-2) nc1=2
             nc1=2
 			if(solver_control.rf_epp==0) then
-                t1=-element(iel).sign*abs(element(iel).property(3)-element(iel).property(nc1))
+                t1=-element(iel).sign*abs(element(iel).property(3)-element(iel).property(solver_control.iniepp))
             else
                 t1=-element(iel).sign*abs(element(iel).property(3))
             endif

@@ -292,7 +292,7 @@ SUBROUTINE SOILLOAD_EXCA(ISTEP)
             
             
             SOILPROFILE(I).STEPLOAD(INNODE1(1),ISTEP)=SOILPROFILE(I).STEPLOAD(INNODE1(1),ISTEP)+ELEMENT(IELA1(1)).PROPERTY(2)
-			SOILPROFILE(I).STEPLOAD(INNODE1(2),ISTEP)=SOILPROFILE(I).STEPLOAD(INNODE1(2),ISTEP)+ELEMENT(IELA1(2)).PROPERTY(2)
+			SOILPROFILE(I).STEPLOAD(INNODE1(2),ISTEP)=SOILPROFILE(I).STEPLOAD(INNODE1(2),ISTEP)+ELEMENT(IELA1(2)).PROPERTY(solver_control.iniepp)
 			!实际上，INNODE1(1)=INNODE1(2)
 			!只对土压力进行折减
 			if(solver_control.rf_app==1) then
@@ -1156,7 +1156,7 @@ subroutine EarthPressure(istep)
                 T1=MAX((wL1-kpoint(ndimension,soilprofile(i).Psoil(j).z(1)))*GA,0.d0)
 				soilprofile(i).psoil(j).SigmaVT(1)=T1+soilprofile(i).pLoad*sf(soilprofile(i).sf_pload).factor(istep)
 				soilprofile(i).psoil(j).SigmaV(1)=soilprofile(i).psoil(j).SigmaVT(1)-soilprofile(i).psoil(j).pw(1)
-                if( soilprofile(i).psoil(j).SigmaV(1)<=0) then
+                if( soilprofile(i).psoil(j).SigmaV(1)<0) then
                     print *, 'The effective vertical stress is <0 in soilprofile(i).psoil(j).SigmaV1. i,j=',i,j
                     soilprofile(i).psoil(j).SigmaV(1)=0.d0
                 endif
@@ -1175,8 +1175,8 @@ subroutine EarthPressure(istep)
 			soilprofile(i).psoil(j).SigmaVT(2)=soilprofile(i).psoil(j).SigmaVT(1)+gamma1*(t1)
             soilprofile(i).psoil(j).SigmaV(2)=soilprofile(i).psoil(j).SigmaVT(2)-soilprofile(i).psoil(j).pw(2)
             
-            if( soilprofile(i).psoil(j).SigmaV(2)<=0) then
-                print *, 'The effective vertical stress is <0 in soilprofile(i).psoil(j).Sigma2. i,j=',i,j
+            if( soilprofile(i).psoil(j).SigmaV(2)<0) then
+                print *, 'The effective vertical stress is <0 in soilprofile(i).psoil(j).SigmaV2. i,j=',i,j
                 soilprofile(i).psoil(j).SigmaV(2)=0.d0
             endif
                 
