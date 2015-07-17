@@ -1428,18 +1428,22 @@ subroutine Beam_Result_EXCA(istep)
 	use excaDS
 	implicit none
     integer,intent(in)::istep
-	integer::i,j,k,iel1=0,nnode1(2)=0,ipile=0,n1,n2,nc1=0,NC2=0,iesp1(2)=0
+	integer::i,j,k,iel1=0,nnode1(2)=0,ipile=0,n1,n2,nc1=0,NC2=0,iesp1(2)=0,MMNODE1(6)=0.D0
     logical,allocatable::isout1(:)
-	real(double)::t1=0
+	real(double)::t1=0,MMVAL1(6)=0.0D0
 	
 	if(istep==1) then
 		open(unit=23,file=EXCAB_BEAMRES_FILE,status='replace')
 		write(23,10)
 		open(unit=24,file=EXCAB_STRURES_FILE,status='replace')
-		write(24,20)		
+		write(24,20)
+		open(unit=25,file=EXCAB_EXTREMEBEAMRES_FILE,status='replace')
+		write(25,30)
+		
 	else
 		open(unit=23,file=EXCAB_BEAMRES_FILE,status='old',access='append')
 		open(unit=24,file=EXCAB_STRURES_FILE,status='old',access='append')
+		open(unit=25,file=EXCAB_EXTREMEBEAMRES_FILE,status='old',access='append')
 	endif
 	
 	do iPILE=1,NPILE
@@ -1551,8 +1555,12 @@ subroutine Beam_Result_EXCA(istep)
 		do j=n1,n2
 			write(23,11) IPILE,istep,J,node(j).coord(1:2),pile(ipile).beamresult(j,:,istep)
 		enddo
+		DO J=1,3
+			MMNODE1(2*J-1)=MINLOC(pile(ipile).beamresult(N1:N2,J,istep),DIM=1);MMVAL1(2*J-1)=MINVAL(pile(ipile).beamresult(N1:N2,J,istep),DIM=1)
+			MMNODE1(2*J)=MAXLOC(pile(ipile).beamresult(N1:N2,J,istep),DIM=1);MMVAL1(2*J)=MAXVAL(pile(ipile).beamresult(N1:N2,J,istep),DIM=1)
+		ENDDO
 		WRITE(23,12) IPILE,ISTEP
-		
+		WRITE(25,31) IPILE,istep,((MMVAL1(J),node(MMNODE1(J)).coord(1:2)),J=1,6)
 
         
 	enddo
@@ -1568,13 +1576,18 @@ subroutine Beam_Result_EXCA(istep)
 	
 	close(23)
 	CLOSE(24)
+	CLOSE(25)
 	
 10 FORMAT(10X,"IPILE",10X,"ISTEP",10X,"INODE",11X,"X(L)",11X,"Y(L)",9X,"DIS(L)",4X,"MOMENT(F.M)",11X,"Q(F)",6X,"TFORCE(F)",3X,"PAA+PWA(F/L)", &
 	   5X,"PA_SP(F/L)",X,"MAX_PA_SP(F/L)",7X,"PWA(F/L)",3X,"PAP+PWP(F/L)",5X,"PP_SP(F/L)",X,"MAX_PP_SP(F/L)",7X,"PWP(F/L)",4X,"KSA_SP(F/L)",4X,"KSP_SP(F/L)")	
 11 FORMAT(3(X,I14),16(X,E14.7))	
 12 FORMAT(2(X,I14))
 20 FORMAT(10X,"ISTEP",9X,"ISTRUT",11X,"Y(L)",11X,"P(F)")
-21 FORMAT(2(X,I14),2(X,E14.7))	   
+21 FORMAT(2(X,I14),2(X,E14.7))
+30 FORMAT(10X,"IPILE",10X,"ISTEP",10X,"MINDX",8X,"X_MINDX",8X,"Y_MINDX",10X,"MAXDX",8X,"X_MAXDX",8X,"Y_MAXDX",&
+		  11X,"MINM",9X,"X_MINM",9X,"Y_MINM",11X,"MAXM",9X,"X_MAXM",9X,"Y_MAXM",&
+		  11X,"MINQ",9X,"X_MINQ",9X,"Y_MINQ",11X,"MAXQ",9X,"X_MAXQ",9X,"Y_MAXQ")
+31 FORMAT(2(X,I14),18(X,E14.7))
 endsubroutine
 
     subroutine enlarge_strut(PROP,NP,EXN,SN)

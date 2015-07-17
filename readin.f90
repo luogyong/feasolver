@@ -52,6 +52,7 @@
 		EXCAMSGFILE=trim(drive)//trim(dir)//trim(name)//'_exca_msg.dat'
 		EXCAB_BEAMRES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_res.dat'
 		EXCAB_STRURES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_stru.dat'
+		EXCAB_EXTREMEBEAMRES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_minmaxbeam.dat'
 	end if
 	open(99,file=resultfile3,status='replace')
 	!the default value of Title=resultfile2.
@@ -1079,8 +1080,12 @@ subroutine solvercommand(term,unit)
 			do i=1,nsoilprofile
 				call skipcomment(unit)
 				read(unit,'(A64)') soilprofile(i).title
-				call skipcomment(unit)				
-				read(unit,*) soilprofile(i).nasoil,soilprofile(i).npsoil,soilprofile(i).beam,soilprofile(i).naction,SOILPROFILE(I).NSTRUT
+				call skipcomment(unit)
+				call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+				!read(unit,*) soilprofile(i).nasoil,soilprofile(i).npsoil,soilprofile(i).beam,soilprofile(i).naction,SOILPROFILE(I).NSTRUT
+				soilprofile(i).nasoil=int(ar(1));soilprofile(i).npsoil=int(ar(2));soilprofile(i).beam=int(ar(3))
+				if(n1>3) soilprofile(i).naction=int(ar(4))
+				if(n1>4) soilprofile(i).NSTRUT=int(ar(5))
 				if(soilprofile(i).nasoil<0) then 
 					soilprofile(i).aside=-1
 					soilprofile(i).nasoil=-soilprofile(i).nasoil
@@ -1889,7 +1894,7 @@ subroutine write_readme_feasolver()
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//INITIAL VALUE,NUM=...(I)   //NUM=初值个数"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD BC IS USED TO INITIAL VALUE DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD INITIAL VALUE IS USED TO INITIAL VALUE DATA."//'"'
 	README(IPP(I)) = "//{NODE(I),DOF(I),VALUE(R)[,STEPFUNC.(I)]}"  
 	README(IPP(I)) = "//{...}  //共NUM行"	
 	
@@ -1902,7 +1907,7 @@ subroutine write_readme_feasolver()
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//STEP FUNCTION,NUM=...(I),STEP=...(I)   //NUM=步方程的个数,STEP=步数."  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD BC IS USED TO STEP FUNCTION DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD STEP FUNCTION IS USED TO STEP FUNCTION DATA."//'"'
 	README(IPP(I)) = "//{FACTOR(1)(R),FACTOR(2)(R),...,FACTOR(STEP)(R),TITLE(A)& 
                          \N// FACTOR(ISTEP)=第ISTEP步边界或荷载的系数. &
                          \N//当FACTOR(ISTEP)=-999时,此边界或荷载在此步中失效（无作用）. &
@@ -1929,29 +1934,29 @@ subroutine write_readme_feasolver()
     README(IPP(I)) = "//注：对于/=4(Chow)，目前只能处理NSEGMENT=2的情况，即斜坡段+水平段，且上游在左下游在右.默认水平段与斜坡段的交点为第二段的第一个节点。"
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//SOILPROFILE,NUM=(I),spmethod=(I),kmethod=(I),rf_epp=(I),rf_app=(I),iniepp=(I)   //spmethod=土压力计算方法，0，郎肯； &
+	README(IPP(I)) = "//SOILPROFILE,NUM=(I),spmethod=(I),kmethod=(I),rf_epp=(I),rf_app=(I),iniepp=(I)   \n//spmethod=土压力计算方法，0，郎肯； &
         \n// kmethod=基床系数的计算方法，0，m法；1，(E,V)法；2,zhu;3 biot;4 vesic;-1,按直接输入. &
         \n// rf_epp=被动侧土弹簧抗力限值是否要减掉初始的主动土压力.(0N1Y). &
         \n// RF_APP=0 !主动侧主动土压力荷载，开挖面以下是否按倒三角折减.(0N1Y). & 
-		\n// iniepp=2 !被动侧土弹簧土压力初始值(位移=0时的土压力),2=主动土压力，1=静止土压力."
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT SOILPROFILE DATA."//'"'
+		\n// iniepp=2 !被动侧土弹簧土压力初始值(位移=0时的土压力),2=主动土压力，1=静止土压力."C
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD SOILPROFILE IS USED TO INPUT SOILPROFILE DATA."//'"'C
 	README(IPP(I))=  "//A0:{TITLE(C)}  //土层剖面的名字"  
-	README(IPP(I)) = "//A:{NASOIL(I),NPSOIL(I),BEAMID(I),NACTION(I),NSTRUT}  //主动侧土层数(负数表主动土压力为负，被动为正，反之亦然。)，被动侧土层数，地基梁号,约束(力，位移，弹簧)个数,支撑个数" 
+	README(IPP(I)) = "//A:{NASOIL(I),NPSOIL(I),BEAMID(I)}  //主动侧土层数(负数表主动土压力为负，被动为正，反之亦然。)，被动侧土层数，地基梁号." 
 	README(IPP(I)) = "//B:{(Z1,Z2,MAT,WPMETHOD,STEPFUN)*NASOIL}   //层顶高程点号，层底高程点号，材料号，水压力考虑方法(0=合算，1=常规分算，2=分算，考虑渗透力),步函数。共NASOIL行"  
 	README(IPP(I)) = "//C:{(Z1,Z2,MAT,WPMETHOD,STEPFUN)*NPSOIL}   //层顶高程点号，层底高程点号，材料号，水压力考虑方法(0=合算，1=常规分算，2=分算，考虑渗透力),步函数。共NPSOIL行"  
 	README(IPP(I)) = "//D:{AWATERLEVEL,ASTEPFUN,PWATERLEVEL,PSTEPFUN}   //主动侧水位,主动侧水位步函数，被动侧水位,被动侧水位步函数，"  
 	README(IPP(I)) = "//E:{ALoad,ALoadSTEPFUN,PLoad,PLoadSTEPFUN}   //主动侧超载,主动侧超载步函数，被动侧超载,被动侧超载步函数，" 
-	README(IPP(I)) = "//F:{NO_ACTION(I)}*NACTION   //约束号，共NACTION个" 
-	README(IPP(I)) = "//G:{NO_STRUT(I)}*NSTRUT   //支撑号，共NSTRUT个" 
-	README(IPP(I)) = "//{A0,A,B,C,D,E,F,G}*NUM。   //共NUM组"
-	README(IPP(I)) = "//注意：\n1)每一时间步，土层按顺序从上而下输入，不同时间步间的土层可以重叠,同一时间步有效各土层不要出现重叠和空隙。 &
+!	README(IPP(I)) = "//F:{NO_ACTION(I)}*NACTION   //约束号，共NACTION个" 
+!	README(IPP(I)) = "//G:{NO_STRUT(I)}*NSTRUT   //支撑号，共NSTRUT个" 
+	README(IPP(I)) = "//{A0,A,B,C,D,E}*NUM。   //共NUM组"
+	README(IPP(I)) = "//注意：\n//1)每一时间步，土层按顺序从上而下输入，不同时间步间的土层可以重叠,同一时间步有效各土层不要出现重叠和空隙。 &
 						\n//2)各时间步地下水位处要分层;桩顶处要分层(如果桩在土里面);桩的材料分界处要分层。 &
 						\n//3)考虑渗透力时，假定awL>pwL. &
 						\n//4)如果水面高于地表，将水等效为为土层（令c,phi,模量均设为0，渗透系数<=0)"C
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//PILE,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT BEAM(RetainingStructure) DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD PILE IS USED TO INPUT BEAM(RetainingStructure) DATA."//'"'
 	README(IPP(I)) = "//A:{NSEG(I),[SYSTEM=0]}  //材料分段数，坐标号" 
 	README(IPP(I)) = "//B:{Z(1:NSEG+1)}   //材料分段点,应从上往下（或从左往右）输入（方便单元寻址）"  
 	README(IPP(I)) = "//C:{MAT(1:NSEG)}   //各段材料号"  
@@ -1959,25 +1964,25 @@ subroutine write_readme_feasolver()
 
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//STRUT,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT STRUT(RetainingStructure) DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD STRUT IS USED TO INPUT STRUT(RetainingStructure) DATA."//'"'
 	README(IPP(I)) = "//A:{Z,MAT,STEPFUN}  //点号，材料号，步函数" 
 	README(IPP(I)) = "//{A}*NUM。   //共NUM组"
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//KPOINT,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT KeyPoint DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD KPOINT IS USED TO INPUT KeyPoint DATA."//'"'
 	README(IPP(I)) = "//A:{NO(I),XY(1:NDIMENSION),[ELEMENTSIZE(R)]}  //点号，XY(1:NDIMENSION),[ELEMENT SIZE]" 
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"	
     
  	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//LINE,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT GEOMETRY LINE DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD LINE IS USED TO INPUT GEOMETRY LINE DATA."//'"'
 	README(IPP(I)) = "//A:{NO(I),MATID(I),NPOINT(I),IPOINT(I),[TITLE(A)]}  //线号，材料号(投影)，控制点个数，控制点号(共NPOINT个)，名字" 
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"   
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//ACTION,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT Laction DATA..."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD ACTION IS USED TO INPUT Laction DATA..."//'"'
 	README(IPP(I))=  "//A0:{TITLE(C)}  //作用的名字"  
 	README(IPP(I)) = "//A:{NKP,TYPE,DOF,NDIM,[SF,ISVALUESTEPFUN,ISEXVALUE]}  //控制点数，作用类型（0=力，1=位移，2=刚度），作用的自由度，作用的维度，生死步函数,值步函数开关(0N1Y)，极值开关(0N1Y)" 
 	README(IPP(I)) = "//B:{KPOINT(1:NKP)}  //控制点号,应从上往下（或从左往右）输入（方便单元寻址）" 
