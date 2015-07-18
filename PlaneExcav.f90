@@ -51,7 +51,7 @@ Module ExcaDS
     type soillayer_tydef
         integer::z(2)=0,mat=1,sf=0,wpflag=1,nnode=0,nel=0  !土层号，步函数号，是否水土分算（1Yes0NO）,此段范围内土层所依附的支护梁的节点个数,单元数
         integer::IUNSET=-1,IUESET=-1 !此段范围内土层所依附的支护梁的节点集和单元集编号
-		real(double)::ko=0.d0,ka=0.d0,kp=0.d0 !静止、主动、被动土压力系数 
+		real(double)::ko=0.d0,ka=0.d0,kp=0.d0,Pv=0.d0 !静止、主动、被动土压力系数,作用于该土层面的超载（向下为正） 
         real(double)::SigmaVT(2),SigmaV(2),Sigmako(2),Sigmaka(2),Sigmakp(2),PW(2)=0.0d0,KS(2)=0.D0		
         !（竖向应力，有效竖向应力，静止土压力，主动土压力，被动土压力，孔压）。1表层顶的值，2为层底的值。
 		
@@ -61,7 +61,7 @@ Module ExcaDS
         integer::nasoil=0,npsoil=0,beam=1,spm=0,naction=0,nstrut=0,kmethod=0 !spm=土压力计算方法,0=郎肯。 
 		!kmethod,水平基床的计算方法: =0,m法(规范方法)；=1(E，v方法，);
         integer::sf_awL=0,sf_pwL=0,sf_aLoad=0,sf_pLoad=0 !主被侧水位的步长函数，主被动侧超载的步函数
-		real(DOUBLE)::awL,pwL,aLoad=0,pLoad=0 !主被侧水位,主被动侧超载
+		real(DOUBLE)::awL,pwL,aLoad=0,pLoad=0 !主被侧水位,主被动侧地表超载（向下为正）
 		integer::za=0,zp=0 !各时间步主动侧和被动侧地表高程。
 		integer::aside=1 !aside=1,表主动土压力正，被动为负。
         CHARACTER(64)::TITLE=""
@@ -1122,7 +1122,7 @@ subroutine EarthPressure(istep)
 			if(tof1) then
                 WL1=soilprofile(i).awL*sf(soilprofile(i).sf_awL).factor(istep)
                 T1=MAX((wL1-kpoint(ndimension,soilprofile(i).asoil(j).z(1)))*GA,0.0)
-				soilprofile(i).asoil(j).SigmaVT(1)=T1+soilprofile(i).aLoad*sf(soilprofile(i).sf_aload).factor(istep)
+				soilprofile(i).asoil(j).SigmaVT(1)=T1+soilprofile(i).aLoad*sf(soilprofile(i).sf_aload).factor(istep)+soilprofile(i).asoil(j).pv
                 soilprofile(i).asoil(j).SigmaV(1)=soilprofile(i).asoil(j).SigmaVT(1)-soilprofile(i).asoil(j).pw(1)				
 				soilprofile(i).za=soilprofile(i).asoil(j).z(1)
 				tof1=.false.
@@ -1130,8 +1130,8 @@ subroutine EarthPressure(istep)
                 do k=j-1,1,-1
                     if(sf(soilprofile(i).asoil(k).sf).factor(istep)/=0) exit
                 enddo
-				soilprofile(i).asoil(j).SigmaV(1)=soilprofile(i).asoil(k).SigmaV(2)
-                soilprofile(i).asoil(j).SigmaVT(1)=soilprofile(i).asoil(k).SigmaVT(2)
+				soilprofile(i).asoil(j).SigmaV(1)=soilprofile(i).asoil(k).SigmaV(2)+soilprofile(i).asoil(j).pv
+                soilprofile(i).asoil(j).SigmaVT(1)=soilprofile(i).asoil(k).SigmaVT(2)+soilprofile(i).asoil(j).pv
 			endif
 			gamma1=matproperty(soilprofile(i).asoil(j).mat,3,istep)
 			t1=kpoint(ndimension,soilprofile(i).asoil(j).z(1))-kpoint(ndimension,soilprofile(i).asoil(j).z(2))
@@ -1154,7 +1154,7 @@ subroutine EarthPressure(istep)
 			if(tof1) then
                 WL1=soilprofile(i).PwL*sf(soilprofile(i).sf_PwL).factor(istep)
                 T1=MAX((wL1-kpoint(ndimension,soilprofile(i).Psoil(j).z(1)))*GA,0.d0)
-				soilprofile(i).psoil(j).SigmaVT(1)=T1+soilprofile(i).pLoad*sf(soilprofile(i).sf_pload).factor(istep)
+				soilprofile(i).psoil(j).SigmaVT(1)=T1+soilprofile(i).pLoad*sf(soilprofile(i).sf_pload).factor(istep)+soilprofile(i).psoil(j).pv
 				soilprofile(i).psoil(j).SigmaV(1)=soilprofile(i).psoil(j).SigmaVT(1)-soilprofile(i).psoil(j).pw(1)
                 if( soilprofile(i).psoil(j).SigmaV(1)<0) then
                     print *, 'The effective vertical stress is <0 in soilprofile(i).psoil(j).SigmaV1. i,j=',i,j
@@ -1167,8 +1167,8 @@ subroutine EarthPressure(istep)
                 do k=j-1,1,-1
                     if(sf(soilprofile(i).psoil(k).sf).factor(istep)/=0) exit
                 enddo
-				soilprofile(i).psoil(j).SigmaV(1)=soilprofile(i).psoil(k).SigmaV(2)
-                soilprofile(i).psoil(j).SigmaVT(1)=soilprofile(i).psoil(k).SigmaVT(2)
+				soilprofile(i).psoil(j).SigmaV(1)=soilprofile(i).psoil(k).SigmaV(2)+soilprofile(i).psoil(j).pv
+                soilprofile(i).psoil(j).SigmaVT(1)=soilprofile(i).psoil(k).SigmaVT(2)+soilprofile(i).psoil(j).pv
 			endif
 			gamma1=matproperty(soilprofile(i).psoil(j).mat,3,istep)
             t1=kpoint(ndimension,soilprofile(i).psoil(j).z(1))-kpoint(ndimension,soilprofile(i).psoil(j).z(2))

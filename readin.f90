@@ -1094,13 +1094,24 @@ subroutine solvercommand(term,unit)
 						 soilprofile(i).iaction(soilprofile(i).naction),soilprofile(i).istrut(soilprofile(i).nstrut))
 				do j=1,soilprofile(i).nasoil
 					call skipcomment(unit)
-					read(unit,*) soilprofile(i).asoil(j).z,soilprofile(i).asoil(j).mat,soilprofile(i).asoil(j).wpflag,soilprofile(i).asoil(j).sf
-
+					call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+					!read(unit,*) soilprofile(i).asoil(j).z,soilprofile(i).asoil(j).mat,soilprofile(i).asoil(j).wpflag,soilprofile(i).asoil(j).sf
+					soilprofile(i).asoil(j).z=int(ar(1:2))
+					soilprofile(i).asoil(j).mat=int(ar(3))
+					soilprofile(i).asoil(j).wpflag=int(ar(4))
+					soilprofile(i).asoil(j).sf=int(ar(5))
+					if(n1>5) soilprofile(i).asoil(j).pv=ar(6)
 				enddo
+				
 				do j=1,soilprofile(i).npsoil
 					call skipcomment(unit)
-					read(unit,*) soilprofile(i).psoil(j).z,soilprofile(i).psoil(j).mat,soilprofile(i).psoil(j).wpflag,soilprofile(i).psoil(j).sf
-
+					call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+					!read(unit,*) soilprofile(i).psoil(j).z,soilprofile(i).psoil(j).mat,soilprofile(i).psoil(j).wpflag,soilprofile(i).psoil(j).sf
+					soilprofile(i).psoil(j).z=int(ar(1:2))
+					soilprofile(i).psoil(j).mat=int(ar(3))
+					soilprofile(i).psoil(j).wpflag=int(ar(4))
+					soilprofile(i).psoil(j).sf=int(ar(5))
+					if(n1>5) soilprofile(i).asoil(j).pv=ar(6)
                 enddo
                 
 				call skipcomment(unit)
@@ -1942,8 +1953,8 @@ subroutine write_readme_feasolver()
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD SOILPROFILE IS USED TO INPUT SOILPROFILE DATA."//'"'C
 	README(IPP(I))=  "//A0:{TITLE(C)}  //土层剖面的名字"  
 	README(IPP(I)) = "//A:{NASOIL(I),NPSOIL(I),BEAMID(I)}  //主动侧土层数(负数表主动土压力为负，被动为正，反之亦然。)，被动侧土层数，地基梁号." 
-	README(IPP(I)) = "//B:{(Z1,Z2,MAT,WPMETHOD,STEPFUN)*NASOIL}   //层顶高程点号，层底高程点号，材料号，水压力考虑方法(0=合算，1=常规分算，2=分算，考虑渗透力),步函数。共NASOIL行"  
-	README(IPP(I)) = "//C:{(Z1,Z2,MAT,WPMETHOD,STEPFUN)*NPSOIL}   //层顶高程点号，层底高程点号，材料号，水压力考虑方法(0=合算，1=常规分算，2=分算，考虑渗透力),步函数。共NPSOIL行"  
+	README(IPP(I)) = "//B:{(Z1,Z2,MAT,WPMETHOD,STEPFUN [,PV])*NASOIL}   //层顶高程点号，层底高程点号，材料号，水压力考虑方法(0=合算，1=常规分算，2=分算，考虑渗透力),步函数 [,超载]。共NASOIL行"  
+	README(IPP(I)) = "//C:{(Z1,Z2,MAT,WPMETHOD,STEPFUN [,PV])*NPSOIL}   //层顶高程点号，层底高程点号，材料号，水压力考虑方法(0=合算，1=常规分算，2=分算，考虑渗透力),步函数 [,超载]。共NPSOIL行"  
 	README(IPP(I)) = "//D:{AWATERLEVEL,ASTEPFUN,PWATERLEVEL,PSTEPFUN}   //主动侧水位,主动侧水位步函数，被动侧水位,被动侧水位步函数，"  
 	README(IPP(I)) = "//E:{ALoad,ALoadSTEPFUN,PLoad,PLoadSTEPFUN}   //主动侧超载,主动侧超载步函数，被动侧超载,被动侧超载步函数，" 
 !	README(IPP(I)) = "//F:{NO_ACTION(I)}*NACTION   //约束号，共NACTION个" 
