@@ -232,7 +232,7 @@ integer, parameter::LELASTIC = 6 !LINEAR ELASTIC SOLVER
 integer, parameter::LA04 = -2  !HSL LA04 SOLVER
 integer, parameter::LPSOLVER = -3 !USING LP_SOLVE TO SOLVE LIMIT ANALYSIS PROBLEM.
 integer, parameter::MOSEK = -4  !MOSEK OPTIMIZTION SOLVER.
-real(kind = DPN), parameter::UM = 1.0d20
+real(DPN), parameter::UM = 1.0d20
 
 !material type constants
 integer, parameter::ELASTIC = 1 !elastic material
@@ -317,8 +317,9 @@ integer, parameter::step = 2 !在步初，瞬间施加全部的量。
 integer, parameter::ReRamp = -1 !在一步内随时间线性减小。
 
 !slopestability
-integer, parameter::MatWater = 9999
+integer, parameter::MatWater = -9999
 integer, parameter::BISHOP = 2,ORDINARY=1,SPENCER=3,JANBU=4,GLE=5
 integer,parameter::CIRCULAR=1,NONCIRCULAR=0
+integer,parameter::GRID=1,MONTECARLO=2
 
 	

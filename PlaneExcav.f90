@@ -4,6 +4,8 @@ Module Geometry
     real(double),allocatable::kpoint(:,:)
     integer::nkp=0
     real(double)::MinX=1.D20,MaxX=-1.D20,MinY=1.D20,MaxY=-1.D20
+	integer,allocatable::RTPOINT(:)
+	INTEGER::NRTPOINT=0
     
     type line_tydef
         integer::npoint=0
@@ -11,10 +13,11 @@ Module Geometry
         integer::mat=-1
         character(64)::title=''
     end type
-    type(line_tydef),allocatable::line(:),Geoline(:)
+    type(line_tydef),allocatable::line(:),Geoline(:),waterlevel
     integer::nline=0,nGEOline=0
-    !Assumption of GeoLine£º1)points must be ordered from a2z. 2) no revserse is allowed.
+    !Assumption of GeoLine£º1)points must be ordered from a2z. 2) no revserse is allowed. 
     
+	
     type lineloop_tydef
         integer::nline=0
         integer,allocatable::line(:)

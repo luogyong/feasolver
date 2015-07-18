@@ -535,7 +535,39 @@ subroutine solvercommand(term,unit)
                 enddo
                 if(nset==1) geoline(n2).title=set(1)
             enddo
-            
+		CASE('waterlevel')
+			 print *, 'Reading WALTERLEVEL LINE data...'
+            do i=1,pro_num
+                select case(property(i).name)
+					case('num')
+						WATERLEVEL.NPOINT=int(property(i).value)                                            
+					case default
+						call Err_msg(property(i).name)
+				end select    
+            end do
+            allocate(WATERLEVEL.POINT(WATERLEVEL.NPOINT))
+			call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+			WATERLEVEL.POINT=AR(1:n1)
+			
+        case('right turn point','rtpoint','rtp')
+			print *, 'Reading RIGHT TURN POINTS ...'
+            do i=1,pro_num
+                select case(property(i).name)
+					case('num')
+						NRTPOINT=int(property(i).value)                                            
+					case default
+						call Err_msg(property(i).name)
+				end select    
+            end do
+			IF(NRTPONT>0) THEN
+				ALLOCATE(RTPOINT(NRTPOINT))
+				n2=0
+				DOWHILE(n2<nrtpoint)
+					call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+					rtpoint(n2+1:n2+n1)=int(ar(1:n1))
+					n2=n2+n1
+				ENDDO
+			ENDIF
 		case('hbeam','pile') !for retaining structure
 			print *, 'Reading beam/pile(Retaining Structure) data...'
 			do i=1, pro_num
@@ -1220,6 +1252,10 @@ subroutine solvercommand(term,unit)
                     slopeparameter.slipshape=int(property(i).value)
                 case('slicewdith','sw')
                     slopeparameter.slicewidth=property(i).value
+                CASE('xmin_mc')
+                    slopeparameter.xmin_mc=property(i).value
+                CASE('xmax_mc')
+                    slopeparameter.xmax_mc=property(i).value                    
                 endselect
             enddo
 		case('ueset')
@@ -1945,7 +1981,7 @@ subroutine write_readme_feasolver()
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//WSP,NUM=...(I)[CP=...(I),Method=...(I)]   //CP=1,仅为计算水面算,水面线计算完成后就退出。CP=2,渗流计算是边界按不考虑水跃作用取值。Mothed=1,2,3,4(kinds,WangXG,Ohtsu,Chow)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT WATERSURFACEPROFILE CALCULATION DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT WATERSURFACEPROFILE CALCULATION DATA."//'"'
 	README(IPP(I)) = "//{NSEGMENT(I),NNODE(I),Q(R),B(R),UYBC,DYBC,[Q_SF,UYBC_SF,DYBC_SF,caltype,g,kn]}" 
 	README(IPP(I)) = "//流道数;流道剖分总节点数;过流量;流道宽;上游边界水深;下游边界水深; [Q的步长函数,UYBC的步长函数,DYBC的步长函数,计算控制参数;重力加速度;曼宁量纲系数]"
 	README(IPP(I)) = "//{UNODE(I),DNODE(I),n(R),So(R),[Profileshape(1),Profileshape(2)]}  //起点号（局部编号，最上游节点编号为1，最下游编号为NNODE),终点号,糙率,坡率,[急流形式,缓流形式]。(流道参数行，从上游到下游依次输入,共NSEGMENT行)"
@@ -1960,7 +1996,7 @@ subroutine write_readme_feasolver()
         \n// kmethod=基床系数的计算方法，0，m法；1，(E,V)法；2,zhu;3 biot;4 vesic;-1,按直接输入. &
         \n// rf_epp=被动侧土弹簧抗力限值是否要减掉初始的主动土压力.(0N1Y). &
         \n// RF_APP=0 !主动侧主动土压力荷载，开挖面以下是否按倒三角折减.(0N1Y)."  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT SOILPROFILE DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT SOILPROFILE DATA."//'"'
 	README(IPP(I))=  "//A0:{TITLE(C)}  //土层剖面的名字"  
 	README(IPP(I)) = "//A:{NASOIL(I),NPSOIL(I),BEAMID(I),NACTION(I),NSTRUT}  //主动侧土层数(负数表主动土压力为负，被动为正，反之亦然。)，被动侧土层数，地基梁号,约束(力，位移，弹簧)个数,支撑个数" 
 	README(IPP(I)) = "//B:{(Z1,Z2,MAT,WPMETHOD,STEPFUN)*NASOIL}   //层顶高程点号，层底高程点号，材料号，水压力考虑方法(0=合算，1=常规分算，2=分算，考虑渗透力),步函数。共NASOIL行"  
@@ -1977,7 +2013,7 @@ subroutine write_readme_feasolver()
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//PILE,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT BEAM(RetainingStructure) DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT BEAM(RetainingStructure) DATA."//'"'
 	README(IPP(I)) = "//A:{NSEG(I),[SYSTEM=0]}  //材料分段数，坐标号" 
 	README(IPP(I)) = "//B:{Z(1:NSEG+1)}   //材料分段点,应从上往下（或从左往右）输入（方便单元寻址）"  
 	README(IPP(I)) = "//C:{MAT(1:NSEG)}   //各段材料号"  
@@ -1985,26 +2021,40 @@ subroutine write_readme_feasolver()
 
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//STRUT,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT STRUT(RetainingStructure) DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT STRUT(RetainingStructure) DATA."//'"'
 	README(IPP(I)) = "//A:{Z,MAT,STEPFUN}  //点号，材料号，步函数" 
 	README(IPP(I)) = "//{A}*NUM。   //共NUM组"
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//KPOINT,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT KeyPoint DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT KeyPoint DATA."//'"'
 	README(IPP(I)) = "//A:{NO(I),XY(1:NDIMENSION),[ELEMENTSIZE(R)]}  //点号，XY(1:NDIMENSION),[ELEMENT SIZE]" 
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"	
     
  	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//GEOLINE,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT GEOLOGICAL LINE DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT GEOLOGICAL LINE DATA."//'"'
 	README(IPP(I)) = "//A:{NO(I),MATID(I),NPOINT(I),IPOINT(I),[TITLE(A)]}  //线号，材料号(投影)，控制点个数，控制点号(共NPOINT个)，名字" 
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"   
 	README(IPP(I)) = "//注意：1）按X从左至右的顺序输入,既x1<=x2<=..<=xn" 
+	
+ 	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//WATERLEVEL,NUM=...(I)"  
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT WALTERLEVEL LINE DATA."//'"'
+	README(IPP(I)) = "//A:{P1,P2,...,P(NUM)]}  //控制点号(共NUM个)" 
+ 	README(IPP(I)) = "//{A}*1   //共1组"   
+	README(IPP(I)) = "//注意：1）按X从左至右的顺序输入,既x1<=x2<=..<=xn" 	
+	
+ 	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//RIGHT TURN POINT,NUM=...(I)"  
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD  IS USED TO INPUT RIGHT TURN POINT DATA."//'"'
+	README(IPP(I)) = "//A:{IPOINT1,IPOINT2,...IPOINTN}  //点号(共NUM个)" 
+ 	README(IPP(I)) = "//{A}*1。   "   
+	README(IPP(I)) = "//此命令用于输入竖直坡面的下端点的点号(既同一X处有两个地表高程Y)，以解决同一X点有两个地表高程的问题。" 	
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//ACTION,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT Laction DATA..."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT Laction DATA..."//'"'
 	README(IPP(I))=  "//A0:{TITLE(C)}  //作用的名字"  
 	README(IPP(I)) = "//A:{NKP,TYPE,DOF,NDIM,[SF,ISVALUESTEPFUN,ISEXVALUE]}  //控制点数，作用类型（0=力，1=位移，2=刚度），作用的自由度，作用的维度，生死步函数,值步函数开关(0N1Y)，极值开关(0N1Y)" 
 	README(IPP(I)) = "//B:{KPOINT(1:NKP)}  //控制点号,应从上往下（或从左往右）输入（方便单元寻址）" 
@@ -2020,12 +2070,13 @@ subroutine write_readme_feasolver()
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//SLOPEPARAMETER,SLOPEMETHOD=0|1|2|3|4|5,OPTIMIZATIONMETHOD=1,SLIPSHAPE=CIRCULAR|NONCIRCULAR,SLICEWIDTH=0.5" 
+	README(IPP(I)) = "//SLOPEPARAMETER,SLOPEMETHOD=0|1|2|3|4|5,OPTIMIZATIONMETHOD=1,SLIPSHAPE=CIRCULAR|NONCIRCULAR,SLICEWIDTH=1.0,..." 
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD HINGE IS USED TO INPUT HINGE/FREEDOF DATA..."//'"'
 	README(IPP(I)) = "//SLOPEMETHOD:边坡分析方法，1，ordinary,2,bishop,3,spencer,4,janbu,5,gle; 0 for all." 
- 	README(IPP(I)) = "//OMTIMIZATION,搜寻方法，1，grid;"	
+ 	README(IPP(I)) = "//OMTIMIZATION,搜寻方法，1，grid;2,MONTE CARLO"	
     README(IPP(I)) = "//SLIPSHAPE,滑弧形状，1,circular;0,noncircular;"
-    README(IPP(I)) = "//SLICEWIDTH,土条宽度,(0.5,bydefault)"
+    README(IPP(I)) = "//SLICEWIDTH,土条宽度,(1.0,bydefault)"
+    README(IPP(I)) = "//XMIN_MC,XMAX_MC,SEARCH RANGE FOR MONTE CARLO TECHNIQUE"
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//MATERIAL,MATID=...(I),[TYPE=...(I)],[ISFF=YES|NO],[NAME=...(c)],ISSF=...(I)//MATID=材料号，TYPE=材料类型，ISFF=是否为依赖某场变量,NAME=材料文字注释.此关键词可重复出现.ISSF=是否输入材料参数的步函数(0N1Y)" 
