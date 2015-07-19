@@ -152,7 +152,7 @@ SUBROUTINE SCIPLOT()
         
 
 		    CALL scigraph_xy(UNIT,GRAPHTYPE,WINNUM,WTITLE,DATATITLE,XTITLE,YTITLE,LEGENDS,DATASET1,DATANUM,PDATA, &
-				    & BGC,linecolor,IsMarker,isThinLine)
+				    & BGC,linecolor,IsMarker,isThinLine,ISEXCA2D)
         ENDDO
 	END DO
 		
@@ -234,14 +234,14 @@ subroutine LineStyle()
     
 
   subroutine scigraph_xy(UNIT,GRAPHTYPE,WINNUM,WTITLE,DATATITLE,XTITLE,YTITLE,LEGENDS,DATASET, & 
-						DATANUM,PDATA,BGC,LineColor,IsMarker,isThinLine)
+						DATANUM,PDATA,BGC,LineColor,IsMarker,isThinLine,ISDIVX)
 		!USE GLOBE
 		use dflib
 		use scigraph
 		implicit none
 
 		INTEGER::I,J,K,retcode,wx,wy,GT,axistype,wxc,wyc,BGC,linecolor,IsMarker,isThinLine
-		INTEGER::UNIT,GRAPHTYPE,WINNUM,DATASET,DATANUM
+		INTEGER::UNIT,GRAPHTYPE,WINNUM,DATASET,DATANUM,ISDIVX
 		CHARACTER*32::WTITLE,datatitle(WINNUM),xtitle(WINNUM),ytitle(WINNUM),LEGENDS(DATASET)
 		REAL(4)::PDATA(2,DATANUM,DATASET,WINNUM)
 		REAL*4,allocatable::xyData(:,:,:)
@@ -279,10 +279,18 @@ subroutine LineStyle()
 			!END IF
 
 			if(graphtype==1) then
+				IF(ISDIVX==1) THEN
 				wx=wc1.numxpixels/WINNUM
 				xygraph.x1=wx*(I-1)
 				xyGraph.x2=wx*I
 				xyGraph.y2=wc1.numypixels*0.9
+				ELSE
+				wy=wc1.numypixels/WINNUM
+				xygraph.y1=wy*(I-1)
+				xyGraph.y2=wy*I
+				xyGraph.x1=0.1*wc1.numxpixels
+				xyGraph.x2=0.9*wc1.numxpixels
+				ENDIF
 			else
 				!wx=wc1.numxpixels/2
 				wy=wc1.numypixels/2
