@@ -2027,7 +2027,7 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) ="//SIGMA_Y=YIELD STRESS UNDER UNIAXIAL STRETCH. FOR CLAY UNDER PLAIN STRAIN SIGMA_Y=3*CU (CU, UNDRAINED SHEAR STRENGTH) AND SIGMA_Y=2*CU FOR TRIAXIAL (AXISYMMETRICAL) STATE.\N"C
 	README(IPP(I)) ="//5. CASE(MC)      : PROPERTY(1)=E  .(2)=V   .(3)=C\N   "C
 	README(IPP(I)) ="//6. CASE(CAMCLAY) : PROPERTY(1)=M  .(2)=V   .(3)=LAMDA \N  "C
-	README(IPP(I)) ="//7. CASE(SPG)     : PROPERTY(1)=K1 .(2)=K2  .(3)=K3       .(4)=INT(TRANSM)    .(7)=ALPHA .(8)=N  .(9)=M .(10)=Mv	.(11)=Sita_s	.(12)=Sita_r    .(13)=rw "
+	README(IPP(I)) ="//7. CASE(SPG)     : PROPERTY(1)=K1 .(2)=K2  .(3)=K3       .(4)=INT(TRANSM)    .(7)=ALPHA .(8)=N  .(9)=M .(10)=Mv	.(11)=Sita_s	.(12)=Sita_r    .(13)=rw 	.(14)=THICKNESS"
 	README(IPP(I)) ="//TRANSM=L2G,FOR SPG, TRANSFORM THE MATERIAL KIJ TO GLOBLE KXY."
     README(IPP(I)) ="//ALPHA= A CURVE FITTING PARAMETER FOR THE VAN GENUCHTEN MODEL,LEONG AND RAHARDJO MODEL AND EXPONENT MODEL,UNIT=1/L." 
     README(IPP(I)) ="//N,M=CURVE FITTING DIMENSIONLESS PARAMETERS FOR THE VAN GENUCHTEN MODEL/LEONG AND RAHARDJO MODEL." 
@@ -2035,7 +2035,8 @@ subroutine write_readme_feasolver()
     README(IPP(I)) ="//Mv=COEFFICIENT OF COMPRESSIBILITY.(UNIT:L**2/F)"
     README(IPP(I)) ="//Sita_s=Saturated volumetric water content."
 	README(IPP(I)) ="//Sita_r=Residual volumetric water content."
-    README(IPP(I)) ="//rw=bulk Gravity of water.(UNIT:F/L**3)\N"C
+    README(IPP(I)) ="//rw=bulk Gravity of water.(UNIT:F/L**3)"C
+	README(IPP(I)) ="//THICKNESS=PHYSICAL THICKNESS FOR A ZEROTHICKNESS ELEMENT\N"C
     README(IPP(I)) ="//注意单位的统一。尤其注意ALPHA的单位，在VG模型中为：1/L，在LR模型中为:L.\N"C
 	README(IPP(I)) ="//8. CASE(BAR,BAR2D)     : PROPERTY(1)=E  .(2)=A	[.(3)=hy	.(4)=hz	 .(5)=minN(最大轴向压力)	.(6)=MaxN(最大轴向拉力)]"
 	README(IPP(I)) ="//9. CASE(BEAM,BEAM2D,SSP2D)   : PROPERTY(1)=E  .(2)=A   .(3)=v	.(4)=J	.(5)=Iz	.(6)=Iy	[.(7)=hy	.(8)=hz]"
@@ -2048,7 +2049,7 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) ="//10. CASE(PIPE2,PPIPE2) : PROPERTY(1)=R(管半径,L)  .(2)=LAMDA(管壁摩阻系数)	.(3)=EPSLON(管壁的绝对粗糙度,L)	.(4)=V(运动粘滞系数L**2/T)"C
 	README(IPP(I)) ="//11. CASE(ExcavationSoil) : PROPERTY(1:8)=黏聚力，摩擦角，天然/饱和重度，变形模量，泊松比,渗透系数，水平基床系数(F/L**3),墙土间摩擦角（度）"C
 	README(IPP(I)) ="//12. CASE(spirng) : PROPERTY(1:3)=k,minV(发生负位移),maxV(发生正位移)，预加力，预加位移"C
-
+	
 						
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) ="//Coordinate system(FYI)" 
@@ -2475,6 +2476,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 				EC1=CAX_CPL;NDOF1=9;nd1=4
             ENDIF
 			call EL_SFR2(ET1)
+
 		case(CPE6_SPG,CAX6_SPG,CPE6_CPL,CAX6_CPL)
 			nnum1=6
 			!ndof1=6
@@ -2495,13 +2497,13 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 				EC1=CAX_CPL;NDOF1=18;nd1=4
             ENDIF
 			call EL_SFR2(ET1)			
-		case(CPE4_SPG,cax4_SPG,CPE4_CPL,cax4_CPL)
+		case(CPE4_SPG,cax4_SPG,CPE4_CPL,cax4_CPL,ZT4_SPG)
 			nnum1=4
 			!ndof1=4
 			ngp1=4			
 			
 			stype='FEQUADRILATERAL'
-			IF(ET1==CPE4_SPG) THEN
+			IF(ET1==CPE4_SPG.OR.ET1==ZT4_SPG) THEN
 				EC1=SPG2D;NDOF1=4;nd1=2
 			ENDIF
 			if(et1==CAX4_SPG) THEN

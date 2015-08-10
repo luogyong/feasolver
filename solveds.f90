@@ -23,6 +23,8 @@ module solverds
 	end type
 	integer::nnum !½ÚµãÊý
 	type(node_tydef),allocatable::node(:)
+	real(DPN),ALLOCATABLE::GNODE(:,:) !GHOST NODE
+	INTEGER::NGNODE=0
     
 	type element_tydef
 		integer::nnum !node numbers of this element
@@ -624,6 +626,25 @@ subroutine enlarge_node(EL,NEL,enel,iel)
 	
 endsubroutine
 
+subroutine enlarge_Gnode(ENEL)
+!ENLARGE GNODE(3,N1) TO GNODE(3,N1+ENEL)
+
+	use solverds	
+	implicit none
+	integer,intent(in)::ENEL    
+	REAL(DPN),ALLOCATABLE::element1(:,:)
+	INTEGER::N1
+	
+	IF(ENEL<1) RETURN
+	N1=SIZE(GNODE,DIM=2)
+	
+	allocate(element1(3,N1+enel))
+	element1(:,1:N1)=GNODE
+	if(allocated(GNODE)) deallocate(GNODE)
+	allocate(GNODE,SOURCE=ELEMENT1)
+	deallocate(element1)
+	
+endsubroutine
 
     
 SUBROUTINE invert(matrix)

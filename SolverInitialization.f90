@@ -17,7 +17,7 @@ subroutine Initialization()
 	implicit none
 	integer::i,j,k,nj,p,j1,j2
 	integer::n1,n2,n3,n4
-	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord(4,2)=0,trans1(12,12)=0,c1(3,3)=0,b2(3),c2(3),R1,R2,R3,R4
+	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord1(3,4)=0,trans1(12,12)=0,c1(3,3)=0,b2(3),c2(3),R1,R2,R3,R4
 	real(kind=DPN)::km1(6,6)=0.d0
 	integer::dof1(MNDOF)
 	character(64)::ermsg=''
@@ -707,6 +707,10 @@ subroutine Initialization()
 				node(element(i).node(1:element(i).nnum)).dof(4)=0
 				allocate(element(i).km(2,2))
 				element(i).km=0.0D0
+			!CASE(ZT4_SPG) !assume no flow occurs in the diections parallel to element faces.
+			!	node(element(i).node(1:element(i).nnum)).dof(4)=0
+			!	allocate(element(i).km(4,4))
+			!	element(i).km=0.0D0
 				
 				
 			case default
@@ -724,6 +728,30 @@ subroutine Initialization()
 						end do						
 																	
 				end select
+				
+				IF(ELEMENT(I).ET==ZT4_SPG) THEN
+					!GENERATE THE GHOST NODE
+					T1=((NODE(ELEMENT(I).NODE(1)).COORD(1)-NODE(ELEMENT(I).NODE(2)).COORD(1))**2+ &
+						(NODE(ELEMENT(I).NODE(1)).COORD(2)-NODE(ELEMENT(I).NODE(2)).COORD(2))**2)**0.5D0
+					!LOCAL TO GLOBAL 
+					VCOS=(NODE(ELEMENT(I).NODE(2)).COORD(1)-NODE(ELEMENT(I).NODE(1)).COORD(1))/T1
+					VSIN=(NODE(ELEMENT(I).NODE(2)).COORD(2)-NODE(ELEMENT(I).NODE(1)).COORD(2))/T1
+					C1(1,1)=VCOS
+					C1(1,2)=VSIN
+					C1(2,2)=VCOS
+					C1(2,1)=-VSIN
+					COORD1(1,1)=T1;COORD1(2,1)=matproperty(ELEMENT(I).MAT,14,0)
+					COORD1(1,2)=0.D0;COORD1(2,2)=COORD1(2,1)
+					IF(.NOT.ALLOCATED(GNODE)) ALLOCATE(GNODE(3,1000))
+					IF(NGNODE+4>SIZE(GNODE,DIM=2)) CALL ENLARGE_GNODE(1000)
+					NGNODE=NGNODE+1;GNODE(:,NGNODE)=NODE(ELEMENT(I).NODE(1)).COORD
+					NGNODE=NGNODE+1;GNODE(:,NGNODE)=NODE(ELEMENT(I).NODE(2)).COORD
+					COORD1(1:2,1:2)=MATMUL(C1(1:2,1:2),COORD1(1:2,1:2))
+					NGNODE=NGNODE+1;GNODE(:,NGNODE)=COORD1(:,1)+NODE(ELEMENT(I).NODE(1)).COORD
+					NGNODE=NGNODE+1;GNODE(:,NGNODE)=COORD1(:,2)+NODE(ELEMENT(I).NODE(1)).COORD
+					ALLOCATE(ELEMENT(I).NODE2(4))
+					ELEMENT(I).NODE2=[NGNODE-4:NGNODE:1]
+				ENDIF
 				call Calangle(i)
 				!allocate room for km,b,d.
 				call el_alloc_room(i)
@@ -873,7 +901,7 @@ subroutine Initialization()
 			case(CPE3_SPG,CPE6_SPG,CPE4_SPG,CPE8_SPG,CPE4R_SPG,CPE8R_SPG,CPE15_SPG, &
 					 CPS4_SPG,CPS4R_SPG,CPS8_SPG,CPS8R_SPG,CPS6_SPG,CPS15_SPG, &	
 					 CAX3_SPG,CAX4_SPG,CAX4R_SPG,CAX6_SPG,CAX15_SPG,CAX8_SPG,CAX8R_SPG, &
-					 PRM6_SPG,PRM15_SPG,TET4_SPG,TET10_SPG)
+					 PRM6_SPG,PRM15_SPG,TET4_SPG,TET10_SPG,ZT4_SPG)
 				dof1=0
 				dof1(4)=4
 				!allocate(element(i).g(element(i).ndof))
@@ -1277,7 +1305,7 @@ subroutine calangle(ienum)
 				 cpe4_spg,cps4_spg,cpe4r_spg,cps4r_spg,cpe8_spg,cpe8r_spg,cps8_spg, &
 				 cps8r_spg,CAX4_spg,CAX4R_spg,CAX8_spg,CAX8R_spg, &
 				 cpe4_cpl,cps4_cpl,cpe4r_cpl,cps4r_cpl,cpe8_cpl,cpe8r_cpl,cps8_cpl, &
-				 cps8r_cpl,CAX4_cpl,CAX4R_cpl,CAX8_cpl,CAX8R_cpl)
+				 cps8r_cpl,CAX4_cpl,CAX4R_cpl,CAX8_cpl,CAX8R_cpl,ZT4_SPG)
 		
 			allocate(element(ienum).angle(4))
 			element(ienum).angle(4)=2*pi()
@@ -1287,6 +1315,10 @@ subroutine calangle(ienum)
 				v2=i+1
 				vec(:,1)=node(element(ienum).node(v1)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
 				vec(:,2)=node(element(ienum).node(v2)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
+				IF(ELEMENT(IENUM).ET==ZT4_SPG) THEN
+					vec(:,1)=GNODE(1:2,element(ienum).node2(v1))-Gnode(1:2,element(ienum).node2(i))
+					vec(:,2)=GNODE(1:2,element(ienum).node2(v2))-Gnode(1:2,element(ienum).node2(i))			
+				ENDIF
 				call vecangle(vec,idim,jdim,angle)
 				element(ienum).angle(i)=angle
 				element(ienum).angle(4)=element(ienum).angle(4)-angle				
@@ -1428,6 +1460,7 @@ subroutine xygp(ienum)
 		
 		do k=1,ndimension
 			element(ienum).xygp(k,j)=dot_product(ecp(element(ienum).et).lshape(:,j),node(element(ienum).node).coord(k))
+			IF(ELEMENT(IENUM).ET==ZT4_SPG) element(ienum).xygp(k,j)=dot_product(ecp(element(ienum).et).lshape(:,j),Gnode(K,element(ienum).node2))
 		end do
 	end do
 
@@ -1439,29 +1472,38 @@ subroutine cal_epsilon(ienum)
 	implicit none
 	integer,intent(in)::ienum
 	integer::nlow1,nup2,nlowgp1,nupgp2
-	real(8)::hg1,lg1
+	real(8)::hg1,lg1,coord_low1(3),coord_up2(3)
 
 	nlow1=minloc(node(element(ienum).node).coord(ndimension),1)
 	nup2=maxloc(node(element(ienum).node).coord(ndimension),1)
+	coord_low1=node(element(ienum).node(nlow1)).coord
+	coord_up2=node(element(ienum).node(nup2)).coord
+	IF(ELEMENT(IENUM).ET==ZT4_SPG) THEN
+		nlow1=minloc(Gnode(NDIMENSION,element(ienum).node2),1)
+		nup2=maxloc(Gnode(NDIMENSION,element(ienum).node2),1)
+		coord_low1=Gnode(:,element(ienum).node2(nlow1))
+		coord_up2=Gnode(:,element(ienum).node2(nup2))
+	ENDIF
+	
 	nlowgp1=minloc(element(ienum).xygp(ndimension,:),1)
 	nupgp2=maxloc(element(ienum).xygp(ndimension,:),1)
 
-	hg1=element(ienum).xygp(ndimension,nlowgp1)-node(element(ienum).node(nlow1)).coord(ndimension)
-	lg1=abs(element(ienum).xygp(1,nlowgp1)-node(element(ienum).node(nlow1)).coord(1))
+	hg1=element(ienum).xygp(ndimension,nlowgp1)-coord_low1(ndimension)
+	lg1=abs(element(ienum).xygp(1,nlowgp1)-coord_low1(1))
 	if(element(ienum).ec==spg) then
 		lg1=lg1**2
-		lg1=lg1+(element(ienum).xygp(2,nlowgp1)-node(element(ienum).node(nlow1)).coord(2))**2
+		lg1=lg1+(element(ienum).xygp(2,nlowgp1)-coord_low1(2))**2
 		lg1=lg1**0.5
 	end if
 	element(ienum).property(3)=hg1/2.0*((1+(lg1/hg1)**2)**0.5+1)
 	if(element(ienum).property(3)<eps1) eps1=element(ienum).property(3)
 
 
-	hg1=node(element(ienum).node(nup2)).coord(ndimension)-element(ienum).xygp(ndimension,nupgp2)
-	lg1=abs(element(ienum).xygp(1,nupgp2)-node(element(ienum).node(nup2)).coord(1))
+	hg1=coord_up2(ndimension)-element(ienum).xygp(ndimension,nupgp2)
+	lg1=abs(element(ienum).xygp(1,nupgp2)-coord_up2(1))
 	if(element(ienum).ec==spg) then
 		lg1=lg1**2
-		lg1=lg1+(element(ienum).xygp(2,nupgp2)-node(element(ienum).node(nup2)).coord(2))**2
+		lg1=lg1+(element(ienum).xygp(2,nupgp2)-coord_up2(2))**2
 		lg1=lg1**0.5
 	end if
 	element(ienum).property(2)=hg1/2.0*((1+(lg1/hg1)**2)**0.5+1)
@@ -1502,3 +1544,5 @@ subroutine BARFAMILY_EXTREMEVALUE(IENUM)
 	end do
 	
 end subroutine
+
+

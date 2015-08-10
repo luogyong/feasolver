@@ -28,6 +28,7 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
 	!initialize node coordinates
 	do i=1,nnode
 		xy(1:ndim,i)=node(element(ienum).node(i)).coord(1:ndim)
+		IF(ELEMENT(IENUM).ET==ZT4_SPG) xy(1:ndim,i)=GNODE(1:NDIM,ELEMENT(IENUM).NODE2(I))
 	end do
 	
 	do i=1,kelb
@@ -254,7 +255,7 @@ subroutine EL_SFR2(ET)
 
 		case(CPE4,CPS4,CAX4,&
 				 CPE4_SPG,CAX4_SPG, &
-				 CPE4_CPL,CAX4_CPL)		
+				 CPE4_CPL,CAX4_CPL,ZT4_SPG)		
 			ecp(et).nshape=4
 			ecp(et).ndim=2
 			ecp(et).ngp=4
@@ -561,9 +562,9 @@ subroutine EL_SFR2(ET)
 				call shapefunction_cal(CPE3,localxy1(1:ecp(et).ndim,i),& 
 						ecp(et).expolating_Lshape(:,i),ecp(et).ngp,ecp(et).ndim)
 			end do
-		case(cpe4,cpe4_spg,cpe8r,cpe8r_spg,CAX4_SPG,CAX8R_SPG,CPE4_CPL,CAX4_CPL,CPE8R_CPL,CAX8R_CPL)
+		case(cpe4,cpe4_spg,cpe8r,cpe8r_spg,CAX4_SPG,CAX8R_SPG,CPE4_CPL,CAX4_CPL,CPE8R_CPL,CAX8R_CPL,ZT4_SPG)
 			localxy1=0.0D0
-			t1=sqrt(3.)
+			t1=sqrt(3.d0)
 			localxy1(1,1)=-t1
 			localxy1(2,1)=-t1
 			localxy1(1,2)=t1
@@ -573,12 +574,12 @@ subroutine EL_SFR2(ET)
 			localxy1(1,4)=-t1
 			localxy1(2,4)=t1			
 			do i=5,8
-				localxy1(1,i)=(localxy1(1,i-4)+localxy1(1,mod(i-3,4)))/2.0
-				localxy1(2,i)=(localxy1(2,i-4)+localxy1(2,mod(i-3,4)))/2.0
+				localxy1(1,i)=(localxy1(1,i-4)+localxy1(1,mod(i-4,4)+1))/2.0
+				localxy1(2,i)=(localxy1(2,i-4)+localxy1(2,mod(i-4,4)+1))/2.0
 			end do
 			do i=1,ecp(et).nnum
 				call shapefunction_cal(CPE4,localxy1(1:ecp(et).ndim,i),& 
-						ecp(et).expolating_Lshape(ecp(et).ngp,i),ecp(et).ngp,ecp(et).ndim)
+						ecp(et).expolating_Lshape(:,i),ecp(et).ngp,ecp(et).ndim)
 			end do
 		case(prm6,prm6_spg,PRM6_CPL)
 			localxy1=0.0D0
@@ -587,7 +588,7 @@ subroutine EL_SFR2(ET)
 			localxy1(1,2)=t1
 			do i=1,2
 				call shapefunction_cal(BAR,localxy1(1:ecp(et).ndim,i),& 
-						ecp(et).expolating_Lshape(ecp(et).ngp,i),ecp(et).ngp,ecp(et).ndim)
+						ecp(et).expolating_Lshape(:,i),ecp(et).ngp,ecp(et).ndim)
 			end do			
 		case(prm15,prm15_spg,PRM15_CPL)
 			t1=sqrt(5./3.0)
@@ -633,11 +634,11 @@ subroutine EL_SFR2(ET)
 			localxy1(3,13:15)=0.0
 			do i=1,ecp(et).nnum
 				call shapefunction_cal(PRM9,localxy1(1:ecp(et).ndim,i),& 
-						ecp(et).expolating_Lshape(ecp(et).ngp,i),ecp(et).ngp,ecp(et).ndim)
+						ecp(et).expolating_Lshape(:,i),ecp(et).ngp,ecp(et).ndim)
 			end do
 		case(tet10,tet10_spg,TET10_CPL)
-			t1=(3*sqrt(5.)+1)/4.0
-			t2=(sqrt(5.)-1)/4.0
+			t1=(3*sqrt(5.D0)+1)/4.0
+			t2=(sqrt(5.D0)-1)/4.0
 			localxy1(1,1)=t1
 			localxy1(2,1)=-t2
 			localxy1(3,1)=-t2
@@ -720,7 +721,7 @@ subroutine shapefunction_cal(et,gp,Ni,Nni,ndim)
 				 CPE4_CPL,CPS4_CPL,CAX4_CPL, &
 				 CPE4R,CPS4R,CAX4R,& 
 				 CPE4R_SPG,CPS4R_SPG,CAX4R_SPG, &
-				 CPE4R_CPL,CPS4R_CPL,CAX4R_CPL)					 
+				 CPE4R_CPL,CPS4R_CPL,CAX4R_CPL,ZT4_SPG)					 
 			T(1)=1-XI
 			T(2)=1+XI
 			T(3)=1-EDA
@@ -899,7 +900,7 @@ subroutine Deri_shapefunction_cal(et,gp,dNi,ndNi,ndim)
 				 CPE4_CPL,CPS4_CPL,CAX4_CPL, &
 				 CPE4R,CPS4R,CAX4R,& 
 				 CPE4R_SPG,CPS4R_SPG,CAX4R_SPG, &
-				 CPE4R_CPL,CPS4R_CPL,CAX4R_CPL)					 
+				 CPE4R_CPL,CPS4R_CPL,CAX4R_CPL,ZT4_SPG)					 
 			T(1)=1-XI
 			T(2)=1+XI
 			T(3)=1-EDA

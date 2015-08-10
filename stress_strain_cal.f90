@@ -65,7 +65,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 			end do
 		CASE(CPE6_SPG,CPE8R_SPG,CPE4_SPG,PRM15_SPG,TET10_SPG,CAX6_SPG,CAX8R_SPG,CAX4_SPG,&
 			 CPE6_CPL,CPE8R_CPL,CPE4_CPL,PRM15_CPL,TET10_CPL,CAX6_CPL,CAX8R_CPL,CAX4_CPL,&
-			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4)
+			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4,ZT4_SPG)
 			do concurrent (i=n1:n2)
 				
 				do CONCURRENT (j=1:ecp(element(ienum).et).ndim)

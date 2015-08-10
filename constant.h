@@ -87,7 +87,7 @@
 	integer,parameter::PRM15_SPG=125  !15-noded prism element	
 	integer,parameter::tet4_spg=127 !4-noded tetrahedron element
 	integer,parameter::tet10_spg=128 !10-noded tetrahedron element
-	
+	integer,parameter::ZT4_SPG=129 !4-NODED ZEROTHICKNESS 2D SEEPAGE ELEMENT,SIMULATING A 2D CUT-OFF WALL.
 	!pipe flow
 	integer,parameter::pipe2=401 !2-noded line element for pipe flow simulation
 	integer,parameter::ppipe2=402 !2-noded line element for perforated wellbore inflow simulation

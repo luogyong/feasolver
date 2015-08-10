@@ -82,6 +82,8 @@
 !	property(2)=lamda !管壁摩阻系数
 !	property(3)=epslon !管壁的绝对粗糙度
 !	property(4)=v  !运动粘滞系数
+!Case(zt4_spg)
+!	property(1)=k;(2)=calculation thickness;
 !3 element.type
 !	1,=conduct1d
 !	-23,=ubtri2dl
@@ -117,4 +119,4 @@
 !	9)pe_ssp2d: (1)=1,fixed(default); =2,slip;=0:free
 !	10)soilspring: (1 to 6)=ko,ka,kp,ks,单元所涉及的长度,Pw。
 !	11)spring： (2:5): minVal,maxVal,ks,以及单元所涉及的长度。
-!	
+!	12)zt4_spg: (1):permeabile side length of an element, that is the distance between node 1 and 4(2 or 3)
