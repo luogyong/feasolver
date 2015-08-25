@@ -25,7 +25,7 @@ MODULE hashtbl
   TYPE sllist
      TYPE(sllist), POINTER :: child => NULL()
      CHARACTER(len=:), ALLOCATABLE :: key 
-     integer::nval=0
+     !integer::nval=0
      INTEGER,allocatable::val(:)
    CONTAINS
      PROCEDURE :: put  => put_sll
@@ -61,20 +61,20 @@ MODULE hashtbl
           IF ( .NOT. ASSOCIATED(list%child) ) ALLOCATE(list%child)
           CALL put_sll(list%child,key,val)
        ELSE
-          LIST.NVAL=LIST.NVAL+1
-          IF(LIST.NVAL>NLISTVAL) CALL LIST.ENLARGEVAL(LIST.VAL)
-          list%val(LIST.NVAL) = val
+          LIST.VAL(0)=LIST.VAL(0)+1
+          IF(LIST.VAL(0)>NLISTVAL) CALL LIST.ENLARGEVAL(LIST.VAL)
+          list%val(LIST.VAL(0)) = val
        END IF
     ELSE
        IF (.NOT. ALLOCATED(list%key)) &
             ALLOCATE(CHARACTER(len=keylen) :: list%key)
        list%key = key
        IF (ALLOCATED(list%val)) DEALLOCATE(list%val)
-       !ALLOCATE(CHARACTER(len=vallen) :: list%val)
-       ALLOCATE(LIST.VAL(NLISTVAL))
-       LIST.VAL=-1
-       LIST.NVAL=LIST.NVAL+1
-       list%val(LIST.NVAL) = val
+       !ALLOCATE(CHARACTER(len=vallen) :: list%val)       
+       ALLOCATE(LIST.VAL(0:NLISTVAL))       
+       LIST.VAL=0
+       LIST.VAL(0)=LIST.VAL(0)+1
+       list%val(LIST.VAL(0)) = val
     END IF
   END SUBROUTINE put_sll
 
@@ -83,11 +83,11 @@ MODULE hashtbl
     CLASS(sllist),                 INTENT(in)    :: list
     CHARACTER(len=*),              INTENT(in)    :: key
     INTEGER, ALLOCATABLE, INTENT(out)   :: val(:)
-    INTEGER                                      :: vallen
+    !INTEGER                                      :: vallen
 
-    vallen = 0
+    !vallen = 0
     IF (ALLOCATED(list%key) .AND. (list%key == key)) THEN
-       vallen = SIZE(list%val,DIM=1)
+       !vallen = SIZE(list%val,DIM=1)
        IF (ALLOCATED(val)) DEALLOCATE(val)
        ALLOCATE(val,SOURCE=LIST.VAL)
        val = list%val
@@ -114,14 +114,14 @@ MODULE hashtbl
   SUBROUTINE ENLARGE_VAL(AVAL)
     INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:)
     INTEGER,ALLOCATABLE::VAL1(:)
-    INTEGER::NVAL1=0
+    INTEGER::LB1=0,UB1=0
     
-    NVAL1=SIZE(AVAL,DIM=1)
+    LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
     ALLOCATE(VAL1,SOURCE=AVAL)
     DEALLOCATE(AVAL)
-    ALLOCATE(AVAL(NVAL1+10))
-    AVAL(1:NVAL1)=VAL1
-    AVAL(NVAL1+1:NVAL1+10)=-1
+    ALLOCATE(AVAL(LB1:UB1+10))
+    AVAL(LB1:UB1)=VAL1
+    AVAL(UB1+1:UB1+10)=0
     DEALLOCATE(VAL1)
   END SUBROUTINE
   
@@ -139,28 +139,14 @@ MODULE hashtbl
     END IF
     tbl%is_init = .TRUE.
   END SUBROUTINE init_hash_tbl_sll
-
-  ! The first part of the hashing procedure using the string
-  ! collating sequence
-  ELEMENTAL FUNCTION sum_string(str) RESULT(sig)
-    CHARACTER(len=*), INTENT(in)   :: str
-    INTEGER                        :: sig
-    CHARACTER, DIMENSION(LEN(str)) :: tmp
-    INTEGER :: i
-
-    FORALL (i=1:LEN(str))
-       tmp(i) = str(i:i)
-    END FORALL
-    sig = SUM(ICHAR(tmp))
-  END FUNCTION sum_string
-
-
+ 
   SUBROUTINE put_hash_tbl_sll(tbl,key,val)
     CLASS(hash_tbl_sll), INTENT(inout) :: tbl
     CHARACTER(len=*),    INTENT(in)    :: key
     INTEGER                            :: VAL,hash
-
-    hash = MOD(sum_string(key),tbl%vec_len)
+    
+     
+    hash = MOD(ABS(HASH_DJB(KEY)),tbl%vec_len)
     CALL tbl%vec(hash)%put(key=key,val=val)
   END SUBROUTINE put_hash_tbl_sll
 
@@ -171,7 +157,7 @@ MODULE hashtbl
     INTEGER, ALLOCATABLE, INTENT(out)   :: val(:)
     INTEGER                                      :: hash
 
-    hash = MOD(sum_string(key),tbl%vec_len)
+    hash = MOD(ABS(HASH_DJB(KEY)),tbl%vec_len)
     CALL tbl%vec(hash)%get(key=key,val=val)
   END SUBROUTINE get_hash_tbl_sll
 
@@ -190,6 +176,21 @@ MODULE hashtbl
     END IF
     tbl%is_init = .FALSE.
   END SUBROUTINE free_hash_tbl_sll
+
+INTEGER FUNCTION HASH_DJB(KEY)
+    CHARACTER(LEN=*), INTENT(IN) :: KEY
+    INTEGER :: I, KEYLEN, UV
+    !INTEGER (KIND=4) :: HASHVAL
+
+    HASH_DJB = 5381
+    KEYLEN = LEN_TRIM(KEY)
+    DO I = 1, KEYLEN
+        UV = MOD(HASH_DJB * 33, 65536_4)
+        HASH_DJB = MOD(UV + IACHAR(KEY(I:I)), 65536_4)
+    END DO
+    !HASH = MOD (HASHVAL, HASHSIZE) + 1
+END FUNCTION
+
 
 END MODULE hashtbl
     
