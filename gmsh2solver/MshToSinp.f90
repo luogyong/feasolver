@@ -3,9 +3,10 @@ module DS_Gmsh2Solver
 	type node_type
 		integer::inode=0
 		real(8)::xy(3)=0
+		INTEGER::CHILD=0
 	end type
 	type(node_type),allocatable::node(:)
-	integer::nnode=0
+	integer::nnode=0,TNNODE=0
 	integer,allocatable::Noutputorder(:)
 
 	type element_type
@@ -20,7 +21,10 @@ module DS_Gmsh2Solver
 		!followed by the partition ids (negative partition ids indicate ghost cells). A zero tag is equivalent to no tag. 
 
 		integer::nnode=0,ndege=0,nface=0
-		integer,allocatable::node(:),edge(:),face(:)		
+		integer,allocatable::node(:),edge(:),face(:)
+    CONTAINS
+        PROCEDURE::GET_EDGE=>SET_ELEMENT_EDGE
+        PROCEDURE::GET_FACE=>SET_ELEMENT_FACE
 	end type
 	type(element_type),allocatable::element(:)
 	integer::nel=0
@@ -42,8 +46,10 @@ module DS_Gmsh2Solver
 	integer::nphgp=0
 	
 	type et_type
-		integer::nnode
+		integer::nnode=0,nedge=0,nface=0		
 		character(512)::description
+		integer,allocatable::edge(:,:),face(:,:)
+		!edge(2,nedge),face(0:4,nface),face(0,:)==3,triangular face,==4, quadrilateral face
 		real(8),allocatable::weight(:,:) !分布单元荷载各节点分布系数, weight(:,1) 平面均布荷载；weight(:,2) 平面三角形荷载;weight(:,3) 轴对称均布荷载；weight(:,4) 轴对称三角形荷载，
 													!目前只能处理平面应变的两种情况。
 	end type
@@ -103,8 +109,23 @@ module DS_Gmsh2Solver
 	
 	integer::modeldimension=2
 	
+    CONTAINS
+    
+
 	
-	
+    SUBROUTINE SET_ELEMENT_EDGE(THIS)
+        CLASS(element_type)::THIS
+		INTEGER::I
+		
+		DO I=1,elttype(THIS.ET).NEDGE
+			
+		ENDDO
+        
+    END SUBROUTINE
+    SUBROUTINE SET_ELEMENT_FACE(THIS)
+        CLASS(element_type)::THIS
+        
+    END SUBROUTINE    
 end module
 
 
@@ -170,45 +191,113 @@ program GmshToSolver
 10 format("Press 'H' to write a keyword help file named 'D:\README_GMSH2SINP.TXT'. Any other key to read an Msh file.")		
 end program
 
-!SUBROUTINE GEN_ZEROTHICKNESS_ELEMENT()
-!	USE DS_Gmsh2Solver
-!	IMPLICIT NONE
-!	INTEGER::I,IPGROUP1
-!	
-!	
-!	DO I=1,nphgp
-!		IPGROUP1=PHGPNUM(I)
-!		CALL LOWCASE(physicalgroup(IPGROUP1).ET,LEN_TRIM(physicalgroup(IPGROUP1).ET))
-!		SELECT CASE(physicalgroup(IPGROUP1).ET)
-!			CASE('zt_cpe4_spg')
-!				
-!				IF(physicalgroup(IPGROUP1).NDIM/=1) STOP "ERRORS IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
-!				IF(physicalgroup(IPGROUP1).ET_GMSH/=1) STOP "ERRORS IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
-!				DO J=1,physicalgroup(IPGROUP1).NEL
-!					
-!				ENDDO
-!			CASE('zt_prm6_spg')
-!				print *, "TRY TO GEN zt_prm6_spg. BUT IT IS STILL UNDER DEVELOPMENT.NOT COMPLETED."
-!				PAUSE
-!		ENDSELECT
-!	ENDDO
-!	
-!ENDSUBROUTINE
-
-SUBROUTINE INI_ADJ_EDGE()
-	use DS_Gmsh2Solver
-	implicit none
-	INTEGER::I,J,IPG1
-	
-	DO I=1,NPHGP
-		IPG1=PHGPNUM(I)
-		IF(.NOT.PHYSICALGROUP(IPG1).ISMODEL) CYCLE
-		DO J=1,physicalgroup(IGP1).NEL
+SUBROUTINE SETUP_EDGE_TBL()
+    USE DS_Gmsh2Solver
+    USE hashtbl
+    IMPLICIT NONE
+    INTEGER::I,J,N1(2),ET1,NEDGE1,TBL_LEN
+	CHARACTER(LEN=:),ALLOCATABLE::KEY1
+    TYPE(DICT_DATA)::VAL1
+    
+    
+	TBL_LEN=NNODE	
+    CALL EDGE_TBL.INIT(TBL_LEN)
+	DO I=1,NEL
+		ET1=ELEMENT(I).ET
+		NEDGE1=ELTTYPE(ET1).NEDGE
+		DO J=1,NEDGE1
+            N1=ELEMENT(I).NODE(ELTTYPE(ET1).EDGE(:,J))
+            CALL EDGE_TBL.KEY(KEY1,N1(:),2)
+            VAL1.IEL=I;VAL1.ISE=J
+			CALL EDGE_TBL.PUT(TRIM(KEY1),VAL1)
 			
 		ENDDO
+	END DO 
+ENDSUBROUTINE
+
+SUBROUTINE SETUP_FACE_TBL()
+    USE DS_Gmsh2Solver
+    USE hashtbl
+    IMPLICIT NONE
+    INTEGER::I,J,N1(4),ET1,NFACE1,TBL_LEN
+	CHARACTER(LEN=:),ALLOCATABLE::KEY1
+    TYPE(DICT_DATA)::VAL1
+    
+	TBL_LEN=NNODE	
+    CALL FACE_TBL.INIT(TBL_LEN)
+	DO I=1,NEL
+		ET1=ELEMENT(I).ET
+		NFACE1=ELTTYPE(ET1).NFACE
+		DO J=1,NFACE1
+            N1=ELEMENT(I).NODE(ELTTYPE(ET1).FACE(1:,J))
+            CALL FACE_TBL.KEY(KEY1,N1(:),ELTTYPE(ET1).FACE(0,J))
+            VAL1.IEL=I;VAL1.ISE=J
+			CALL FACE_TBL.PUT(TRIM(KEY1),VAL1)
+			
+		ENDDO
+	END DO 
+ENDSUBROUTINE    
+    
+    
+SUBROUTINE GEN_ZEROTHICKNESS_ELEMENT()
+	USE DS_Gmsh2Solver
+	USE HASHTBL
+	IMPLICIT NONE
+	INTEGER::I,J,IPGROUP1,NNODE1,NODE1(50),NVAL1
+	CHARACTER(LEN=:),ALLOCATABLE::KEY1
+	TYPE(DICT_DATA),ALLOCATABLE::VAL1(:)
+	
+	DO I=1,nphgp
+		IPGROUP1=PHGPNUM(I)
+		CALL LOWCASE(physicalgroup(IPGROUP1).ET,LEN_TRIM(physicalgroup(IPGROUP1).ET))
+		SELECT CASE(physicalgroup(IPGROUP1).ET)
+			CASE('zt_cpe4_spg')
+				IF(.NOT.EDGE_TBL.IS_INIT) CALL SETUP_EDGE_TBL()
+				IF(physicalgroup(IPGROUP1).NDIM/=1) STOP "ERRORS IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
+				IF(physicalgroup(IPGROUP1).ET_GMSH/=1) STOP "ERRORS IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
+				!DUPLICATE NODES
+				
+				DO J=1,physicalgroup(IPGROUP1).NEL
+					NNODE1=ELEMENT(physicalgroup(IPGROUP1).ELEMENT(J)).NNODE
+					IF(NNODE+NNODE1>TNNODE) CALL ENLARGE_NODE()	
+					NODE1(1:NNODE1)=ELEMENT(physicalgroup(IPGROUP1).ELEMENT(J)).NODE
+					DO K=1,NNODE1
+					IF(NODE(NODE1(K)).CHILD==0) THEN
+					
+					ELSE
+						NNODE=NNODE+1
+						NODE(NNODE)=NODE(NODE1(K))
+						NODE(NODE1(K)).CHILD=NNODE
+						
+					ENDIF
+					
+					
+					NODE(NNODE+1:NNODE+NNODE1)=NODE(NODE1(1:NNODE1))
+					NNODE=NNODE+NNODE1
+					CALL EDGE_TBL.KEY(KEY1,NODE1(1:2),2)
+					CALL EDGE_TBL.GET(TRIM(KEY1),VAL1)
+                    
+					
+				ENDDO
+			CASE('zt_prm6_spg')
+				print *, "TRY TO GEN zt_prm6_spg. BUT IT IS STILL UNDER DEVELOPMENT.NOT COMPLETED."
+				PAUSE
+		ENDSELECT
 	ENDDO
 	
+ENDSUBROUTINE
 
+SUBROUTINE ENLARGE_NODE()
+	USE DS_Gmsh2Solver
+	IMPLICIT NONE
+	TYPE(node_type),ALLOCATABLE::NODE1(:)
+	INTEGER::I
+	TNNODE=NNODE+1000
+	ALLOCATE(NODE1(TNNODE))
+	NODE1(1:NNODE)=NODE
+	DEALLOCATE(NODE)
+	ALLOCATE(NODE,SOURCE=NODE1)
+	DEALLOCATE(NODE1)
 ENDSUBROUTINE
 
 subroutine write_readme_gmsh2sinp()	
@@ -919,6 +1008,7 @@ subroutine readin()
 
 	
 	call Initialize_et2numNodes()
+	CALL ET_EDGE_FACE()
     I=0
 	DO WHILE(I<=NINCLUDEFILE)
 		unit1=1
@@ -1295,7 +1385,81 @@ subroutine skipcomment(unit)
 	
 end subroutine
 
-
+SUBROUTINE ET_EDGE_FACE()
+	USE DS_Gmsh2Solver
+	IMPLICIT NONE
+	INTEGER::I,ET,AET1(33)
+	
+    AET1=[1:31,92,93]
+	DO I=1,33
+        ET=AET1(I)
+		SELECT CASE(ET)
+			CASE(1,8,26,27,28) !LINE
+				Elttype(ET).NEDGE=1;Elttype(ET).NFACE=0
+				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE))
+				Elttype(ET).EDGE(:,1)=[1,2]
+			CASE(2,9,20,21,22,23,24,25) !TRIANGLE
+				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1
+				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE))
+				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1],(/2,3/))
+				Elttype(ET).FACE(:,1)=[3,1,2,3,0]
+			CASE(3,10,16) !QUADRANGLE
+				Elttype(ET).NEDGE=4;Elttype(ET).NFACE=1
+				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE))
+				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1],(/2,4/))
+				Elttype(ET).FACE(:,1)=[4,1,2,3,4]
+			
+			CASE(4,11,29,30,31) !TETRAHEDRON
+				Elttype(ET).NEDGE=6;Elttype(ET).NFACE=4
+				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE))
+				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1,1,4,2,4,3,4],(/2,6/))
+				Elttype(ET).FACE(:,:)=RESHAPE([3,1,2,3,0,&
+											   3,1,2,4,0,&
+											   3,2,3,4,0,&
+											   3,3,1,4,0],(/5,4/))
+			
+			CASE(5,12,17,92,93) !HEXAHEDRON
+				Elttype(ET).NEDGE=12;Elttype(ET).NFACE=6
+				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE))
+				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1,&
+											   5,6,6,7,7,8,8,5,&
+											   1,5,2,6,3,7,4,8],(/2,12/))
+				Elttype(ET).FACE(:,:)=RESHAPE([4,1,2,3,4,&
+											   4,5,6,7,8,&
+											   4,1,2,6,5,&
+											   4,2,3,7,6,&
+											   4,3,4,8,7,&
+											   4,4,1,5,8],(/5,6/))
+			
+			CASE(6,13,18) !6-NODE PRISM
+				Elttype(ET).NEDGE=9;Elttype(ET).NFACE=5
+				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE))
+				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1,&
+											   4,5,5,6,6,1,&
+											   1,4,2,5,3,6],(/2,9/))
+				Elttype(ET).FACE(:,:)=RESHAPE([3,1,2,3,0,&
+											   3,4,5,6,0,&
+											   4,1,2,5,4,&
+											   4,2,3,6,5,&
+											   4,3,1,4,6],(/5,5/))
+												
+			
+			CASE(7,14,19) !5-node pyramid
+				Elttype(ET).NEDGE=8;Elttype(ET).NFACE=5
+				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE))
+				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1,&
+											   1,5,2,5,3,5,4,5],(/2,8/))
+				Elttype(ET).FACE(:,:)=RESHAPE([4,1,2,3,4,&
+											   3,1,2,5,0,&
+											   3,2,3,5,0,&
+											   3,3,4,5,0,&
+											   3,4,1,5,0],(/5,5/))
+			CASE(15) !POINTS
+				Elttype(ET).NEDGE=0;Elttype(ET).NFACE=0
+		ENDSELECT
+	ENDDO
+	
+ENDSUBROUTINE
 
 subroutine Initialize_et2numNodes()
 	use DS_Gmsh2Solver

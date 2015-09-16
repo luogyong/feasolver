@@ -17,16 +17,26 @@
     ! You should have received a copy of the GNU Lesser General Public License
     ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+MODULE DS_MYDATA
+	IMPLICIT NONE
+	TYPE MYDATA
+		INTEGER::IEL=0 !ELEMENT NO
+		INTEGER::ISE=0 !THE SUB IDEX OF THE COMMON EDGE/FACE
+	ENDTYPE
+END MODULE
+
 MODULE hashtbl
+  USE DS_MYDATA, DICT_DATA=>MYDATA
   IMPLICIT NONE ! Use strong typing
-  INTEGER:: tbl_size = 5000,NLISTVAL=10
+  INTEGER:: tbl_size = 10000,NLISTVAL=10
+	
 
   
   TYPE sllist
      TYPE(sllist), POINTER :: child => NULL()
      CHARACTER(len=:), ALLOCATABLE :: key 
-     !integer::nval=0
-     INTEGER,allocatable::val(:)
+     integer::nval=0
+     TYPE(DICT_DATA),allocatable::val(:)
    CONTAINS
      PROCEDURE :: put  => put_sll
      PROCEDURE :: get  => get_sll
@@ -38,7 +48,8 @@ MODULE hashtbl
      TYPE(sllist), DIMENSION(:), ALLOCATABLE :: vec
      INTEGER                                 :: vec_len = 0
      LOGICAL                                 :: is_init = .FALSE.
-   CONTAINS
+  CONTAINS
+     PROCEDURE::KEY=>I2C_KEY_hash_tbl_sll
      PROCEDURE :: init => init_hash_tbl_sll
      PROCEDURE :: put  => put_hash_tbl_sll
      PROCEDURE :: get  => get_hash_tbl_sll
@@ -47,13 +58,16 @@ MODULE hashtbl
 
   PUBLIC :: hash_tbl_sll
   
+  TYPE(hash_tbl_sll)::EDGE_TBL,FACE_TBL
+  
   CONTAINS
 
   RECURSIVE SUBROUTINE put_sll(list,key,val)
     CLASS(sllist),    INTENT(inout) :: list
     CHARACTER(len=*), INTENT(in)    :: key  !, val
-    INTEGER                         :: keylen,val !, vallen
-
+    INTEGER                         :: keylen !, vallen
+	TYPE(DICT_DATA)::VAL
+	
     keylen = LEN(key)
     !vallen = LEN(val)
     IF (ALLOCATED(list%key)) THEN
@@ -61,9 +75,9 @@ MODULE hashtbl
           IF ( .NOT. ASSOCIATED(list%child) ) ALLOCATE(list%child)
           CALL put_sll(list%child,key,val)
        ELSE
-          LIST.VAL(0)=LIST.VAL(0)+1
-          IF(LIST.VAL(0)>NLISTVAL) CALL LIST.ENLARGEVAL(LIST.VAL)
-          list%val(LIST.VAL(0)) = val
+          LIST.NVAL=LIST.NVAL+1
+          IF(LIST.NVAL>NLISTVAL) CALL LIST.ENLARGEVAL(LIST.VAL)
+          list%val(LIST.NVAL) = val
        END IF
     ELSE
        IF (.NOT. ALLOCATED(list%key)) &
@@ -71,10 +85,10 @@ MODULE hashtbl
        list%key = key
        IF (ALLOCATED(list%val)) DEALLOCATE(list%val)
        !ALLOCATE(CHARACTER(len=vallen) :: list%val)       
-       ALLOCATE(LIST.VAL(0:NLISTVAL))       
-       LIST.VAL=0
-       LIST.VAL(0)=LIST.VAL(0)+1
-       list%val(LIST.VAL(0)) = val
+       ALLOCATE(LIST.VAL(NLISTVAL))       
+       LIST.NVAL=1
+       !LIST.VAL(0)=LIST.VAL(0)+1
+       list%val(LIST.NVAL) = val
     END IF
   END SUBROUTINE put_sll
 
@@ -82,15 +96,15 @@ MODULE hashtbl
   RECURSIVE SUBROUTINE get_sll(list,key,val)
     CLASS(sllist),                 INTENT(in)    :: list
     CHARACTER(len=*),              INTENT(in)    :: key
-    INTEGER, ALLOCATABLE, INTENT(out)   :: val(:)
+    TYPE(DICT_DATA), ALLOCATABLE, INTENT(out)   :: val(:)
     !INTEGER                                      :: vallen
 
     !vallen = 0
     IF (ALLOCATED(list%key) .AND. (list%key == key)) THEN
        !vallen = SIZE(list%val,DIM=1)
        IF (ALLOCATED(val)) DEALLOCATE(val)
-       ALLOCATE(val,SOURCE=LIST.VAL)
-       val = list%val
+       ALLOCATE(val,SOURCE=LIST.VAL(1:LIST.NVAL))
+       !val = list%val
     ELSE IF(ASSOCIATED(list%child)) THEN ! keep going
        CALL get_sll(list%child,key,val)
     ELSE ! At the end of the list, no key found
@@ -112,8 +126,8 @@ MODULE hashtbl
   END SUBROUTINE free_sll
   
   SUBROUTINE ENLARGE_VAL(AVAL)
-    INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:)
-    INTEGER,ALLOCATABLE::VAL1(:)
+    TYPE(DICT_DATA),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+    TYPE(DICT_DATA),ALLOCATABLE::VAL1(:)
     INTEGER::LB1=0,UB1=0
     
     LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
@@ -121,7 +135,7 @@ MODULE hashtbl
     DEALLOCATE(AVAL)
     ALLOCATE(AVAL(LB1:UB1+10))
     AVAL(LB1:UB1)=VAL1
-    AVAL(UB1+1:UB1+10)=0
+    !AVAL(UB1+1:UB1+10)=0
     DEALLOCATE(VAL1)
   END SUBROUTINE
   
@@ -139,12 +153,34 @@ MODULE hashtbl
     END IF
     tbl%is_init = .TRUE.
   END SUBROUTINE init_hash_tbl_sll
+  
+  SUBROUTINE I2C_KEY_hash_tbl_sll(tbl,KEY,AA,NAA)
+    CLASS(hash_tbl_sll),   INTENT(inout) :: tbl
+    INTEGER,INTENT(in)    ::NAA,AA(NAA)
+    CHARACTER(LEN=:),ALLOCATABLE,INTENT(OUT)::KEY
+    INTEGER::I,J,N1,AB1(10)
+    CHARACTER(64)::KEY1,KEY2
+    
+    AB1(1:NAA)=AA(1:NAA)
+    DO I=1,NAA
+        DO J=I+1,NAA
+            IF(AB1(J)<AB1(I)) THEN
+                N1=AB1(I);AB1(I)=AB1(J);AB1(J)=N1
+            ENDIF
+        ENDDO
+        WRITE(KEY1,'(I8)') AB1(I)
+        KEY2=TRIM(KEY2)//'+'//TRIM(ADJUSTL(KEY1))
+    ENDDO
+    ALLOCATE(CHARACTER(LEN=LEN_TRIM(KEY2))::KEY) 
+    KEY=TRIM(KEY2)
+
+  END SUBROUTINE I2C_KEY_hash_tbl_sll  
  
   SUBROUTINE put_hash_tbl_sll(tbl,key,val)
     CLASS(hash_tbl_sll), INTENT(inout) :: tbl
     CHARACTER(len=*),    INTENT(in)    :: key
-    INTEGER                            :: VAL,hash
-    
+    INTEGER                            :: hash
+    TYPE(DICT_DATA)::VAL
      
     hash = MOD(ABS(HASH_DJB(KEY)),tbl%vec_len)
     CALL tbl%vec(hash)%put(key=key,val=val)
@@ -154,7 +190,7 @@ MODULE hashtbl
   SUBROUTINE get_hash_tbl_sll(tbl,key,val)
     CLASS(hash_tbl_sll),           INTENT(in)    :: tbl
     CHARACTER(len=*),              INTENT(in)    :: key
-    INTEGER, ALLOCATABLE, INTENT(out)   :: val(:)
+    TYPE(DICT_DATA), ALLOCATABLE, INTENT(out)   :: val(:)
     INTEGER                                      :: hash
 
     hash = MOD(ABS(HASH_DJB(KEY)),tbl%vec_len)
