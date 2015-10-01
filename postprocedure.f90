@@ -506,27 +506,56 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 				NodalQ(:,i)=node.coord(3)+tdisp(node.dof(3))
 			case(gradx)
 				do j=1,nnum
-					NodalQ(j,i)=node(j).igrad(1)
+                    if(allocated(node(j).igrad)) then
+					    NodalQ(j,i)=node(j).igrad(1)
+                    else
+                        NodalQ(j,i)=0.0d0
+                    endif
 				end do
 			case(grady)
 				do j=1,nnum
-					NodalQ(j,i)=node(j).igrad(2)
+                     if(allocated(node(j).igrad)) then
+					    NodalQ(j,i)=node(j).igrad(2)
+                    else
+                        NodalQ(j,i)=0.0d0
+                    endif
+					!NodalQ(j,i)=node(j).igrad(2)
 				end do
 			case(gradz)
 				do j=1,nnum
-					NodalQ(j,i)=node(j).igrad(3)
+                     if(allocated(node(j).igrad)) then
+					    NodalQ(j,i)=node(j).igrad(3)
+                    else
+                        NodalQ(j,i)=0.0d0
+                    endif
+					!NodalQ(j,i)=node(j).igrad(3)
 				end do
 			case(vx)
 				do j=1,nnum
-					NodalQ(j,i)=node(j).velocity(1)
+                    if(allocated(node(j).velocity)) then
+					    NodalQ(j,i)=node(j).velocity(1)
+                    else
+                        NodalQ(j,i)=0.0d0
+                    endif
+					!NodalQ(j,i)=node(j).velocity(1)
 				end do
 			case(vy)
 				do j=1,nnum
-					NodalQ(j,i)=node(j).velocity(2)
+                    if(allocated(node(j).velocity)) then
+					    NodalQ(j,i)=node(j).velocity(2)
+                    else
+                        NodalQ(j,i)=0.0d0
+                    endif
+					!NodalQ(j,i)=node(j).velocity(2)
 				end do
 			case(vz)
 				do j=1,nnum
-					NodalQ(j,i)=node(j).velocity(3)
+                    if(allocated(node(j).velocity)) then
+					    NodalQ(j,i)=node(j).velocity(3)
+                    else
+                        NodalQ(j,i)=0.0d0
+                    endif                    
+					!NodalQ(j,i)=node(j).velocity(3)
 				end do
 			case(discharge)
 				NodalQ(:,i)=node.q
