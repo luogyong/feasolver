@@ -1,16 +1,17 @@
 module DS_Gmsh2Solver
-
+    INTEGER::NLAYER=1
+    LOGICAL::ISGENLAYER=.FALSE.
 	type node_type
 		integer::inode=0
 		real(8)::xy(3)=0
-		INTEGER::CHILD=0
+		!INTEGER::CHILD=0
 	end type
 	type(node_type),allocatable::node(:)
 	integer::nnode=0,TNNODE=0
 	integer,allocatable::Noutputorder(:)
 
 	type element_type
-		integer::et=-1
+        integer::et=-1
 		integer::ntag=0
 		integer,allocatable::tag(:)
 		!number-of-tags
@@ -19,12 +20,12 @@ module DS_Gmsh2Solver
 		!the second is the number of the elementary geometrical entity to which the element belongs; 
 		!the third is the number of mesh partitions to which the element belongs, 
 		!followed by the partition ids (negative partition ids indicate ghost cells). A zero tag is equivalent to no tag. 
-
+        integer::ilayer=1
 		integer::nnode=0,ndege=0,nface=0
 		integer,allocatable::node(:),edge(:),face(:)
-    CONTAINS
-        PROCEDURE::GET_EDGE=>SET_ELEMENT_EDGE
-        PROCEDURE::GET_FACE=>SET_ELEMENT_FACE
+    !CONTAINS
+    !    PROCEDURE::GET_EDGE=>SET_ELEMENT_EDGE
+    !    PROCEDURE::GET_FACE=>SET_ELEMENT_FACE
 	end type
 	type(element_type),allocatable::element(:)
 	integer::nel=0
@@ -37,7 +38,7 @@ module DS_Gmsh2Solver
 		character(32)::name
 		integer::nel=0
 		integer,allocatable::element(:)
-		integer::mat=0
+		integer::mat(50)=0
 		character(32)::ET="ELT_BC_OR_LOAD"
 	end type
 	integer,parameter::maxphgp=100
@@ -105,27 +106,29 @@ module DS_Gmsh2Solver
 	INTEGER::NINCLUDEFILE=0,NCOPYFILE=0
 		
 	integer,allocatable::adjL(:,:)
-	integer::maxadj=50
+	integer::maxadj=100
 	
 	integer::modeldimension=2
+    
+    REAL(8),ALLOCATABLE::ELEVATION(:,:)
 	
     CONTAINS
     
 
 	
-    SUBROUTINE SET_ELEMENT_EDGE(THIS)
-        CLASS(element_type)::THIS
-		INTEGER::I
-		
-		DO I=1,elttype(THIS.ET).NEDGE
-			
-		ENDDO
-        
-    END SUBROUTINE
-    SUBROUTINE SET_ELEMENT_FACE(THIS)
-        CLASS(element_type)::THIS
-        
-    END SUBROUTINE    
+  !  SUBROUTINE SET_ELEMENT_EDGE(THIS)
+  !      CLASS(element_type)::THIS
+		!INTEGER::I
+		!
+		!DO I=1,elttype(THIS.ET).NEDGE
+		!	
+		!ENDDO
+  !      
+  !  END SUBROUTINE
+  !  SUBROUTINE SET_ELEMENT_FACE(THIS)
+  !      CLASS(element_type)::THIS
+  !      
+  !  END SUBROUTINE    
 end module
 
 
@@ -169,7 +172,7 @@ program GmshToSolver
 	end do	
 	
 	CALL GEN_ZEROTHICKNESS_ELEMENT()
-	
+	IF(ISGENLAYER) CALL GEN_LAYERED_ELEMENT()
 	! reordering nodal number
 	allocate(Noutputorder(nnode))
 	ALLOCATE(IPERM(nnode))
@@ -215,6 +218,82 @@ SUBROUTINE SETUP_EDGE_TBL()
 	END DO 
 ENDSUBROUTINE
 
+SUBROUTINE GEN_LAYERED_ELEMENT()
+    USE DS_Gmsh2Solver
+    IMPLICIT NONE
+    INTEGER::I,J,N1,N2,N3,N4,NA1(100),ALLOC_ERR
+    type(element_type),allocatable::element1(:)
+    type(node_type),allocatable::node1(:)
+    
+    ALLOCATE(ELEMENT1(NLAYER*NEL))
+    
+    DO CONCURRENT (I=1:NEL)
+        N1=(I-1)*NLAYER
+        N3=ELEMENT(I).NNODE
+        N2=2*N3
+        NA1(1:N3)=(ELEMENT(I).NODE-1)*(NLAYER+1)
+        DO CONCURRENT (J=1:NLAYER)
+            N4=N1+J
+            ELEMENT1(N4).NNODE=N2
+            ELEMENT1(N4).ILAYER=J
+            ELEMENT1(N4).NTAG=ELEMENT(I).NTAG
+			SELECT CASE(ELEMENT(I).ET)
+				CASE(1)	
+					ELEMENT1(N4).ET=3
+				CASE(2)
+					ELEMENT1(N4).ET=6
+				CASE(3)
+					ELEMENT1(N4).ET=5
+				CASE DEFAULT
+					STOP "ETTYPE UNEXPECTED. SUB=GEN_LAYERED_ELEMENT()."
+			ENDSELECT
+            ALLOCATE(ELEMENT1(N4).NODE(N2),STAT=ALLOC_ERR)
+            ALLOCATE(ELEMENT1(N4).TAG,SOURCE=ELEMENT(I).TAG,STAT=ALLOC_ERR)
+            ELEMENT1(N4).NODE(1:N3)=NA1(1:N3)+J
+            ELEMENT1(N4).NODE(N3+1:N2)=NA1(1:N3)+J+1            
+        ENDDO
+    ENDDO
+    
+    DEALLOCATE(ELEMENT)
+    ALLOCATE(ELEMENT,SOURCE=ELEMENT1,STAT=ALLOC_ERR)
+    NEL=NEL*NLAYER
+    DEALLOCATE(ELEMENT1)
+    
+    !UPDATE NODE
+    ALLOCATE(NODE1(NNODE*(NLAYER+1)),STAT=ALLOC_ERR)
+    DO CONCURRENT (I=1:NNODE)
+        N1=(I-1)*(NLAYER+1)
+        DO CONCURRENT (J=1:NLAYER+1)
+            N2=N1+J
+            NODE1(N2)=NODE(I)            
+            NODE1(N2).XY(3)=ELEVATION(J,I)
+        ENDDO 
+    ENDDO
+    
+    DEALLOCATE(NODE)
+    ALLOCATE(NODE,SOURCE=NODE1,STAT=ALLOC_ERR)
+    NNODE=NNODE*(NLAYER+1)
+    DEALLOCATE(NODE1)
+    DEALLOCATE(ELEVATION)
+    
+	!update physical group
+	!统计每个物理组单元的个数及单元数组下标。
+	do concurrent (i=1:maxphgp)
+		if(physicalgroup(i).nel>0) then
+			if(allocated(physicalgroup(i).element)) deallocate(physicalgroup(i).element)
+			physicalgroup(i).nel=physicalgroup(i).nel*nlayer
+			allocate(physicalgroup(i).element(physicalgroup(i).nel),STAT=ALLOC_ERR)
+		endif
+	end do
+	
+	physicalgroup.nel=0
+	do i=1,nel
+		physicalgroup(element(i).tag(1)).nel=physicalgroup(element(i).tag(1)).nel+1
+		physicalgroup(element(i).tag(1)).element(physicalgroup(element(i).tag(1)).nel)=i		
+	end do
+	
+END SUBROUTINE
+    
 SUBROUTINE SETUP_FACE_TBL()
     USE DS_Gmsh2Solver
     USE hashtbl
@@ -378,7 +457,7 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//$GROUPPARAMETER"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD GROUPPARAMETER IS USED TO DEFINE THE MATERIAL AND ELEMENT TYPE IN THE MODELGROUP ELEMENTS."//'"'
 	README(IPP(I)) = "//{NGROUPPARAMETER(I)}"  
-	README(IPP(I)) = "//{GROUDID(I),MATID(I),ET(A32)}  //ET=CPE3,CPE6,TET4,TET10,... "
+	README(IPP(I)) = "//{GROUDID(I),MATID*NLAYER,ET(A32)}  //ET=CPE3,CPE6,TET4,TET10,... "
 	README(IPP(I)) = "//{......}  // 共NGROUPPARAMETER 个"     
 	README(IPP(I)) = "//$ENDGROUPPARAMETER"	
     
@@ -411,6 +490,16 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//{NCOPYFILE(I)}"  
 	README(IPP(I)) = "//{ABSOLUTED PATH OF THE FILES}*{NCOPYFILE(I)}  // 共NCOPYFILE行."
 	README(IPP(I)) = "//$ENDCOPYFILE" 
+ 
+	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//$ELEVATION"
+	README(IPP(I))=  "//"//'"'//"THE ELEVATION IS USED TO INPUT ELEVATION DATA FOR GENERATE PRISM/BRICK ELEMENT."//'"'
+	README(IPP(I)) = "//NOTE THAT,THE BASE 2D ELEMENT MUST BE LINEAR."  
+    README(IPP(I)) = "//{NNODE,NLAYER}    //节点数，地层数."  
+	README(IPP(I)) = "//A:{INODE,X,Y,Z*{NLAYER+1}}  // 共3+NLAYER+1个/行.Z IS IN A2Z ORDER(Z1<=Z2<=...<=Z(NLYAER+1))"
+    README(IPP(I)) = "//B:A*{NNODE}  // 共NNODE行."
+	README(IPP(I)) = "//$ENDELEVATION"     
+    
     
 	do 	j=1,i
 		item=len_trim(readme(j))
@@ -441,7 +530,7 @@ end subroutine
 subroutine Tosolver()
 	use DS_Gmsh2Solver
 	implicit none
-	integer::unit,item,n1,i,j,width,ITEM1
+	integer::unit,item,n1,N2,i,j,K,width,ITEM1
 	
 	
 	unit=20
@@ -459,23 +548,26 @@ subroutine Tosolver()
 		write(unit,111) node(n1).xy(1:modeldimension)
 	end do
 	do i=1,nphgp
-		item=len_trim(adjustL(physicalgroup(phgpnum(i)).et))
-		ITEM1=len_trim(adjustL(physicalgroup(phgpnum(i)).NAME))
+		N1=phgpnum(i)
+		ITEM1=len_trim(adjustL(physicalgroup(N1).NAME))
 		
-		call lowcase(physicalgroup(phgpnum(i)).et,len(physicalgroup(phgpnum(i)).et))
-		if(.NOT.physicalgroup(phgpnum(i)).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD的单元组不输出
-		
-		write(unit,120) physicalgroup(phgpnum(i)).nel,phgpnum(i),physicalgroup(phgpnum(i)).et, &
-						physicalgroup(phgpnum(i)).mat,physicalgroup(phgpnum(i)).NAME
-		item=len_trim(elttype(physicalgroup(phgpnum(i)).et_gmsh).description)
-		write(unit,122) elttype(physicalgroup(phgpnum(i)).et_gmsh).description
-		item=elttype(physicalgroup(phgpnum(i)).et_gmsh).nnode
-		write(unit,123) ((J),J=1,item)		
-		do j=1,physicalgroup(phgpnum(i)).nel
-			n1=physicalgroup(phgpnum(i)).element(j)
-			item=element(n1).nnode
-			write(unit,121) node(element(n1).node).inode
-		end do
+		call lowcase(physicalgroup(N1).et,len(physicalgroup(N1).et))
+		if(.NOT.physicalgroup(N1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD的单元组不输出
+		DO K=1,NLAYER
+			item=len_trim(adjustL(physicalgroup(N1).et))
+			write(unit,120) physicalgroup(N1).nel/NLAYER,N1,physicalgroup(N1).et, &
+							physicalgroup(N1).mat(K),physicalgroup(N1).NAME
+			item=len_trim(elttype(physicalgroup(N1).et_gmsh).description)
+			write(unit,122) elttype(physicalgroup(N1).et_gmsh).description
+			item=elttype(physicalgroup(N1).et_gmsh).nnode
+			write(unit,123) ((J),J=1,item)		
+			do j=1,physicalgroup(N1).nel				
+				N2=physicalgroup(N1).element(j)
+				IF(ELEMENT(N2).ILAYER/=K) CYCLE
+				item=element(n2).nnode
+				write(unit,121) node(element(n2).node).inode
+			end do
+		ENDDO
 	end do
 	
 	if(nnodalBC>0) then
@@ -1096,7 +1188,7 @@ subroutine kwcommand(term,unit)
 	integer,intent(in)::unit	
 	character(512),intent(in)::term
 	integer::n1,n2,n3,nacw=0
-	integer::en1(15)=0
+	integer::en1(50)=0
 	logical,external::isacw
     logical::ischeckacw=.false.
 	integer::strL1,inode,i
@@ -1114,13 +1206,28 @@ subroutine kwcommand(term,unit)
 	strL1=len_trim(term)
 	
 	select case (term)
+        CASE('elevation')
+            read(unit,*) nnode,nlayer
+            allocate(elevation(nlayer+1,nnode))
+            do i=1,nnode
+                call skipcomment(unit)
+                n1=nlayer+4
+                read(unit,*) at1(1:n1)
+				inode=int(at1(1))
+				elevation(:,inode)=at1(4:n1)
+            enddo
+            ISGENLAYER=.TRUE.
+        case('endelevation')
+			strL1=9
+			write(*, 20) "Elevation"	    
 		case('nodes')
-			read(unit,*) nnode
+			read(unit,*) nnode			
 			allocate(node(nnode))
 			do i=1,nnode
 				call skipcomment(unit)				
 				read(unit,*) at1(1:4)
 				inode=int(at1(1))
+				
 				node(inode).xy(1:3)=at1(2:4)
 			end do
 		case('endnodes')
@@ -1187,6 +1294,11 @@ subroutine kwcommand(term,unit)
 						n2=element(n1).node(element(n1).nnode-1)
 						element(n1).node(element(n1).nnode-1)=element(n1).node(element(n1).nnode)
 						element(n1).node(element(n1).nnode)=n2
+					case(18) !PRM15
+						en1(1:15)=element(n1).node
+						element(n1).node(9)=en1(8);element(n1).node(8)=en1(10);element(n1).node(10)=en1(13);
+						element(n1).node(11)=en1(15);element(n1).node(12)=en1(14);element(n1).node(13)=en1(9);
+						element(n1).node(14)=en1(11);element(n1).node(15)=en1(12);
 						
 				end select			
 			end do
@@ -1316,10 +1428,12 @@ subroutine kwcommand(term,unit)
 			read(unit,*) N3
 			
 			do i=1,n3
-				call skipcomment(unit)
-				read(unit, *) n1,n2,str1
-				physicalgroup(n1).mat=n2
-				physicalgroup(n1).et=str1
+				!call skipcomment(unit)
+				!read(unit, *) n1,n2,str1
+				call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
+				N1=AR(1)
+				physicalgroup(n1).mat(1:NREAD-1)=INT(AR(2:NREAD))
+				physicalgroup(n1).et=SET(1)
 				physicalgroup(n1).ismodel=.true.
 			end do
 		case('endgroupparameter')	
@@ -1358,7 +1472,7 @@ subroutine kwcommand(term,unit)
 	end select
 
 10 format("The Keyword"," '",a<strL1>,"'"," cannot be recognized and be ignored.")	
-20 format("The Content Introduced by the Keyord ","'",a<strL1>,"'"," is read in.")
+20 format("The Content Introduced by the Keyword ","'",a<strL1>,"'"," is read in.")
 end subroutine
 
 subroutine skipcomment(unit)
@@ -1662,7 +1776,7 @@ end subroutine
 	  integer::i,j,k,strl,ns,ne,n1,n2,n3,n4,step,nmax,& 
 			num_read,unit,ef,n5,nsubs,maxset,nset
 	  real(8)::ar(nmax),t1
-		character(32)::set(maxset)
+      character(32)::set(maxset)
 	  character(512)::string
 	  character(32)::substring(100)
 	  character(16)::legalC,SC
