@@ -1,5 +1,6 @@
 module DS_Gmsh2Solver
     INTEGER::NLAYER=1
+    INTEGER,ALLOCATABLE::SUBLAYER(:)
     LOGICAL::ISGENLAYER=.FALSE.
 	type node_type
 		integer::inode=0
@@ -32,6 +33,7 @@ module DS_Gmsh2Solver
 	
 	
 	type physicalGroup_type
+		integer::isini=0
 		integer::ndim
 		logical::ismodel=.FALSE. !is a part of the model
 		integer::ET_GMSH=0 
@@ -40,8 +42,9 @@ module DS_Gmsh2Solver
 		integer,allocatable::element(:)
 		integer::mat(50)=0
 		character(32)::ET="ELT_BC_OR_LOAD"
+		INTEGER::LAYERGROUP(50)=0		
 	end type
-	integer,parameter::maxphgp=100
+	integer,parameter::maxphgp=10100
 	type(physicalGroup_type)::physicalgroup(maxphgp)
 	integer,allocatable::phgpnum(:)
 	integer::nphgp=0
@@ -221,25 +224,36 @@ ENDSUBROUTINE
 SUBROUTINE GEN_LAYERED_ELEMENT()
     USE DS_Gmsh2Solver
     IMPLICIT NONE
-    INTEGER::I,J,N1,N2,N3,N4,NA1(100),ALLOC_ERR
+    INTEGER::I,J,K,N1,N2,N3,N4,IGP1,NA1(100),ALLOC_ERR,NSUBLAYER1
+    REAL(8)::T1
+    INTEGER,ALLOCATABLE::SUMLAYER1(:)
+    REAL(8),ALLOCATABLE::AR1(:)
+	character(32)::CH1
     type(element_type),allocatable::element1(:)
     type(node_type),allocatable::node1(:)
     
-    ALLOCATE(ELEMENT1(NLAYER*NEL))
-    
+    ALLOCATE(SUMLAYER1(0:NLAYER))
+    SUMLAYER1(0)=0
+    DO I=1,NLAYER
+        SUMLAYER1(I)=SUBLAYER(I)+SUMLAYER1(I-1)
+    ENDDO
+    NSUBLAYER1=SUMLAYER1(NLAYER)
+    ALLOCATE(ELEMENT1(NSUBLAYER1*NEL),STAT=ALLOC_ERR)
+ 	
     DO CONCURRENT (I=1:NEL)
-        N1=(I-1)*NLAYER
+        N1=(I-1)*NSUBLAYER1
         N3=ELEMENT(I).NNODE
         N2=2*N3
-        NA1(1:N3)=(ELEMENT(I).NODE-1)*(NLAYER+1)
+        NA1(1:N3)=(ELEMENT(I).NODE-1)*(NSUBLAYER1+1)
         DO CONCURRENT (J=1:NLAYER)
-            N4=N1+J
+            DO CONCURRENT (K=1:SUBLAYER(J))
+            N4=N1+SUMLAYER1(J-1)+K
             ELEMENT1(N4).NNODE=N2
             ELEMENT1(N4).ILAYER=J
             ELEMENT1(N4).NTAG=ELEMENT(I).NTAG
 			SELECT CASE(ELEMENT(I).ET)
 				CASE(1)	
-					ELEMENT1(N4).ET=3
+					ELEMENT1(N4).ET=3					
 				CASE(2)
 					ELEMENT1(N4).ET=6
 				CASE(3)
@@ -249,44 +263,89 @@ SUBROUTINE GEN_LAYERED_ELEMENT()
 			ENDSELECT
             ALLOCATE(ELEMENT1(N4).NODE(N2),STAT=ALLOC_ERR)
             ALLOCATE(ELEMENT1(N4).TAG,SOURCE=ELEMENT(I).TAG,STAT=ALLOC_ERR)
-            ELEMENT1(N4).NODE(1:N3)=NA1(1:N3)+J
-            ELEMENT1(N4).NODE(N3+1:N2)=NA1(1:N3)+J+1            
+			IF(J>1) THEN
+				ELEMENT1(N4).TAG(1)=ELEMENT(I).TAG(1)*100+J				
+				ELEMENT1(N4).TAG(2)=ELEMENT(I).TAG(2)*100+J								
+			ENDIF
+			PHYSICALGROUP(ELEMENT(I).TAG(1)).LAYERGROUP(J)=ELEMENT1(N4).TAG(1)
+			
+            ELEMENT1(N4).NODE(1:N3)=NA1(1:N3)+SUMLAYER1(J-1)+K
+            ELEMENT1(N4).NODE(N3+1:N2)=NA1(1:N3)+SUMLAYER1(J-1)+K+1
+            ENDDO
         ENDDO
     ENDDO
     
     DEALLOCATE(ELEMENT)
     ALLOCATE(ELEMENT,SOURCE=ELEMENT1,STAT=ALLOC_ERR)
-    NEL=NEL*NLAYER
+    NEL=NEL*NSUBLAYER1
     DEALLOCATE(ELEMENT1)
     
     !UPDATE NODE
-    ALLOCATE(NODE1(NNODE*(NLAYER+1)),STAT=ALLOC_ERR)
+    ALLOCATE(NODE1(NNODE*(NSUBLAYER1+1)),STAT=ALLOC_ERR)
+    ALLOCATE(AR1(NSUBLAYER1),STAT=ALLOC_ERR)
+    
     DO CONCURRENT (I=1:NNODE)
-        N1=(I-1)*(NLAYER+1)
-        DO CONCURRENT (J=1:NLAYER+1)
-            N2=N1+J
-            NODE1(N2)=NODE(I)            
-            NODE1(N2).XY(3)=ELEVATION(J,I)
+        N1=(I-1)*(NSUBLAYER1+1)        
+        DO CONCURRENT (J=1:NLAYER)
+            T1=(ELEVATION(J+1,I)-ELEVATION(J,I))/SUBLAYER(J)
+            N3=SUBLAYER(J)
+            IF(J==NLAYER) N3=N3+1
+            DO CONCURRENT (K=1:N3)
+                N2=N1+SUMLAYER1(J-1)+K
+                NODE1(N2)=NODE(I)            
+                NODE1(N2).XY(3)=ELEVATION(J,I)+T1*(K-1)
+            ENDDO
         ENDDO 
     ENDDO
     
     DEALLOCATE(NODE)
     ALLOCATE(NODE,SOURCE=NODE1,STAT=ALLOC_ERR)
-    NNODE=NNODE*(NLAYER+1)
+    NNODE=NNODE*(NSUBLAYER1+1)
     DEALLOCATE(NODE1)
     DEALLOCATE(ELEVATION)
     
 	!update physical group
 	!统计每个物理组单元的个数及单元数组下标。
-	do concurrent (i=1:maxphgp)
-		if(physicalgroup(i).nel>0) then
-			if(allocated(physicalgroup(i).element)) deallocate(physicalgroup(i).element)
-			physicalgroup(i).nel=physicalgroup(i).nel*nlayer
-			allocate(physicalgroup(i).element(physicalgroup(i).nel),STAT=ALLOC_ERR)
-		endif
+	N3=0
+	do i=1,nphgp
+		IGP1=phgpnum(i)
+		physicalgroup(IGP1).NDIM=physicalgroup(IGP1).NDIM+1
+        
+		SELECT CASE(physicalgroup(IGP1).ET_GMSH)
+			CASE(1)	
+				physicalgroup(IGP1).ET_GMSH=3					
+			CASE(2)
+				physicalgroup(IGP1).ET_GMSH=6
+			CASE(3)
+				physicalgroup(IGP1).ET_GMSH=5
+			CASE DEFAULT
+				STOP "ET_GMSH UNEXPECTED. SUB=GEN_LAYERED_ELEMENT()."
+		ENDSELECT		
+		DO J=2,NLAYER
+			N2=IGP1*100+J
+			physicalgroup(N2)=physicalgroup(IGP1)
+            IF(SUBLAYER(J)>1) THEN
+                IF(ALLOCATED(physicalgroup(N2).ELEMENT)) DEALLOCATE(physicalgroup(N2).ELEMENT)
+                physicalgroup(N2).NEL=physicalgroup(IGP1).NEL*SUBLAYER(J)
+                ALLOCATE(physicalgroup(N2).ELEMENT(physicalgroup(N2).NEL),STAT=ALLOC_ERR)
+            ENDIF
+            
+			physicalgroup(N2).MAT(1)=physicalgroup(IGP1).MAT(J)
+			WRITE(CH1,'(I3)') J
+			physicalgroup(N2).name=TRIM(physicalgroup(IGP1).NAME)//'_L'//TRIM(ADJUSTL(CH1))
+			N3=N3+1
+			PHGPNUM(NPHGP+N3)=N2            
+		ENDDO
+		physicalgroup(IGP1).name=TRIM(physicalgroup(IGP1).NAME)//'_L1'
+        IF(SUBLAYER(1)>1) THEN
+            DEALLOCATE(physicalgroup(IGP1).ELEMENT)
+            physicalgroup(IGP1).NEL=physicalgroup(IGP1).NEL*SUBLAYER(1)
+            ALLOCATE(physicalgroup(IGP1).ELEMENT(physicalgroup(IGP1).NEL),STAT=ALLOC_ERR)
+        ENDIF
 	end do
+	NPHGP=NPHGP+N3
 	
-	physicalgroup.nel=0
+	physicalgroup(PHGPNUM(1:NPHGP)).nel=0
 	do i=1,nel
 		physicalgroup(element(i).tag(1)).nel=physicalgroup(element(i).tag(1)).nel+1
 		physicalgroup(element(i).tag(1)).element(physicalgroup(element(i).tag(1)).nel)=i		
@@ -412,10 +471,28 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//$ELT_BC"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD ELT_BC IS USED TO DEFINE THE BOUNDARY CONDITION APPLIED ON THE ELEMENT GROUP."//'"'
 	README(IPP(I))="//NOTE THAT THE FINAL BC VALUE OF A NODE IS WHAT INPUT BY THE FIRST ELEMENT SHARING THE NODE."
-	README(IPP(I))= "//{NELT_BC(I)} "
-	README(IPP(I)) = "//{NO(I),GROUP(I),NDIM(I),DOF(I),STEPFUNC(I),VALUE(R)}  // NDIM=0,1,2,3 分别表示点、线、面、体的约束. 因为边界条件（如位移，水头等）不具叠加性，所以NDIM取值对边界条件无影响."
+	README(IPP(I))= "//{NELT_BC} "
+	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE}  // NDIM=0,1,2,3 分别表示点、线、面、体的约束. 因为边界条件（如位移，水头等）不具叠加性，所以NDIM取值对边界条件无影响."
 	README(IPP(I))=  "//                                                      // DOF(I)=1,2,...,7,分别表示约束X,Y,Z,H,MX,MY,MZ "
-    README(IPP(I))=  "//{......}   //共NELT_BC行. "
+    README(IPP(I))=  "//NOTE: FOR THE LAYERED MODEL, THE GROUP IDS OF EACH EXTRUDED LAYERED IS REFERED AS GROUP_BASEMESH*100+ILAYER.AS SHOWN BELOW." 
+	README(IPP(I))=  "//   -----------------								"
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   |    N-LAYER    | GROUPID=GROUP_BASEMESH*100+N   "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   -----------------                                "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   |    ..LAYER    |                                "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   -----------------                                "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   |    2-LAYER    | GROUPID=GROUP_BASEMESH*100+2   "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   -----------------                                "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   |    1-LAYER    | GROUPID=GROUP_BASEMESH         "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   -----------------                                "
+	README(IPP(I))=  "//{......}   //共NELT_BC行. "
 	README(IPP(I)) = "//$ENDELT_BC"
 	
 	
@@ -423,20 +500,56 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//$ELT_LOAD"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD ELT_LOAD IS USED TO DEFINE THE LOAD APPLIED ON THE ELEMENT GROUP."//'"'
 	README(IPP(I))="//NOTE THAT, IF THE NDIM=1,2 OR 3, THE FINAL BC VALUE OF A NODE IS THE SUM OF ALL THE ELEMENT SHARING THE NODE."
-	README(IPP(I)) = "//{NELT_LOAD(I)} "
-	README(IPP(I)) = "//{NO(I),GROUP(I),NDIM(I),DOF(I),STEPFUNC(I),VALUE(R)}  // NDIM=0,1,2,3 分别表示点、线、面、体的荷载."
+	README(IPP(I)) = "//{NELT_LOAD} "
+	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE}  // NDIM=0,1,2,3 分别表示点、线、面、体的荷载."
 	README(IPP(I)) =  "//{......}   //共NELT_LOAD行. "
 	README(IPP(I)) ="//目前可处理:NDIM=0(点荷载); "
 	README(IPP(I)) ="//			 NDIM=1的情况目前可处理作用在2节点、3节点以及5节点的单元边，且仅限于均布线荷载;"
 	README(IPP(I)) ="//			 NDIM=2的情况目前可处理作用在3节点（三角形）、4节点（四边形）、6节点（二次三角形）、8节点（二次四边形）以及15节点（四次三角形）的单元面，且仅限于均布面荷载;"
 	README(IPP(I)) ="//			 NDIM=3的情况目前可处理作用在4节点（四面体）、10节点（二次四面体）、6节点(Prism)、8节点(长方体)，且仅限于均布体荷载;"
+    README(IPP(I))=  "//NOTE: FOR THE LAYERED MODEL, THE GROUP IDS OF EACH EXTRUDED LAYERED IS REFERED AS GROUP_BASEMESH*100+ILAYER.AS SHOWN BELOW." 
+	README(IPP(I))=  "//   -----------------								"
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   |    N-LAYER    | GROUPID=GROUP_BASEMESH*100+N   "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   -----------------                                "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   |    ..LAYER    |                                "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   -----------------                                "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   |    2-LAYER    | GROUPID=GROUP_BASEMESH*100+2   "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   -----------------                                "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   |    1-LAYER    | GROUPID=GROUP_BASEMESH         "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   -----------------                                "
 	README(IPP(I)) = "//$ENDELT_LOAD"		
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$ELT_SPGFACE"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD ELT_SPGFACE IS USED TO DEFINE THE SEEPAGEFACE CONDITION APPLIED ON THE ELEMENT GROUP."//'"'
-	README(IPP(I)) = "//{NELT_SPGFACE(I)} "
-	README(IPP(I)) = "//{NO(I),GROUP(I),NDIM(I),DOF(I),STEPFUNC(I),VALUE(R)}  // NDIM=0,1,2,3 均可，VALUE=任意值（程序内部设为Y或Z）"
+	README(IPP(I)) = "//{NELT_SPGFACE} "
+	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE}  // NDIM=0,1,2,3 均可，VALUE=任意值（程序内部设为Y或Z）"
+    README(IPP(I))=  "//NOTE: FOR THE LAYERED MODEL, THE GROUP IDS OF EACH EXTRUDED LAYERED IS REFERED AS GROUP_BASEMESH*100+ILAYER.AS SHOWN BELOW." 
+	README(IPP(I))=  "//   -----------------								"
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   |    N-LAYER    | GROUPID=GROUP_BASEMESH*100+N   "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   -----------------                                "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   |    ..LAYER    |                                "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   -----------------                                "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   |    2-LAYER    | GROUPID=GROUP_BASEMESH*100+2   "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   -----------------                                "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   |    1-LAYER    | GROUPID=GROUP_BASEMESH         "
+	README(IPP(I))=  "//   |               |                                "
+	README(IPP(I))=  "//   -----------------                                "
 	README(IPP(I)) =  "//{......}   //共NELT_SPGFACE行. "
 	README(IPP(I)) = "//$ENDELT_SPGFACE"	
 	
@@ -450,44 +563,44 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$MODELDIMENSION"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD MODELDIMENSION IS USED TO DEFINE THE MODEL DIMENSION."//'"'
-	README(IPP(I)) = "//{MODELDIMENSION(I)}   // MODELDIMENSION=2, 3"  
+	README(IPP(I)) = "//{MODELDIMENSION}   // MODELDIMENSION=2, 3"  
 	README(IPP(I)) = "//$ENDMODELDIMENSION"	
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$GROUPPARAMETER"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD GROUPPARAMETER IS USED TO DEFINE THE MATERIAL AND ELEMENT TYPE IN THE MODELGROUP ELEMENTS."//'"'
-	README(IPP(I)) = "//{NGROUPPARAMETER(I)}"  
-	README(IPP(I)) = "//{GROUDID(I),MATID*NLAYER,ET(A32)}  //ET=CPE3,CPE6,TET4,TET10,... "
+	README(IPP(I)) = "//{NGROUPPARAMETER}"  
+	README(IPP(I)) = "//{GROUDID,MATID(NLAYER),ET)}  //ET=CPE3,CPE6,TET4,TET10,... "
 	README(IPP(I)) = "//{......}  // 共NGROUPPARAMETER 个"     
 	README(IPP(I)) = "//$ENDGROUPPARAMETER"	
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$WSP"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO DEFINE THE BOUNDRAY LINE WHERE A WATER SURFACE PROFILE IS CALCULATED."//'"'
-	README(IPP(I)) = "//{NWSP(I)}"  
-	README(IPP(I)) = "//{GROUPID(I),CHARACTERPOINTGROUP(I),STARTPOINTGROUP(I)}*{NWSP(I)}  // 每行3个，共NWSP行，STARTPOINTGROUP为输出起点(这个GROUP只含一个点)，根据起点按顺序输出线上各点。"
+	README(IPP(I)) = "//{NWSP}"  
+	README(IPP(I)) = "//{GROUPID,CHARACTERPOINTGROUP,STARTPOINTGROUP}*{NWSP}  // 每行3个，共NWSP行，STARTPOINTGROUP为输出起点(这个GROUP只含一个点)，根据起点按顺序输出线上各点。"
 	README(IPP(I)) = "//注：CHARACTERPOINTGROUP，为从上游到下游流道的特征点。这些特征点将流道分成不同性质的子流道段"
 	README(IPP(I)) = "//$ENDWSP"	
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$DATAPOINT"
 	README(IPP(I))=  "//"//'"'//"THE DataPoint IS USED TO OUTPUT THE DATA POINTS ALONG A POLYLINE YOU WANT TO LIST THE COMPUTATED RESULT."//'"'
-	README(IPP(I)) = "//{NDataPoint(I)}"  
-	README(IPP(I)) = "//{GROUPID(I)[,ORDER(I)=0,STARTPOINTGROUP(I)]}*{NDataPoint(I)}  // 每行3个，共NDataPoint行.STARTPOINTGROUP为输出起点(这个GROUP只含一个点)，根据起点按顺序输出线上各点。"
+	README(IPP(I)) = "//{NDataPoint)}"  
+	README(IPP(I)) = "//{GROUPID [,ORDER=0,STARTPOINTGROUP]}*{NDataPoint(I)}  // 每行3个，共NDataPoint行.STARTPOINTGROUP为输出起点(这个GROUP只含一个点)，根据起点按顺序输出线上各点。"
 	README(IPP(I)) = "//ORDER=0,表示输出散点的形式（不排序）.=1，表示以STARTPOINTGROUP为起点按点的顺序输出。"
 	README(IPP(I)) = "//$ENDDATAPOINT"		
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$INCLUDEFILE"
 	README(IPP(I))=  "//"//'"'//"THE INCLUDEFILE IS USED TO READ IN DATA IN ANOTHER FILE."//'"'
-	README(IPP(I)) = "//{NINCLUDEFILE(I)}"  
+	README(IPP(I)) = "//{NINCLUDEFILE}"  
 	README(IPP(I)) = "//{ABSOLUTED PATH OF THE FILES}*{NINCLUDEFILE(I)}  // 共NINCLUDEFILE行."
 	README(IPP(I)) = "//$ENDINCLUDEFILE"    
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$COPYFILE"
 	README(IPP(I))=  "//"//'"'//"THE COPYFILE IS USED TO COPY DATA IN THE FILES TO THE OUTPUT FILE."//'"'
-	README(IPP(I)) = "//{NCOPYFILE(I)}"  
+	README(IPP(I)) = "//{NCOPYFILE}"  
 	README(IPP(I)) = "//{ABSOLUTED PATH OF THE FILES}*{NCOPYFILE(I)}  // 共NCOPYFILE行."
 	README(IPP(I)) = "//$ENDCOPYFILE" 
  
@@ -495,8 +608,8 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//$ELEVATION"
 	README(IPP(I))=  "//"//'"'//"THE ELEVATION IS USED TO INPUT ELEVATION DATA FOR GENERATE PRISM/BRICK ELEMENT."//'"'
 	README(IPP(I)) = "//NOTE THAT,THE BASE 2D ELEMENT MUST BE LINEAR."  
-    README(IPP(I)) = "//{NNODE,NLAYER}    //节点数，地层数."  
-	README(IPP(I)) = "//A:{INODE,X,Y,Z*{NLAYER+1}}  // 共3+NLAYER+1个/行.Z IS IN A2Z ORDER(Z1<=Z2<=...<=Z(NLYAER+1))"
+    README(IPP(I)) = "//{NNODE,NLAYER,[NSUBLAYER(NLAYER)]}    //节点数，地层数，每层细分层数"  
+	README(IPP(I)) = "//A:{INODE,X,Y,Z(NLAYER+1)}  // 共3+NLAYER+1个/行.Z IS IN A2Z ORDER(Z1<=Z2<=...<=Z(NLYAER+1))"
     README(IPP(I)) = "//B:A*{NNODE}  // 共NNODE行."
 	README(IPP(I)) = "//$ENDELEVATION"     
     
@@ -531,7 +644,7 @@ subroutine Tosolver()
 	use DS_Gmsh2Solver
 	implicit none
 	integer::unit,item,n1,N2,i,j,K,width,ITEM1
-	
+	CHARACTER(32)::CH1,CH2
 	
 	unit=20
 	open(unit,file=resultfile,status='replace')
@@ -548,26 +661,25 @@ subroutine Tosolver()
 		write(unit,111) node(n1).xy(1:modeldimension)
 	end do
 	do i=1,nphgp
-		N1=phgpnum(i)
-		ITEM1=len_trim(adjustL(physicalgroup(N1).NAME))
-		
+		N1=phgpnum(i)		
+		CH1=physicalgroup(N1).NAME
 		call lowcase(physicalgroup(N1).et,len(physicalgroup(N1).et))
 		if(.NOT.physicalgroup(N1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD的单元组不输出
-		DO K=1,NLAYER
-			item=len_trim(adjustL(physicalgroup(N1).et))
-			write(unit,120) physicalgroup(N1).nel/NLAYER,N1,physicalgroup(N1).et, &
-							physicalgroup(N1).mat(K),physicalgroup(N1).NAME
-			item=len_trim(elttype(physicalgroup(N1).et_gmsh).description)
-			write(unit,122) elttype(physicalgroup(N1).et_gmsh).description
-			item=elttype(physicalgroup(N1).et_gmsh).nnode
-			write(unit,123) ((J),J=1,item)		
-			do j=1,physicalgroup(N1).nel				
-				N2=physicalgroup(N1).element(j)
-				IF(ELEMENT(N2).ILAYER/=K) CYCLE
-				item=element(n2).nnode
-				write(unit,121) node(element(n2).node).inode
-			end do
-		ENDDO
+		item=len_trim(adjustL(physicalgroup(N1).et))
+		ITEM1=len_trim(adjustL(CH1))
+
+		write(unit,120) physicalgroup(N1).nel,N1,physicalgroup(N1).et, &
+						physicalgroup(N1).mat(1),CH1
+		item=len_trim(elttype(physicalgroup(N1).et_gmsh).description)
+		write(unit,122) elttype(physicalgroup(N1).et_gmsh).description
+		item=elttype(physicalgroup(N1).et_gmsh).nnode
+		write(unit,123) ((J),J=1,item)		
+		do j=1,physicalgroup(N1).nel				
+			N2=physicalgroup(N1).element(j)
+			item=element(n2).nnode
+			write(unit,121) node(element(n2).node).inode
+		end do
+
 	end do
 	
 	if(nnodalBC>0) then
@@ -1187,7 +1299,7 @@ subroutine kwcommand(term,unit)
 	implicit none
 	integer,intent(in)::unit	
 	character(512),intent(in)::term
-	integer::n1,n2,n3,nacw=0
+	integer::n1,n2,n3,nacw=0,ALLC_ERR
 	integer::en1(50)=0
 	logical,external::isacw
     logical::ischeckacw=.false.
@@ -1206,8 +1318,13 @@ subroutine kwcommand(term,unit)
 	strL1=len_trim(term)
 	
 	select case (term)
-        CASE('elevation')
-            read(unit,*) nnode,nlayer
+    CASE('elevation')
+            !read(unit,*) nnode,nlayer
+            call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
+            NNODE=INT(AR(1));NLAYER=INT(AR(2))
+            ALLOCATE(SUBLAYER(NLAYER),STAT=ALLC_ERR)
+            SUBLAYER=1
+            IF(NREAD>2) SUBLAYER(1:NREAD-2)=INT(AR(3:NREAD))
             allocate(elevation(nlayer+1,nnode))
             do i=1,nnode
                 call skipcomment(unit)
@@ -1403,7 +1520,7 @@ subroutine kwcommand(term,unit)
 		case('physicalnames')
 			call skipcomment(unit)
 			read(unit,*) nphgp
-			allocate(phgpnum(nphgp))
+			allocate(phgpnum(nphgp+100))
 			!allocate(physicalgroup(nphgp))
 			do i=1,nphgp
 				call skipcomment(unit)
