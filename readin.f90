@@ -401,7 +401,7 @@ subroutine solvercommand(term,unit)
 	use solverlib
 	use ExcaDSLIB
     use ds_hyjump
-    USE DS_SlopeStability
+    USE DS_SlopeStability    
 	implicit none
     
 	integer::unit
@@ -559,10 +559,10 @@ subroutine solvercommand(term,unit)
 						call Err_msg(property(i).name)
 				end select    
             end do
-			IF(NRTPONT>0) THEN
+			IF(NRTPOINT>0) THEN
 				ALLOCATE(RTPOINT(NRTPOINT))
 				n2=0
-				DOWHILE(n2<nrtpoint)
+				DO WHILE(n2<nrtpoint)
 					call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
 					rtpoint(n2+1:n2+n1)=int(ar(1:n1))
 					n2=n2+n1
