@@ -4,6 +4,8 @@ Module Geometry
     real(double),allocatable::kpoint(:,:)
     integer::nkp=0
     real(double)::MinX=1.D20,MaxX=-1.D20,MinY=1.D20,MaxY=-1.D20
+	integer,allocatable::RTPOINT(:)
+	INTEGER::NRTPOINT=0
     
     type line_tydef
         integer::npoint=0
@@ -11,9 +13,11 @@ Module Geometry
         integer::mat=-1
         character(64)::title=''
     end type
-    type(line_tydef),allocatable::line(:)
-    integer::nline=0
+    type(line_tydef),allocatable::line(:),Geoline(:),waterlevel
+    integer::nline=0,nGEOline=0
+    !Assumption of GeoLine£º1)points must be ordered from a2z. 2) no revserse is allowed. 
     
+	
     type lineloop_tydef
         integer::nline=0
         integer,allocatable::line(:)
@@ -21,10 +25,9 @@ Module Geometry
     type(lineloop_tydef),allocatable::lineloop(:)
     integer::nlineloop=0
     
-   
-        
-    
-    
+    INTEGER(1) VFILLMASK(8)  /Z'08',Z'08',Z'08',Z'08',Z'08',Z'08',Z'08',Z'08'/
+    INTEGER(1) HFILLMASK(8)  /Z'FF',Z'00',Z'00',Z'00',Z'00',Z'00',Z'00',Z'00'/
+    INTEGER(1) FILLMASK(8)  /Z'FF',Z'FF',Z'FF',Z'FF',Z'FF',Z'FF',Z'FF',Z'FF'/
 End module
     
     
@@ -116,6 +119,7 @@ Module ExcaDS
 	endtype 
 	type(action_tydef),allocatable::action(:)
 	integer::naction=0
+    REAL(DOUBLE)::MAXACTION=0.D0
 	
     contains
     
@@ -1075,8 +1079,9 @@ function interpolation(x,y,nx,xi)
 	real(double)::interpolation,t1
 	integer::i
     
-
-    if(nx==1) then
+    interpolation=0.D0
+    
+    if(nx==1.AND.ABS(XI-X(1))<1.D-6) then
        interpolation=y(1)
        return
     endif
@@ -1617,6 +1622,7 @@ ENDSUBROUTINE
 
   subroutine checkdata()
       use excaDS
+      !USE DS_SlopeStability
       use solverds
 	  use ifqwin
       use IFCORE
@@ -1632,7 +1638,7 @@ ENDSUBROUTINE
 	  TYPE (windowconfig):: thescreen 
 	  common /c2/ thescreen
  	  EXTERNAL  shown,showY,SHOWBW,SHOWBC,SHOWELNUM,SHOWELMAT,SHOWCANCEL,CHECKSOIL,SHOWET
-	  EXTERNAL	SHOWNA
+	  EXTERNAL	SHOWNA,SHOWSLOPE
       EXTERNAL  checkgraph
 	  integer(4)          oldcolor,event,ix,iy,res,result,ikeystate,iunit
 	  INTEGER(2)          status
@@ -1680,8 +1686,11 @@ ENDSUBROUTINE
 	result = INSERTMENUQQ (6, 7, $MENUENABLED, 'ELEMENT_TYPE'c, SHOWET)
 	result = INSERTMENUQQ (6, 8, $MENUENABLED, 'CHECKSOIL'c, CHECKSOIL)
 	result = INSERTMENUQQ (6, 9, $MENUENABLED, 'NACTION'c, SHOWNA)
-	result = INSERTMENUQQ (6, 10, $MENUENABLED, 'CANCEL'c, SHOWCANCEL)
-								
+    result = INSERTMENUQQ (6, 10, $MENUENABLED, 'SLOPESTABILITY'c, SHOWSLOPE)
+	result = INSERTMENUQQ (6, 11, $MENUENABLED, 'CANCEL'c, SHOWCANCEL)
+
+	IF(ISSLOPE/=0) SHOWVALUE=11
+    
 	oldcolor=setbkcolorrgb(#00)
 	oldcolor=setcolorrgb(#0000ff)
     CALL CLEARSCREEN( $GCLEARSCREEN )
@@ -1842,8 +1851,10 @@ ENDSUBROUTINE
 		call moveto_w(x1,y1,wxy)		
 		status=lineto_w(x2,y2)
 		
-	  end do
+      end do
+      
 	  
+      
 	  call  PLOTDATA(xmin,ymin,xmax,ymax,size)
   
 
@@ -1852,6 +1863,12 @@ ENDSUBROUTINE
 
    end subroutine
 
+   	subroutine SHOWSLOPE()
+		use EXCADS
+		implicit none
+		showvalue=11
+	end subroutine
+   
 	subroutine showY()
 		use EXCADS
 		implicit none
@@ -1912,11 +1929,14 @@ ENDSUBROUTINE
 		use EXCADS
 		implicit none
 		showvalue=9
-    end subroutine				
+    end subroutine
+    
+    
     
 	subroutine PLOTDATA(xmin,ymin,xmax,ymax,size)
 		USE solverds
         use EXCADS
+        !USE DS_SlopeStability
 		use dflib
 		implicit none
 		integer::n1,n2,i,J,flag
@@ -2066,9 +2086,13 @@ ENDSUBROUTINE
                             
                     enddo
                     
-                enddo    
+                enddo
+            CASE(11) !SLOPE MODEL
+                CALL SLOPEMODEL_PLT(xmin,ymin,xmax,ymax,WXY)
+                
+                
             CASE DEFAULT
-                PRINT *, "TO BE IMPROVED.SUB=PLOTDATA"
+                !PRINT *, "TO BE IMPROVED.SUB=PLOTDATA"
 				
             end select
             
