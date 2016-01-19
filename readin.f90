@@ -52,6 +52,7 @@
 		EXCAMSGFILE=trim(drive)//trim(dir)//trim(name)//'_exca_msg.dat'
 		EXCAB_BEAMRES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_res.dat'
 		EXCAB_STRURES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_stru.dat'
+        Slope_file=trim(drive)//trim(dir)//trim(name)//'_slope_res.dat'
 		EXCAB_EXTREMEBEAMRES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_minmaxbeam.dat'
 	end if
 	open(99,file=resultfile3,status='replace')
@@ -129,6 +130,10 @@
         msg=INSERTMENUQQ (5, 4, $MENUENABLED, 'BGC_BLACK'c, SETBGCOLOR)
         !solver_control.ismkl=NO
     ENDIF    
+    
+    IF(ISSLOPE/=0) THEN
+        CALL Gen_slope_model()
+    ENDIF
     
     
 	LF1D(0,1)=0.0D0
@@ -397,6 +402,7 @@ subroutine solvercommand(term,unit)
 	use solverlib
 	use ExcaDSLIB
     use ds_hyjump
+    USE DS_SlopeStability    
 	implicit none
     
 	integer::unit
@@ -502,28 +508,67 @@ subroutine solvercommand(term,unit)
                 ENDDO
             end do            
             IF(TOF1) STOP "ERROR STOP IN KPOINT READ IN."
-        case('line')
-            print *, 'Reading geometry LINE data...'
+        case('geoline')
+            print *, 'Reading geological LINE data...'
             do i=1,pro_num
                 select case(property(i).name)
 					case('num')
-						nline=int(property(i).value)                                            
+						ngeoline=int(property(i).value)                                            
 					case default
 						call Err_msg(property(i).name)
 				end select    
             end do
-            allocate(line(nline))
-            do i=1,nline
+            allocate(geoline(ngeoline))
+            do i=1,ngeoline
                 call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
                 n2=int(ar(1))
-                line(n2).mat=int(ar(2))
+                geoline(n2).mat=int(ar(2))
                 n3=int(ar(3))
-                line(n2).npoint=n3
-                allocate(line(n2).point(n3))
-                line(n2).point(1:n3)=int(ar(4:3+n3))
-                if(nset==1) line(n2).title=set(1)
+                geoline(n2).npoint=n3
+                allocate(geoline(n2).point(n3))
+                
+                geoline(n2).point(1:n3)=int(ar(4:3+n3))
+                do j=2,n3
+                    if(kpoint(1,geoline(n2).point(j-1))>kpoint(1,geoline(n2).point(j))) then
+                        print *, "x(j-1)>x(j) in geoline(i). j,i=",j,n2
+                        stop
+                    endif
+                enddo
+                if(nset==1) geoline(n2).title=set(1)
             enddo
-            
+		CASE('waterlevel')
+			 print *, 'Reading WALTERLEVEL LINE data...'
+            do i=1,pro_num
+                select case(property(i).name)
+					case('num')
+						WATERLEVEL.NPOINT=int(property(i).value)                                            
+					case default
+						call Err_msg(property(i).name)
+				end select    
+            end do
+            allocate(WATERLEVEL.POINT(WATERLEVEL.NPOINT))
+			call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+			WATERLEVEL.POINT=AR(1:n1)
+			
+        case('right turn point','rtpoint','rtp')
+			print *, 'Reading RIGHT TURN POINTS ...'
+            do i=1,pro_num
+                select case(property(i).name)
+					case('num')
+						NRTPOINT=int(property(i).value)                                            
+					case default
+						call Err_msg(property(i).name)
+				end select    
+            end do
+			IF(NRTPOINT>0) THEN
+				ALLOCATE(RTPOINT(NRTPOINT))
+				n2=0
+				DO WHILE(n2<nrtpoint)
+					call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+					rtpoint(n2+1:n2+n1)=int(ar(1:n1))
+					n2=n2+n1
+				ENDDO
+			ENDIF
 		case('hbeam','pile') !for retaining structure
 			print *, 'Reading beam/pile(Retaining Structure) data...'
 			do i=1, pro_num
@@ -627,6 +672,7 @@ subroutine solvercommand(term,unit)
 				read(unit,*) action(i).kpoint
 				call skipcomment(unit)
 				read(unit,*) action(i).value
+                MAXACTION=MAX(ABS(MAXVAL(ACTION(I).value)),ABS(MINVAL(ACTION(I).VALUE)),MAXACTION)                
 				if(n3==1) then
 					call skipcomment(unit)
 					read(unit,*) action(i).vsf
@@ -1065,9 +1111,7 @@ subroutine solvercommand(term,unit)
                     case('rf_epp')
                         solver_control.rf_epp=int(property(i).value)
                     case('rf_app')
-                        solver_control.rf_app=int(property(i).value)
-                    case('iniepp')
-						solver_control.iniepp=int(property(i).value)
+                        solver_control.rf_app=int(property(i).value)                        
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -1080,12 +1124,8 @@ subroutine solvercommand(term,unit)
 			do i=1,nsoilprofile
 				call skipcomment(unit)
 				read(unit,'(A64)') soilprofile(i).title
-				call skipcomment(unit)
-				call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
-				!read(unit,*) soilprofile(i).nasoil,soilprofile(i).npsoil,soilprofile(i).beam,soilprofile(i).naction,SOILPROFILE(I).NSTRUT
-				soilprofile(i).nasoil=int(ar(1));soilprofile(i).npsoil=int(ar(2));soilprofile(i).beam=int(ar(3))
-				if(n1>3) soilprofile(i).naction=int(ar(4))
-				if(n1>4) soilprofile(i).NSTRUT=int(ar(5))
+				call skipcomment(unit)				
+				read(unit,*) soilprofile(i).nasoil,soilprofile(i).npsoil,soilprofile(i).beam,soilprofile(i).naction,SOILPROFILE(I).NSTRUT
 				if(soilprofile(i).nasoil<0) then 
 					soilprofile(i).aside=-1
 					soilprofile(i).nasoil=-soilprofile(i).nasoil
@@ -1094,24 +1134,13 @@ subroutine solvercommand(term,unit)
 						 soilprofile(i).iaction(soilprofile(i).naction),soilprofile(i).istrut(soilprofile(i).nstrut))
 				do j=1,soilprofile(i).nasoil
 					call skipcomment(unit)
-					call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
-					!read(unit,*) soilprofile(i).asoil(j).z,soilprofile(i).asoil(j).mat,soilprofile(i).asoil(j).wpflag,soilprofile(i).asoil(j).sf
-					soilprofile(i).asoil(j).z=int(ar(1:2))
-					soilprofile(i).asoil(j).mat=int(ar(3))
-					soilprofile(i).asoil(j).wpflag=int(ar(4))
-					soilprofile(i).asoil(j).sf=int(ar(5))
-					if(n1>5) soilprofile(i).asoil(j).pv=ar(6)
+					read(unit,*) soilprofile(i).asoil(j).z,soilprofile(i).asoil(j).mat,soilprofile(i).asoil(j).wpflag,soilprofile(i).asoil(j).sf
+
 				enddo
-				
 				do j=1,soilprofile(i).npsoil
 					call skipcomment(unit)
-					call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
-					!read(unit,*) soilprofile(i).psoil(j).z,soilprofile(i).psoil(j).mat,soilprofile(i).psoil(j).wpflag,soilprofile(i).psoil(j).sf
-					soilprofile(i).psoil(j).z=int(ar(1:2))
-					soilprofile(i).psoil(j).mat=int(ar(3))
-					soilprofile(i).psoil(j).wpflag=int(ar(4))
-					soilprofile(i).psoil(j).sf=int(ar(5))
-					if(n1>5) soilprofile(i).asoil(j).pv=ar(6)
+					read(unit,*) soilprofile(i).psoil(j).z,soilprofile(i).psoil(j).mat,soilprofile(i).psoil(j).wpflag,soilprofile(i).psoil(j).sf
+
                 enddo
                 
 				call skipcomment(unit)
@@ -1135,6 +1164,7 @@ subroutine solvercommand(term,unit)
 				select case(property(i).name)
 					case('type') 
 						solver_control.type=int(property(i).value)
+						if(solver_control.type==ssa) isslope=1
 					case('solver')
 						solver_control.solver=int(property(i).value)
 !					case('nincrement','ninc')
@@ -1203,7 +1233,7 @@ subroutine solvercommand(term,unit)
 					case default
 						call Err_msg(property(i).name)
 				end select
-			end do						
+            end do						
 !			if(associated(solver_control.factor)) then
 !				read(unit,*)   solver_control.factor
 !			else
@@ -1211,6 +1241,24 @@ subroutine solvercommand(term,unit)
 !				allocate(solver_control.factor(1))
 !				solver_control.factor(1)=1.0
 !			end if
+        CASE('slopeparameter')
+            print *,'Reading SLOPE PARAMETER data...'
+            do i=1,pro_num
+				select case(property(i).name)
+                case('slopemthod','sm')
+                    slopeparameter.slopemethod=int(property(i).value)
+                case('optimizationmthod','om') 
+                    slopeparameter.optmethod=int(property(i).value)
+                case('slipshape','ss')
+                    slopeparameter.slipshape=int(property(i).value)
+                case('slicewdith','sw')
+                    slopeparameter.slicewidth=property(i).value
+                CASE('xmin_mc')
+                    slopeparameter.xmin_mc=property(i).value
+                CASE('xmax_mc')
+                    slopeparameter.xmax_mc=property(i).value                    
+                endselect
+            enddo
 		case('ueset')
 			print *, 'Reading USER DEFINED ELEMENT SET data'
 			if(nueset==1) then !intialize ueset(0)
@@ -1833,7 +1881,7 @@ subroutine write_readme_feasolver()
 	integer::i,j,item
 	LOGICAL(4)::tof,pressed
 	!integer,external::ipp
-	integer,parameter::nreadme=1024
+	integer,parameter::nreadme=2048
 	character(1024)::readme(nreadme)
 	
     print *, "The help file is in d:\README_FEASOLVER.TXT."
@@ -1905,7 +1953,7 @@ subroutine write_readme_feasolver()
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//INITIAL VALUE,NUM=...(I)   //NUM=初值个数"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD INITIAL VALUE IS USED TO INITIAL VALUE DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD BC IS USED TO INITIAL VALUE DATA."//'"'
 	README(IPP(I)) = "//{NODE(I),DOF(I),VALUE(R)[,STEPFUNC.(I)]}"  
 	README(IPP(I)) = "//{...}  //共NUM行"	
 	
@@ -1918,7 +1966,7 @@ subroutine write_readme_feasolver()
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//STEP FUNCTION,NUM=...(I),STEP=...(I)   //NUM=步方程的个数,STEP=步数."  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD STEP FUNCTION IS USED TO STEP FUNCTION DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD BC IS USED TO STEP FUNCTION DATA."//'"'
 	README(IPP(I)) = "//{FACTOR(1)(R),FACTOR(2)(R),...,FACTOR(STEP)(R),TITLE(A)& 
                          \N// FACTOR(ISTEP)=第ISTEP步边界或荷载的系数. &
                          \N//当FACTOR(ISTEP)=-999时,此边界或荷载在此步中失效（无作用）. &
@@ -1934,7 +1982,7 @@ subroutine write_readme_feasolver()
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//WSP,NUM=...(I)[CP=...(I),Method=...(I)]   //CP=1,仅为计算水面算,水面线计算完成后就退出。CP=2,渗流计算是边界按不考虑水跃作用取值。Mothed=1,2,3,4(kinds,WangXG,Ohtsu,Chow)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO INPUT WATERSURFACEPROFILE CALCULATION DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT WATERSURFACEPROFILE CALCULATION DATA."//'"'
 	README(IPP(I)) = "//{NSEGMENT(I),NNODE(I),Q(R),B(R),UYBC,DYBC,[Q_SF,UYBC_SF,DYBC_SF,caltype,g,kn]}" 
 	README(IPP(I)) = "//流道数;流道剖分总节点数;过流量;流道宽;上游边界水深;下游边界水深; [Q的步长函数,UYBC的步长函数,DYBC的步长函数,计算控制参数;重力加速度;曼宁量纲系数]"
 	README(IPP(I)) = "//{UNODE(I),DNODE(I),n(R),So(R),[Profileshape(1),Profileshape(2)]}  //起点号（局部编号，最上游节点编号为1，最下游编号为NNODE),终点号,糙率,坡率,[急流形式,缓流形式]。(流道参数行，从上游到下游依次输入,共NSEGMENT行)"
@@ -1945,29 +1993,28 @@ subroutine write_readme_feasolver()
     README(IPP(I)) = "//注：对于/=4(Chow)，目前只能处理NSEGMENT=2的情况，即斜坡段+水平段，且上游在左下游在右.默认水平段与斜坡段的交点为第二段的第一个节点。"
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//SOILPROFILE,NUM=(I),spmethod=(I),kmethod=(I),rf_epp=(I),rf_app=(I),iniepp=(I)   \n//spmethod=土压力计算方法，0，郎肯； &
+	README(IPP(I)) = "//SOILPROFILE,NUM=(I),spmethod=(I),kmethod=(I),rf_epp=(I),rf_app=(I)   //spmethod=土压力计算方法，0，郎肯； &
         \n// kmethod=基床系数的计算方法，0，m法；1，(E,V)法；2,zhu;3 biot;4 vesic;-1,按直接输入. &
         \n// rf_epp=被动侧土弹簧抗力限值是否要减掉初始的主动土压力.(0N1Y). &
-        \n// RF_APP=0 !主动侧主动土压力荷载，开挖面以下是否按倒三角折减.(0N1Y). & 
-		\n// iniepp=2 !被动侧土弹簧土压力初始值(位移=0时的土压力),2=主动土压力，1=静止土压力."C
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD SOILPROFILE IS USED TO INPUT SOILPROFILE DATA."//'"'C
+        \n// RF_APP=0 !主动侧主动土压力荷载，开挖面以下是否按倒三角折减.(0N1Y)."  
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT SOILPROFILE DATA."//'"'
 	README(IPP(I))=  "//A0:{TITLE(C)}  //土层剖面的名字"  
-	README(IPP(I)) = "//A:{NASOIL(I),NPSOIL(I),BEAMID(I)}  //主动侧土层数(负数表主动土压力为负，被动为正，反之亦然。)，被动侧土层数，地基梁号." 
-	README(IPP(I)) = "//B:{(Z1,Z2,MAT,WPMETHOD,STEPFUN [,PV])*NASOIL}   //层顶高程点号，层底高程点号，材料号，水压力考虑方法(0=合算，1=常规分算，2=分算，考虑渗透力),步函数 [,超载]。共NASOIL行"  
-	README(IPP(I)) = "//C:{(Z1,Z2,MAT,WPMETHOD,STEPFUN [,PV])*NPSOIL}   //层顶高程点号，层底高程点号，材料号，水压力考虑方法(0=合算，1=常规分算，2=分算，考虑渗透力),步函数 [,超载]。共NPSOIL行"  
+	README(IPP(I)) = "//A:{NASOIL(I),NPSOIL(I),BEAMID(I),NACTION(I),NSTRUT}  //主动侧土层数(负数表主动土压力为负，被动为正，反之亦然。)，被动侧土层数，地基梁号,约束(力，位移，弹簧)个数,支撑个数" 
+	README(IPP(I)) = "//B:{(Z1,Z2,MAT,WPMETHOD,STEPFUN)*NASOIL}   //层顶高程点号，层底高程点号，材料号，水压力考虑方法(0=合算，1=常规分算，2=分算，考虑渗透力),步函数。共NASOIL行"  
+	README(IPP(I)) = "//C:{(Z1,Z2,MAT,WPMETHOD,STEPFUN)*NPSOIL}   //层顶高程点号，层底高程点号，材料号，水压力考虑方法(0=合算，1=常规分算，2=分算，考虑渗透力),步函数。共NPSOIL行"  
 	README(IPP(I)) = "//D:{AWATERLEVEL,ASTEPFUN,PWATERLEVEL,PSTEPFUN}   //主动侧水位,主动侧水位步函数，被动侧水位,被动侧水位步函数，"  
 	README(IPP(I)) = "//E:{ALoad,ALoadSTEPFUN,PLoad,PLoadSTEPFUN}   //主动侧超载,主动侧超载步函数，被动侧超载,被动侧超载步函数，" 
-!	README(IPP(I)) = "//F:{NO_ACTION(I)}*NACTION   //约束号，共NACTION个" 
-!	README(IPP(I)) = "//G:{NO_STRUT(I)}*NSTRUT   //支撑号，共NSTRUT个" 
-	README(IPP(I)) = "//{A0,A,B,C,D,E}*NUM。   //共NUM组"
-	README(IPP(I)) = "//注意：\n//1)每一时间步，土层按顺序从上而下输入，不同时间步间的土层可以重叠,同一时间步有效各土层不要出现重叠和空隙。 &
+	README(IPP(I)) = "//F:{NO_ACTION(I)}*NACTION   //约束号，共NACTION个" 
+	README(IPP(I)) = "//G:{NO_STRUT(I)}*NSTRUT   //支撑号，共NSTRUT个" 
+	README(IPP(I)) = "//{A0,A,B,C,D,E,F,G}*NUM。   //共NUM组"
+	README(IPP(I)) = "//注意：\n1)每一时间步，土层按顺序从上而下输入，不同时间步间的土层可以重叠,同一时间步有效各土层不要出现重叠和空隙。 &
 						\n//2)各时间步地下水位处要分层;桩顶处要分层(如果桩在土里面);桩的材料分界处要分层。 &
 						\n//3)考虑渗透力时，假定awL>pwL. &
 						\n//4)如果水面高于地表，将水等效为为土层（令c,phi,模量均设为0，渗透系数<=0)"C
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//PILE,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD PILE IS USED TO INPUT BEAM(RetainingStructure) DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT BEAM(RetainingStructure) DATA."//'"'
 	README(IPP(I)) = "//A:{NSEG(I),[SYSTEM=0]}  //材料分段数，坐标号" 
 	README(IPP(I)) = "//B:{Z(1:NSEG+1)}   //材料分段点,应从上往下（或从左往右）输入（方便单元寻址）"  
 	README(IPP(I)) = "//C:{MAT(1:NSEG)}   //各段材料号"  
@@ -1975,25 +2022,40 @@ subroutine write_readme_feasolver()
 
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//STRUT,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD STRUT IS USED TO INPUT STRUT(RetainingStructure) DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT STRUT(RetainingStructure) DATA."//'"'
 	README(IPP(I)) = "//A:{Z,MAT,STEPFUN}  //点号，材料号，步函数" 
 	README(IPP(I)) = "//{A}*NUM。   //共NUM组"
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//KPOINT,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD KPOINT IS USED TO INPUT KeyPoint DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT KeyPoint DATA."//'"'
 	README(IPP(I)) = "//A:{NO(I),XY(1:NDIMENSION),[ELEMENTSIZE(R)]}  //点号，XY(1:NDIMENSION),[ELEMENT SIZE]" 
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"	
     
  	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//LINE,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD LINE IS USED TO INPUT GEOMETRY LINE DATA."//'"'
+	README(IPP(I)) = "//GEOLINE,NUM=...(I)"  
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT GEOLOGICAL LINE DATA."//'"'
 	README(IPP(I)) = "//A:{NO(I),MATID(I),NPOINT(I),IPOINT(I),[TITLE(A)]}  //线号，材料号(投影)，控制点个数，控制点号(共NPOINT个)，名字" 
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"   
+	README(IPP(I)) = "//注意：1）按X从左至右的顺序输入,既x1<=x2<=..<=xn" 
 	
+ 	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//WATERLEVEL,NUM=...(I)"  
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT WALTERLEVEL LINE DATA."//'"'
+	README(IPP(I)) = "//A:{P1,P2,...,P(NUM)]}  //控制点号(共NUM个)" 
+ 	README(IPP(I)) = "//{A}*1   //共1组"   
+	README(IPP(I)) = "//注意：1）按X从左至右的顺序输入,既x1<=x2<=..<=xn" 	
+	
+ 	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//RIGHT TURN POINT,NUM=...(I)"  
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD  IS USED TO INPUT RIGHT TURN POINT DATA."//'"'
+	README(IPP(I)) = "//A:{IPOINT1,IPOINT2,...IPOINTN}  //点号(共NUM个)" 
+ 	README(IPP(I)) = "//{A}*1。   "   
+	README(IPP(I)) = "//此命令用于输入竖直坡面的下端点的点号(既同一X处有两个地表高程Y)，以解决同一X点有两个地表高程的问题。" 	
+    
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//ACTION,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD ACTION IS USED TO INPUT Laction DATA..."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT Laction DATA..."//'"'
 	README(IPP(I))=  "//A0:{TITLE(C)}  //作用的名字"  
 	README(IPP(I)) = "//A:{NKP,TYPE,DOF,NDIM,[SF,ISVALUESTEPFUN,ISEXVALUE]}  //控制点数，作用类型（0=力，1=位移，2=刚度），作用的自由度，作用的维度，生死步函数,值步函数开关(0N1Y)，极值开关(0N1Y)" 
 	README(IPP(I)) = "//B:{KPOINT(1:NKP)}  //控制点号,应从上往下（或从左往右）输入（方便单元寻址）" 
@@ -2007,7 +2069,15 @@ subroutine write_readme_feasolver()
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD HINGE IS USED TO INPUT HINGE/FREEDOF DATA..."//'"'
 	README(IPP(I)) = "//A:{ELEMENT,NODE,DOF}  //(要释放的自由度所在的)单元，节点和自由度编号。" 
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"
-	    
+    
+	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//SLOPEPARAMETER,SLOPEMETHOD=0|1|2|3|4|5,OPTIMIZATIONMETHOD=1,SLIPSHAPE=CIRCULAR|NONCIRCULAR,SLICEWIDTH=1.0,..." 
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD HINGE IS USED TO INPUT HINGE/FREEDOF DATA..."//'"'
+	README(IPP(I)) = "//SLOPEMETHOD:边坡分析方法，1，ordinary,2,bishop,3,spencer,4,janbu,5,gle; 0 for all." 
+ 	README(IPP(I)) = "//OMTIMIZATION,搜寻方法，1，grid;2,MONTE CARLO"	
+    README(IPP(I)) = "//SLIPSHAPE,滑弧形状，1,circular;0,noncircular;"
+    README(IPP(I)) = "//SLICEWIDTH,土条宽度,(1.0,bydefault)"
+    README(IPP(I)) = "//XMIN_MC,XMAX_MC,SEARCH RANGE FOR MONTE CARLO TECHNIQUE"
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//MATERIAL,MATID=...(I),[TYPE=...(I)],[ISFF=YES|NO],[NAME=...(c)],ISSF=...(I)//MATID=材料号，TYPE=材料类型，ISFF=是否为依赖某场变量,NAME=材料文字注释.此关键词可重复出现.ISSF=是否输入材料参数的步函数(0N1Y)" 
@@ -2027,7 +2097,7 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) ="//SIGMA_Y=YIELD STRESS UNDER UNIAXIAL STRETCH. FOR CLAY UNDER PLAIN STRAIN SIGMA_Y=3*CU (CU, UNDRAINED SHEAR STRENGTH) AND SIGMA_Y=2*CU FOR TRIAXIAL (AXISYMMETRICAL) STATE.\N"C
 	README(IPP(I)) ="//5. CASE(MC)      : PROPERTY(1)=E  .(2)=V   .(3)=C\N   "C
 	README(IPP(I)) ="//6. CASE(CAMCLAY) : PROPERTY(1)=M  .(2)=V   .(3)=LAMDA \N  "C
-	README(IPP(I)) ="//7. CASE(SPG)     : PROPERTY(1)=K1 .(2)=K2  .(3)=K3       .(4)=INT(TRANSM)    .(7)=ALPHA .(8)=N  .(9)=M .(10)=Mv	.(11)=Sita_s	.(12)=Sita_r    .(13)=rw 	.(14)=THICKNESS"
+	README(IPP(I)) ="//7. CASE(SPG)     : PROPERTY(1)=K1 .(2)=K2  .(3)=K3       .(4)=INT(TRANSM)    .(7)=ALPHA .(8)=N  .(9)=M .(10)=Mv	.(11)=Sita_s	.(12)=Sita_r    .(13)=rw "
 	README(IPP(I)) ="//TRANSM=L2G,FOR SPG, TRANSFORM THE MATERIAL KIJ TO GLOBLE KXY."
     README(IPP(I)) ="//ALPHA= A CURVE FITTING PARAMETER FOR THE VAN GENUCHTEN MODEL,LEONG AND RAHARDJO MODEL AND EXPONENT MODEL,UNIT=1/L." 
     README(IPP(I)) ="//N,M=CURVE FITTING DIMENSIONLESS PARAMETERS FOR THE VAN GENUCHTEN MODEL/LEONG AND RAHARDJO MODEL." 
@@ -2035,8 +2105,7 @@ subroutine write_readme_feasolver()
     README(IPP(I)) ="//Mv=COEFFICIENT OF COMPRESSIBILITY.(UNIT:L**2/F)"
     README(IPP(I)) ="//Sita_s=Saturated volumetric water content."
 	README(IPP(I)) ="//Sita_r=Residual volumetric water content."
-    README(IPP(I)) ="//rw=bulk Gravity of water.(UNIT:F/L**3)"C
-	README(IPP(I)) ="//THICKNESS=PHYSICAL THICKNESS FOR A ZEROTHICKNESS ELEMENT\N"C
+    README(IPP(I)) ="//rw=bulk Gravity of water.(UNIT:F/L**3)\N"C
     README(IPP(I)) ="//注意单位的统一。尤其注意ALPHA的单位，在VG模型中为：1/L，在LR模型中为:L.\N"C
 	README(IPP(I)) ="//8. CASE(BAR,BAR2D)     : PROPERTY(1)=E  .(2)=A	[.(3)=hy	.(4)=hz	 .(5)=minN(最大轴向压力)	.(6)=MaxN(最大轴向拉力)]"
 	README(IPP(I)) ="//9. CASE(BEAM,BEAM2D,SSP2D)   : PROPERTY(1)=E  .(2)=A   .(3)=v	.(4)=J	.(5)=Iz	.(6)=Iy	[.(7)=hy	.(8)=hz]"
@@ -2047,9 +2116,9 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) ="//hy,hz分别为梁截面在y'和z'轴方向(局部坐标)的高度，为后处理转化为六面体单元时所用. \N"C
 	README(IPP(I)) ="//当为支护桩时，hy,hz分别为桩径和桩距，计算作用于支护桩上的土压力和土弹簧的刚度用 \N"C
 	README(IPP(I)) ="//10. CASE(PIPE2,PPIPE2) : PROPERTY(1)=R(管半径,L)  .(2)=LAMDA(管壁摩阻系数)	.(3)=EPSLON(管壁的绝对粗糙度,L)	.(4)=V(运动粘滞系数L**2/T)"C
-	README(IPP(I)) ="//11. CASE(ExcavationSoil) : PROPERTY(1:8)=黏聚力，摩擦角，天然/饱和重度，变形模量，泊松比,渗透系数，水平基床系数(F/L**3),墙土间摩擦角（度）"C
+	README(IPP(I)) ="//11. CASE(ExcavationSoil/SLOPESOIL) : PROPERTY(1:8)=黏聚力，摩擦角，天然/饱和重度，变形模量，泊松比,渗透系数，水平基床系数(F/L**3),墙土间摩擦角（度）"C
 	README(IPP(I)) ="//12. CASE(spirng) : PROPERTY(1:3)=k,minV(发生负位移),maxV(发生正位移)，预加力，预加位移"C
-	
+
 						
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) ="//Coordinate system(FYI)" 
@@ -2476,7 +2545,6 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 				EC1=CAX_CPL;NDOF1=9;nd1=4
             ENDIF
 			call EL_SFR2(ET1)
-
 		case(CPE6_SPG,CAX6_SPG,CPE6_CPL,CAX6_CPL)
 			nnum1=6
 			!ndof1=6
@@ -2497,13 +2565,13 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 				EC1=CAX_CPL;NDOF1=18;nd1=4
             ENDIF
 			call EL_SFR2(ET1)			
-		case(CPE4_SPG,cax4_SPG,CPE4_CPL,cax4_CPL,ZT4_SPG)
+		case(CPE4_SPG,cax4_SPG,CPE4_CPL,cax4_CPL)
 			nnum1=4
 			!ndof1=4
 			ngp1=4			
 			
 			stype='FEQUADRILATERAL'
-			IF(ET1==CPE4_SPG.OR.ET1==ZT4_SPG) THEN
+			IF(ET1==CPE4_SPG) THEN
 				EC1=SPG2D;NDOF1=4;nd1=2
 			ENDIF
 			if(et1==CAX4_SPG) THEN
