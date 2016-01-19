@@ -363,7 +363,7 @@ module solverds
 
 	
 	character(1024)::title,resultfile,resultfile1,resultfile2,resultfile3,resultfile21,resultfile22,EXCAMSGFILE,EXCAB_BEAMRES_FILE,&
-					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE
+					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE,SLOPE_FILE
 	INTEGER::DATAPOINT_UNIT=29
 	integer::datapacking=1	!=1,point format:{x1,y1,z1},{x2,y2,z2},..., . (Default Format)
 						 != 2, block format, {x1,x2,...},{y1,y2,...},{z1,z2,...}
@@ -420,8 +420,8 @@ module solverds
 	
 	real(kind=DPN)::BARFAMILY_DIAGRAM_SCALE(12)=0.0D0 !先存绝对最大值，后存画图放大系数，DISX,DISY,DISZ,RX,RY,RZ,FX,FY,FZ,MX,MY,MZ
 	real(kind=DPN)::barfamily_minxyz(3)=1.0d20,barfamily_maxxyz(3)=-1.0d20 !
-    INTEGER::ISEXCA2D=0,ISHBEAM=0
-	REAL(KIND=DPN)::GA=10.0D0
+    INTEGER::ISEXCA2D=0,ISHBEAM=0,ISSLOPE=0
+	
     
    
     
