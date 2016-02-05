@@ -901,14 +901,14 @@ subroutine Initialization()
 			case(CPE3_SPG,CPE6_SPG,CPE4_SPG,CPE8_SPG,CPE4R_SPG,CPE8R_SPG,CPE15_SPG, &
 					 CPS4_SPG,CPS4R_SPG,CPS8_SPG,CPS8R_SPG,CPS6_SPG,CPS15_SPG, &	
 					 CAX3_SPG,CAX4_SPG,CAX4R_SPG,CAX6_SPG,CAX15_SPG,CAX8_SPG,CAX8R_SPG, &
-					 PRM6_SPG,PRM15_SPG,TET4_SPG,TET10_SPG,ZT4_SPG)
+					 PRM6_SPG,PRM15_SPG,TET4_SPG,TET10_SPG,ZT4_SPG,CPE3_SPG_H)
 				dof1=0
 				dof1(4)=4
 				!allocate(element(i).g(element(i).ndof))
 				call fepv(i,dof1)
 				call dofbw(i)
 
-				call Cal_epsilon(i)
+				if(element(i).et/=cpe3_spg_h) call Cal_epsilon(i)
 !				!epslong one(low)
 !				element(i).property(3)=minval(element(i).xygp(ndimension,:))- &
 !						minval(node(element(i).node).coord(ndimension))
@@ -1250,7 +1250,8 @@ subroutine el_ini_D(ienum)
 			if(isys1/=0) then
 				element(ienum).d(1:nd1,1:nd1)=matmul(matmul(coordinate(isys1).c(1:nd1,1:nd1), &
 													element(ienum).d(1:nd1,1:nd1)),transpose(coordinate(isys1).c(1:nd1,1:nd1)))
-			end if
+            end if
+            if(element(ienum).et==cpe3_spg_h) element(ienum).d=element(ienum).d*element(ienum).property(1)  !!k=K*M
 		case(spg)
 			element(ienum).d=0.0D0
 			element(ienum).d(1,1)=material(mat1).property(1)
@@ -1279,7 +1280,7 @@ subroutine calangle(ienum)
 	
 	select case(element(ienum).et)
 		case(cps3,cpe3,cpe6,cps6,cpe15,CPS15,CAX3,CAX6,CAX15, &
-				 cps3_spg,cpe3_spg,cpe6_spg,cps6_spg,cpe15_spg,CPS15_spg, &
+				 cps3_spg,cpe3_spg,cpe3_spg_H,cpe6_spg,cps6_spg,cpe15_spg,CPS15_spg, &
 				 CAX3_spg,CAX6_spg,CAX15_spg, &
 				 cps3_cpl,cpe3_cpl,cpe6_cpl,cps6_cpl,cpe15_cpl,CPS15_cpl, &
 				 CAX3_cpl,CAX6_cpl,CAX15_cpl)

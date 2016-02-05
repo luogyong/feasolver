@@ -443,6 +443,24 @@ subroutine solvercommand(term,unit)
 			print *, 'Reading TITLE data...'
 			call skipcomment(unit)
 			read(unit,'(a1024)') title
+        CASE('elevation','z')
+			print *, 'Reading NODE data...'
+			do i=1, pro_num
+				select case(property(i).name)
+					case('num')
+						n1=int(property(i).value)
+					case('nlayer','dp')
+						nlayer=int(property(i).value)
+					case default
+						call Err_msg(property(i).name)
+				end select
+            end do
+            allocate(elevation(nlayer+1,n1))
+            do i=1,n1
+                call skipcomment(unit)
+				read(unit,*) elevation(:,i)
+            enddo
+            
 		case('node')
 			print *, 'Reading NODE data...'
 			do i=1, pro_num
@@ -696,6 +714,7 @@ subroutine solvercommand(term,unit)
             system1=0
 			name1=""
 			sf1=0
+            n1=1
 			do i=1,pro_num
 				select case(property(i).name)
 					case('num')
@@ -719,6 +738,8 @@ subroutine solvercommand(term,unit)
 						name1=property(i).cvalue
 					CASE('sf','step function')
 						sf1=int(property(i).value)
+                    case('layer')
+                        n1=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)						
 				end select
@@ -755,6 +776,7 @@ subroutine solvercommand(term,unit)
 				element1(i).nd=nd1
 				element1(i).ec=ec1
 				element1(i).sf=sf1
+                element1(i).layer=n1
 				if(et1==beam) element1(i).system=system1
 			end do
 			neset=neset+1
@@ -2072,12 +2094,18 @@ subroutine write_readme_feasolver()
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//SLOPEPARAMETER,SLOPEMETHOD=0|1|2|3|4|5,OPTIMIZATIONMETHOD=1,SLIPSHAPE=CIRCULAR|NONCIRCULAR,SLICEWIDTH=1.0,..." 
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD HINGE IS USED TO INPUT HINGE/FREEDOF DATA..."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD SLOPEPARAMETER IS USED TO INPUT SLOPE STABILITY ANALYSIS DATA..."//'"'
 	README(IPP(I)) = "//SLOPEMETHOD:边坡分析方法，1，ordinary,2,bishop,3,spencer,4,janbu,5,gle; 0 for all." 
  	README(IPP(I)) = "//OMTIMIZATION,搜寻方法，1，grid;2,MONTE CARLO"	
     README(IPP(I)) = "//SLIPSHAPE,滑弧形状，1,circular;0,noncircular;"
     README(IPP(I)) = "//SLICEWIDTH,土条宽度,(1.0,bydefault)"
     README(IPP(I)) = "//XMIN_MC,XMAX_MC,SEARCH RANGE FOR MONTE CARLO TECHNIQUE"
+    
+	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//ELEVATION,NUM=...,NLAYER=.... //FOR THE HORIZONTAL SEEPAGE MODEL. NUM=NNODE,NLAYER=SOIL LAYERS"  
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD ELEVATION IS USED TO INPUT Z DATA."//'"'
+	README(IPP(I)) = "//A:{Z*(NLAYER+1)}  // FROM BOTTOM TO TOP"
+    README(IPP(I)) = "//{A}*NUM "
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//MATERIAL,MATID=...(I),[TYPE=...(I)],[ISFF=YES|NO],[NAME=...(c)],ISSF=...(I)//MATID=材料号，TYPE=材料类型，ISFF=是否为依赖某场变量,NAME=材料文字注释.此关键词可重复出现.ISSF=是否输入材料参数的步函数(0N1Y)" 
@@ -2526,13 +2554,13 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 		!	stype='FETETRAHEDRON' !
 		!	EC1=C3D
 		!	call EL_SFR2(ET1)			
-		case(CPE3_SPG,CAX3_SPG,CPE3_CPL,CAX3_CPL)
+		case(CPE3_SPG,CAX3_SPG,CPE3_CPL,CAX3_CPL,CPE3_SPG_H)
 			nnum1=3
 			!ndof1=3
 			ngp1=1
 			
 			stype='FETRIANGLE'
-			IF(ET1==CPE3_SPG) then
+			IF(ET1==CPE3_SPG.OR.ET1==CPE3_SPG_H) then
 				EC1=SPG2D;NDOF1=3;nd1=2
 			endif
 			if(et1==CAX3_SPG) then

@@ -82,8 +82,8 @@ subroutine assemble_km(istep)
 			case(stru)
 				t1=element(i).property(1)
 		end select
-
-				
+		
+						
 		!assemble the total matrix
 		do j=1,element(i).ndof !row
 			rdof=element(i).g(j)

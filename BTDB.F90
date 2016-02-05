@@ -207,7 +207,7 @@ subroutine EL_SFR2(ET)
 
 	select case(et)
 		case(CPE3,CPS3,CAX3, &
-				 CPE3_SPG,CAX3_SPG, &
+				 CPE3_SPG,CPE3_SPG_H,CAX3_SPG, &
 				 CPE3_CPL,CAX3_CPL)
 			ecp(et).nshape=3
 			ecp(et).ndim=2
@@ -544,7 +544,7 @@ subroutine EL_SFR2(ET)
 	
 	!expolating to nodes using shape functions
 	select case(et)
-		case(cpe3,cpe3_spg,CAX3_SPG,TET4,TET4_SPG,TET4_CPL,CPE3_CPL,CAX3_CPL)
+		case(cpe3,cpe3_spg,CPE3_SPG_H,CAX3_SPG,TET4,TET4_SPG,TET4_CPL,CPE3_CPL,CAX3_CPL)
 			!just average over sharing elements
 		case(cpe6,cpe6_spg,CAX6_SPG,CPE6_CPL,CAX6_CPL)
 			localxy1=0.0D0
@@ -698,7 +698,7 @@ subroutine shapefunction_cal(et,gp,Ni,Nni,ndim)
 			Ni(1)=-0.5*(XI-1)
 			Ni(2)=0.5*(XI+1)
 		case(CPE3,CPS3,CAX3, &
-				 CPE3_SPG,CPS3_SPG,CAX3_SPG, &
+				 CPE3_SPG,CPE3_SPG_H,CPS3_SPG,CAX3_SPG, &
 				 CPE3_CPL,CPS3_CPL,CAX3_CPL)
 			Ni(1)=XI
 			Ni(2)=EDA
@@ -910,7 +910,7 @@ subroutine Deri_shapefunction_cal(et,gp,dNi,ndNi,ndim)
 	end if
 	select case(et)
 		case(CPE3,CPS3,CAX3, &
-				 CPE3_SPG,CPS3_SPG,CAX3_SPG, &
+				 CPE3_SPG,CPE3_SPG_H,CPS3_SPG,CAX3_SPG, &
 				 CPE3_CPL,CPS3_CPL,CAX3_CPL)
 			
 			dNi(1,1)=1.0D0

@@ -386,7 +386,10 @@ module solverds
 !	integer,allocatable::ubw(:)
 	
 !	real(kind=DPN),allocatable::a(:) !nonzero elments in km(:) and ukm(:)	
-
+    
+    real(kind=DPN),allocatable::elevation(:,:) !for horizontal seepage model, stored Zs value for each node. elevation(nlayer,nnode)
+    integer::nlayer=1 !soil layer number
+    
 	integer::nnz=0
 	integer,allocatable::irow(:),jcol(:),Lmre(:),adrn(:) !Lmre(i): the column number of the most rigth entry in the i row.
 	integer,allocatable::ROWINDEX(:) !rowindex:总刚中每一行第一个非零元素在总刚数组中的位置;

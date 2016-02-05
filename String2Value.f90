@@ -159,6 +159,8 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 			value=cal_geo
 		case('cpe3_spg')
 			value=cpe3_spg
+		case('cpe3_spg_h')
+			value=cpe3_spg_H
 		CASE('zt4_spg')
 			value=zt4_spg
 		case('cpe6_spg')	

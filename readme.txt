@@ -114,9 +114,9 @@
 !	.property(1)=1.0 
 !	.PROPERTY(2)=ELEMENT AREA
 !	8) cpe3_spg
-!		.property(1)=1.0
-!		.property(2)=element area
+!		.property(1)=1.0!		
 !	9)pe_ssp2d: (1)=1,fixed(default); =2,slip;=0:free
 !	10)soilspring: (1 to 6)=ko,ka,kp,ks,单元所涉及的长度,Pw。
 !	11)spring： (2:5): minVal,maxVal,ks,以及单元所涉及的长度。
 !	12)zt4_spg: (1):permeabile side length of an element, that is the distance between node 1 and 4(2 or 3)
+!   13)CPE3_SPG_H:(1)=Soil THICKNESS. (2)=ELEMENT AREA. (3:4)=ELEVATION OF BOTTOM AND TOP;

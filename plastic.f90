@@ -210,6 +210,13 @@ subroutine lamda_spg(ienum,hj,z,lamda,iiter,igp)
 	real(8)::t1,epsilon1,epsilon2,krsml
 	real(8)::alpha1,fn1,fm1,seff1,scale1=1.0
 	
+	if(element(ienum).et==cpe3_spg_h) then
+		lamda=(hj-element(ienum).property(3))/element(ienum).property(1)
+		if(lamda<1.d-8) lamda=1.0d-8
+		if(lamda>1.d0) lamda=1.d0
+		return
+	endif
+	
 	scale1=1.0d0
 	t1=hj-z
 	krsml=1.e-3
@@ -292,6 +299,9 @@ subroutine slope_SWWC_spg(ienum,hj,z,slope,sita,sita_ini,hj_ini)
     real(kind=DPN)::t1,alpha1,fn1,fm1,seff1,sita_s,sita_r,rw1
     
     t1=hj-z
+	
+	if(element(ienum).et==cpe3_spg_h) t1=hj-element(ienum).property(4)
+	
     sita_s = material(element(ienum).mat).property(11) !饱和体积含水量
     
     if(t1>=0.d0) then
