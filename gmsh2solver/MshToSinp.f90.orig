@@ -1,35 +1,15 @@
 module DS_Gmsh2Solver
-    
     INTEGER::NLAYER=1
     INTEGER,ALLOCATABLE::SUBLAYER(:)
     LOGICAL::ISGENLAYER=.FALSE.
-    TYPE EDGE_TYDEF
-        LOGICAL::ISINI=.FALSE.
-        INTEGER::V(2)=0
-        INTEGER::HKEY=-1
-        CHARACTER(64)::CKEY=""
-        INTEGER::NEL=0
-        INTEGER,ALLOCATABLE::ELEMENT(:)
-    ENDTYPE
-    TYPE(EDGE_TYDEF),ALLOCATABLE::EDGE(:)
-    TYPE FACE_TYDEF
-        LOGICAL::ISINI=.FALSE.
-        INTEGER::SHAPE=3
-        INTEGER::V(4)=0
-        INTEGER::HKEY=-1
-        CHARACTER(64)::CKEY=""
-        INTEGER::ISTRISURFACE=-1
-        REAL(8)::NOR(3)=0.D0
-        INTEGER::NEL=0
-        INTEGER,ALLOCATABLE::ELEMENT(:)        
-    ENDTYPE
-    TYPE(FACE_TYDEF),ALLOCATABLE::FACE(:)    
-    INTEGER::NEDGE=0,NFACE=0,MAXNEDGE=10000,MAXNFACE=10000
-    
 	type node_type
 		integer::inode=0
 		real(8)::xy(3)=0
+<<<<<<< HEAD
 		!INTEGER::CHILD=0
+=======
+		INTEGER::CHILD=0
+>>>>>>> 68ab9553822e063ef4ec63dcd550b68c23f1a345
 	end type
 	type(node_type),allocatable::node(:)
 	integer::nnode=0,TNNODE=0
@@ -47,11 +27,16 @@ module DS_Gmsh2Solver
 		!followed by the partition ids (negative partition ids indicate ghost cells). A zero tag is equivalent to no tag. 
         integer::ilayer=1
 		integer::nnode=0,ndege=0,nface=0
-		integer,allocatable::node(:)
-        INTEGER,ALLOCATABLE::EDGE(:),FACE(:)
+		integer,allocatable::node(:),edge(:),face(:)
+<<<<<<< HEAD
     !CONTAINS
     !    PROCEDURE::GET_EDGE=>SET_ELEMENT_EDGE
     !    PROCEDURE::GET_FACE=>SET_ELEMENT_FACE
+=======
+    CONTAINS
+        PROCEDURE::GET_EDGE=>SET_ELEMENT_EDGE
+        PROCEDURE::GET_FACE=>SET_ELEMENT_FACE
+>>>>>>> 68ab9553822e063ef4ec63dcd550b68c23f1a345
 	end type
 	type(element_type),allocatable::element(:)
 	integer::nel=0
@@ -67,9 +52,7 @@ module DS_Gmsh2Solver
 		integer,allocatable::element(:)
 		integer::mat(50)=0
 		character(32)::ET="ELT_BC_OR_LOAD"
-		INTEGER::LAYERGROUP(50)=0	
-        INTEGER,ALLOCATABLE::TRISURFACE(:),QUASURFACE(:),TRINODEG2L(:),TRINODEL2G(:)
-        INTEGER::NTRISURFACE=0,NQUASURFACE=0,NTRINODEL2G=0       
+		INTEGER::LAYERGROUP(50)=0		
 	end type
 	integer,parameter::maxphgp=10100
 	type(physicalGroup_type)::physicalgroup(maxphgp)
@@ -132,7 +115,7 @@ module DS_Gmsh2Solver
 	integer,allocatable::modelgroup(:)
 	integer::nmodelgroup=0
 		
-	character(512)::resultfile,title,INCLUDEFILE(0:100),COPYFILE(100),FILEPATH
+	character(512)::resultfile,title,INCLUDEFILE(0:100),COPYFILE(100)
 	INTEGER::NINCLUDEFILE=0,NCOPYFILE=0
 		
 	integer,allocatable::adjL(:,:)
@@ -141,77 +124,12 @@ module DS_Gmsh2Solver
 	integer::modeldimension=2
     
     REAL(8),ALLOCATABLE::ELEVATION(:,:)
-    
-    !INTEGER::EDGE
-    
-    TYPE TRISURFACE_TYDEF
-        INTEGER::NV,NF
-        INTEGER,ALLOCATABLE::V(:),TRI(:)
-    ENDTYPE
-    TYPE(TRISURFACE_TYDEF),ALLOCATABLE::TRISURFACE(:)
-    INTEGER::NTRISURFACE
-    INTEGER::ISGENTRISURFACE=0
 	
     CONTAINS
     
-    SUBROUTINE I_ENLARGE_AR(AVAL,DSTEP)
-        INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:)
-        INTEGER,INTENT(IN)::DSTEP
-        INTEGER,ALLOCATABLE::VAL1(:)
-        INTEGER::LB1=0,UB1=0
-    
-        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-        ALLOCATE(VAL1,SOURCE=AVAL)
-        DEALLOCATE(AVAL)
-        ALLOCATE(AVAL(LB1:UB1+DSTEP))
-        AVAL(LB1:UB1)=VAL1
-        !AVAL(UB1+1:UB1+10)=0
-        DEALLOCATE(VAL1)
-    END SUBROUTINE
 
-    SUBROUTINE R_ENLARGE_AR(AVAL,DSTEP)
-        REAL(8),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
-        INTEGER,INTENT(IN)::DSTEP
-        REAL(8),ALLOCATABLE::VAL1(:)
-        INTEGER::LB1=0,UB1=0
-    
-        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-        ALLOCATE(VAL1,SOURCE=AVAL)
-        DEALLOCATE(AVAL)
-        ALLOCATE(AVAL(LB1:UB1+DSTEP))
-        AVAL(LB1:UB1)=VAL1
-        !AVAL(UB1+1:UB1+10)=0
-        DEALLOCATE(VAL1)
-    END SUBROUTINE
-    SUBROUTINE FACE_TYDEF_ENLARGE_AR(AVAL,DSTEP)
-        TYPE(FACE_TYDEF),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
-        INTEGER,INTENT(IN)::DSTEP
-        TYPE(FACE_TYDEF),ALLOCATABLE::VAL1(:)
-        INTEGER::LB1=0,UB1=0
-    
-        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-        ALLOCATE(VAL1,SOURCE=AVAL)
-        DEALLOCATE(AVAL)
-        ALLOCATE(AVAL(LB1:UB1+DSTEP))
-        AVAL(LB1:UB1)=VAL1
-        !AVAL(UB1+1:UB1+10)=0
-        DEALLOCATE(VAL1)
-    END SUBROUTINE 
-    SUBROUTINE EDGE_TYDEF_ENLARGE_AR(AVAL,DSTEP)
-        TYPE(EDGE_TYDEF),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
-        INTEGER,INTENT(IN)::DSTEP
-        TYPE(EDGE_TYDEF),ALLOCATABLE::VAL1(:)
-        INTEGER::LB1=0,UB1=0
-    
-        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-        ALLOCATE(VAL1,SOURCE=AVAL)
-        DEALLOCATE(AVAL)
-        ALLOCATE(AVAL(LB1:UB1+DSTEP))
-        AVAL(LB1:UB1)=VAL1
-        !AVAL(UB1+1:UB1+10)=0
-        DEALLOCATE(VAL1)
-    END SUBROUTINE     
-    
+	
+<<<<<<< HEAD
   !  SUBROUTINE SET_ELEMENT_EDGE(THIS)
   !      CLASS(element_type)::THIS
 		!INTEGER::I
@@ -225,6 +143,21 @@ module DS_Gmsh2Solver
   !      CLASS(element_type)::THIS
   !      
   !  END SUBROUTINE    
+=======
+    SUBROUTINE SET_ELEMENT_EDGE(THIS)
+        CLASS(element_type)::THIS
+		INTEGER::I
+		
+		DO I=1,elttype(THIS.ET).NEDGE
+			
+		ENDDO
+        
+    END SUBROUTINE
+    SUBROUTINE SET_ELEMENT_FACE(THIS)
+        CLASS(element_type)::THIS
+        
+    END SUBROUTINE    
+>>>>>>> 68ab9553822e063ef4ec63dcd550b68c23f1a345
 end module
 
 
@@ -269,12 +202,6 @@ program GmshToSolver
 	
 	CALL GEN_ZEROTHICKNESS_ELEMENT()
 	IF(ISGENLAYER) CALL GEN_LAYERED_ELEMENT()
-	IF(ISGENTRISURFACE>0) THEN
-        ALLOCATE(EDGE(MAXNEDGE),FACE(MAXNFACE))
-		CALL SETUP_EDGE_TBL()
-		CALL SETUP_FACE_TBL()
-        CALL GEN_TRISURFACE()
-	ENDIF
 	! reordering nodal number
 	allocate(Noutputorder(nnode))
 	ALLOCATE(IPERM(nnode))
@@ -303,195 +230,24 @@ SUBROUTINE SETUP_EDGE_TBL()
     INTEGER::I,J,N1(2),ET1,NEDGE1,TBL_LEN
 	CHARACTER(LEN=:),ALLOCATABLE::KEY1
     TYPE(DICT_DATA)::VAL1
-    CHARACTER(64)::CKEY1
-    INTEGER::HKEY1
+    
     
 	TBL_LEN=NNODE	
     CALL EDGE_TBL.INIT(TBL_LEN)
 	DO I=1,NEL
 		ET1=ELEMENT(I).ET
 		NEDGE1=ELTTYPE(ET1).NEDGE
-        ALLOCATE(ELEMENT(I).EDGE(NEDGE1))
 		DO J=1,NEDGE1
             N1=ELEMENT(I).NODE(ELTTYPE(ET1).EDGE(:,J))
-            CALL I2C_KEY_hash_tbl_sll(KEY1,N1(:),2)
-            CKEY1=TRIM(KEY1)
-            HKEY1 = MOD(ABS(HASH_DJB(KEY1)),EDGE_TBL%vec_len)
-            VAL1.IEL=I;VAL1.ISE=J;VAL1.IITEM=EDGE_TBL.TBL_ID
-			CALL EDGE_TBL.PUT(TRIM(KEY1),VAL1,HKEY1)
-			ELEMENT(I).EDGE(J)=VAL1.IITEM
-            IF(VAL1.IITEM>MAXNEDGE) THEN
-                CALL EDGE_TYDEF_ENLARGE_AR(EDGE,1000)
-                MAXNEDGE=MAXNEDGE+1000
-            ENDIF
-            IF(.NOT.EDGE(VAL1.IITEM).ISINI) THEN
-                EDGE(VAL1.IITEM).CKEY=CKEY1
-                EDGE(VAL1.IITEM).HKEY=HKEY1
-                EDGE(VAL1.IITEM).V=ELEMENT(I).NODE(ELTTYPE(ET1).EDGE(:,J))
-                EDGE(VAL1.IITEM).ISINI=.TRUE.
-                NEDGE=VAL1.IITEM
-            ENDIF
-            IF(EDGE(VAL1.IITEM).NEL==0) ALLOCATE(EDGE(VAL1.IITEM).ELEMENT(5))
-            EDGE(VAL1.IITEM).NEL=EDGE(VAL1.IITEM).NEL+1
-            IF(EDGE(VAL1.IITEM).NEL>SIZE(EDGE(VAL1.IITEM).ELEMENT,DIM=1)) CALL I_ENLARGE_AR(EDGE(VAL1.IITEM).ELEMENT,5)
-            EDGE(VAL1.IITEM).ELEMENT(EDGE(VAL1.IITEM).NEL)=I            
+            CALL EDGE_TBL.KEY(KEY1,N1(:),2)
+            VAL1.IEL=I;VAL1.ISE=J
+			CALL EDGE_TBL.PUT(TRIM(KEY1),VAL1)
+			
 		ENDDO
-    END DO
-    RETURN
+	END DO 
 ENDSUBROUTINE
 
-SUBROUTINE SETUP_FACE_TBL()
-    USE DS_Gmsh2Solver
-    USE hashtbl
-    IMPLICIT NONE
-    INTEGER::I,J,N1(4),ET1,NFACE1,TBL_LEN,N2
-	CHARACTER(LEN=:),ALLOCATABLE::KEY1
-    TYPE(DICT_DATA)::VAL1
-    CHARACTER(64)::CKEY1
-    INTEGER::HKEY1
-    
-	TBL_LEN=NNODE	
-    CALL FACE_TBL.INIT(TBL_LEN)
-	DO I=1,NEL
-		ET1=ELEMENT(I).ET
-		NFACE1=ELTTYPE(ET1).NFACE
-        ALLOCATE(ELEMENT(I).FACE(NFACE1))
-		DO J=1,NFACE1
-            N2=ELTTYPE(ET1).FACE(0,J)
-            N1(1:N2)=ELEMENT(I).NODE(ELTTYPE(ET1).FACE(1:N2,J))
-            CALL FACE_TBL.KEY(KEY1,N1(1:N2),ELTTYPE(ET1).FACE(0,J))
-            CKEY1=TRIM(KEY1)
-            HKEY1 = MOD(ABS(HASH_DJB(KEY1)),FACE_TBL%vec_len)            
-            VAL1.IEL=I;VAL1.ISE=J;VAL1.IITEM=FACE_TBL.TBL_ID
-			CALL FACE_TBL.PUT(TRIM(KEY1),VAL1,HKEY1)
-            ELEMENT(I).FACE(J)=VAL1.IITEM
-            
-            IF(VAL1.IITEM>MAXNFACE) THEN
-                CALL FACE_TYDEF_ENLARGE_AR(FACE,1000)
-                MAXNFACE=MAXNFACE+1000
-            ENDIF
-            IF(.NOT.FACE(VAL1.IITEM).ISINI) THEN
-                FACE(VAL1.IITEM).CKEY=CKEY1
-                FACE(VAL1.IITEM).HKEY=HKEY1
-                FACE(VAL1.IITEM).SHAPE=ELTTYPE(ET1).FACE(0,J)
-                FACE(VAL1.IITEM).V(1:FACE(VAL1.IITEM).SHAPE)=ELEMENT(I).NODE(ELTTYPE(ET1).FACE(1:FACE(VAL1.IITEM).SHAPE,J))
-                FACE(VAL1.IITEM).ISINI=.TRUE.
-                NFACE=VAL1.IITEM
-            ENDIF
-            IF(FACE(VAL1.IITEM).NEL==0) ALLOCATE(FACE(VAL1.IITEM).ELEMENT(2))
-            FACE(VAL1.IITEM).NEL=FACE(VAL1.IITEM).NEL+1
-            IF(FACE(VAL1.IITEM).NEL>SIZE(FACE(VAL1.IITEM).ELEMENT,DIM=1)) CALL I_ENLARGE_AR(FACE(VAL1.IITEM).ELEMENT,5)
-            FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=I            
-		ENDDO
-    END DO 
-    
-ENDSUBROUTINE     
-    
-    
-SUBROUTINE GEN_TRISURFACE()
-    USE DS_Gmsh2Solver
-    USE hashtbl
-    IMPLICIT NONE
-    INTEGER::I,J,K,IGP1,NFACE1,IEL1,NTRI1=0,N1=0,NQUA1=0,K1=0
-    INTEGER,ALLOCATABLE::NODE1(:),TRI1(:,:)
-	REAL(8),ALLOCATABLE::XYZ1(:,:),FACENOR1(:,:)
-    TYPE(DICT_DATA), ALLOCATABLE:: val1(:)
-    LOGICAL::ISTRI1
-	CHARACTER(512)::STLFILE1
-	
-    ALLOCATE(NODE1(NNODE))
-    
-	DO CONCURRENT (I=1:NPHGP)
-		IGP1=phgpnum(i)
-        NFACE1=ELTTYPE(PHYSICALGROUP(IGP1).ET_GMSH).NFACE
-        NTRI1=0;NQUA1=0;N1=0     
-
-		DO CONCURRENT (J=1:PHYSICALGROUP(IGP1).NEL)
-            IEL1=PHYSICALGROUP(IGP1).ELEMENT(J)
-			DO CONCURRENT (K=1:NFACE1)
-                !2D
-                ISTRI1=(PHYSICALGROUP(IGP1).NDIM==2.AND.PHYSICALGROUP(IGP1).ISMODEL)
-                !3D
-                IF(PHYSICALGROUP(IGP1).NDIM==3) THEN
-                    ISTRI1=ISTRI1.OR.(FACE(ELEMENT(IEL1).FACE(K)).NEL==1)
-                    IF(FACE(ELEMENT(IEL1).FACE(K)).NEL==2) ISTRI1=ISTRI1.OR.(ELEMENT(FACE(ELEMENT(IEL1).FACE(K)).ELEMENT(1)).TAG(1)/=ELEMENT(FACE(ELEMENT(IEL1).FACE(K)).ELEMENT(2)).TAG(1))
-                ENDIF
-                IF(ISTRI1) THEN
-                    FACE(ELEMENT(IEL1).FACE(K)).ISTRISURFACE=IGP1
-                    IF(.NOT.ALLOCATED(PHYSICALGROUP(IGP1).TRINODEG2L)) THEN
-                        ALLOCATE(PHYSICALGROUP(IGP1).TRINODEG2L(NNODE))
-                        PHYSICALGROUP(IGP1).TRINODEG2L=0
-                    ENDIF
-                    DO CONCURRENT (K1=1:FACE(ELEMENT(IEL1).FACE(K)).SHAPE)
-                        IF(PHYSICALGROUP(IGP1).TRINODEG2L(FACE(ELEMENT(IEL1).FACE(K)).V(K1))==0)THEN
-                            PHYSICALGROUP(IGP1).NTRINODEL2G=PHYSICALGROUP(IGP1).NTRINODEL2G+1
-                            PHYSICALGROUP(IGP1).TRINODEG2L(FACE(ELEMENT(IEL1).FACE(K)).V(K1))=PHYSICALGROUP(IGP1).NTRINODEL2G
-                            NODE1(PHYSICALGROUP(IGP1).NTRINODEL2G)=FACE(ELEMENT(IEL1).FACE(K)).V(K1)
-                        ENDIF
-                    ENDDO
-                    IF(FACE(ELEMENT(IEL1).FACE(K)).SHAPE==3) THEN 
-                        NTRI1=NTRI1+1
-                    ELSE
-                        NQUA1=NQUA1+1
-                    ENDIF
-                ENDIF                  
-                    
-            ENDDO
-                
-        ENDDO
-
-        IF(NTRI1>0.OR.NQUA1>0) THEN
-            ALLOCATE(PHYSICALGROUP(IGP1).TRINODEL2G(PHYSICALGROUP(IGP1).NTRINODEL2G))
-            PHYSICALGROUP(IGP1).TRINODEL2G=NODE1(1:PHYSICALGROUP(IGP1).NTRINODEL2G)
-            ALLOCATE(PHYSICALGROUP(IGP1).TRISURFACE(NTRI1),PHYSICALGROUP(IGP1).QUASURFACE(NQUA1))
-            DO CONCURRENT (J=1:NFACE)
-                IF(FACE(J).ISTRISURFACE==IGP1) THEN                    
-                    IF(FACE(J).SHAPE==3) THEN
-						PHYSICALGROUP(IGP1).NTRISURFACE=PHYSICALGROUP(IGP1).NTRISURFACE+1
-						PHYSICALGROUP(IGP1).TRISURFACE(PHYSICALGROUP(IGP1).NTRISURFACE)=J
-					ELSE
-						PHYSICALGROUP(IGP1).NQUASURFACE=PHYSICALGROUP(IGP1).NQUASURFACE+1
-						PHYSICALGROUP(IGP1).QUASURFACE(PHYSICALGROUP(IGP1).NQUASURFACE)=J
-                    ENDIF
-                ENDIF                    
-			ENDDO
-			
-			!OUTPUT TO A FILE IN STL FORMAT
-			STLFILE1=TRIM(FILEPATH)//'_'//TRIM(PHYSICALGROUP(IGP1).NAME)//'.STL'
-			IF(ALLOCATED(XYZ1)) DEALLOCATE(XYZ1)
-			IF(ALLOCATED(TRI1)) DEALLOCATE(TRI1)
-			IF(ALLOCATED(FACENOR1)) DEALLOCATE(FACENOR1)
-			N1=PHYSICALGROUP(IGP1).NTRISURFACE+PHYSICALGROUP(IGP1).NQUASURFACE*2
-			ALLOCATE(XYZ1(3,PHYSICALGROUP(IGP1).NTRINODEL2G),TRI1(3,N1),FACENOR1(3,N1))
-			DO CONCURRENT (J=1:PHYSICALGROUP(IGP1).NTRINODEL2G)
-				XYZ1(:,J)=NODE(PHYSICALGROUP(IGP1).TRINODEL2G(J)).XY
-			ENDDO
-			N1=0
-			DO CONCURRENT (J=1:PHYSICALGROUP(IGP1).NTRISURFACE)
-				N1=N1+1
-				TRI1(:,N1)=PHYSICALGROUP(IGP1).TRINODEG2L(FACE(PHYSICALGROUP(IGP1).TRISURFACE(J)).V(1:3))
-			ENDDO
-			DO CONCURRENT (J=1:PHYSICALGROUP(IGP1).NQUASURFACE)
-				N1=N1+1
-				TRI1(:,N1)=PHYSICALGROUP(IGP1).TRINODEG2L(FACE(PHYSICALGROUP(IGP1).QUASURFACE(J)).V(1:3))
-				N1=N1+1
-				TRI1(1:2,N1)=PHYSICALGROUP(IGP1).TRINODEG2L(FACE(PHYSICALGROUP(IGP1).QUASURFACE(J)).V(3:4))
-				TRI1(3,N1)=PHYSICALGROUP(IGP1).TRINODEG2L(FACE(PHYSICALGROUP(IGP1).QUASURFACE(J)).V(1))
-			ENDDO
-			!COMPUTE FACE NORMAL
-			
-			CALL stla_face_normal_compute ( PHYSICALGROUP(IGP1).NTRINODEL2G,N1, XYZ1(:,:), TRI1(:,:), FACENOR1(:,:) )
-			CALL stla_write (STLFILE1, PHYSICALGROUP(IGP1).NTRINODEL2G,N1, XYZ1(:,:), TRI1(:,:), FACENOR1(:,:) )
-        ENDIF
-        
-
-		
-		
-	ENDDO
-	
-
-ENDSUBROUTINE
-
+<<<<<<< HEAD
 SUBROUTINE GEN_LAYERED_ELEMENT()
     USE DS_Gmsh2Solver
     IMPLICIT NONE
@@ -541,12 +297,7 @@ SUBROUTINE GEN_LAYERED_ELEMENT()
 			PHYSICALGROUP(ELEMENT(I).TAG(1)).LAYERGROUP(J)=ELEMENT1(N4).TAG(1)
 			
             ELEMENT1(N4).NODE(1:N3)=NA1(1:N3)+SUMLAYER1(J-1)+K
-            IF(ELEMENT1(N4).ET/=3) THEN
-                ELEMENT1(N4).NODE(N3+1:N2)=ELEMENT1(N4).NODE(1:N3)+1
-            ELSE
-                ELEMENT1(N4).NODE(N2:N3+1:-1)=ELEMENT1(N4).NODE(1:N3)+1 !QUA ELEMENT.
-            ENDIF
-             
+            ELEMENT1(N4).NODE(N3+1:N2)=NA1(1:N3)+SUMLAYER1(J-1)+K+1
             ENDDO
         ENDDO
     ENDDO
@@ -628,21 +379,54 @@ SUBROUTINE GEN_LAYERED_ELEMENT()
 	end do
 	
 END SUBROUTINE
-
+    
+=======
+>>>>>>> 68ab9553822e063ef4ec63dcd550b68c23f1a345
+SUBROUTINE SETUP_FACE_TBL()
+    USE DS_Gmsh2Solver
+    USE hashtbl
+    IMPLICIT NONE
+    INTEGER::I,J,N1(4),ET1,NFACE1,TBL_LEN
+	CHARACTER(LEN=:),ALLOCATABLE::KEY1
+    TYPE(DICT_DATA)::VAL1
+    
+	TBL_LEN=NNODE	
+    CALL FACE_TBL.INIT(TBL_LEN)
+	DO I=1,NEL
+		ET1=ELEMENT(I).ET
+		NFACE1=ELTTYPE(ET1).NFACE
+		DO J=1,NFACE1
+            N1=ELEMENT(I).NODE(ELTTYPE(ET1).FACE(1:,J))
+            CALL FACE_TBL.KEY(KEY1,N1(:),ELTTYPE(ET1).FACE(0,J))
+            VAL1.IEL=I;VAL1.ISE=J
+			CALL FACE_TBL.PUT(TRIM(KEY1),VAL1)
+			
+		ENDDO
+	END DO 
+ENDSUBROUTINE    
+    
     
 SUBROUTINE GEN_ZEROTHICKNESS_ELEMENT()
 	USE DS_Gmsh2Solver
 	USE HASHTBL
+<<<<<<< HEAD
     USE IFPORT
 	IMPLICIT NONE
 	INTEGER::I,J,K,IPGROUP1,NNODE1,NODE1(50),NVAL1,N1,N2,IEL1,IEL2
 	CHARACTER(LEN=:),ALLOCATABLE::KEY1
 	TYPE(DICT_DATA),ALLOCATABLE::VAL1(:)
 	REAL(8)::XY1(3)
+=======
+	IMPLICIT NONE
+	INTEGER::I,J,IPGROUP1,NNODE1,NODE1(50),NVAL1
+	CHARACTER(LEN=:),ALLOCATABLE::KEY1
+	TYPE(DICT_DATA),ALLOCATABLE::VAL1(:)
+>>>>>>> 68ab9553822e063ef4ec63dcd550b68c23f1a345
 	
 	DO I=1,nphgp
 		IPGROUP1=PHGPNUM(I)
 		CALL LOWCASE(physicalgroup(IPGROUP1).ET,LEN_TRIM(physicalgroup(IPGROUP1).ET))
+<<<<<<< HEAD
 		IF(physicalgroup(IPGROUP1).ET=='zt_cpe4_spg'.OR.physicalgroup(IPGROUP1).ET=='zt_prm6_spg') THEN
 			
 			!IF(.NOT.EDGE_TBL.IS_INIT) CALL SETUP_EDGE_TBL()
@@ -682,6 +466,41 @@ SUBROUTINE GEN_ZEROTHICKNESS_ELEMENT()
 				ENDDO
 			ENDIF
 		ENDIF
+=======
+		SELECT CASE(physicalgroup(IPGROUP1).ET)
+			CASE('zt_cpe4_spg')
+				IF(.NOT.EDGE_TBL.IS_INIT) CALL SETUP_EDGE_TBL()
+				IF(physicalgroup(IPGROUP1).NDIM/=1) STOP "ERRORS IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
+				IF(physicalgroup(IPGROUP1).ET_GMSH/=1) STOP "ERRORS IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
+				!DUPLICATE NODES
+				
+				DO J=1,physicalgroup(IPGROUP1).NEL
+					NNODE1=ELEMENT(physicalgroup(IPGROUP1).ELEMENT(J)).NNODE
+					IF(NNODE+NNODE1>TNNODE) CALL ENLARGE_NODE()	
+					NODE1(1:NNODE1)=ELEMENT(physicalgroup(IPGROUP1).ELEMENT(J)).NODE
+					DO K=1,NNODE1
+					IF(NODE(NODE1(K)).CHILD==0) THEN
+					
+					ELSE
+						NNODE=NNODE+1
+						NODE(NNODE)=NODE(NODE1(K))
+						NODE(NODE1(K)).CHILD=NNODE
+						
+					ENDIF
+					
+					
+					NODE(NNODE+1:NNODE+NNODE1)=NODE(NODE1(1:NNODE1))
+					NNODE=NNODE+NNODE1
+					CALL EDGE_TBL.KEY(KEY1,NODE1(1:2),2)
+					CALL EDGE_TBL.GET(TRIM(KEY1),VAL1)
+                    
+					
+				ENDDO
+			CASE('zt_prm6_spg')
+				print *, "TRY TO GEN zt_prm6_spg. BUT IT IS STILL UNDER DEVELOPMENT.NOT COMPLETED."
+				PAUSE
+		ENDSELECT
+>>>>>>> 68ab9553822e063ef4ec63dcd550b68c23f1a345
 	ENDDO
 	
 ENDSUBROUTINE
@@ -864,21 +683,8 @@ subroutine write_readme_gmsh2sinp()
     README(IPP(I)) = "//{NNODE,NLAYER,[NSUBLAYER(NLAYER)]}    //节点数，地层数，每层细分层数"  
 	README(IPP(I)) = "//A:{INODE,X,Y,Z(NLAYER+1)}  // 共3+NLAYER+1个/行.Z IS IN A2Z ORDER(Z1<=Z2<=...<=Z(NLYAER+1))"
     README(IPP(I)) = "//B:A*{NNODE}  // 共NNODE行."
-	README(IPP(I)) = "//$ENDELEVATION"
+	README(IPP(I)) = "//$ENDELEVATION"     
     
-	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//$ELEVATION"
-	README(IPP(I))=  "//"//'"'//"THE ELEVATION IS USED TO INPUT ELEVATION DATA FOR GENERATE PRISM/BRICK ELEMENT."//'"'
-	README(IPP(I)) = "//NOTE THAT,THE BASE 2D ELEMENT MUST BE LINEAR."  
-    README(IPP(I)) = "//A:{NNODE,NLAYER,[NSUBLAYER(NLAYER)]}    //节点数，地层数，每层细分层数"  
-	README(IPP(I)) = "//B:{INODE,X,Y,Z(NLAYER+1)}*{NNODE}  // 共3+NLAYER+1个/行.Z IS IN A2Z ORDER(Z1<=Z2<=...<=Z(NLYAER+1)),共NNODE行"
-	README(IPP(I)) = "//$ENDELEVATION"    
-
-	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//$TRISURFACE"
-	README(IPP(I))=  "//"//'"'//"THE TRISURFACE IS USED TO INPUT CONTROL DATA FOR GENERATE TRISURFACE DATA."//'"'
-    README(IPP(I)) = "//A:{OUTPUTFORMAT}    //1:*.GEO;2:*.GTS."  
-	README(IPP(I)) = "//$ENDTRISURFACE"    
     
 	do 	j=1,i
 		item=len_trim(readme(j))
@@ -1495,9 +1301,7 @@ subroutine readin()
 			inquire(UNIT1,name=INCLUDEFILE(I))
 			length = SPLITPATHQQ(INCLUDEFILE(I), drive, dir, name, ext)
 			title=trim(name)
-            FILEPATH=trim(drive)//trim(dir)//trim(name)
-			resultfile=TRIM(FILEPATH)//'.sinp'
-            
+			resultfile=trim(drive)//trim(dir)//trim(name)//'.sinp'
 		ELSE
 			open(UNIT1,file=INCLUDEFILE(I),status='old' )
 		ENDIF
@@ -1586,12 +1390,6 @@ subroutine kwcommand(term,unit)
 	strL1=len_trim(term)
 	
 	select case (term)
-    CASE('trisurface')
-        call skipcomment(unit)
-        read(unit,*) ISGENTRISURFACE
-    CASE('endtrisurface')
-	    strL1=10
-        write(*, 20) "TriSurface"	
     CASE('elevation')
             !read(unit,*) nnode,nlayer
             call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
@@ -1926,7 +1724,7 @@ SUBROUTINE ET_EDGE_FACE()
 				Elttype(ET).NEDGE=6;Elttype(ET).NFACE=4
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE))
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1,1,4,2,4,3,4],(/2,6/))
-				Elttype(ET).FACE(:,:)=RESHAPE([3,2,1,3,0,&
+				Elttype(ET).FACE(:,:)=RESHAPE([3,1,2,3,0,&
 											   3,1,2,4,0,&
 											   3,2,3,4,0,&
 											   3,3,1,4,0],(/5,4/))
@@ -1937,7 +1735,7 @@ SUBROUTINE ET_EDGE_FACE()
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1,&
 											   5,6,6,7,7,8,8,5,&
 											   1,5,2,6,3,7,4,8],(/2,12/))
-				Elttype(ET).FACE(:,:)=RESHAPE([4,4,3,2,1,&
+				Elttype(ET).FACE(:,:)=RESHAPE([4,1,2,3,4,&
 											   4,5,6,7,8,&
 											   4,1,2,6,5,&
 											   4,2,3,7,6,&
@@ -1948,9 +1746,9 @@ SUBROUTINE ET_EDGE_FACE()
 				Elttype(ET).NEDGE=9;Elttype(ET).NFACE=5
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE))
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1,&
-											   4,5,5,6,6,4,&
+											   4,5,5,6,6,1,&
 											   1,4,2,5,3,6],(/2,9/))
-				Elttype(ET).FACE(:,:)=RESHAPE([3,2,1,3,0,&
+				Elttype(ET).FACE(:,:)=RESHAPE([3,1,2,3,0,&
 											   3,4,5,6,0,&
 											   4,1,2,5,4,&
 											   4,2,3,6,5,&
@@ -1962,7 +1760,7 @@ SUBROUTINE ET_EDGE_FACE()
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE))
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1,&
 											   1,5,2,5,3,5,4,5],(/2,8/))
-				Elttype(ET).FACE(:,:)=RESHAPE([4,4,3,2,1,&
+				Elttype(ET).FACE(:,:)=RESHAPE([4,1,2,3,4,&
 											   3,1,2,5,0,&
 											   3,2,3,5,0,&
 											   3,3,4,5,0,&

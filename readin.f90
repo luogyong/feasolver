@@ -52,8 +52,8 @@
 		EXCAMSGFILE=trim(drive)//trim(dir)//trim(name)//'_exca_msg.dat'
 		EXCAB_BEAMRES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_res.dat'
 		EXCAB_STRURES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_stru.dat'
-        Slope_file=trim(drive)//trim(dir)//trim(name)//'_slope_res.dat'
 		EXCAB_EXTREMEBEAMRES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_minmaxbeam.dat'
+        Slope_file=trim(drive)//trim(dir)//trim(name)//'_slope_res.dat'
 	end if
 	open(99,file=resultfile3,status='replace')
 	!the default value of Title=resultfile2.
@@ -1996,8 +1996,6 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) = "//SOILPROFILE,NUM=(I),spmethod=(I),kmethod=(I),rf_epp=(I),rf_app=(I)   //spmethod=土压力计算方法，0，郎肯； &
         \n// kmethod=基床系数的计算方法，0，m法；1，(E,V)法；2,zhu;3 biot;4 vesic;-1,按直接输入. &
         \n// rf_epp=被动侧土弹簧抗力限值是否要减掉初始的主动土压力.(0N1Y). &
-        \n// RF_APP=0 !主动侧主动土压力荷载，开挖面以下是否按倒三角折减.(0N1Y)."  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT SOILPROFILE DATA."//'"'
 	README(IPP(I))=  "//A0:{TITLE(C)}  //土层剖面的名字"  
 	README(IPP(I)) = "//A:{NASOIL(I),NPSOIL(I),BEAMID(I),NACTION(I),NSTRUT}  //主动侧土层数(负数表主动土压力为负，被动为正，反之亦然。)，被动侧土层数，地基梁号,约束(力，位移，弹簧)个数,支撑个数" 
 	README(IPP(I)) = "//B:{(Z1,Z2,MAT,WPMETHOD,STEPFUN)*NASOIL}   //层顶高程点号，层底高程点号，材料号，水压力考虑方法(0=合算，1=常规分算，2=分算，考虑渗透力),步函数。共NASOIL行"  
@@ -2014,7 +2012,6 @@ subroutine write_readme_feasolver()
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//PILE,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT BEAM(RetainingStructure) DATA."//'"'
 	README(IPP(I)) = "//A:{NSEG(I),[SYSTEM=0]}  //材料分段数，坐标号" 
 	README(IPP(I)) = "//B:{Z(1:NSEG+1)}   //材料分段点,应从上往下（或从左往右）输入（方便单元寻址）"  
 	README(IPP(I)) = "//C:{MAT(1:NSEG)}   //各段材料号"  
@@ -2022,19 +2019,17 @@ subroutine write_readme_feasolver()
 
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//STRUT,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT STRUT(RetainingStructure) DATA."//'"'
 	README(IPP(I)) = "//A:{Z,MAT,STEPFUN}  //点号，材料号，步函数" 
 	README(IPP(I)) = "//{A}*NUM。   //共NUM组"
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//KPOINT,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT KeyPoint DATA."//'"'
 	README(IPP(I)) = "//A:{NO(I),XY(1:NDIMENSION),[ELEMENTSIZE(R)]}  //点号，XY(1:NDIMENSION),[ELEMENT SIZE]" 
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"	
     
  	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//GEOLINE,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT GEOLOGICAL LINE DATA."//'"'
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD GeoLINE IS USED TO INPUT GEOMETRY LINE DATA."//'"'
 	README(IPP(I)) = "//A:{NO(I),MATID(I),NPOINT(I),IPOINT(I),[TITLE(A)]}  //线号，材料号(投影)，控制点个数，控制点号(共NPOINT个)，名字" 
  	README(IPP(I)) = "//{A}*NUM。   //共NUM组"   
 	README(IPP(I)) = "//注意：1）按X从左至右的顺序输入,既x1<=x2<=..<=xn" 
@@ -2055,7 +2050,6 @@ subroutine write_readme_feasolver()
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//ACTION,NUM=...(I)"  
-	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT Laction DATA..."//'"'
 	README(IPP(I))=  "//A0:{TITLE(C)}  //作用的名字"  
 	README(IPP(I)) = "//A:{NKP,TYPE,DOF,NDIM,[SF,ISVALUESTEPFUN,ISEXVALUE]}  //控制点数，作用类型（0=力，1=位移，2=刚度），作用的自由度，作用的维度，生死步函数,值步函数开关(0N1Y)，极值开关(0N1Y)" 
 	README(IPP(I)) = "//B:{KPOINT(1:NKP)}  //控制点号,应从上往下（或从左往右）输入（方便单元寻址）" 
