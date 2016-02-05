@@ -19,9 +19,10 @@
 
 MODULE DS_MYDATA
 	IMPLICIT NONE
-	TYPE MYDATA
+	TYPE MYDATA		
 		INTEGER::IEL=0 !ELEMENT NO
 		INTEGER::ISE=0 !THE SUB IDEX OF THE COMMON EDGE/FACE
+        INTEGER::IITEM=0 !!FIRSTLY, VAL.IITEM=TBL_ID, AND THEN IT STORED THE ITEM ID NUMBER IN THE TBL
 	ENDTYPE
 END MODULE
 
@@ -29,13 +30,13 @@ MODULE hashtbl
   USE DS_MYDATA, DICT_DATA=>MYDATA
   IMPLICIT NONE ! Use strong typing
   INTEGER:: tbl_size = 10000,NLISTVAL=10
-	
+  INTEGER::TBL_NITEM(100)=0,NTBL=0 !TBL_NITEM(ITBLE)=N MEANS THERE ARE N ITEMS IN THE iTH TBL. ASSUME THA NTBL<=100.
 
   
   TYPE sllist
      TYPE(sllist), POINTER :: child => NULL()
      CHARACTER(len=:), ALLOCATABLE :: key 
-     integer::nval=0
+     integer::nval=0,IITEM=0
      TYPE(DICT_DATA),allocatable::val(:)
    CONTAINS
      PROCEDURE :: put  => put_sll
@@ -47,9 +48,10 @@ MODULE hashtbl
   TYPE hash_tbl_sll
      TYPE(sllist), DIMENSION(:), ALLOCATABLE :: vec
      INTEGER                                 :: vec_len = 0
+     INTEGER                                 :: TBL_ID = 0
      LOGICAL                                 :: is_init = .FALSE.
   CONTAINS
-     PROCEDURE::KEY=>I2C_KEY_hash_tbl_sll
+     PROCEDURE,NOPASS::KEY=>I2C_KEY_hash_tbl_sll
      PROCEDURE :: init => init_hash_tbl_sll
      PROCEDURE :: put  => put_hash_tbl_sll
      PROCEDURE :: get  => get_hash_tbl_sll
@@ -59,6 +61,8 @@ MODULE hashtbl
   PUBLIC :: hash_tbl_sll
   
   TYPE(hash_tbl_sll)::EDGE_TBL,FACE_TBL
+
+  
   
   CONTAINS
 
@@ -75,20 +79,29 @@ MODULE hashtbl
           IF ( .NOT. ASSOCIATED(list%child) ) ALLOCATE(list%child)
           CALL put_sll(list%child,key,val)
        ELSE
+		
           LIST.NVAL=LIST.NVAL+1
-          IF(LIST.NVAL>NLISTVAL) CALL LIST.ENLARGEVAL(LIST.VAL)
+          IF(LIST.NVAL>UBOUND(LIST.VAL,DIM=1)) CALL LIST.ENLARGEVAL(LIST.VAL)
           list%val(LIST.NVAL) = val
+          LIST.VAL(LIST.NVAL).IITEM=LIST.IITEM
+          VAL.IITEM=LIST.IITEM
        END IF
     ELSE
        IF (.NOT. ALLOCATED(list%key)) &
             ALLOCATE(CHARACTER(len=keylen) :: list%key)
        list%key = key
+       
        IF (ALLOCATED(list%val)) DEALLOCATE(list%val)
        !ALLOCATE(CHARACTER(len=vallen) :: list%val)       
        ALLOCATE(LIST.VAL(NLISTVAL))       
        LIST.NVAL=1
+       TBL_NITEM(VAL.IITEM)=TBL_NITEM(VAL.IITEM)+1 !FIRSTLY, VAL.IITEM=TBL_ID, AND THEN IT STORED THE ITEM ID NUMBER.
+       LIST.IITEM=TBL_NITEM(VAL.IITEM)
+       !IF(VAL.NO==-1) THNE 
        !LIST.VAL(0)=LIST.VAL(0)+1
        list%val(LIST.NVAL) = val
+       LIST.VAL(LIST.NVAL).IITEM=LIST.IITEM
+       VAL.IITEM=LIST.IITEM
     END IF
   END SUBROUTINE put_sll
 
@@ -151,49 +164,73 @@ MODULE hashtbl
        ALLOCATE(tbl%vec(0:tbl_size-1))
        tbl%vec_len = tbl_size
     END IF
+    NTBL=NTBL+1
+    TBL.TBL_ID=NTBL
     tbl%is_init = .TRUE.
   END SUBROUTINE init_hash_tbl_sll
   
-  SUBROUTINE I2C_KEY_hash_tbl_sll(tbl,KEY,AA,NAA)
-    CLASS(hash_tbl_sll),   INTENT(inout) :: tbl
-    INTEGER,INTENT(in)    ::NAA,AA(NAA)
-    CHARACTER(LEN=:),ALLOCATABLE,INTENT(OUT)::KEY
+  SUBROUTINE I2C_KEY_hash_tbl_sll(KEY,AA,NAA)
+    !CLASS(hash_tbl_sll),   INTENT(inout) :: tbl
+    INTEGER,INTENT(inout)    ::AA(NAA)
+    INTEGER,INTENT(IN)::NAA
+    CHARACTER(LEN=:),ALLOCATABLE,INTENT(INOUT)::KEY
     INTEGER::I,J,N1,AB1(10)
     CHARACTER(64)::KEY1,KEY2
     
-    AB1(1:NAA)=AA(1:NAA)
+    !AB1(1:NAA)=AA(1:NAA)
+    KEY2=""
     DO I=1,NAA
         DO J=I+1,NAA
-            IF(AB1(J)<AB1(I)) THEN
-                N1=AB1(I);AB1(I)=AB1(J);AB1(J)=N1
+            IF(AA(J)<AA(I)) THEN
+                N1=AA(I);AA(I)=AA(J);AA(J)=N1
             ENDIF
         ENDDO
-        WRITE(KEY1,'(I8)') AB1(I)
-        KEY2=TRIM(KEY2)//'+'//TRIM(ADJUSTL(KEY1))
+        WRITE(KEY1,'(I8)') AA(I)
+        IF(I==1) THEN
+            KEY2=TRIM(ADJUSTL(KEY1))
+        ELSE            
+            KEY2=TRIM(ADJUSTL(KEY2))//'+'//TRIM(ADJUSTL(KEY1))
+        ENDIF
     ENDDO
-    ALLOCATE(CHARACTER(LEN=LEN_TRIM(KEY2))::KEY) 
-    KEY=TRIM(KEY2)
+    IF(ALLOCATED(KEY)) DEALLOCATE(KEY)
+    ALLOCATE(CHARACTER(LEN=LEN_TRIM(KEY2))::KEY)
+    !KEY="ADF"
+    !N1=LEN(KEY)
+    !KEY="A"
+    KEY=TRIM(ADJUSTL(KEY2))
+    
+    !PRINT *, KEY
 
   END SUBROUTINE I2C_KEY_hash_tbl_sll  
  
-  SUBROUTINE put_hash_tbl_sll(tbl,key,val)
+  SUBROUTINE put_hash_tbl_sll(tbl,key,val,HASH1)
     CLASS(hash_tbl_sll), INTENT(inout) :: tbl
     CHARACTER(len=*),    INTENT(in)    :: key
-    INTEGER                            :: hash
+    INTEGER,OPTIONAL                   :: hash1
+	INTEGER::HASH
     TYPE(DICT_DATA)::VAL
      
-    hash = MOD(ABS(HASH_DJB(KEY)),tbl%vec_len)
+    IF(PRESENT(HASH1)) THEN
+		HASH=HASH1
+	ELSE
+		hash = MOD(ABS(HASH_DJB(KEY)),tbl%vec_len)
+	ENDIF
     CALL tbl%vec(hash)%put(key=key,val=val)
   END SUBROUTINE put_hash_tbl_sll
 
 
-  SUBROUTINE get_hash_tbl_sll(tbl,key,val)
+  SUBROUTINE get_hash_tbl_sll(tbl,key,val,HASH1)
     CLASS(hash_tbl_sll),           INTENT(in)    :: tbl
     CHARACTER(len=*),              INTENT(in)    :: key
     TYPE(DICT_DATA), ALLOCATABLE, INTENT(out)   :: val(:)
+    INTEGER,OPTIONAL                   :: hash1
     INTEGER                                      :: hash
 
-    hash = MOD(ABS(HASH_DJB(KEY)),tbl%vec_len)
+     IF(PRESENT(HASH1)) THEN
+		HASH=HASH1
+	ELSE
+		hash = MOD(ABS(HASH_DJB(KEY)),tbl%vec_len)
+	ENDIF
     CALL tbl%vec(hash)%get(key=key,val=val)
   END SUBROUTINE get_hash_tbl_sll
 
@@ -228,7 +265,9 @@ INTEGER FUNCTION HASH_DJB(KEY)
 END FUNCTION
 
 
+
+
 END MODULE hashtbl
     
-    
+
     
