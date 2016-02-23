@@ -706,7 +706,7 @@ subroutine write_readme_gmsh2sinp()
 	integer::i,j,item
 	LOGICAL(4)::tof,pressed
 	!integer,external::ipp
-	character(512)::readme(512)
+	character(512)::readme(1024)
 	
 	open(2,file='D:\README_GMSH2SINP.TXT',STATUS='REPLACE')
 	
@@ -897,8 +897,8 @@ subroutine write_readme_gmsh2sinp()
 		
 		i=i+1
 		ipp=i
-		if(ipp>512) then
-			print *, "The size of README is 512."
+		if(ipp>1024) then
+			print *, "The size of README is 1024."
 			stop
 		end if
 				
