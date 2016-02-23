@@ -17,9 +17,9 @@ module DS_Gmsh2Solver
         INTEGER::SHAPE=3
         INTEGER::V(4)=0
         INTEGER::HKEY=-1
-        CHARACTER(64)::CKEY=""
-        INTEGER::ISTRISURFACE=-1
-        REAL(8)::NOR(3)=0.D0
+        CHARACTER(64)::CKEY="" 
+        INTEGER::ISTRISURFACE=0
+        REAL(8)::UNORMAL(3)=0.D0
         INTEGER::NEL=0
         INTEGER,ALLOCATABLE::ELEMENT(:)        
     ENDTYPE
@@ -274,6 +274,7 @@ program GmshToSolver
 		CALL SETUP_EDGE_TBL()
 		CALL SETUP_FACE_TBL()
         CALL GEN_TRISURFACE()
+        !STOP
 	ENDIF
 	! reordering nodal number
 	allocate(Noutputorder(nnode))
@@ -344,7 +345,8 @@ SUBROUTINE SETUP_FACE_TBL()
     USE DS_Gmsh2Solver
     USE hashtbl
     IMPLICIT NONE
-    INTEGER::I,J,N1(4),ET1,NFACE1,TBL_LEN,N2
+    INTEGER::I,J,N1(4),ET1,NFACE1,TBL_LEN,N2,K
+    REAL(8)::V1(3),V2(3),NORMAL1(3),T1
 	CHARACTER(LEN=:),ALLOCATABLE::KEY1
     TYPE(DICT_DATA)::VAL1
     CHARACTER(64)::CKEY1
@@ -371,17 +373,43 @@ SUBROUTINE SETUP_FACE_TBL()
                 MAXNFACE=MAXNFACE+1000
             ENDIF
             IF(.NOT.FACE(VAL1.IITEM).ISINI) THEN
-                FACE(VAL1.IITEM).CKEY=CKEY1
+                FACE(VAL1.IITEM).CKEY=CKEY1 
                 FACE(VAL1.IITEM).HKEY=HKEY1
                 FACE(VAL1.IITEM).SHAPE=ELTTYPE(ET1).FACE(0,J)
                 FACE(VAL1.IITEM).V(1:FACE(VAL1.IITEM).SHAPE)=ELEMENT(I).NODE(ELTTYPE(ET1).FACE(1:FACE(VAL1.IITEM).SHAPE,J))
+                V1=NODE(FACE(VAL1.IITEM).V(2)).XY-NODE(FACE(VAL1.IITEM).V(1)).XY
+                V2=NODE(FACE(VAL1.IITEM).V(3)).XY-NODE(FACE(VAL1.IITEM).V(1)).XY
+                call r8vec_cross_3d ( v1, v2, NORMAL1(1:3) )
+                T1 = sqrt ( sum ( ( NORMAL1 )**2 ) )
+                if ( T1 /= 0.0D+00 ) then
+                  NORMAL1 = NORMAL1/T1
+                end if
+                FACE(VAL1.IITEM).UNORMAL=NORMAL1
                 FACE(VAL1.IITEM).ISINI=.TRUE.
                 NFACE=VAL1.IITEM
             ENDIF
             IF(FACE(VAL1.IITEM).NEL==0) ALLOCATE(FACE(VAL1.IITEM).ELEMENT(2))
             FACE(VAL1.IITEM).NEL=FACE(VAL1.IITEM).NEL+1
             IF(FACE(VAL1.IITEM).NEL>SIZE(FACE(VAL1.IITEM).ELEMENT,DIM=1)) CALL I_ENLARGE_AR(FACE(VAL1.IITEM).ELEMENT,5)
-            FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=I            
+            
+            IF(FACE(VAL1.IITEM).NEL>1) THEN
+                DO K=1,FACE(VAL1.IITEM).SHAPE
+                    IF(FACE(VAL1.IITEM).V(K)==ELEMENT(I).NODE(ELTTYPE(ELEMENT(I).ET).FACE(1,J))) THEN
+                        IF(FACE(VAL1.IITEM).V(MOD(K,FACE(VAL1.IITEM).SHAPE)+1)/= &
+                            ELEMENT(I).NODE(ELTTYPE(ELEMENT(I).ET).FACE(2,J))) THEN
+                            FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=-I !反向为-1
+                        ELSE
+                            FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=I
+                        ENDIF                  
+                        EXIT
+                    ENDIF
+                ENDDO
+            ELSE
+                FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=I !同向 =1
+            ENDIF
+            
+                
+            
 		ENDDO
     END DO 
     
@@ -392,7 +420,7 @@ SUBROUTINE GEN_TRISURFACE()
     USE DS_Gmsh2Solver
     USE hashtbl
     IMPLICIT NONE
-    INTEGER::I,J,K,IGP1,NFACE1,IEL1,NTRI1=0,N1=0,NQUA1=0,K1=0
+    INTEGER::I,J,K,IGP1,NFACE1,IEL1,NTRI1=0,N1=0,NQUA1=0,K1=0,N2,AR1(3)
     INTEGER,ALLOCATABLE::NODE1(:),TRI1(:,:)
 	REAL(8),ALLOCATABLE::XYZ1(:,:),FACENOR1(:,:)
     TYPE(DICT_DATA), ALLOCATABLE:: val1(:)
@@ -414,10 +442,20 @@ SUBROUTINE GEN_TRISURFACE()
                 !3D
                 IF(PHYSICALGROUP(IGP1).NDIM==3) THEN
                     ISTRI1=ISTRI1.OR.(FACE(ELEMENT(IEL1).FACE(K)).NEL==1)
-                    IF(FACE(ELEMENT(IEL1).FACE(K)).NEL==2) ISTRI1=ISTRI1.OR.(ELEMENT(FACE(ELEMENT(IEL1).FACE(K)).ELEMENT(1)).TAG(1)/=ELEMENT(FACE(ELEMENT(IEL1).FACE(K)).ELEMENT(2)).TAG(1))
+                    IF(FACE(ELEMENT(IEL1).FACE(K)).NEL==2) ISTRI1=ISTRI1.OR. &
+                        (ELEMENT(ABS(FACE(ELEMENT(IEL1).FACE(K)).ELEMENT(1))).TAG(1)/= &
+                        ELEMENT(ABS(FACE(ELEMENT(IEL1).FACE(K)).ELEMENT(2))).TAG(1))
                 ENDIF
+                
                 IF(ISTRI1) THEN
-                    FACE(ELEMENT(IEL1).FACE(K)).ISTRISURFACE=IGP1
+                    
+                    IF(ELEMENT(ABS(FACE(ELEMENT(IEL1).FACE(K)).ELEMENT(1))).TAG(1)==IGP1)  THEN
+                        N2=SIGN(1,FACE(ELEMENT(IEL1).FACE(K)).ELEMENT(1))
+                    ELSE
+                        N2=SIGN(1,FACE(ELEMENT(IEL1).FACE(K)).ELEMENT(2))
+                    ENDIF
+                    FACE(ELEMENT(IEL1).FACE(K)).ISTRISURFACE=IGP1*N2
+                    
                     IF(.NOT.ALLOCATED(PHYSICALGROUP(IGP1).TRINODEG2L)) THEN
                         ALLOCATE(PHYSICALGROUP(IGP1).TRINODEG2L(NNODE))
                         PHYSICALGROUP(IGP1).TRINODEG2L=0
@@ -445,7 +483,7 @@ SUBROUTINE GEN_TRISURFACE()
             PHYSICALGROUP(IGP1).TRINODEL2G=NODE1(1:PHYSICALGROUP(IGP1).NTRINODEL2G)
             ALLOCATE(PHYSICALGROUP(IGP1).TRISURFACE(NTRI1),PHYSICALGROUP(IGP1).QUASURFACE(NQUA1))
             DO CONCURRENT (J=1:NFACE)
-                IF(FACE(J).ISTRISURFACE==IGP1) THEN                    
+                IF(ABS(FACE(J).ISTRISURFACE)==IGP1) THEN                    
                     IF(FACE(J).SHAPE==3) THEN
 						PHYSICALGROUP(IGP1).NTRISURFACE=PHYSICALGROUP(IGP1).NTRISURFACE+1
 						PHYSICALGROUP(IGP1).TRISURFACE(PHYSICALGROUP(IGP1).NTRISURFACE)=J
@@ -465,22 +503,36 @@ SUBROUTINE GEN_TRISURFACE()
 			ALLOCATE(XYZ1(3,PHYSICALGROUP(IGP1).NTRINODEL2G),TRI1(3,N1),FACENOR1(3,N1))
 			DO CONCURRENT (J=1:PHYSICALGROUP(IGP1).NTRINODEL2G)
 				XYZ1(:,J)=NODE(PHYSICALGROUP(IGP1).TRINODEL2G(J)).XY
-			ENDDO
-			N1=0
+            ENDDO
+			
+            N1=0
 			DO CONCURRENT (J=1:PHYSICALGROUP(IGP1).NTRISURFACE)
 				N1=N1+1
-				TRI1(:,N1)=PHYSICALGROUP(IGP1).TRINODEG2L(FACE(PHYSICALGROUP(IGP1).TRISURFACE(J)).V(1:3))
+                IF(FACE(PHYSICALGROUP(IGP1).TRISURFACE(J)).ISTRISURFACE>0) THEN
+				    TRI1(:,N1)=PHYSICALGROUP(IGP1).TRINODEG2L(FACE(PHYSICALGROUP(IGP1).TRISURFACE(J)).V(1:3))
+                ELSE
+                    TRI1(:,N1)=PHYSICALGROUP(IGP1).TRINODEG2L(FACE(PHYSICALGROUP(IGP1).TRISURFACE(J)).V(3:1:-1))
+                ENDIF
+                FACENOR1(:,N1)=FACE(PHYSICALGROUP(IGP1).TRISURFACE(J)).UNORMAL*SIGN(1,FACE(PHYSICALGROUP(IGP1).TRISURFACE(J)).ISTRISURFACE)
 			ENDDO
 			DO CONCURRENT (J=1:PHYSICALGROUP(IGP1).NQUASURFACE)
 				N1=N1+1
 				TRI1(:,N1)=PHYSICALGROUP(IGP1).TRINODEG2L(FACE(PHYSICALGROUP(IGP1).QUASURFACE(J)).V(1:3))
-				N1=N1+1
+				                
+                N1=N1+1
 				TRI1(1:2,N1)=PHYSICALGROUP(IGP1).TRINODEG2L(FACE(PHYSICALGROUP(IGP1).QUASURFACE(J)).V(3:4))
 				TRI1(3,N1)=PHYSICALGROUP(IGP1).TRINODEG2L(FACE(PHYSICALGROUP(IGP1).QUASURFACE(J)).V(1))
-			ENDDO
+                DO K=-1,0
+                    IF(FACE(PHYSICALGROUP(IGP1).QUASURFACE(J)).ISTRISURFACE<0) THEN
+                        AR1=TRI1(3:1:-1,N1+K)
+                        TRI1(:,N1+K)=AR1
+                    ENDIF                
+                    FACENOR1(:,N1+K)=FACE(PHYSICALGROUP(IGP1).QUASURFACE(J)).UNORMAL*SIGN(1,FACE(PHYSICALGROUP(IGP1).QUASURFACE(J)).ISTRISURFACE)
+			    ENDDO
+            ENDDO
 			!COMPUTE FACE NORMAL
 			
-			CALL stla_face_normal_compute ( PHYSICALGROUP(IGP1).NTRINODEL2G,N1, XYZ1(:,:), TRI1(:,:), FACENOR1(:,:) )
+			!CALL stla_face_normal_compute ( PHYSICALGROUP(IGP1).NTRINODEL2G,N1, XYZ1(:,:), TRI1(:,:), FACENOR1(:,:) )
 			CALL stla_write (STLFILE1, PHYSICALGROUP(IGP1).NTRINODEL2G,N1, XYZ1(:,:), TRI1(:,:), FACENOR1(:,:) )
         ENDIF
         
@@ -708,7 +760,7 @@ subroutine write_readme_gmsh2sinp()
 	!integer,external::ipp
 	character(512)::readme(1024)
 	
-	open(2,file='D:\README_GMSH2SINP.TXT',STATUS='REPLACE')
+	open(2,file=FILEPATH//'_README_GMSH2SINP.TXT',STATUS='REPLACE')
 	
 	I=0
 	README(IPP(I))= "//THE PROGRAM USES AN MSH FILE GENERATED BY THE GMSH AS AN INPUT FILE."
@@ -857,15 +909,7 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//{ABSOLUTED PATH OF THE FILES}*{NCOPYFILE(I)}  // 共NCOPYFILE行."
 	README(IPP(I)) = "//$ENDCOPYFILE" 
  
-	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//$ELEVATION"
-	README(IPP(I))=  "//"//'"'//"THE ELEVATION IS USED TO INPUT ELEVATION DATA FOR GENERATE PRISM/BRICK ELEMENT."//'"'
-	README(IPP(I)) = "//NOTE THAT,THE BASE 2D ELEMENT MUST BE LINEAR."  
-    README(IPP(I)) = "//{NNODE,NLAYER,[NSUBLAYER(NLAYER)]}    //节点数，地层数，每层细分层数"  
-	README(IPP(I)) = "//A:{INODE,X,Y,Z(NLAYER+1)}  // 共3+NLAYER+1个/行.Z IS IN A2Z ORDER(Z1<=Z2<=...<=Z(NLYAER+1))"
-    README(IPP(I)) = "//B:A*{NNODE}  // 共NNODE行."
-	README(IPP(I)) = "//$ENDELEVATION"
-    
+
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$ELEVATION"
 	README(IPP(I))=  "//"//'"'//"THE ELEVATION IS USED TO INPUT ELEVATION DATA FOR GENERATE PRISM/BRICK ELEMENT."//'"'
@@ -885,7 +929,7 @@ subroutine write_readme_gmsh2sinp()
 		write(2,20) readme(j)
 	end do
 	
-	tof=system("D:\README_GMSH2SINP.TXT")	
+!	tof=system("D:\README_GMSH2SINP.TXT")	
 	
 20	format(a<item>)
 	
