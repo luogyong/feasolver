@@ -534,6 +534,7 @@ SUBROUTINE GEN_TRISURFACE()
 			
 			!CALL stla_face_normal_compute ( PHYSICALGROUP(IGP1).NTRINODEL2G,N1, XYZ1(:,:), TRI1(:,:), FACENOR1(:,:) )
 			CALL stla_write (STLFILE1, PHYSICALGROUP(IGP1).NTRINODEL2G,N1, XYZ1(:,:), TRI1(:,:), FACENOR1(:,:) )
+            
         ENDIF
         
 

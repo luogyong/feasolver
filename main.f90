@@ -42,7 +42,7 @@ program main
         key=getcharqq()
 		ef = setexitqq(QWIN$EXITPERSIST)
     endif
-
+    
 10 format("Press 'H' to write a keyword help file named 'D:\README_FEASOLVER.TXT'. Any other key to read an SINP file.")		
 
 end program main

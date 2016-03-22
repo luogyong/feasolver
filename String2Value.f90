@@ -350,7 +350,19 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 		CASE('noncircular')
 			value=noncircular
 		CASE('ssa')
-			value=ssa		
+			value=ssa
+		CASE('hyperbolic')
+			value=hyperbolic
+		CASE('eip_spring')
+			value=eip_spring
+		Case('mat_soil')
+			value=mat_SOIL
+		Case('mat_bar')
+			value=mat_bar
+		Case('mat_beam')
+			value=mat_beam
+		Case('mat_spring')
+			value=mat_spring			
 		case default
 			cvalue=str
 			print *, 'No such Constant:'//trim(str)//',It will be returned as a character variable.'

@@ -61,12 +61,12 @@ Module ExcaDS
     endtype
     
     type soilprofile_tydef
-        integer::nasoil=0,npsoil=0,beam=1,spm=0,naction=0,nstrut=0,kmethod=0 !spm=土压力计算方法,0=郎肯。 
+        integer::nasoil=0,npsoil=0,beam=1,spm=0,naction=0,nstrut=0,kmethod=0,soilspringmodel=10 !spm=土压力计算方法,0=郎肯。 
 		!kmethod,水平基床的计算方法: =0,m法(规范方法)；=1(E，v方法，);
         integer::sf_awL=0,sf_pwL=0,sf_aLoad=0,sf_pLoad=0 !主被侧水位的步长函数，主被动侧超载的步函数
 		real(DOUBLE)::awL,pwL,aLoad=0,pLoad=0 !主被侧水位,主被动侧地表超载（向下为正）
 		integer::za=0,zp=0 !各时间步主动侧和被动侧地表高程。
-		integer::aside=1 !aside=1,表主动土压力正，被动为负。
+		integer::aside=1 !aside=1,表主动侧的土压力正，被动侧的为负。
         CHARACTER(64)::TITLE=""
 		type(soillayer_tydef),allocatable::asoil(:),psoil(:)
 		integer,allocatable::iaction(:),istrut(:)
@@ -295,7 +295,7 @@ SUBROUTINE SOILLOAD_EXCA(ISTEP)
 			!BC_LOAD(INNODE1(2)).VALUE=BC_LOAD(INNODE1(2)).VALUE+ELEMENT(IELA1(2)).PROPERTY(1)
             
             
-            SOILPROFILE(I).STEPLOAD(INNODE1(1),ISTEP)=SOILPROFILE(I).STEPLOAD(INNODE1(1),ISTEP)+ELEMENT(IELA1(1)).PROPERTY(2)
+            SOILPROFILE(I).STEPLOAD(INNODE1(1),ISTEP)=SOILPROFILE(I).STEPLOAD(INNODE1(1),ISTEP)+ELEMENT(IELA1(1)).PROPERTY(solver_control.iniepp)
 			SOILPROFILE(I).STEPLOAD(INNODE1(2),ISTEP)=SOILPROFILE(I).STEPLOAD(INNODE1(2),ISTEP)+ELEMENT(IELA1(2)).PROPERTY(solver_control.iniepp)
 			!实际上，INNODE1(1)=INNODE1(2)
 			!只对土压力进行折减
@@ -593,6 +593,8 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		element(n1).ngp=ngp1
 		element(n1).nd=nd1
 		element(n1).ec=ec1
+		
+		element(n1).property(1)=0.d0
 		element(n1).property(2)=-1.d20
 		element(n1).property(3)=1.d20
 		element(n1).property(4)=1.0d7
@@ -945,7 +947,8 @@ subroutine soilstiffness_cal(isp,istep,iz,soil) !iz,为开挖面高程点。
 		case(4) !Vesic ks的单位为:kN/m3
 			soil.ks=0.65*Es1/(1-mu1**2)*(b1**4*Es1/((1-mu1**2)*Ep1*Iz1))**(1./12.0)	
 			soil.ks=soil.ks/b1
-			
+		!case(5)
+		
 		case(-1) !直接输入，ks的单位为:kN/m3
 			soil.ks=matproperty(soil.mat,7,istep)
 		
@@ -1038,7 +1041,7 @@ subroutine Initialize_soilspringEelement_EXCA(ipile,istep,aside,aop,soil)
 			element(iel2).property(5)=element(iel2).property(5)+t1
 			vi1(1)=interpolation(kpoint(ndimension,soil.z(1:2)),soil.sigmaKo,2,zi1(1))
 			vi1(2)=interpolation(kpoint(ndimension,soil.z(1:2)),soil.sigmaKo,2,zi1(2))
-			element(iel2).property(1)=element(iel2).property(1)+b1*(vi1(1)+vi1(2))*t1/2
+			element(iel2).property(1)=element(iel2).property(1)+b1*(vi1(1)+vi1(2))*t1/2.0 !=...+b1*(vi1(1)+vi1(2))/2.*2.*t1/2.
 			vi1(1)=interpolation(kpoint(ndimension,soil.z(1:2)),soil.sigmaKa,2,zi1(1))
 			vi1(2)=interpolation(kpoint(ndimension,soil.z(1:2)),soil.sigmaKa,2,zi1(2))
 			element(iel2).property(2)=element(iel2).property(2)+sign1*b1*(max(sign1*vi1(1),0.0)+max(sign1*vi1(2),0.0))*t1/2			
@@ -1057,7 +1060,7 @@ subroutine Initialize_soilspringEelement_EXCA(ipile,istep,aside,aop,soil)
                 do j=1,2
 				!if(.not.allocated(element(iel2(j)).gforce)) allocate(element(iel2(j)).gforce(1))
 				if(.not.allocated(element(iel2(j)).km)) allocate(element(iel2(j)).km(1,1))
-                element(iel2(j)).km(1,1)=element(iel2(j)).property(4)
+                element(iel2(j)).km(1,1)=element(iel2(j)).property(4)/2. !!!!!两侧都有土弹簧，其刚度各为1/2？？？？？？？ 
 				!element(iel2(j)).gforce(1) =element(iel2(j)).property(1)+element(iel2(j)).property(6)
 			    enddo
             endif
@@ -1304,7 +1307,9 @@ subroutine waterpressure_cal(isoilprofile,istep)
 				soilprofile(isoilprofile).asoil(i).PW(2)=max(awL1-kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(2)),0.d0)*GA   
 				
 			case(2) !简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
-
+			case(3) !手动输入
+				soilprofile(isoilprofile).asoil(i).PW(1)=matproperty(soilprofile(isoilprofile).asoil(i).mat,9,istep)
+				soilprofile(isoilprofile).asoil(i).PW(2)=matproperty(soilprofile(isoilprofile).asoil(i).mat,10,istep)
 			case default
 				soilprofile(isoilprofile).asoil(i).pw=0.0d0
 		endselect		
@@ -1334,7 +1339,9 @@ subroutine waterpressure_cal(isoilprofile,istep)
 				soilprofile(isoilprofile).psoil(i).PW(2)=max(pwL1-kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(2)),0.d0)*GA 
 				
 			case(2) !简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
-				
+			case(3) !手动输入
+				soilprofile(isoilprofile).psoil(i).PW(1)=matproperty(soilprofile(isoilprofile).psoil(i).mat,9,istep)
+				soilprofile(isoilprofile).psoil(i).PW(2)=matproperty(soilprofile(isoilprofile).psoil(i).mat,10,istep)				
 			case default
 				soilprofile(isoilprofile).psoil(i).pw=0.0d0
 		endselect		
@@ -1499,6 +1506,9 @@ subroutine Beam_Result_EXCA(istep)
 				        pile(ipile).beamresult(nnode1(k),6,istep)=pile(ipile).beamresult(nnode1(k),6,istep) &
 					        +element(iesp1(1)).gforceILS(1)/ &
                             element(iesp1(1)).property(5)  
+						!荷载+土弹簧力
+						pile(ipile).beamresult(nnode1(k),4,istep)=pile(ipile).beamresult(nnode1(k),4,istep) &
+							+pile(ipile).beamresult(nnode1(k),6,istep)	
                         !主动侧土弹簧力限值		
 				        pile(ipile).beamresult(nnode1(k),7,istep)=pile(ipile).beamresult(nnode1(k),7,istep) &
 					        -(element(iesp1(1)).property(3)- &
@@ -1527,6 +1537,9 @@ subroutine Beam_Result_EXCA(istep)
 				        pile(ipile).beamresult(nnode1(k),10,istep)=pile(ipile).beamresult(nnode1(k),10,istep) &
 					        +element(iesp1(2)).gforceILS(1)/ &
                             element(iesp1(2)).property(5)
+						!荷载+土弹簧力	
+						pile(ipile).beamresult(nnode1(k),4,istep)=pile(ipile).beamresult(nnode1(k),4,istep) &
+							+pile(ipile).beamresult(nnode1(k),10,istep)
 				        !被动侧土弹簧力限值		
 				        pile(ipile).beamresult(nnode1(k),11,istep)=pile(ipile).beamresult(nnode1(k),11,istep) &
 					        -(element(iesp1(2)).property(3)- &
@@ -1548,9 +1561,9 @@ subroutine Beam_Result_EXCA(istep)
                     endif
                 
                 endif
-                !NODAL LOAD
+                !荷载+土弹簧力
                 
-                pile(ipile).beamresult(nnode1(k),4,istep)=-TLOAD(NODE(NNODE1(K)).DOF(NC1))/pile(ipile).Nlength(nnode1(k))
+                pile(ipile).beamresult(nnode1(k),4,istep)=pile(ipile).beamresult(nnode1(k),4,istep)-(TLOAD(NODE(NNODE1(K)).DOF(NC1)))/pile(ipile).Nlength(nnode1(k))
                 
 				isout1(nnode1(k))=.true.
 			enddo		

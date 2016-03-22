@@ -170,7 +170,7 @@ module solverds
 
 	!material 
 	type mat_tydef
-		integer::type
+		integer::type=0
 		real(kind=DPN)::property(32)=0.0D0
 		integer::sf(32)=0 !not considered yet.
 		real(kind=DPN)::weight=0.0
@@ -179,7 +179,7 @@ module solverds
 		logical::isff=.false. ! whether the parameters are dependent on  the field function
 		character(64)::name=""
 	end type
-	type(mat_tydef)::material(maximat)
+	type(mat_tydef)::material(-2:maximat) 
 	
 	
 	!solution control
