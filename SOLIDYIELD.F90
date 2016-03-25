@@ -289,7 +289,7 @@ subroutine solve_SLD()
 				end if
 				 
 			else
-				Tstepdis(:,iincs)=stepdis  !for a transient problem, tdisp is passed to stepdisp in the form of an initial value. 			
+				Tstepdis(:,iincs)=stepdis  !For a transient problem, tdisp is passed to stepdisp in the form of an initial value. 			
 			    
 				inivaluedof=Tstepdis(:,iincs) !!!!!
 				

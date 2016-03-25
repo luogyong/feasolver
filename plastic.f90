@@ -774,7 +774,7 @@ subroutine ssp_slave_master_contact_force_cal(istep,isubts,iiter,iel,Tforce,nTfo
 	integer,intent(in)::istep,isubts,iiter,iel,nTforce
 	real(kind=DPN),intent(in out)::Tforce(nTforce),Ddis(nTforce)
 	integer::i,j,k,n1,n2
-	real(kind=DPN)::t1
+	real(kind=DPN)::t1,T2
 	
 	i=element(iel).ngp
     smnp(i).interforce=0.d0
@@ -797,6 +797,10 @@ subroutine ssp_slave_master_contact_force_cal(istep,isubts,iiter,iel,Tforce,nTfo
 		do j=1,smnp(i).nmbl
 			t1=sf(bc_load(smnp(i).mbl(j)).sf).factor(istep)
 			if(t1==-999.d0) cycle
+			
+			T2=sf(bc_load(smnp(i).mbl(j)).sf).factor(max(istep-1,0))
+            IF(bc_load(smnp(i).mbl(j)).ISINCREMENT==0 .OR. T2==-999.D0) T2=0
+			t1=sf(bc_load(smnp(i).mbl(j)).sf).factor(istep)-T2
 			smnp(i).load=smnp(i).load+bc_load(smnp(i).mbl(j)).value*t1			
 		end do
 	end if

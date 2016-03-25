@@ -47,8 +47,7 @@ subroutine write_readme_feasolver()
 		README(IPP(I)) = "//{NODE(I),DOF(I),VALUE(R)[,SF(I),SPG_ISDUAL(I),SSP_ONEPILE(I)]}  //ISDUAL:如果isdual==i(>0),则表示此自由度可能与出溢边界Nseep(i)重复，如果边界水头小于位置水头，则变为出溢边界。"  
 		README(IPP(I)) = "//{...}  //共NUM行"	
 		README(IPP(I)) = "//注意，对于水头边界(dof=4)，如果边界值小于其相应的位置水头，则认为该边界无效，不起作用。"
-		README(IPP(I)) = "//注意，多步计算时，对于渗流模型（SOLVER_CONTROL.TYPE=SPG）,由于水头边界(dof=4)不具有叠加性，所以输入时要求每一步的水头均是总量，而不是增量."	
-		README(IPP(I)) = "//对于力学模型（SOLVER_CONTROL.TYPE=SLD）,多步计算时，由于位移边界具有叠加性，所以每一步的位移边界均是增量."
+		README(IPP(I)) = "//注意，多步计算时，输入时要求每一步的水头均是总量，而不是增量."	
 	end do
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C

@@ -69,6 +69,8 @@
 	!INITIALIZATION 
     
     IF(ISEXCA2D/=0) THEN
+		
+		
         !CHECKDATA
          DO I=1,NSOILPROFILE
             

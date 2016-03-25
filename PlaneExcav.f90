@@ -278,7 +278,8 @@ SUBROUTINE SOILLOAD_EXCA(ISTEP)
 		NS1=LBOUND(PILE(IPILE).ELEMENT_SP,DIM=2)
 		NS2=UBOUND(PILE(IPILE).ELEMENT_SP,DIM=2)
         
-		BC_LOAD(PILE(IPILE).NODE2BCLOAD).VALUE=0
+		BC_LOAD(PILE(IPILE).NODE2BCLOAD).VALUE=0.d0
+		BC_LOAD(PILE(IPILE).NODE2BCLOAD).isincrement=1
         NC2=PILE(IPILE).NODE2BCLOAD(NS2)
         NC1=PILE(IPILE).NODE2BCLOAD(NS1)
 		IF(.NOT.ALLOCATED(SOILPROFILE(I).STEPLOAD)) THEN
@@ -328,7 +329,7 @@ SUBROUTINE ACTION_EXCA(ISTEP)
     IMPLICIT NONE
     integer,intent(in)::istep	
 	integer::I,j,k,k1,IAC1,nnode1(2),nc1,nc2,iel1,iel2(2),n1,ndim1
-	real(double)::t1,d1,b1,bp1,v1(2)
+	real(double)::t1,t2,d1,b1,bp1,v1(2)
 	real(double),allocatable::ar1(:)
     real(double),external::interpolation
 	
@@ -346,8 +347,10 @@ SUBROUTINE ACTION_EXCA(ISTEP)
 	
 		if(allocated(ar1)) deallocate(ar1)
 		allocate(ar1,MOLD=action(iac1).value)
-
-		forall (k=1:action(iac1).nkp) ar1(k)=action(iac1).value(k)*sf(action(iac1).vsf(k)).factor(istep)
+		t2=0
+		if(action(iac1).type/=2) t2=sf(action(iac1).vsf(k)).factor(max(istep-1,0)) !荷载和位移按增量进入每一步的施加，而刚度按总量进行计算
+		if(t2==-999.d0) t2=0
+		forall (k=1:action(iac1).nkp) ar1(k)=action(iac1).value(k)*(sf(action(iac1).vsf(k)).factor(istep)-t2) 
 	
 		if(action(IAC1).NDIM==1) then
 			nc1=2
@@ -362,7 +365,10 @@ SUBROUTINE ACTION_EXCA(ISTEP)
 		if(allocated(action(iac1).node2stiffelement))  &
 			forall (k1=1:n1,k=1:6,action(iac1).node2stiffelement(k1)>0) element(action(iac1).node2stiffelement(k1)).property(k)=0.d0
 		where(action(iac1).node2bcdisp>0) bc_disp(action(iac1).node2bcdisp).value=0
+		where(action(iac1).node2bcdisp>0) bc_disp(action(iac1).node2bcdisp).isincrement=1
+		
 		where(action(iac1).node2bcload>0) bc_load(action(iac1).node2bcload).value=0
+		where(action(iac1).node2bcload>0) bc_load(action(iac1).node2bcload).isincrement=1
 		
 		do k=1,nc2
 			if(action(IAC1).NDIM==1) then
@@ -554,6 +560,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 				BC_LOAD(N1+J-1).NODE=NNUM+J
 				PILE(IPILE).NODE2BCLOAD(NNUM+J)=N1+J-1
 				BC_LOAD(N1+J-1).DOF=1
+				BC_LOAD(N1+J-1).ISINCREMENT=1
 			ENDFORALL
 		endif
 		
@@ -749,8 +756,8 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 					bc_disp(n1:).node=ACTION(IAC1).NODE
 				ENDIF                    
 				bc_disp(n1:).dof=action(iac1).dof
-				
-				!bc_disp(n1:).sf=action(iac1).sf
+				bc_disp(n1:).ISINCREMENT=1
+				!bc_disp(n1:).sf=action(iac1).sf !在此其bc_disp的值已经是每一步的增量了。
 				
 				forall (k=n1:bd_num) action(iac1).node2bcdisp(bc_disp(k).node)=k
 				!print *, action(iac1).node2bcdisp
@@ -768,7 +775,8 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 				ENDIF 
 				forall (k=n1:bL_num) action(iac1).node2bcload(bc_load(k).node)=k
 				BC_LOAD(N1:).dof=action(iac1).dof
-				!BC_LOAD(N1:).sf=action(iac1).sf
+				BC_LOAD(N1:).ISINCREMENT=1
+				!BC_LOAD(N1:).sf=action(iac1).sf  !在此其bc_load的值已经是每一步的增量了。
 
 		end select	
 	enddo
@@ -1586,8 +1594,8 @@ subroutine Beam_Result_EXCA(istep)
 	do j=1,nstrut
 		nc1=strut(j).element
 		IF(ELEMENT(NC1).ISACTIVE==1) THEN
-		    write(24,21) istep,j,node(element(nc1).node(1)).coord(ndimension),element(nc1).gforceILS(1)
-		    if(strut(j).isbar==1) write(24,21) istep,j,node(element(nc1).node(2)).coord(ndimension),element(nc1).gforceILS(2)
+		    write(24,21) istep,j,node(element(nc1).node(1)).coord(1:ndimension),element(nc1).gforceILS(1)
+		    if(strut(j).isbar==1) write(24,21) istep,j,node(element(nc1).node(2)).coord(1:ndimension),element(nc1).gforceILS(2)
         ENDIF
 	enddo
 	
@@ -1596,12 +1604,12 @@ subroutine Beam_Result_EXCA(istep)
 	CLOSE(24)
 	CLOSE(25)
 	
-10 FORMAT(10X,"IPILE",10X,"ISTEP",10X,"INODE",11X,"X(L)",11X,"Y(L)",9X,"DIS(L)",4X,"MOMENT(F.M)",11X,"Q(F)",6X,"TFORCE(F)",3X,"PAA+PWA(F/L)", &
+10 FORMAT(10X,"IPILE",10X,"ISTEP",10X,"INODE",11X,"X(L)",11X,"Y(L)",9X,"DIS(L)",4X,"MOMENT(F.M)",11X,"Q(F)",4X,"TFORCE(F/L)",3X,"PAA+PWA(F/L)", &
 	   5X,"PA_SP(F/L)",X,"MAX_PA_SP(F/L)",7X,"PWA(F/L)",3X,"PAP+PWP(F/L)",5X,"PP_SP(F/L)",X,"MAX_PP_SP(F/L)",7X,"PWP(F/L)",4X,"KSA_SP(F/L)",4X,"KSP_SP(F/L)")	
 11 FORMAT(3(X,I14),16(X,E14.7))	
 12 FORMAT(2(X,I14))
-20 FORMAT(10X,"ISTEP",9X,"ISTRUT",11X,"Y(L)",11X,"P(F)")
-21 FORMAT(2(X,I14),2(X,E14.7))
+20 FORMAT(10X,"ISTEP",9X,"ISTRUT",11X,"X(L)",11X,"Y(L)",11X,"P(F)")
+21 FORMAT(2(X,I14),3(X,E14.7))
 30 FORMAT(10X,"IPILE",10X,"ISTEP",10X,"MINDX",8X,"X_MINDX",8X,"Y_MINDX",10X,"MAXDX",8X,"X_MAXDX",8X,"Y_MAXDX",&
 		  11X,"MINM",9X,"X_MINM",9X,"Y_MINM",11X,"MAXM",9X,"X_MAXM",9X,"Y_MAXM",&
 		  11X,"MINQ",9X,"X_MINQ",9X,"Y_MINQ",11X,"MAXQ",9X,"X_MAXQ",9X,"Y_MAXQ")

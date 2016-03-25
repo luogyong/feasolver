@@ -206,7 +206,7 @@ subroutine incremental_load(iincs,iiter,method,isubts)
 	integer,intent(in)::iincs,iiter,method,isubts
 	integer::i,j
 	integer::dof1
-	real(kind=dpn)::t1=0
+	real(kind=dpn)::t1=0,t2=0
     real(kind=dpn),external::tsfactor
 	
 	
@@ -215,7 +215,10 @@ subroutine incremental_load(iincs,iiter,method,isubts)
 		do i=1,bl_num
 			if(sf(bc_load(i).sf).factor(iincs)==-999.D0) cycle
 			dof1=node(bc_load(i).node).dof(bc_load(i).dof)
-			t1=sf(bc_load(i).sf).factor(iincs)*tsfactor(iincs,isubts,stepinfo(iincs).loadtype)
+			t2=0
+			if(solver_control.type/=spg) t2=sf(bc_load(i).sf).factor(max(iincs-1,0))
+			if(t2==-999.d0 .OR. bc_load(i).ISINCREMENT==1) t2=0
+			t1=(sf(bc_load(i).sf).factor(iincs)-t2)*tsfactor(iincs,isubts,stepinfo(iincs).loadtype)
 			load(dof1)=load(dof1)+bc_load(i).value*t1
 		end do
 		
@@ -293,7 +296,7 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 	real(kind=dpn),intent(in)::stepdis(ndof)
 	REAL(kind=dpn),INTENT(IN OUT)::LOAD1(NDOF)
 	integer::i,j,dof1
-	real(kind=dpn)::t1=0
+	real(kind=dpn)::t1=0,t2=0
 	real(kind=dpn),external::tsfactor
 	
 	if(iiter==1) then
@@ -310,7 +313,11 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 	end if
 	
 	do i=1,bd_num
-		t1=sf(bc_disp(i).sf).factor(iincs)*tsfactor(iincs,isubts,stepinfo(iincs).bctype)
+		t2=0
+		if(solver_control.type/=SPG) t2=sf(bc_disp(i).sf).factor(max(iincs-1,0))
+		if(t2==-999.d0 .OR. bc_disp(i).ISINCREMENT==1 ) t2=0.d0
+		t1=(sf(bc_disp(i).sf).factor(iincs)-t2)*tsfactor(iincs,isubts,stepinfo(iincs).bctype)
+		
         
 		if(iiter==1) then			
 			
