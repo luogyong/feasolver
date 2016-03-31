@@ -121,7 +121,7 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 				!	if(element(i).sign*un(1)>0) t1=t1*10 !卸载模量为加载模量的10倍。
 				!endif
 				!element(i).km=t1
-				call spring_update2(i,istep,iiter,un,element(i).ndof)
+				call spring_update4(i,istep,iiter,un,element(i).ndof)
 				!call spring_gforce_update(i,Tdisp())
 				!element(i).Dgforce(1:element(i).ndof)=un(1)*element(i).km(1,1)
 				gforce1(1)=element(i).gforce(1)+element(i).Dgforce(1)
@@ -419,8 +419,8 @@ subroutine eip_spring_update(iel,Tgforce,Ntgforce,istep)
 		minv1=matproperty(mat1,2,istep)
 		maxv1=matproperty(mat1,3,istep)
 	else
-		minv1=min(element(iel).property(2)+element(iel).property(6),element(iel).property(3)+element(iel).property(6))	!kp+Pw !ka+Pw
-		maxv1=max(element(iel).property(2)+element(iel).property(6),element(iel).property(3)+element(iel).property(6))	!kp+Pw !ka+Pw
+        minv1=minval(-(element(iel).property(2:3)-element(iel).property(1)))
+        maxv1=maxval(-(element(iel).property(2:3)-element(iel).property(1)))
 		
 	endif
 	
@@ -774,7 +774,7 @@ subroutine ssp_slave_master_contact_force_cal(istep,isubts,iiter,iel,Tforce,nTfo
 	integer,intent(in)::istep,isubts,iiter,iel,nTforce
 	real(kind=DPN),intent(in out)::Tforce(nTforce),Ddis(nTforce)
 	integer::i,j,k,n1,n2
-	real(kind=DPN)::t1
+	real(kind=DPN)::t1,T2
 	
 	i=element(iel).ngp
     smnp(i).interforce=0.d0
@@ -797,6 +797,10 @@ subroutine ssp_slave_master_contact_force_cal(istep,isubts,iiter,iel,Tforce,nTfo
 		do j=1,smnp(i).nmbl
 			t1=sf(bc_load(smnp(i).mbl(j)).sf).factor(istep)
 			if(t1==-999.d0) cycle
+			
+			T2=sf(bc_load(smnp(i).mbl(j)).sf).factor(max(istep-1,0))
+            IF(bc_load(smnp(i).mbl(j)).ISINCREMENT==0 .OR. T2==-999.D0) T2=0
+			t1=sf(bc_load(smnp(i).mbl(j)).sf).factor(istep)-T2
 			smnp(i).load=smnp(i).load+bc_load(smnp(i).mbl(j)).value*t1			
 		end do
 	end if
@@ -816,89 +820,6 @@ subroutine ssp_slave_master_contact_force_cal(istep,isubts,iiter,iel,Tforce,nTfo
 	
 
 end subroutine
-
-subroutine spring_update(iel,istep,Ddis,nDdis)
-	use solverlib
-	implicit none
-	integer,intent(in)::iel,istep,nDdis
-	real(kind=DPN),intent(in)::Ddis(nDdis)
-	real(kind=DPN)::minV1,maxV1,km1,t1,gforce1(nDdis),minelasticX1,maxElasticX1,X0=0,X1=0,DX=0
-	integer::i,j,k,nc1,step0
-    
-    do i=1,istep
-        if(abs(sf(element(iel).sf).factor(i))>1e-7) then
-            step0=i
-            exit
-        endIF
-    enddo
-    X0=Tstepdis(element(iel).g(1),step0-1)
-	X1=Tstepdis(element(iel).g(1),istep)
-    DX=X1-X0
-    
-    !if(iel==123) then
-    !    print *, iel
-    !endif
-    
-	if(element(iel).mat>0) then
-		km1=matproperty(element(iel).mat,1,istep)
-		minV1=matproperty(element(iel).mat,2,istep)
-		maxV1=matproperty(element(iel).mat,3,istep)
-    else
-        km1=element(iel).property(4) !soilspring
-        minv1=minval(element(iel).property(2:3))
-        maxv1=maxval(element(iel).property(2:3))
-        
-		if(element(iel).ec==soilspring) then
-			
-			if(element(iel).mat==-1) nc1=2
-			if(element(iel).mat==-2) nc1=2
-			t1=-element(iel).sign*abs(element(iel).property(3)-element(iel).property(nc1))
-			minv1=min(t1,0.d0)
-			maxv1=max(t1,0.d0)
-		endif
-    endif
-	
-    minelasticX1=-1.d20 !开始假定为弹性
-    maxelasticX1=1.d20
-    if(abs(km1)>1e-7) then
-        minelasticX1=minv1/km1
-        maxelasticX1=maxV1/km1
-    endif
-    
-    gforce1=km1*DX
-	!!!只有发生软化（模量变小），前一时间步的应力就会减小；否则 ，如果发生硬化（模量变大）前一时间步的应力不变。
-	IF(DX<=0) THEN
-        gforce1(1)=MAX(gforce1(1),element(iel).gforce(1))
-    ELSE
-        gforce1(1)=MIN(gforce1(1),element(iel).gforce(1))
-    ENDIF
-    
-    if(DX<minelasticX1) then
-        gforce1=minV1
-    elseif(DX>MAXELASTICX1) then
-        gforce1=MAXV1
-    endif
-    
-    element(iel).Dgforce(1)=km1*(Ddis(1))
-    
-    if(element(iel).Dgforce(1)+gforce1(1)<minV1) then
-        element(iel).Dgforce=minV1-gforce1
-        km1=0.d0
-    elseif(element(iel).Dgforce(1)+gforce1(1)>maxv1) then
-        element(iel).Dgforce=MAXV1-gforce1
-        km1=0.d0
-    endif
-	
-    element(iel).gforce=gforce1
-    
-    element(iel).km(1,1)=km1
-
-	element(iel).gforceILS=element(iel).gforce+element(iel).Dgforce
-	
-	
-
-    end subroutine
-
 
 subroutine spring_update2(iel,istep,iiter,Ddis,nDdis)
 	use solverlib
@@ -935,8 +856,8 @@ subroutine spring_update2(iel,istep,iiter,Ddis,nDdis)
         if(element(iel).ec==spring) X0=X0+matproperty(element(iel).mat,5,istep)
     else
         km1=element(iel).property(4) !soilspring
-        minv1=minval(element(iel).property(2:3))
-        maxv1=maxval(element(iel).property(2:3))
+        minv1=minval(element(iel).property(2:3)-element(iel).property(solver_control.iniepp))
+        maxv1=maxval(element(iel).property(2:3)-element(iel).property(solver_control.iniepp))
         
 		if(element(iel).ec==soilspring) then
 			
@@ -986,94 +907,122 @@ subroutine spring_update2(iel,istep,iiter,Ddis,nDdis)
 	
 
 end subroutine
+  
 
-    
-subroutine spring_update3(iel,istep,Ddis,nDdis)
+
+subroutine spring_update4(iel,istep,iiter,Ddis,nDdis)
 	use solverlib
 	implicit none
-	integer,intent(in)::iel,istep,nDdis
+	integer,intent(in)::iel,istep,iiter,nDdis
 	real(kind=DPN),intent(in)::Ddis(nDdis)
-	real(kind=DPN)::minV1,maxV1,km1,t1,t2,gforce1(nDdis),minelasticX1,maxElasticX1,X0=0,X1=0,DX=0,Xe1
-	integer::i,j,k,nc1,step0
+	real(kind=DPN)::minV1,maxV1,km1,t1,gforce1(nDdis),X0=0,X1=0,DX=0,Pf=0,a1,b1
+	integer::i,j,k,nc1,step0,step01
+	logical::isyield=.false.
     
-    do i=1,istep
-        if(abs(sf(element(iel).sf).factor(i))>1e-7) then
-            step0=i
-            exit
-        endIF
-    enddo
-    X0=Tstepdis(element(iel).g(1),step0)
+    
+	!STEP01=ISTEP
+    if(iiter==1) then
+        do i=istep,0,-1
+            if(abs(sf(element(iel).sf).factor(i))<1e-7) then
+                element(iel).referencestep=i
+                exit
+            endIF
+        enddo
+    endif
+    
+    X0=Tstepdis(element(iel).g(1),element(iel).referencestep)
 	X1=Tstepdis(element(iel).g(1),istep)
-    DX=X1-X0
     
-    !if(iel==123.or.iel==134) then
+    DX=X1-X0+Ddis(1)
+    
+    !if(iel==123) then
     !    print *, iel
     !endif
-    minelasticX1=-1.d20 !开始假定为弹性
-    maxelasticX1=1.d20 
-        
+    
 	if(element(iel).mat>0) then
 		km1=matproperty(element(iel).mat,1,istep)
-		minV1=matproperty(element(iel).mat,2,istep)
-		maxV1=matproperty(element(iel).mat,3,istep)
-	
-
-        if(abs(km1)>1e-7) then
-            minelasticX1=minv1/km1
-            maxelasticX1=maxV1/km1
-        endif        
-    else
-        km1=element(iel).property(4) !soilspring
-        minv1=minval(element(iel).property(2:3))
-        maxv1=maxval(element(iel).property(2:3))
-	
-        minelasticX1=-1.d20 !开始假定为弹性
-        maxelasticX1=1.d20
-        if(abs(km1)>1e-7) then
-            minelasticX1=minv1/km1
-            maxelasticX1=maxV1/km1
-        endif
+		if(material(element(iel).mat).type==eip_spring) then		
+			minV1=matproperty(element(iel).mat,2,istep)
+			maxV1=matproperty(element(iel).mat,3,istep)
+		else
+			minV1=-1.d20;maxv1=1.d20
+		endif
         
-		if(element(iel).ec==soilspring) then
+        if(element(iel).ec==spring) X0=X0+matproperty(element(iel).mat,5,istep)
+    else
+        !if(element(iel).mat==0) pause
+        km1=element(iel).property(4) !soilspring
+		
+		if(abs(km1)<1.d-6) return !water
+		
+		minv1=-1.0D20;maxv1=1.0D20
+		
+		if(material(element(iel).mat).type==eip_spring) then
+			minv1=minval(-(element(iel).property(2:3)-element(iel).property(solver_control.iniepp)))
+			maxv1=maxval(-(element(iel).property(2:3)-element(iel).property(solver_control.iniepp)))
 			
-			if(element(iel).mat==-1) nc1=2
-			if(element(iel).mat==-2) nc1=1
-			t1=-element(iel).sign*abs(element(iel).property(3)-element(iel).property(nc1))
-            !t2=-element(iel).sign*abs(element(iel).property(nc1))
-            t2=0
-			minv1=min(t1,t2)
-			maxv1=max(t1,t2)
-            if(abs(km1)>1e-7) then
-                Xe1=(t1-t2)/km1
-                minelasticX1=min(Xe1,0.d0)
-                maxelasticX1=max(Xe1,0.d0)
-            endif
+        elseif(material(element(iel).mat).type==hyperbolic) then
+		
+            !if(element(iel).mat==-1) then !active soil spring
+                if(element(iel).sign*Dx>0.d0) then
+					Pf=-(element(iel).property(2)-element(iel).property(solver_control.iniepp))
+				else
+					Pf=-(element(iel).property(3)-element(iel).property(solver_control.iniepp))
+				endif
+    !        elseif(element(iel).mat==-2) then !passive soil spring
+    !            if(element(iel).sign*Dx<=0.d0) then
+				!	Pf=-(element(iel).property(3)-element(iel).property(1))
+				!else
+				!	Pf=-(element(iel).property(2)-element(iel).property(1))
+				!endif                
+    !        endif
+			
 		endif
     endif
+	
+	if(material(element(iel).mat).type==hyperbolic) then
+		a1=1./km1;
+		if(abs(Pf)<1.d-6) Pf=sign(1.d-6,Pf)
+		b1=1./Pf
+		gforce1(1)=Dx/(a1+b1*Dx)
+        !if(gforce1(1)-Pf>1.d-6) pause
+		km1=(1-gforce1(1)/Pf)**2*km1
+	else
+		gforce1(1)=element(iel).gforce(1)+element(iel).km(1,1)*Ddis(1)
 
-    
-    gforce1=km1*DX 
-    if(DX<minelasticX1) then
-        gforce1=minV1
-    elseif(DX>MAXELASTICX1) then
-        gforce1=MAXV1
-    endif
-    
-    element(iel).Dgforce(1)=km1*(Ddis(1))
-    
-    if(element(iel).Dgforce(1)+gforce1(1)<minV1) then
-        element(iel).Dgforce=minV1-gforce1
-        km1=0.d0
-    elseif(element(iel).Dgforce(1)+gforce1(1)>maxv1) then
-        element(iel).Dgforce=MAXV1-gforce1
-        km1=0.d0
-    endif
-    element(iel).gforce=gforce1
-    
-    element(iel).km(1,1)=km1
+		if(element(iel).mat>0.and.element(iel).ec==spring)  then
+			gforce1=gforce1+matproperty(element(iel).mat,4,istep)
+		endif
+		if(gforce1(1)>maxv1) then
+			gforce1=maxv1
+			isyield=.true.
+			!km1=0.0d0+element(iel).km(1,1)/2.0
+		elseif(gforce1(1)<minv1) then
+			gforce1=minv1
+			isyield=.true.
+		   !km1=0.d0+element(iel).km(1,1)/2.0
+		else
+			isyield=.false.
+		endif
+		
+		
+		if(isyield) then
+			if(abs(Ddis(1))<1.d-6) then
+				km1=abs((gforce1(1)-element(iel).gforce(1))/1.d-6)
+			else
+				km1=abs((gforce1(1)-element(iel).gforce(1))/Ddis(1))
+			endif 
+		endif
 
+	endif
+	
+    
+    element(iel).dgforce(1)=gforce1(1)-element(iel).gforce(1)
+    if(solver_control.solver==N_R) element(iel).km(1,1)=km1
 	element(iel).gforceILS=element(iel).gforce+element(iel).Dgforce
 	
 	
 
-end subroutine    
+end subroutine
+
+

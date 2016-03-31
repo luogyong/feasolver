@@ -217,7 +217,7 @@
 	integer,parameter::discharge=66
 	integer,parameter::PHead=67
 	integer,parameter::kr_spg=68
-integer, parameter::mw_spg = 69
+	integer, parameter::mw_spg = 69
 
 integer::minet = 10000, maxet = -10000   !the ultimate element type number.
 !solver method
@@ -241,8 +241,16 @@ integer, parameter::CONDUCT = 3 !
 integer, parameter::MISES = 4
 integer, parameter::MC = 5 !mohr - coloumb
 integer, parameter::CamClay = 6 !modified Camclay
-integer, parameter::EIP_BAR = 7 !弹理想塑性杆或弹簧。
+integer, parameter::EIP_BAR = 7 !弹理想塑性杆。
 integer, parameter::EIP_BEAM = 8 !弹理想塑性梁。
+integer, parameter::HYPERBOLIC=9 ! SIMILAR TO DUCAN-CHANG MODEL
+integer, parameter::EIP_SPRING=10 ! 弹理想塑性弹簧
+integer, parameter::MAT_SOIL=11
+integer,parameter::MAT_SPG=12
+integer,parameter::MAT_BAR=13
+integer,parameter::MAT_BEAM=14
+integer,parameter::MAT_SPRING=15
+
 
 !Seepage Parameters to control nonlinear conductivity
 integer, parameter::step_spg = 7 !step funtion >= 0, kr = 1; < 0, kr = 1e-6.

@@ -61,12 +61,12 @@ Module ExcaDS
     endtype
     
     type soilprofile_tydef
-        integer::nasoil=0,npsoil=0,beam=1,spm=0,naction=0,nstrut=0,kmethod=0 !spm=土压力计算方法,0=郎肯。 
+        integer::nasoil=0,npsoil=0,beam=1,spm=0,naction=0,nstrut=0,kmethod=0,soilspringmodel=10 !spm=土压力计算方法,0=郎肯。 
 		!kmethod,水平基床的计算方法: =0,m法(规范方法)；=1(E，v方法，);
         integer::sf_awL=0,sf_pwL=0,sf_aLoad=0,sf_pLoad=0 !主被侧水位的步长函数，主被动侧超载的步函数
 		real(DOUBLE)::awL,pwL,aLoad=0,pLoad=0 !主被侧水位,主被动侧地表超载（向下为正）
 		integer::za=0,zp=0 !各时间步主动侧和被动侧地表高程。
-		integer::aside=1 !aside=1,表主动土压力正，被动为负。
+		integer::aside=1 !aside=1,表主动侧的土压力正，被动侧的为负。
         CHARACTER(64)::TITLE=""
 		type(soillayer_tydef),allocatable::asoil(:),psoil(:)
 		integer,allocatable::iaction(:),istrut(:)
@@ -278,7 +278,8 @@ SUBROUTINE SOILLOAD_EXCA(ISTEP)
 		NS1=LBOUND(PILE(IPILE).ELEMENT_SP,DIM=2)
 		NS2=UBOUND(PILE(IPILE).ELEMENT_SP,DIM=2)
         
-		BC_LOAD(PILE(IPILE).NODE2BCLOAD).VALUE=0
+		BC_LOAD(PILE(IPILE).NODE2BCLOAD).VALUE=0.d0
+		BC_LOAD(PILE(IPILE).NODE2BCLOAD).isincrement=1
         NC2=PILE(IPILE).NODE2BCLOAD(NS2)
         NC1=PILE(IPILE).NODE2BCLOAD(NS1)
 		IF(.NOT.ALLOCATED(SOILPROFILE(I).STEPLOAD)) THEN
@@ -295,7 +296,7 @@ SUBROUTINE SOILLOAD_EXCA(ISTEP)
 			!BC_LOAD(INNODE1(2)).VALUE=BC_LOAD(INNODE1(2)).VALUE+ELEMENT(IELA1(2)).PROPERTY(1)
             
             
-            SOILPROFILE(I).STEPLOAD(INNODE1(1),ISTEP)=SOILPROFILE(I).STEPLOAD(INNODE1(1),ISTEP)+ELEMENT(IELA1(1)).PROPERTY(2)
+            SOILPROFILE(I).STEPLOAD(INNODE1(1),ISTEP)=SOILPROFILE(I).STEPLOAD(INNODE1(1),ISTEP)+ELEMENT(IELA1(1)).PROPERTY(solver_control.iniepp)
 			SOILPROFILE(I).STEPLOAD(INNODE1(2),ISTEP)=SOILPROFILE(I).STEPLOAD(INNODE1(2),ISTEP)+ELEMENT(IELA1(2)).PROPERTY(solver_control.iniepp)
 			!实际上，INNODE1(1)=INNODE1(2)
 			!只对土压力进行折减
@@ -328,7 +329,7 @@ SUBROUTINE ACTION_EXCA(ISTEP)
     IMPLICIT NONE
     integer,intent(in)::istep	
 	integer::I,j,k,k1,IAC1,nnode1(2),nc1,nc2,iel1,iel2(2),n1,ndim1
-	real(double)::t1,d1,b1,bp1,v1(2)
+	real(double)::t1,t2,d1,b1,bp1,v1(2)
 	real(double),allocatable::ar1(:)
     real(double),external::interpolation
 	
@@ -346,8 +347,10 @@ SUBROUTINE ACTION_EXCA(ISTEP)
 	
 		if(allocated(ar1)) deallocate(ar1)
 		allocate(ar1,MOLD=action(iac1).value)
-
-		forall (k=1:action(iac1).nkp) ar1(k)=action(iac1).value(k)*sf(action(iac1).vsf(k)).factor(istep)
+		t2=0
+		if(action(iac1).type/=2) t2=sf(action(iac1).vsf(k)).factor(max(istep-1,0)) !荷载和位移按增量进入每一步的施加，而刚度按总量进行计算
+		if(t2==-999.d0) t2=0
+		forall (k=1:action(iac1).nkp) ar1(k)=action(iac1).value(k)*(sf(action(iac1).vsf(k)).factor(istep)-t2) 
 	
 		if(action(IAC1).NDIM==1) then
 			nc1=2
@@ -362,7 +365,10 @@ SUBROUTINE ACTION_EXCA(ISTEP)
 		if(allocated(action(iac1).node2stiffelement))  &
 			forall (k1=1:n1,k=1:6,action(iac1).node2stiffelement(k1)>0) element(action(iac1).node2stiffelement(k1)).property(k)=0.d0
 		where(action(iac1).node2bcdisp>0) bc_disp(action(iac1).node2bcdisp).value=0
+		where(action(iac1).node2bcdisp>0) bc_disp(action(iac1).node2bcdisp).isincrement=1
+		
 		where(action(iac1).node2bcload>0) bc_load(action(iac1).node2bcload).value=0
+		where(action(iac1).node2bcload>0) bc_load(action(iac1).node2bcload).isincrement=1
 		
 		do k=1,nc2
 			if(action(IAC1).NDIM==1) then
@@ -554,6 +560,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 				BC_LOAD(N1+J-1).NODE=NNUM+J
 				PILE(IPILE).NODE2BCLOAD(NNUM+J)=N1+J-1
 				BC_LOAD(N1+J-1).DOF=1
+				BC_LOAD(N1+J-1).ISINCREMENT=1
 			ENDFORALL
 		endif
 		
@@ -593,6 +600,8 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		element(n1).ngp=ngp1
 		element(n1).nd=nd1
 		element(n1).ec=ec1
+		
+		element(n1).property(1)=0.d0
 		element(n1).property(2)=-1.d20
 		element(n1).property(3)=1.d20
 		element(n1).property(4)=1.0d7
@@ -747,8 +756,8 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 					bc_disp(n1:).node=ACTION(IAC1).NODE
 				ENDIF                    
 				bc_disp(n1:).dof=action(iac1).dof
-				
-				!bc_disp(n1:).sf=action(iac1).sf
+				bc_disp(n1:).ISINCREMENT=1
+				!bc_disp(n1:).sf=action(iac1).sf !在此其bc_disp的值已经是每一步的增量了。
 				
 				forall (k=n1:bd_num) action(iac1).node2bcdisp(bc_disp(k).node)=k
 				!print *, action(iac1).node2bcdisp
@@ -766,7 +775,8 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 				ENDIF 
 				forall (k=n1:bL_num) action(iac1).node2bcload(bc_load(k).node)=k
 				BC_LOAD(N1:).dof=action(iac1).dof
-				!BC_LOAD(N1:).sf=action(iac1).sf
+				BC_LOAD(N1:).ISINCREMENT=1
+				!BC_LOAD(N1:).sf=action(iac1).sf  !在此其bc_load的值已经是每一步的增量了。
 
 		end select	
 	enddo
@@ -945,7 +955,8 @@ subroutine soilstiffness_cal(isp,istep,iz,soil) !iz,为开挖面高程点。
 		case(4) !Vesic ks的单位为:kN/m3
 			soil.ks=0.65*Es1/(1-mu1**2)*(b1**4*Es1/((1-mu1**2)*Ep1*Iz1))**(1./12.0)	
 			soil.ks=soil.ks/b1
-			
+		!case(5)
+		
 		case(-1) !直接输入，ks的单位为:kN/m3
 			soil.ks=matproperty(soil.mat,7,istep)
 		
@@ -1038,7 +1049,7 @@ subroutine Initialize_soilspringEelement_EXCA(ipile,istep,aside,aop,soil)
 			element(iel2).property(5)=element(iel2).property(5)+t1
 			vi1(1)=interpolation(kpoint(ndimension,soil.z(1:2)),soil.sigmaKo,2,zi1(1))
 			vi1(2)=interpolation(kpoint(ndimension,soil.z(1:2)),soil.sigmaKo,2,zi1(2))
-			element(iel2).property(1)=element(iel2).property(1)+b1*(vi1(1)+vi1(2))*t1/2
+			element(iel2).property(1)=element(iel2).property(1)+b1*(vi1(1)+vi1(2))*t1/2.0 !=...+b1*(vi1(1)+vi1(2))/2.*2.*t1/2.
 			vi1(1)=interpolation(kpoint(ndimension,soil.z(1:2)),soil.sigmaKa,2,zi1(1))
 			vi1(2)=interpolation(kpoint(ndimension,soil.z(1:2)),soil.sigmaKa,2,zi1(2))
 			element(iel2).property(2)=element(iel2).property(2)+sign1*b1*(max(sign1*vi1(1),0.0)+max(sign1*vi1(2),0.0))*t1/2			
@@ -1057,7 +1068,7 @@ subroutine Initialize_soilspringEelement_EXCA(ipile,istep,aside,aop,soil)
                 do j=1,2
 				!if(.not.allocated(element(iel2(j)).gforce)) allocate(element(iel2(j)).gforce(1))
 				if(.not.allocated(element(iel2(j)).km)) allocate(element(iel2(j)).km(1,1))
-                element(iel2(j)).km(1,1)=element(iel2(j)).property(4)
+                element(iel2(j)).km(1,1)=element(iel2(j)).property(4)/2. !!!!!两侧都有土弹簧，其刚度各为1/2？？？？？？？ 
 				!element(iel2(j)).gforce(1) =element(iel2(j)).property(1)+element(iel2(j)).property(6)
 			    enddo
             endif
@@ -1304,7 +1315,9 @@ subroutine waterpressure_cal(isoilprofile,istep)
 				soilprofile(isoilprofile).asoil(i).PW(2)=max(awL1-kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(2)),0.d0)*GA   
 				
 			case(2) !简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
-
+			case(3) !手动输入
+				soilprofile(isoilprofile).asoil(i).PW(1)=matproperty(soilprofile(isoilprofile).asoil(i).mat,9,istep)
+				soilprofile(isoilprofile).asoil(i).PW(2)=matproperty(soilprofile(isoilprofile).asoil(i).mat,10,istep)
 			case default
 				soilprofile(isoilprofile).asoil(i).pw=0.0d0
 		endselect		
@@ -1334,7 +1347,9 @@ subroutine waterpressure_cal(isoilprofile,istep)
 				soilprofile(isoilprofile).psoil(i).PW(2)=max(pwL1-kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(2)),0.d0)*GA 
 				
 			case(2) !简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
-				
+			case(3) !手动输入
+				soilprofile(isoilprofile).psoil(i).PW(1)=matproperty(soilprofile(isoilprofile).psoil(i).mat,9,istep)
+				soilprofile(isoilprofile).psoil(i).PW(2)=matproperty(soilprofile(isoilprofile).psoil(i).mat,10,istep)				
 			case default
 				soilprofile(isoilprofile).psoil(i).pw=0.0d0
 		endselect		
@@ -1499,6 +1514,9 @@ subroutine Beam_Result_EXCA(istep)
 				        pile(ipile).beamresult(nnode1(k),6,istep)=pile(ipile).beamresult(nnode1(k),6,istep) &
 					        +element(iesp1(1)).gforceILS(1)/ &
                             element(iesp1(1)).property(5)  
+						!荷载+土弹簧力
+						pile(ipile).beamresult(nnode1(k),4,istep)=pile(ipile).beamresult(nnode1(k),4,istep) &
+							+pile(ipile).beamresult(nnode1(k),6,istep)	
                         !主动侧土弹簧力限值		
 				        pile(ipile).beamresult(nnode1(k),7,istep)=pile(ipile).beamresult(nnode1(k),7,istep) &
 					        -(element(iesp1(1)).property(3)- &
@@ -1527,6 +1545,9 @@ subroutine Beam_Result_EXCA(istep)
 				        pile(ipile).beamresult(nnode1(k),10,istep)=pile(ipile).beamresult(nnode1(k),10,istep) &
 					        +element(iesp1(2)).gforceILS(1)/ &
                             element(iesp1(2)).property(5)
+						!荷载+土弹簧力	
+						pile(ipile).beamresult(nnode1(k),4,istep)=pile(ipile).beamresult(nnode1(k),4,istep) &
+							+pile(ipile).beamresult(nnode1(k),10,istep)
 				        !被动侧土弹簧力限值		
 				        pile(ipile).beamresult(nnode1(k),11,istep)=pile(ipile).beamresult(nnode1(k),11,istep) &
 					        -(element(iesp1(2)).property(3)- &
@@ -1548,9 +1569,9 @@ subroutine Beam_Result_EXCA(istep)
                     endif
                 
                 endif
-                !NODAL LOAD
+                !荷载+土弹簧力
                 
-                pile(ipile).beamresult(nnode1(k),4,istep)=-TLOAD(NODE(NNODE1(K)).DOF(NC1))/pile(ipile).Nlength(nnode1(k))
+                pile(ipile).beamresult(nnode1(k),4,istep)=pile(ipile).beamresult(nnode1(k),4,istep)-(TLOAD(NODE(NNODE1(K)).DOF(NC1)))/pile(ipile).Nlength(nnode1(k))
                 
 				isout1(nnode1(k))=.true.
 			enddo		
@@ -1573,8 +1594,8 @@ subroutine Beam_Result_EXCA(istep)
 	do j=1,nstrut
 		nc1=strut(j).element
 		IF(ELEMENT(NC1).ISACTIVE==1) THEN
-		    write(24,21) istep,j,node(element(nc1).node(1)).coord(ndimension),element(nc1).gforceILS(1)
-		    if(strut(j).isbar==1) write(24,21) istep,j,node(element(nc1).node(2)).coord(ndimension),element(nc1).gforceILS(2)
+		    write(24,21) istep,j,node(element(nc1).node(1)).coord(1:ndimension),element(nc1).gforceILS(1)
+		    if(strut(j).isbar==1) write(24,21) istep,j,node(element(nc1).node(2)).coord(1:ndimension),element(nc1).gforceILS(2)
         ENDIF
 	enddo
 	
@@ -1583,12 +1604,12 @@ subroutine Beam_Result_EXCA(istep)
 	CLOSE(24)
 	CLOSE(25)
 	
-10 FORMAT(10X,"IPILE",10X,"ISTEP",10X,"INODE",11X,"X(L)",11X,"Y(L)",9X,"DIS(L)",4X,"MOMENT(F.M)",11X,"Q(F)",6X,"TFORCE(F)",3X,"PAA+PWA(F/L)", &
+10 FORMAT(10X,"IPILE",10X,"ISTEP",10X,"INODE",11X,"X(L)",11X,"Y(L)",9X,"DIS(L)",4X,"MOMENT(F.M)",11X,"Q(F)",4X,"TFORCE(F/L)",3X,"PAA+PWA(F/L)", &
 	   5X,"PA_SP(F/L)",X,"MAX_PA_SP(F/L)",7X,"PWA(F/L)",3X,"PAP+PWP(F/L)",5X,"PP_SP(F/L)",X,"MAX_PP_SP(F/L)",7X,"PWP(F/L)",4X,"KSA_SP(F/L)",4X,"KSP_SP(F/L)")	
 11 FORMAT(3(X,I14),16(X,E14.7))	
 12 FORMAT(2(X,I14))
-20 FORMAT(10X,"ISTEP",9X,"ISTRUT",11X,"Y(L)",11X,"P(F)")
-21 FORMAT(2(X,I14),2(X,E14.7))
+20 FORMAT(10X,"ISTEP",9X,"ISTRUT",11X,"X(L)",11X,"Y(L)",11X,"P(F)")
+21 FORMAT(2(X,I14),3(X,E14.7))
 30 FORMAT(10X,"IPILE",10X,"ISTEP",10X,"MINDX",8X,"X_MINDX",8X,"Y_MINDX",10X,"MAXDX",8X,"X_MAXDX",8X,"Y_MAXDX",&
 		  11X,"MINM",9X,"X_MINM",9X,"Y_MINM",11X,"MAXM",9X,"X_MAXM",9X,"Y_MAXM",&
 		  11X,"MINQ",9X,"X_MINQ",9X,"Y_MINQ",11X,"MAXQ",9X,"X_MAXQ",9X,"Y_MAXQ")

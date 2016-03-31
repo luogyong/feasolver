@@ -534,6 +534,7 @@ SUBROUTINE GEN_TRISURFACE()
 			
 			!CALL stla_face_normal_compute ( PHYSICALGROUP(IGP1).NTRINODEL2G,N1, XYZ1(:,:), TRI1(:,:), FACENOR1(:,:) )
 			CALL stla_write (STLFILE1, PHYSICALGROUP(IGP1).NTRINODEL2G,N1, XYZ1(:,:), TRI1(:,:), FACENOR1(:,:) )
+            
         ENDIF
         
 
@@ -758,7 +759,7 @@ subroutine write_readme_gmsh2sinp()
 	integer::i,j,item
 	LOGICAL(4)::tof,pressed
 	!integer,external::ipp
-	character(512)::readme(512)
+	character(512)::readme(1024)
 	
 	open(2,file=FILEPATH//'_README_GMSH2SINP.TXT',STATUS='REPLACE')
 	
@@ -941,8 +942,8 @@ subroutine write_readme_gmsh2sinp()
 		
 		i=i+1
 		ipp=i
-		if(ipp>512) then
-			print *, "The size of README is 512."
+		if(ipp>1024) then
+			print *, "The size of README is 1024."
 			stop
 		end if
 				

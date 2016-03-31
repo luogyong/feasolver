@@ -153,6 +153,7 @@ module solverds
 		integer::isdual=0
 		integer::ssp_onepile=0 !只对SSP单元节点起作用，标示这个作用是否是作用在其中一根钢板桩上,而不两根都作用。
 								!/=0,作用在单根钢板桩上，=0都作用。
+		integer::isincrement=0 !如果为1，则表明value是增量，而不是全量（默认）
 	end type
 	type(bc_tydef),allocatable::bc_disp(:),bc_load(:),bf(:),NSeep(:),IniValue(:),CFN(:)
 	integer::bd_num=0,bl_num=0,bfnum=0,NumNSeep=0,Niniv=0,NCFN=0	
@@ -170,7 +171,7 @@ module solverds
 
 	!material 
 	type mat_tydef
-		integer::type
+		integer::type=0
 		real(kind=DPN)::property(32)=0.0D0
 		integer::sf(32)=0 !not considered yet.
 		real(kind=DPN)::weight=0.0
@@ -179,7 +180,7 @@ module solverds
 		logical::isff=.false. ! whether the parameters are dependent on  the field function
 		character(64)::name=""
 	end type
-	type(mat_tydef)::material(maximat)
+	type(mat_tydef)::material(-2:maximat) 
 	
 	
 	!solution control
