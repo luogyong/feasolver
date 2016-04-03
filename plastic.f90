@@ -799,7 +799,7 @@ subroutine ssp_slave_master_contact_force_cal(istep,isubts,iiter,iel,Tforce,nTfo
 			if(t1==-999.d0) cycle
 			
 			T2=sf(bc_load(smnp(i).mbl(j)).sf).factor(max(istep-1,0))
-            IF(bc_load(smnp(i).mbl(j)).ISINCREMENT==0 .OR. T2==-999.D0) T2=0
+            IF(bc_load(smnp(i).mbl(j)).ISINCREMENT==1 .OR. T2==-999.D0.OR.ISTEP>1) T2=0
 			t1=sf(bc_load(smnp(i).mbl(j)).sf).factor(istep)-T2
 			smnp(i).load=smnp(i).load+bc_load(smnp(i).mbl(j)).value*t1			
 		end do
