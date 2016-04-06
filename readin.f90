@@ -1187,6 +1187,7 @@ subroutine solvercommand(term,unit)
 					soilprofile(i).asoil(j).wpflag=int(ar(4))
 					soilprofile(i).asoil(j).sf=int(ar(5))
 					if(n1>5) soilprofile(i).asoil(j).pv=ar(6)
+                    if(n1>6) soilprofile(i).asoil(j).soiltype=int(ar(7))
 				enddo
 				
 				do j=1,soilprofile(i).npsoil
@@ -1197,7 +1198,8 @@ subroutine solvercommand(term,unit)
 					soilprofile(i).psoil(j).mat=int(ar(3))
 					soilprofile(i).psoil(j).wpflag=int(ar(4))
 					soilprofile(i).psoil(j).sf=int(ar(5))
-					if(n1>5) soilprofile(i).asoil(j).pv=ar(6)
+					if(n1>5) soilprofile(i).psoil(j).pv=ar(6)
+                    if(n1>6) soilprofile(i).psoil(j).soiltype=int(ar(7))
                 enddo
                 
 				call skipcomment(unit)

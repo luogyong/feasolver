@@ -52,7 +52,7 @@ Module ExcaDS
     
 	
     type soillayer_tydef
-        integer::z(2)=0,mat=1,sf=0,wpflag=1,nnode=0,nel=0  !土层号，步函数号，是否水土分算（1Yes0NO）,此段范围内土层所依附的支护梁的节点个数,单元数
+        integer::z(2)=0,mat=1,sf=0,wpflag=1,nnode=0,nel=0,soiltype=0  !土层号，步函数号，是否水土分算（1Yes0NO）,此段范围内土层所依附的支护梁的节点个数,单元数
         integer::IUNSET=-1,IUESET=-1 !此段范围内土层所依附的支护梁的节点集和单元集编号
 		real(double)::ko=0.d0,ka=0.d0,kp=0.d0,Pv=0.d0 !静止、主动、被动土压力系数,作用于该土层面的超载（向下为正） 
         real(double)::SigmaVT(2),SigmaV(2),Sigmako(2),Sigmaka(2),Sigmakp(2),PW(2)=0.0d0,KS(2)=0.D0		
@@ -347,10 +347,12 @@ SUBROUTINE ACTION_EXCA(ISTEP)
 	
 		if(allocated(ar1)) deallocate(ar1)
 		allocate(ar1,MOLD=action(iac1).value)
-		t2=0
-		if(action(iac1).type/=2) t2=sf(action(iac1).vsf(k)).factor(max(istep-1,0)) !荷载和位移按增量进入每一步的施加，而刚度按总量进行计算
-		if(t2==-999.d0) t2=0
-		forall (k=1:action(iac1).nkp) ar1(k)=action(iac1).value(k)*(sf(action(iac1).vsf(k)).factor(istep)-t2) 
+        do k=1,action(iac1).nkp
+		    t2=0
+		    if(action(iac1).type/=2) t2=sf(action(iac1).vsf(k)).factor(max(istep-1,0)) !荷载和位移按增量进入每一步的施加，而刚度按总量进行计算
+		    if(t2==-999.d0) t2=0
+		    ar1(k)=action(iac1).value(k)*(sf(action(iac1).vsf(k)).factor(istep)-t2) 
+        enddo
 	
 		if(action(IAC1).NDIM==1) then
 			nc1=2
