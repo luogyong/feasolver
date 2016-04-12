@@ -1148,8 +1148,9 @@ subroutine EarthPressure(istep)
                 do k=j-1,1,-1
                     if(sf(soilprofile(i).asoil(k).sf).factor(istep)/=0) exit
                 enddo
-				soilprofile(i).asoil(j).SigmaV(1)=soilprofile(i).asoil(k).SigmaV(2)+soilprofile(i).asoil(j).pv
+				!soilprofile(i).asoil(j).SigmaV(1)=soilprofile(i).asoil(k).SigmaV(2)+soilprofile(i).asoil(j).pv
                 soilprofile(i).asoil(j).SigmaVT(1)=soilprofile(i).asoil(k).SigmaVT(2)+soilprofile(i).asoil(j).pv
+				soilprofile(i).asoil(j).SigmaV(1)=soilprofile(i).asoil(j).SigmaVT(1)-soilprofile(i).asoil(j).pw(1)
 			endif
 			gamma1=matproperty(soilprofile(i).asoil(j).mat,3,istep)
 			t1=kpoint(ndimension,soilprofile(i).asoil(j).z(1))-kpoint(ndimension,soilprofile(i).asoil(j).z(2))
@@ -1185,8 +1186,9 @@ subroutine EarthPressure(istep)
                 do k=j-1,1,-1
                     if(sf(soilprofile(i).psoil(k).sf).factor(istep)/=0) exit
                 enddo
-				soilprofile(i).psoil(j).SigmaV(1)=soilprofile(i).psoil(k).SigmaV(2)+soilprofile(i).psoil(j).pv
+				!soilprofile(i).psoil(j).SigmaV(1)=soilprofile(i).psoil(k).SigmaV(2)+soilprofile(i).psoil(j).pv
                 soilprofile(i).psoil(j).SigmaVT(1)=soilprofile(i).psoil(k).SigmaVT(2)+soilprofile(i).psoil(j).pv
+				soilprofile(i).psoil(j).SigmaV(1)=soilprofile(i).psoil(j).SigmaVT(1)-soilprofile(i).psoil(j).pw(1)
 			endif
 			gamma1=matproperty(soilprofile(i).psoil(j).mat,3,istep)
             t1=kpoint(ndimension,soilprofile(i).psoil(j).z(1))-kpoint(ndimension,soilprofile(i).psoil(j).z(2))
