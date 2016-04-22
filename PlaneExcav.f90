@@ -653,7 +653,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
                 N2=SOILPROFILE(I).ASOIL(J).Z(2)
                 WRITE(CH1,'(I3)') I
                 WRITE(CH2,'(I3)') J
-                TITLE1="SP_"//TRIM(CH1)//"ASOIL_"//TRIM(CH2)
+                TITLE1="SP_"//TRIM(CH1)//"_ASOIL_"//TRIM(CH2)
 				CALL Gen_USER_NSET_EXCA(N1,N2,TITLE1,SOILPROFILE(I).ASOIL(J).IUNSET)
 				CALL Gen_USER_ESET_EXCA(N1,N2,TITLE1,SOILPROFILE(I).ASOIL(J).IUESET)							 
 			else
@@ -670,7 +670,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
                 N2=SOILPROFILE(I).psoil(J).Z(2)
                 WRITE(CH1,'(I3)') I
                 WRITE(CH2,'(I3)') J
-                TITLE1="SP_"//TRIM(CH1)//"psoil_"//TRIM(CH2)
+                TITLE1="SP_"//TRIM(CH1)//"_PSOIL_"//TRIM(CH2)
 				CALL Gen_USER_NSET_EXCA(N1,N2,TITLE1,SOILPROFILE(I).psoil(J).IUNSET)
 				CALL Gen_USER_ESET_EXCA(N1,N2,TITLE1,SOILPROFILE(I).psoil(J).IUESET)							 
 			else
@@ -852,9 +852,12 @@ subroutine Gen_USER_ESET_EXCA(N1,N2,NAME,ISET)
 	ISET=NUESET+1
 	UESET(ISET).NAME=NAME
 	UESET(ISET).ENUM=KPELEMENT(1,N2)-KPELEMENT(2,N1)+1
-    IF(KPELEMENT(1,N2)<KPELEMENT(2,N1)) THEN
-        PAUSE
-    ENDIF
+	!if(ueset(ISET).enum==0) then
+	!	pause
+	!endif
+    !IF(KPELEMENT(1,N2)<KPELEMENT(2,N1)) THEN
+    !    PAUSE
+    !ENDIF
 	ALLOCATE(UESET(ISET).ELEMENT(UESET(ISET).ENUM))
 	DO I=1,UESET(ISET).ENUM
 		UESET(ISET).ELEMENT(I)=KPELEMENT(2,N1)+I-1
