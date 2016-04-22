@@ -69,6 +69,8 @@ Module ExcaDS
 		integer::aside=1 !aside=1,表主动侧的土压力正，被动侧的为负。
         CHARACTER(64)::TITLE=""
 		type(soillayer_tydef),allocatable::asoil(:),psoil(:)
+        integer,allocatable::asoilstep(:,:),psoilstep(:,:)
+        !asoilstep(isoil,istep):第istep时，主动侧激活各土层从上往下的编号。
 		integer,allocatable::iaction(:),istrut(:)
         real(double),allocatable::stepload(:,:)
 		
@@ -120,6 +122,9 @@ Module ExcaDS
 	type(action_tydef),allocatable::action(:)
 	integer::naction=0
     REAL(DOUBLE)::MAXACTION=0.D0
+    
+ 
+        
 	
     contains
     
@@ -1126,7 +1131,7 @@ subroutine EarthPressure(istep)
 	implicit none
     integer,intent(in)::istep
     
-	integer::i,j,k,ilayer1=0
+	integer::i,j,k,N1=0,N2
 	real(double)::fi1,gamma1,t1,WL1
 	logical::tof1
 	
@@ -1134,80 +1139,81 @@ subroutine EarthPressure(istep)
 		
 		!water pressure calculation
 		call waterpressure_Cal(i,istep)
-		ilayer1=0
+
 		tof1=.true.
 		do j=1,soilprofile(i).nasoil
-			if(sf(soilprofile(i).asoil(j).sf).factor(istep)==0) cycle
-			ilayer1=ilayer1+1
+			N1=SOILPROFILE(I).ASOILSTEP(J,ISTEP)
+			IF(N1==0) EXIT
+			!if(sf(soilprofile(i).asoil(j).sf).factor(istep)==0) cycle
+
 			!竖向有效压力（如果是合算，则为总应力）
-			if(tof1) then
+			if(J==1) then
                 WL1=soilprofile(i).awL*sf(soilprofile(i).sf_awL).factor(istep)
-                T1=MAX((wL1-kpoint(ndimension,soilprofile(i).asoil(j).z(1)))*GA,0.0)
-				soilprofile(i).asoil(j).SigmaVT(1)=T1+soilprofile(i).aLoad*sf(soilprofile(i).sf_aload).factor(istep)+soilprofile(i).asoil(j).pv
-                soilprofile(i).asoil(j).SigmaV(1)=soilprofile(i).asoil(j).SigmaVT(1)-soilprofile(i).asoil(j).pw(1)				
-				soilprofile(i).za=soilprofile(i).asoil(j).z(1)
-				tof1=.false.
+                T1=MAX((wL1-kpoint(ndimension,soilprofile(i).ASOIL(N1).z(1)))*GA,0.0)
+				soilprofile(i).ASOIL(N1).SigmaVT(1)=T1+soilprofile(i).aLoad*sf(soilprofile(i).sf_aload).factor(istep)+soilprofile(i).ASOIL(N1).pv
+                soilprofile(i).ASOIL(N1).SigmaV(1)=soilprofile(i).ASOIL(N1).SigmaVT(1)-soilprofile(i).ASOIL(N1).pw(1)				
+				soilprofile(i).za=soilprofile(i).ASOIL(N1).z(1)
+				!=.false.
             else
-                do k=j-1,1,-1
-                    if(sf(soilprofile(i).asoil(k).sf).factor(istep)/=0) exit
-                enddo
-				!soilprofile(i).asoil(j).SigmaV(1)=soilprofile(i).asoil(k).SigmaV(2)+soilprofile(i).asoil(j).pv
-                soilprofile(i).asoil(j).SigmaVT(1)=soilprofile(i).asoil(k).SigmaVT(2)+soilprofile(i).asoil(j).pv
-				soilprofile(i).asoil(j).SigmaV(1)=soilprofile(i).asoil(j).SigmaVT(1)-soilprofile(i).asoil(j).pw(1)
+                K=SOILPROFILE(I).ASOILSTEP(J-1,ISTEP)
+				
+				!soilprofile(i).ASOIL(N1).SigmaV(1)=soilprofile(i).asoil(k).SigmaV(2)+soilprofile(i).ASOIL(N1).pv
+                soilprofile(i).ASOIL(N1).SigmaVT(1)=soilprofile(i).asoil(k).SigmaVT(2)+soilprofile(i).ASOIL(N1).pv
+				soilprofile(i).ASOIL(N1).SigmaV(1)=soilprofile(i).ASOIL(N1).SigmaVT(1)-soilprofile(i).ASOIL(N1).pw(1)
 			endif
-			gamma1=matproperty(soilprofile(i).asoil(j).mat,3,istep)
-			t1=kpoint(ndimension,soilprofile(i).asoil(j).z(1))-kpoint(ndimension,soilprofile(i).asoil(j).z(2))
-            soilprofile(i).asoil(j).SigmaVT(2)=soilprofile(i).asoil(j).SigmaVT(1)+gamma1*(t1)
-            soilprofile(i).asoil(j).SigmaV(2)=soilprofile(i).asoil(j).SigmaVT(2)-soilprofile(i).asoil(j).pw(2)
+			gamma1=matproperty(soilprofile(i).ASOIL(N1).mat,3,istep)
+			t1=kpoint(ndimension,soilprofile(i).ASOIL(N1).z(1))-kpoint(ndimension,soilprofile(i).ASOIL(N1).z(2))
+            soilprofile(i).ASOIL(N1).SigmaVT(2)=soilprofile(i).ASOIL(N1).SigmaVT(1)+gamma1*(t1)
+            soilprofile(i).ASOIL(N1).SigmaV(2)=soilprofile(i).ASOIL(N1).SigmaVT(2)-soilprofile(i).ASOIL(N1).pw(2)
 			
-			!fi1=material(soilprofile(i).asoil(j).mat).property(2)/180.d0*PI()*SF(material(soilprofile(i).asoil(j).mat).sf(2)).factor(istep)
+			!fi1=material(soilprofile(i).ASOIL(N1).mat).property(2)/180.d0*PI()*SF(material(soilprofile(i).ASOIL(N1).mat).sf(2)).factor(istep)
 			
 			!土压力系数
-			call ep_Cal(i,istep,soilprofile(i).asoil(j),soilprofile(i).aside)									
+			call ep_Cal(i,istep,soilprofile(i).ASOIL(N1),soilprofile(i).aside)									
 												
 			
 		end do
-		tof1=.true.
+		!tof1=.true.
 		do j=1,soilprofile(i).npsoil
-			if(sf(soilprofile(i).psoil(j).sf).factor(istep)==0) cycle
-			
+			N1=SOILPROFILE(I).PSOILSTEP(J,ISTEP)
+			IF(N1==0) EXIT
+			!if(sf(soilprofile(i).psoil(j).sf).factor(istep)==0) cycle
+			!
 			!竖向有效压力（如果是合算，则为总应力）
 			
-			if(tof1) then
+			if(J==1) then
                 WL1=soilprofile(i).PwL*sf(soilprofile(i).sf_PwL).factor(istep)
-                T1=MAX((wL1-kpoint(ndimension,soilprofile(i).Psoil(j).z(1)))*GA,0.d0)
-				soilprofile(i).psoil(j).SigmaVT(1)=T1+soilprofile(i).pLoad*sf(soilprofile(i).sf_pload).factor(istep)+soilprofile(i).psoil(j).pv
-				soilprofile(i).psoil(j).SigmaV(1)=soilprofile(i).psoil(j).SigmaVT(1)-soilprofile(i).psoil(j).pw(1)
-                if( soilprofile(i).psoil(j).SigmaV(1)<0) then
-                    print *, 'The effective vertical stress is <0 in soilprofile(i).psoil(j).SigmaV1. i,j=',i,j
-                    soilprofile(i).psoil(j).SigmaV(1)=0.d0
+                T1=MAX((wL1-kpoint(ndimension,soilprofile(i).PSOIL(N1).z(1)))*GA,0.d0)
+				soilprofile(i).PSOIL(N1).SigmaVT(1)=T1+soilprofile(i).pLoad*sf(soilprofile(i).sf_pload).factor(istep)+soilprofile(i).PSOIL(N1).pv
+				soilprofile(i).PSOIL(N1).SigmaV(1)=soilprofile(i).PSOIL(N1).SigmaVT(1)-soilprofile(i).PSOIL(N1).pw(1)
+                if( soilprofile(i).PSOIL(N1).SigmaV(1)<0) then
+                    print *, 'The effective vertical stress is <0 in soilprofile(i).PSOIL(N1).SigmaV1. i,N1=',i,N1
+                    soilprofile(i).PSOIL(N1).SigmaV(1)=0.d0
                 endif
                 
-                soilprofile(i).zp=soilprofile(i).psoil(j).z(1)
-				tof1=.false.
+                soilprofile(i).zp=soilprofile(i).PSOIL(N1).z(1)
+				!tof1=.false.
             else
-                do k=j-1,1,-1
-                    if(sf(soilprofile(i).psoil(k).sf).factor(istep)/=0) exit
-                enddo
-				!soilprofile(i).psoil(j).SigmaV(1)=soilprofile(i).psoil(k).SigmaV(2)+soilprofile(i).psoil(j).pv
-                soilprofile(i).psoil(j).SigmaVT(1)=soilprofile(i).psoil(k).SigmaVT(2)+soilprofile(i).psoil(j).pv
-				soilprofile(i).psoil(j).SigmaV(1)=soilprofile(i).psoil(j).SigmaVT(1)-soilprofile(i).psoil(j).pw(1)
+                K=SOILPROFILE(I).PSOILSTEP(J-1,ISTEP)
+				!soilprofile(i).PSOIL(N1).SigmaV(1)=soilprofile(i).psoil(k).SigmaV(2)+soilprofile(i).PSOIL(N1).pv
+                soilprofile(i).PSOIL(N1).SigmaVT(1)=soilprofile(i).psoil(k).SigmaVT(2)+soilprofile(i).PSOIL(N1).pv
+				soilprofile(i).PSOIL(N1).SigmaV(1)=soilprofile(i).PSOIL(N1).SigmaVT(1)-soilprofile(i).PSOIL(N1).pw(1)
 			endif
-			gamma1=matproperty(soilprofile(i).psoil(j).mat,3,istep)
-            t1=kpoint(ndimension,soilprofile(i).psoil(j).z(1))-kpoint(ndimension,soilprofile(i).psoil(j).z(2))
-			soilprofile(i).psoil(j).SigmaVT(2)=soilprofile(i).psoil(j).SigmaVT(1)+gamma1*(t1)
-            soilprofile(i).psoil(j).SigmaV(2)=soilprofile(i).psoil(j).SigmaVT(2)-soilprofile(i).psoil(j).pw(2)
+			gamma1=matproperty(soilprofile(i).PSOIL(N1).mat,3,istep)
+            t1=kpoint(ndimension,soilprofile(i).PSOIL(N1).z(1))-kpoint(ndimension,soilprofile(i).PSOIL(N1).z(2))
+			soilprofile(i).PSOIL(N1).SigmaVT(2)=soilprofile(i).PSOIL(N1).SigmaVT(1)+gamma1*(t1)
+            soilprofile(i).PSOIL(N1).SigmaV(2)=soilprofile(i).PSOIL(N1).SigmaVT(2)-soilprofile(i).PSOIL(N1).pw(2)
             
-            if( soilprofile(i).psoil(j).SigmaV(2)<0) then
-                print *, 'The effective vertical stress is <0 in soilprofile(i).psoil(j).SigmaV2. i,j=',i,j
-                soilprofile(i).psoil(j).SigmaV(2)=0.d0
+            if( soilprofile(i).PSOIL(N1).SigmaV(2)<0) then
+                print *, 'The effective vertical stress is <0 in soilprofile(i).PSOIL(N1).SigmaV2. i,N1=',i,N1
+                soilprofile(i).PSOIL(N1).SigmaV(2)=0.d0
             endif
                 
 			
-			!fi1=material(soilprofile(i).psoil(j).mat).property(2)/180.d0*PI()*SF(material(soilprofile(i).psoil(j).mat).sf(2)).factor(istep)
+			!fi1=material(soilprofile(i).PSOIL(N1).mat).property(2)/180.d0*PI()*SF(material(soilprofile(i).PSOIL(N1).mat).sf(2)).factor(istep)
 			
 			!土压力系数
-			call ep_Cal(i,istep,soilprofile(i).psoil(j),-soilprofile(i).aside)						
+			call ep_Cal(i,istep,soilprofile(i).PSOIL(N1),-soilprofile(i).aside)						
 												
 			
 		end do	
@@ -1264,7 +1270,7 @@ subroutine waterpressure_cal(isoilprofile,istep)
 	implicit none
 	integer,intent(in)::isoilprofile,istep
 	
-	integer::i,j,k
+	integer::i,j,k,N1,N2
 	
 	real(double)::R1,R2,awL1,pwL1,h1,t1
 	
@@ -1274,18 +1280,20 @@ subroutine waterpressure_cal(isoilprofile,istep)
 	!求总水阻
 	R2=0.0d0
 	do i=1,soilprofile(isoilprofile).nasoil
-		if(sf(soilprofile(isoilprofile).asoil(i).sf).factor(istep)==0) cycle
+        soilprofile(isoilprofile).asoil(I).pw=0.0d0
+		if(sf(soilprofile(isoilprofile).ASOIL(I).sf).factor(istep)==0) cycle
 		!简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
-		if(kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(2))<awl1) then!水位处必须分层
+		if(kpoint(ndimension,soilprofile(isoilprofile).ASOIL(I).z(2))<awl1) then!水位处必须分层
 			!等效水阻
 			!如果水面高于地表，将水等效为为土层（令c,phi,k,E均为0）
-			if(matproperty(soilprofile(isoilprofile).asoil(i).mat,6,istep)>1e-10) then
-				R2=R2+(kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(1))-kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(2))) &
-						/matproperty(soilprofile(isoilprofile).asoil(i).mat,6,istep)	
+			if(matproperty(soilprofile(isoilprofile).ASOIL(I).mat,6,istep)>1e-10) then
+				R2=R2+(kpoint(ndimension,soilprofile(isoilprofile).ASOIL(I).z(1))-kpoint(ndimension,soilprofile(isoilprofile).ASOIL(I).z(2))) &
+						/matproperty(soilprofile(isoilprofile).ASOIL(I).mat,6,istep)	
 			endif
 		endif		
 	enddo	
 	do i=1,soilprofile(isoilprofile).npsoil
+        soilprofile(isoilprofile).Psoil(I).pw=0.0d0
 		if(sf(soilprofile(isoilprofile).psoil(i).sf).factor(istep)==0) cycle
 		!简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
 		if(kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(2))<pwl1) then!水位处必须分层
@@ -1298,67 +1306,76 @@ subroutine waterpressure_cal(isoilprofile,istep)
 	end do	
 	
 	R1=0.0d0
+	
+    
 	do i=1,soilprofile(isoilprofile).nasoil
-        soilprofile(isoilprofile).asoil(i).pw=0.0d0
-		if(sf(soilprofile(isoilprofile).asoil(i).sf).factor(istep)==0) cycle
+        
+		N1=SOILPROFILE(ISOILPROFILE).ASOILSTEP(I,ISTEP)
+		IF(N1==0) EXIT
+        !soilprofile(isoilprofile).ASOIL(N1).pw=0.0d0
+		!if(sf(soilprofile(isoilprofile).ASOIL(N1).sf).factor(istep)==0) cycle
         !简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
-	    if(kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(2))<awl1) then!水位处必须分层
+	    if(kpoint(ndimension,soilprofile(isoilprofile).ASOIL(N1).z(2))<awl1) then!水位处必须分层
 		    !等效水阻
 		    h1=awl1-(awl1-pwl1)*r1/r2
-		    soilprofile(isoilprofile).asoil(i).pw(1)=(h1-kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(1)))*GA
-		    if(matproperty(soilprofile(isoilprofile).asoil(i).mat,6,istep)>1e-10) then
-		    R1=R1+(kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(1))-kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(2))) &
-			    /matproperty(soilprofile(isoilprofile).asoil(i).mat,6,istep)
+		    soilprofile(isoilprofile).ASOIL(N1).pw(1)=(h1-kpoint(ndimension,soilprofile(isoilprofile).ASOIL(N1).z(1)))*GA
+		    if(matproperty(soilprofile(isoilprofile).ASOIL(N1).mat,6,istep)>1e-10) then
+		    R1=R1+(kpoint(ndimension,soilprofile(isoilprofile).ASOIL(N1).z(1))-kpoint(ndimension,soilprofile(isoilprofile).ASOIL(N1).z(2))) &
+			    /matproperty(soilprofile(isoilprofile).ASOIL(N1).mat,6,istep)
 		    endif
 						
 		    h1=awl1-(awl1-pwl1)*r1/r2
-		    soilprofile(isoilprofile).asoil(i).pw(2)=(h1-kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(2)))*GA
+		    soilprofile(isoilprofile).ASOIL(N1).pw(2)=(h1-kpoint(ndimension,soilprofile(isoilprofile).ASOIL(N1).z(2)))*GA
 					
         endif		
         
-		select case(soilprofile(isoilprofile).asoil(i).wpflag) 
+		select case(soilprofile(isoilprofile).ASOIL(N1).wpflag) 
 			case(1) !常规分算，不考虑渗透力
-				soilprofile(isoilprofile).asoil(i).PW(1)=max(awL1-kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(1)),0.d0)*GA
-				soilprofile(isoilprofile).asoil(i).PW(2)=max(awL1-kpoint(ndimension,soilprofile(isoilprofile).asoil(i).z(2)),0.d0)*GA   
+				soilprofile(isoilprofile).ASOIL(N1).PW(1)=max(awL1-kpoint(ndimension,soilprofile(isoilprofile).ASOIL(N1).z(1)),0.d0)*GA
+				soilprofile(isoilprofile).ASOIL(N1).PW(2)=max(awL1-kpoint(ndimension,soilprofile(isoilprofile).ASOIL(N1).z(2)),0.d0)*GA   
 				
 			case(2) !简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
 			case(3) !手动输入
-				soilprofile(isoilprofile).asoil(i).PW(1)=matproperty(soilprofile(isoilprofile).asoil(i).mat,9,istep)
-				soilprofile(isoilprofile).asoil(i).PW(2)=matproperty(soilprofile(isoilprofile).asoil(i).mat,10,istep)
+				soilprofile(isoilprofile).ASOIL(N1).PW(1)=matproperty(soilprofile(isoilprofile).ASOIL(N1).mat,9,istep)
+				soilprofile(isoilprofile).ASOIL(N1).PW(2)=matproperty(soilprofile(isoilprofile).ASOIL(N1).mat,10,istep)
 			case default
-				soilprofile(isoilprofile).asoil(i).pw=0.0d0
+				soilprofile(isoilprofile).ASOIL(N1).pw=0.0d0
 		endselect		
-	enddo
-	
-	do i=soilprofile(isoilprofile).npsoil,1,-1
-        soilprofile(isoilprofile).psoil(i).pw=0.d0
-		if(sf(soilprofile(isoilprofile).psoil(i).sf).factor(istep)==0) cycle
+    enddo
+    
+	!soilprofile(isoilprofile).psoil.pw=0.d0
+    N2=COUNT(SOILPROFILE(ISOILPROFILE).PSOILSTEP(:,ISTEP)/=0)
+	do i=N2,1,-1
+        N1=SOILPROFILE(ISOILPROFILE).PSOILSTEP(I,ISTEP)
+		!IF(N1==0) EXIT
+        !soilprofile(isoilprofile).psoil(i).pw=0.d0
+		!if(sf(soilprofile(isoilprofile).psoil(i).sf).factor(istep)==0) cycle
 		
         !简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
-        if(kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(2))<pwl1) then!水位处必须分层
+        if(kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(2))<pwl1) then!水位处必须分层
 					
 			h1=awl1-(awl1-pwl1)*r1/r2
-			soilprofile(isoilprofile).psoil(i).pw(2)=(h1-kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(2)))*GA
+			soilprofile(isoilprofile).PSOIL(N1).pw(2)=(h1-kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(2)))*GA
 			!等效水阻
-			if(matproperty(soilprofile(isoilprofile).psoil(i).mat,6,istep)>1e-10) then
-			R1=R1+(kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(1))-kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(2))) &
-				/matproperty(soilprofile(isoilprofile).psoil(i).mat,6,istep)
+			if(matproperty(soilprofile(isoilprofile).PSOIL(N1).mat,6,istep)>1e-10) then
+			R1=R1+(kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(1))-kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(2))) &
+				/matproperty(soilprofile(isoilprofile).PSOIL(N1).mat,6,istep)
 			endif	
 			h1=awl1-(awl1-pwl1)*r1/r2
-			soilprofile(isoilprofile).psoil(i).pw(1)=(h1-kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(1)))*GA					
+			soilprofile(isoilprofile).PSOIL(N1).pw(1)=(h1-kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(1)))*GA					
 		endif        
         
-		select case(soilprofile(isoilprofile).psoil(i).wpflag) 
+		select case(soilprofile(isoilprofile).PSOIL(N1).wpflag) 
 			case(1) !常规分算，不考虑渗透力
-				soilprofile(isoilprofile).psoil(i).PW(1)=max(pwL1-kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(1)),0.d0)*GA
-				soilprofile(isoilprofile).psoil(i).PW(2)=max(pwL1-kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(2)),0.d0)*GA 
+				soilprofile(isoilprofile).PSOIL(N1).PW(1)=max(pwL1-kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(1)),0.d0)*GA
+				soilprofile(isoilprofile).PSOIL(N1).PW(2)=max(pwL1-kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(2)),0.d0)*GA 
 				
 			case(2) !简化考虑渗透力，墙身不透水，墙底两侧水压力相等。
 			case(3) !手动输入
-				soilprofile(isoilprofile).psoil(i).PW(1)=matproperty(soilprofile(isoilprofile).psoil(i).mat,9,istep)
-				soilprofile(isoilprofile).psoil(i).PW(2)=matproperty(soilprofile(isoilprofile).psoil(i).mat,10,istep)				
+				soilprofile(isoilprofile).PSOIL(N1).PW(1)=matproperty(soilprofile(isoilprofile).PSOIL(N1).mat,9,istep)
+				soilprofile(isoilprofile).PSOIL(N1).PW(2)=matproperty(soilprofile(isoilprofile).PSOIL(N1).mat,10,istep)				
 			case default
-				soilprofile(isoilprofile).psoil(i).pw=0.0d0
+				soilprofile(isoilprofile).PSOIL(N1).pw=0.0d0
 		endselect		
 	enddo
 
@@ -2170,5 +2187,116 @@ ENDSUBROUTINE
 		 end select
 	end subroutine
 
+subroutine checksoilprofile()
+    use SOLVERLIB
+    use ExcaDSLIB
+    implicit none
+    INTEGER,ALLOCATABLE::IKP1(:,:)
+    INTEGER::I,J,K,K1,K2,N1,N2,N3,ITOP,IBOT,NSOIL1
+    REAL(DPN)::YTOP=-1.D20,YBOT=1.D20
+    LOGICAL::TOF1
+    type(soillayer_tydef),allocatable::SOIL1(:)
+    CHARACTER(16)::STR1
+   
+    ALLOCATE(IKP1(2,NKP))
+    !IKP1(J,IKP)=I, IKP=SOILPROFILE.SOIL(I).Z(J)
+    !土层i，j分界面节点为ikp，土层i在土层j的上面，则ikp1(1,ikp)=i,ikp1(2,ikp)=j
+    
+    DO I=1,NSOILPROFILE
+        ALLOCATE(SOILPROFILE(I).ASOILSTEP(SOILPROFILE(I).NASOIL,NSTEP))
+        SOILPROFILE(I).ASOILSTEP=0
+        ALLOCATE(SOILPROFILE(I).PSOILSTEP(SOILPROFILE(I).NPSOIL,NSTEP))
+        SOILPROFILE(I).PSOILSTEP=0
+    ENDDO
+    
+    DO I=1,NSTEP
+        DO J=1,NSOILPROFILE
+            DO K2=1,2
+                
+                IKP1=0
+                YTOP=-1.D20;ITOP=0;YBOT=1.D20;IBOT=0                
+                IF(ALLOCATED(SOIL1)) DEALLOCATE(SOIL1)
+                IF(K2==1) THEN
+                    NSOIL1=SOILPROFILE(J).NASOIL
+                    ALLOCATE(SOIL1(NSOIL1))
+                    SOIL1=SOILPROFILE(J).ASOIL
+                    STR1="ACTIVESIDE"
+                ELSE
+                    NSOIL1=SOILPROFILE(J).NPSOIL
+                    ALLOCATE(SOIL1(NSOIL1))
+                    SOIL1=SOILPROFILE(J).PSOIL
+                    STR1="PASSIVESIDE"                
+                ENDIF
+                    
+                DO K=1,NSOIL1
+                    IF(ABS(SF(SOIL1(K).SF).FACTOR(I))<1.D-6) CYCLE
+                    IF(KPOINT(NDIMENSION,SOIL1(K).z(1))<=KPOINT(NDIMENSION,SOIL1(K).z(2))) THEN
+                        PRINT *, "Z1 IS SMALLER THAN/EQUAL TO Z2 FOR THE SOILLAYER(K) IN THE SOILPROFILE(J)_"//TRIM(STR1)//".PLEASE CKECK."
+                        PRINT *, "K,J=",K,J
+                        STOP "ERROR STOP IN CHECKSOILPROFILE 1."
+                    ENDIF
+                    DO K1=1,2
+                        N1=SOIL1(K).Z(K1)
+                        N2=MOD(K1,2)+1
+                        
+                        IF(IKP1(N2,N1)==0) THEN
+                            IKP1(N2,N1)=K
+                            IF(KPOINT(NDIMENSION,N1)>YTOP) THEN
+                                YTOP=KPOINT(NDIMENSION,N1);ITOP=N1
+                            ELSEIF(KPOINT(NDIMENSION,N1)<YBOT) THEN
+                                YBOT=KPOINT(NDIMENSION,N1);IBOT=N1
+                            ENDIF
+                        ELSE
+                           PRINT *, "ERROR. IN STEP(I),ON THE SOILPROFILE(J)_"//TRIM(STR1)//",THE SOILLAYER K AND L ARE OVERLAPPED IN KPOINT(M)." 
+                           PRINT *, "I,J,K,L,M=",I,J,K,IKP1(N2,N1),N1
+                           STOP "ERROR STOP IN CHECKSOILPROFILE2."                         
+                        ENDIF
+                    ENDDO
 
+                ENDDO
+
+            
+                DO K=1,NSOIL1
+                    IF(ABS(SF(SOIL1(K).SF).FACTOR(I))<1.D-6) CYCLE
+                    DO K1=1,2
+                        N1=SOIL1(K).Z(K1)
+                        N2=MOD(K1,2)+1
+                        N3=MOD(N2,2)+1
+                        IF(IKP1(N3,N1)==0.AND.(N1/=ITOP.AND.N1/=IBOT)) THEN
+
+                            PRINT *, "ERROR. IN STEP(I),ON THE SOILPROFILE(J)_"//TRIM(STR1)//",NO ADJACENT SOIL LAYAER IS FOUND FOR SOILLAYER(K)."
+                            PRINT *, "I,J,K=",I,J,K
+                            STOP "ERROR STOP IN CHECKSOILPROFILE3."
+
+                        ENDIF
+                        
+                    ENDDO
+                
+                ENDDO
+                
+                N1=0
+                N2=ITOP                
+                DO WHILE(IKP1(2,N2)/=0.AND.N1<=NSOIL1)
+                    !IKP1(2,N2)为处于节点N2下方的土层编号
+                    N1=N1+1
+                    IF(K2==1) SOILPROFILE(J).ASOILSTEP(N1,I)=IKP1(2,N2)
+                    IF(K2==2) SOILPROFILE(J).PSOILSTEP(N1,I)=IKP1(2,N2)
+                    
+                    N2=SOIL1(IKP1(2,N2)).Z(2)                    
+                ENDDO    
+            
+            ENDDO
+        ENDDO
+    ENDDO
+        
+        
+    
+    
+    
+
+        
+    
+
+
+end subroutine
     

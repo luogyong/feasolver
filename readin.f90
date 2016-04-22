@@ -72,55 +72,57 @@
 		
 		
         !CHECKDATA
-         DO I=1,NSOILPROFILE
-            
-            ar1=-9.99999D20
-		    do j=1,soilprofile(i).nasoil
-			    IF(KPOINT(NDIMENSION,soilprofile(i).asoil(j).z(1))<KPOINT(NDIMENSION,soilprofile(i).asoil(j).z(2))) THEN
-                    PRINT *, "Z1 IS SMALLER THAN Z2.PLEASE CKECK. SOILPROFILE=, ACTIVE SIDE SOILLAYER=",I,J
-                    STOP
-                ENDIF
-                DO K=1,NSTEP
-                    IF(ABS(SF(soilprofile(i).asoil(j).SF).FACTOR(K))>1E-6) THEN
-                        IF(AR1(K)/=-9.99999D20)THEN
-                            IF(ABS(AR1(K)-KPOINT(NDIMENSION,soilprofile(i).asoil(j).Z(1)))<1E-6) THEN
-                                AR1(K)=KPOINT(NDIMENSION,soilprofile(i).asoil(j).Z(2))
-                            ELSE
-                                PRINT *, "THE ELEVATIONS ARE NOT CONTINUOUS BETWEEN ASOIL LAYER J-1 AND J IN STEP K,OF SOILPROFILE I. (J-1,J,K,I)=", J-1,J,K,I
-                                STOP "INPUT ERROR IN SOILPROFILE1."
-                            ENDIF                            
-                        ELSE
-                            AR1(K)=KPOINT(NDIMENSION,soilprofile(i).asoil(j).Z(2))
-                        ENDIF                        
-                    ENDIF                    
-                ENDDO
-                               
-            enddo
-            
-            ar1=-9.99999D20
-		    do j=1,soilprofile(i).npsoil
-               IF(KPOINT(NDIMENSION,soilprofile(i).Psoil(j).z(1))<KPOINT(NDIMENSION,soilprofile(i).Psoil(j).z(2))) THEN
-                    PRINT *, "Z1 IS SMALLER THAN Z2.PLEASE CHECK. SOILPROFILE=, PASSIVE SIDE SOILLAYER=",I,J
-                    STOP
-               ENDIF
-               DO K=1,NSTEP
-                    IF(ABS(SF(soilprofile(i).Psoil(j).SF).FACTOR(K))>1E-6) THEN
-                        IF(AR1(K)/=-9.99999D20)THEN
-                            IF(ABS(AR1(K)-KPOINT(NDIMENSION,soilprofile(i).Psoil(j).Z(1)))<1E-6) THEN
-                                AR1(K)=KPOINT(NDIMENSION,soilprofile(i).Psoil(j).Z(2))
-                            ELSE
-                                PRINT *, "THE ELEVATIONS ARE NOT CONTINUOUS BETWEEN PSOIL LAYER J-1 AND J IN STEP K,OF SOILPROFILE I. (J-1,J,K,I)=", J-1,J,K,I
-                                STOP "INPUT ERROR IN SOILPROFILE2."
-                            ENDIF                            
-                        ELSE
-                            AR1(K)=KPOINT(NDIMENSION,soilprofile(i).Psoil(j).Z(2))
-                        ENDIF                        
-                    ENDIF                    
-                ENDDO
-               
-            enddo 
-            
-        ENDDO
+        
+         CALL   checksoilprofile()
+      !   DO I=1,NSOILPROFILE
+      !      
+      !      ar1=-9.99999D20
+		    !do j=1,soilprofile(i).nasoil
+			   ! IF(KPOINT(NDIMENSION,soilprofile(i).asoil(j).z(1))<KPOINT(NDIMENSION,soilprofile(i).asoil(j).z(2))) THEN
+      !              PRINT *, "Z1 IS SMALLER THAN Z2.PLEASE CKECK. SOILPROFILE=, ACTIVE SIDE SOILLAYER=",I,J
+      !              STOP
+      !          ENDIF
+      !          DO K=1,NSTEP
+      !              IF(ABS(SF(soilprofile(i).asoil(j).SF).FACTOR(K))>1E-6) THEN
+      !                  IF(AR1(K)/=-9.99999D20)THEN
+      !                      IF(ABS(AR1(K)-KPOINT(NDIMENSION,soilprofile(i).asoil(j).Z(1)))<1E-6) THEN
+      !                          AR1(K)=KPOINT(NDIMENSION,soilprofile(i).asoil(j).Z(2))
+      !                      ELSE
+      !                          PRINT *, "THE ELEVATIONS ARE NOT CONTINUOUS BETWEEN ASOIL LAYER J-1 AND J IN STEP K,OF SOILPROFILE I. (J-1,J,K,I)=", J-1,J,K,I
+      !                          STOP "INPUT ERROR IN SOILPROFILE1."
+      !                      ENDIF                            
+      !                  ELSE
+      !                      AR1(K)=KPOINT(NDIMENSION,soilprofile(i).asoil(j).Z(2))
+      !                  ENDIF                        
+      !              ENDIF                    
+      !          ENDDO
+      !                         
+      !      enddo
+      !      
+      !      ar1=-9.99999D20
+		    !do j=1,soilprofile(i).npsoil
+      !         IF(KPOINT(NDIMENSION,soilprofile(i).Psoil(j).z(1))<KPOINT(NDIMENSION,soilprofile(i).Psoil(j).z(2))) THEN
+      !              PRINT *, "Z1 IS SMALLER THAN Z2.PLEASE CHECK. SOILPROFILE=, PASSIVE SIDE SOILLAYER=",I,J
+      !              STOP
+      !         ENDIF
+      !         DO K=1,NSTEP
+      !              IF(ABS(SF(soilprofile(i).Psoil(j).SF).FACTOR(K))>1E-6) THEN
+      !                  IF(AR1(K)/=-9.99999D20)THEN
+      !                      IF(ABS(AR1(K)-KPOINT(NDIMENSION,soilprofile(i).Psoil(j).Z(1)))<1E-6) THEN
+      !                          AR1(K)=KPOINT(NDIMENSION,soilprofile(i).Psoil(j).Z(2))
+      !                      ELSE
+      !                          PRINT *, "THE ELEVATIONS ARE NOT CONTINUOUS BETWEEN PSOIL LAYER J-1 AND J IN STEP K,OF SOILPROFILE I. (J-1,J,K,I)=", J-1,J,K,I
+      !                          STOP "INPUT ERROR IN SOILPROFILE2."
+      !                      ENDIF                            
+      !                  ELSE
+      !                      AR1(K)=KPOINT(NDIMENSION,soilprofile(i).Psoil(j).Z(2))
+      !                  ENDIF                        
+      !              ENDIF                    
+      !          ENDDO
+      !         
+      !      enddo 
+      !      
+      !  ENDDO
         
         CALL GenElement_EXCA2()
         solver_control.bfgm=continuum
@@ -1213,7 +1215,8 @@ subroutine solvercommand(term,unit)
 				if(soilprofile(i).NSTRUT>0) then
 					call skipcomment(unit)
 					read(unit,*) soilprofile(i).istrut
-				endif				
+                endif
+                
 			end do
 		
 			
