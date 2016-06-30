@@ -501,6 +501,7 @@ subroutine solvercommand(term,unit)
                 n2=int(ar(1))
                 kpoint(1:ndimension,n2)=ar(2:ndimension+1)
                 if(n1>ndimension+1) kpoint(ndimension+1,n2)=ar(ndimension+2)
+				if(kpoint(ndimension+1,n2)<1e-6) kpoint(ndimension+1,n2)=DEFAULTSIZE
                 if(kpoint(1,n2)<Minx) minx=kpoint(1,n2)
                 if(kpoint(1,n2)>MaxX) maxX=kpoint(1,n2)
                 if(kpoint(2,n2)<MinY) minY=kpoint(2,n2)
@@ -1292,6 +1293,10 @@ subroutine solvercommand(term,unit)
                         solver_control.mur=int(property(i).value)
 					case('barfamilyscale')
 						solver_control.barfamilyscale=int(property(i).value)
+                    case('nopopup')
+                        solver_control.nopopup=int(property(i).value)
+                    case('isparasys')
+                        solver_control.isparasys=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select

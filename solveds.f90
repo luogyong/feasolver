@@ -220,6 +220,8 @@ module solverds
         integer::RF_EPP=0 !被动侧土弹簧抗力限值是否要减掉初始的土压力。
         integer::RF_APP=0 !主动侧主动土压力荷载，开挖面以下是否按倒三角折减。
 		integer::INIEPP=2  !被动侧土弹簧抗力限值是否要减掉初始的土压力,2=主动土压力，1=静止土压力
+        integer::nopopup=1
+        integer::isParasys=0 !是否为参数敏感性分析
         !REAL(KIND=DPN),ALLOCATABLE::ETA(:),RATIO(:)
         
 	end type
