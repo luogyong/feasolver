@@ -1297,6 +1297,8 @@ subroutine solvercommand(term,unit)
                         solver_control.nopopup=int(property(i).value)
                     case('isparasys')
                         solver_control.isparasys=int(property(i).value)
+					!case('ispostcal')
+					!	solver_control.ispostcal=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select

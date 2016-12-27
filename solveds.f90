@@ -222,6 +222,7 @@ module solverds
 		integer::INIEPP=2  !被动侧土弹簧抗力限值是否要减掉初始的土压力,2=主动土压力，1=静止土压力
         integer::nopopup=1
         integer::isParasys=0 !是否为参数敏感性分析
+!		integer::isPostCal=0 !所有的未知量均为已知（由边界条件输入），仅进行后处理计算。
         !REAL(KIND=DPN),ALLOCATABLE::ETA(:),RATIO(:)
         
 	end type

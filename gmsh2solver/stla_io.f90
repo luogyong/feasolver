@@ -2322,3 +2322,786 @@ subroutine word_next_read ( s, word, done )
 
   return
 end
+
+subroutine off_write ( cor3, cor3_max, cor3_num, face, face_max, face_num, &
+  face_order, output_file_name, order_max )
+
+!*****************************************************************************80
+!
+!! OFF_WRITE writes graphics information to a GEOMVIEW OFF file.
+!
+!  Example:
+!
+!    OFF
+!    8  6  12
+!    0.0 0.0 0.0
+!    0.0 0.0 1.0
+!    0.0 1.0 0.0
+!    0.0 1.0 1.0
+!    1.0 0.0 0.0
+!    1.0 0.0 1.0
+!    1.0 1.0 0.0
+!    1.0 1.0 1.0
+!    4  0 2 3 1
+!    4  4 5 7 6
+!    4  0 1 5 4
+!    4  2 6 7 3
+!    4  0 4 6 2
+!    4  1 3 7 5
+!    
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    27 August 2003
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input, real ( kind = 4 ) COR3(3,COR3_MAX), the coordinates of points.
+!
+!    Input, integer ( kind = 4 ) COR3_MAX, the maximum number of points.
+!
+!    Input, integer ( kind = 4 ) COR3_NUM, the number of points.
+!
+!    Input, integer ( kind = 4 ) FACE(ORDER_MAX,FACE_MAX), the nodes 
+!    making faces.
+!
+!    Input, integer ( kind = 4 ) FACE_MAX, the maximum number of faces.
+!
+!    Input, integer ( kind = 4 ) FACE_NUM, the number of faces.
+!
+!    Input, integer ( kind = 4 ) FACE_ORDER(FACE_MAX), the number of vertices
+!    per face.
+!
+!    Input, character ( len = * ) output_file_name, the name of the output file.
+!
+!    Input, integer ( kind = 4 ) IUNIT, the FORTRAN unit to which output
+!    is written.
+!
+!    Input, integer ( kind = 4 ) ORDER_MAX, the maximum number of vertices
+!    per face.
+!
+  implicit none
+
+  integer ( kind = 4 ) cor3_max
+  integer ( kind = 4 ) face_max
+  integer ( kind = 4 ) order_max
+
+  real ( kind = 8 ) cor3(3,cor3_max)
+  integer ( kind = 4 ) cor3_num
+  integer ( kind = 4 ) edge_num
+  integer ( kind = 4 ) face(order_max,face_max)
+  integer ( kind = 4 ) face_num
+  integer ( kind = 4 ) face_order(face_max)
+  character ( len = * ) output_file_name
+  integer ( kind = 4 ) i
+  integer ( kind = 4 ) iface
+  integer ( kind = 4 ) iunit
+  integer ( kind = 4 ) ivert
+  integer ( kind = 4 ) j
+  integer ( kind = 4 ), parameter :: OFFSET = 1
+  character ( len = 256 ) text
+  integer ( kind = 4 ) text_num,IOS
+  character ( len = 256 ) text2
+!
+!  "Magic Number"
+!
+  text_num = 0
+  
+  !
+!  Open the file.
+!
+  call get_unit ( iunit )
+
+  open ( unit = iunit, file = output_file_name, status = 'replace', &
+    iostat = ios )
+
+  if ( ios /= 0 ) then
+    write ( *, '(a)' ) ' '
+    write ( *, '(a)' ) 'OFF_WRITE - Fatal error!'
+    write ( *, '(a)' ) '  Could not open the file "' &
+      // trim ( output_file_name ) // '".'
+    stop
+  end if
+  write ( iunit, '(a)' ) 'OFF'
+  text_num = text_num + 1
+!
+!  Compute EDGE_NUM.
+!
+  call edge_count ( face_max, order_max, face_num, face, face_order, edge_num )
+!
+!  Counts.
+!
+  write ( text, '(3i6)' ) cor3_num, face_num, edge_num
+  call s_blanks_delete ( text )
+  write ( iunit, '(a)' ) trim ( text )
+  text_num = text_num + 1
+!
+!  Vertex coordinates.
+!
+  do j = 1, cor3_num
+    write ( text, '(2x,3g14.6)' ) cor3(1:3,j)
+    call s_blanks_delete ( text )
+    write ( iunit, '(a)' ) trim ( text )
+    text_num = text_num + 1
+  end do
+!
+!  Face count, and vertex indices.
+!
+  do iface = 1, face_num
+
+    write ( text, '(2x,i4)' ) face_order(iface)
+
+    do ivert = 1, face_order(iface)
+      write ( text2, '(2x,i8)' ) face(ivert,iface) - OFFSET
+      call s_blank_delete ( text2(3:) )
+      call s_cat ( text, text2, text )
+    end do
+
+    write ( iunit, '(a)' ) trim ( text )
+    text_num = text_num + 1
+
+  end do
+!
+!  Report.
+!
+  write ( *, '(a)' ) ' '
+  write ( *, '(a,i6,a)' ) 'OFF_WRITE - Wrote ', text_num, &
+    ' text lines to ' // trim ( output_file_name )
+  CLOSE(IUNIT)
+  return
+end
+
+subroutine edge_count ( face_max, order_max, face_num, face, face_order, &
+  edge_num )
+
+!*****************************************************************************80
+!
+!! EDGE_COUNT determines the number of edges in a graph.
+!
+!  Discussion:
+!
+!    The routine extracts the successive pairs of vertices that
+!    define each edge of a face.  It reorders each pair so that 
+!    the lesser element is listed first.  It sorts the entire list.
+!    Then it counts the unique entries.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    27 August 2003
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input, integer ( kind = 4 ) FACE_MAX, the maximum number of faces.
+!
+!    Input, integer ( kind = 4 ) ORDER_MAX, the maximum number of vertices 
+!    per face.
+!
+!    Input, integer ( kind = 4 ) FACE_NUM, the number of faces.
+!
+!    Input, integer ( kind = 4 ) FACE(ORDER_MAX,FACE_MAX), the nodes 
+!    making faces.
+!
+!    Input, integer ( kind = 4 ) FACE_ORDER(FACE_MAX), the number of 
+!    vertices per face.
+!
+!    Output, integer ( kind = 4 ) EDGE_NUM, the number of unique edges.
+!
+  implicit none
+
+  integer ( kind = 4 ) face_max
+  integer ( kind = 4 ) order_max
+
+  integer ( kind = 4 ), allocatable, dimension ( :, : ) :: edge
+  integer ( kind = 4 ) edge_num
+  integer ( kind = 4 ) edge_num_old
+  integer ( kind = 4 ) face(order_max,face_max)
+  integer ( kind = 4 ) face_num
+  integer ( kind = 4 ) face_order(face_max)
+  integer ( kind = 4 ) i
+  integer ( kind = 4 ) i4_wrap
+  integer ( kind = 4 ) iface
+  integer ( kind = 4 ) indx
+  integer ( kind = 4 ) isgn
+  integer ( kind = 4 ) j
+  integer ( kind = 4 ) vert
+  integer ( kind = 4 ) vert2
+!
+!  First count the number of edges with duplication.
+!
+  edge_num = 0
+  do iface = 1, face_num
+    edge_num = edge_num + face_order(iface)
+  end do
+!
+!  Allocate space, and store the edges.
+!
+  allocate ( edge(edge_num,2) )
+
+  edge_num = 0
+  do iface = 1, face_num
+    do vert = 1, face_order(iface)
+      edge_num = edge_num + 1
+      i = face(vert,iface)
+      vert2 = i4_wrap ( vert+1, 1, face_order(iface) )
+      j = face(vert2,iface)
+      edge(edge_num,1) = min ( i, j )
+      edge(edge_num,2) = max ( i, j )
+    end do
+  end do
+!
+!  Sort the edges.
+!
+  i = 0
+  indx = 0
+  isgn = 0
+  j = 0
+!
+!  Call the external heap sorter.
+!
+  do
+
+    call sort_heap_external ( edge_num, indx, i, j, isgn )
+!
+!  Interchange the I and J objects.
+!
+    if ( 0 < indx ) then
+
+      call I4_swap ( edge(i,1), edge(j,1) )
+      call I4_swap ( edge(i,2), edge(j,2) )
+!
+!  Compare the I and J objects.
+!
+    else if ( indx < 0 ) then
+
+      if ( edge(i,1) < edge(j,1) ) then
+        isgn = -1
+      else if ( edge(i,1) == edge(j,1) ) then
+        if ( edge(i,2) < edge(j,2) ) then
+          isgn = -1
+        else if ( edge(i,2) == edge(j,2) ) then
+          isgn = 0
+        else
+          isgn = 1
+        end if
+      else
+        isgn = 1
+      end if
+
+    else if ( indx == 0 ) then
+
+      exit
+
+    end if
+
+  end do
+!
+!  Count the unique entries.
+!
+  edge_num_old = edge_num
+
+  edge_num = 0
+
+  do i = 1, edge_num_old
+ 
+    if ( i == 1 ) then
+      edge_num = 1
+    else
+      if ( edge(i-1,1) /= edge(i,1) .or. &
+           edge(i-1,2) /= edge(i,2) ) then
+        edge_num = edge_num + 1
+      end if
+    end if
+ 
+  end do
+
+  deallocate ( edge )
+
+  return
+end
+
+subroutine s_blanks_delete ( s )
+
+!*****************************************************************************80
+!
+!! S_BLANKS_DELETE replaces consecutive blanks by one blank.
+!
+!  Discussion:
+!
+!    The remaining characters are left justified and right padded with blanks.
+!    TAB characters are converted to spaces.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    26 July 1998
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input/output, character ( len = * ) S, the string to be transformed.
+!
+  implicit none
+
+  integer ( kind = 4 ) i
+  integer ( kind = 4 ) j
+  integer ( kind = 4 ) nchar
+  character newchr
+  character oldchr
+  character ( len = * ) s
+  character, parameter :: TAB = char ( 9 )
+
+  j = 0
+  newchr = ' '
+  nchar = len_trim ( s )
+
+  do i = 1, nchar
+
+    oldchr = newchr
+    newchr = s(i:i)
+
+    if ( newchr == TAB ) then
+      newchr = ' '
+    end if
+
+    s(i:i) = ' '
+
+    if ( oldchr /= ' ' .or. newchr /= ' ' ) then
+      j = j + 1
+      s(j:j) = newchr
+    end if
+
+  end do
+
+  return
+end
+
+subroutine s_blank_delete ( s )
+
+!*****************************************************************************80
+!
+!! S_BLANK_DELETE removes blanks from a string, left justifying the remainder.
+!
+!  Discussion:
+!
+!    All TAB characters are also removed.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    26 July 1998
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input/output, character ( len = * ) S, the string to be transformed.
+!
+  implicit none
+
+  character c
+  integer ( kind = 4 ) iget
+  integer ( kind = 4 ) iput
+  integer ( kind = 4 ) nchar
+  character ( len = * ) s
+  character, parameter :: TAB = char ( 9 )
+
+  iput = 0
+  nchar = len_trim ( s )
+
+  do iget = 1, nchar
+
+    c = s(iget:iget)
+
+    if ( c /= ' ' .and. c /= TAB ) then
+      iput = iput + 1
+      s(iput:iput) = c
+    end if
+
+  end do
+
+  s(iput+1:) = ' '
+
+  return
+end
+
+subroutine sort_heap_external ( n, indx, i, j, isgn )
+
+!*****************************************************************************80
+!
+!! SORT_HEAP_EXTERNAL externally sorts a list of items into linear order.
+!
+!  Discussion:
+!
+!    The actual list of data is not passed to the routine.  Hence this
+!    routine may be used to sort integers, reals, numbers, names,
+!    dates, shoe sizes, and so on.  After each call, the routine asks
+!    the user to compare or interchange two items, until a special
+!    return value signals that the sorting is completed.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    12 November 2000
+!
+!  Author:
+!
+!    Original FORTRAN77 version by Albert Nijenhuis, Herbert WIlf.
+!    FORTRAN90 version by John Burkardt.
+!
+!  Reference:
+!
+!    A Nijenhuis and H Wilf,
+!    Combinatorial Algorithms,
+!    Academic Press, 1978, second edition,
+!    ISBN 0-12-519260-6.
+!
+!  Parameters:
+!
+!    Input, integer ( kind = 4 ) N, the number of items to be sorted.
+!
+!    Input/output, integer ( kind = 4 ) INDX, the main communication signal.
+!
+!    The user must set INDX to 0 before the first call.
+!    Thereafter, the user should not change the value of INDX until
+!    the sorting is done.
+!
+!    On return, if INDX is
+!
+!      greater than 0,
+!      * interchange items I and J;
+!      * call again.
+!
+!      less than 0,
+!      * compare items I and J;
+!      * set ISGN = -1 if I precedes J, ISGN = +1 if J precedes I;
+!      * call again.
+!
+!      equal to 0, the sorting is done.
+!
+!    Output, integer ( kind = 4 ) I, J, the indices of two items.
+!    On return with INDX positive, elements I and J should be interchanged.
+!    On return with INDX negative, elements I and J should be compared, and
+!    the result reported in ISGN on the next call.
+!
+!    Input, integer ( kind = 4 ) ISGN, results of comparison of elements I 
+!    and J.  (Used only when the previous call returned INDX less than 0).
+!    ISGN <= 0 means I precedes J;
+!    0 <= ISGN means J precedes I.
+!
+  implicit none
+
+  integer ( kind = 4 ) i
+  integer ( kind = 4 ) indx
+  integer ( kind = 4 ) isgn
+  integer ( kind = 4 ) j
+  integer ( kind = 4 ), save :: k = 0
+  integer ( kind = 4 ), save :: k1 = 0
+  integer ( kind = 4 ) n
+  integer ( kind = 4 ), save :: n1 = 0
+!
+!  INDX = 0: This is the first call.
+!
+  if ( indx == 0 ) then
+
+    n1 = n
+    k = n / 2
+    k1 = k
+!
+!  INDX < 0: The user is returning the results of a comparison.
+!
+  else if ( indx < 0 ) then
+
+    if ( indx == -2 ) then
+
+      if ( isgn < 0 ) then
+        i = i + 1
+      end if
+
+      j = k1
+      k1 = i
+      indx = - 1
+      return
+
+    end if
+
+    if ( 0 < isgn ) then
+      indx = 2
+      return
+    end if
+
+    if ( k <= 1 ) then
+
+      if ( n1 == 1 ) then
+        indx = 0
+      else
+        i = n1
+        n1 = n1 - 1
+        j = 1
+        indx = 1
+      end if
+
+      return
+
+    end if
+
+    k = k - 1
+    k1 = k
+!
+!  0 < INDX, the user was asked to make an interchange.
+!
+  else if ( indx == 1 ) then
+
+    k1 = k
+
+  end if
+
+  do
+
+    i = 2 * k1
+
+    if ( i == n1 ) then
+      j = k1
+      k1 = i
+      indx = - 1
+      return
+    else if ( i <= n1 ) then
+      j = i + 1
+      indx = - 2
+      return
+    end if
+
+    if ( k <= 1 ) then
+      exit
+    end if
+
+    k = k - 1
+    k1 = k
+
+  end do
+
+  if ( n1 == 1 ) then
+    indx = 0
+  else
+    i = n1
+    n1 = n1 - 1
+    j = 1
+    indx = 1
+  end if
+
+  return
+end
+
+
+function i4_wrap ( ival, ilo, ihi )
+
+!*****************************************************************************80
+!
+!! I4_WRAP forces an integer to lie between given limits by wrapping.
+!
+!  Example:
+!
+!    ILO = 4, IHI = 8
+!
+!    I  I4_WRAP
+!
+!    -2     8
+!    -1     4
+!     0     5
+!     1     6
+!     2     7
+!     3     8
+!     4     4
+!     5     5
+!     6     6
+!     7     7
+!     8     8
+!     9     4
+!    10     5
+!    11     6
+!    12     7
+!    13     8
+!    14     4
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    19 August 2003
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input, integer ( kind = 4 ) IVAL, an integer value.
+!
+!    Input, integer ( kind = 4 ) ILO, IHI, the desired bounds.
+!
+!    Output, integer ( kind = 4 ) I4_WRAP, a "wrapped" version of IVAL.
+!
+  implicit none
+
+  integer ( kind = 4 ) i4_modp
+  integer ( kind = 4 ) i4_wrap
+  integer ( kind = 4 ) ihi
+  integer ( kind = 4 ) ilo
+  integer ( kind = 4 ) ival
+  integer ( kind = 4 ) jhi
+  integer ( kind = 4 ) jlo
+  integer ( kind = 4 ) wide
+
+  jlo = min ( ilo, ihi )
+  jhi = max ( ilo, ihi )
+
+  wide = jhi - jlo + 1
+
+  if ( wide == 1 ) then
+    i4_wrap = jlo
+  else
+    i4_wrap = jlo + i4_modp ( ival - jlo, wide )
+  end if
+
+  return
+end
+
+function i4_modp ( i, j )
+
+!*****************************************************************************80
+!
+!! I4_MODP returns the nonnegative remainder of integer division.
+!
+!  Discussion:
+!
+!    If
+!      NREM = I4_MODP ( I, J )
+!      NMULT = ( I - NREM ) / J
+!    then
+!      I = J * NMULT + NREM
+!    where NREM is always nonnegative.
+!
+!    The MOD function computes a result with the same sign as the
+!    quantity being divided.  Thus, suppose you had an angle A,
+!    and you wanted to ensure that it was between 0 and 360.
+!    Then mod(A,360) would do, if A was positive, but if A
+!    was negative, your result would be between -360 and 0.
+!
+!    On the other hand, I4_MODP(A,360) is between 0 and 360, always.
+!
+!  Example:
+!
+!        I         J     MOD  I4_MODP   I4_MODP Factorization
+!
+!      107        50       7       7    107 =  2 *  50 + 7
+!      107       -50       7       7    107 = -2 * -50 + 7
+!     -107        50      -7      43   -107 = -3 *  50 + 43
+!     -107       -50      -7      43   -107 =  3 * -50 + 43
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    02 March 199
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input, integer ( kind = 4 ) I, the number to be divided.
+!
+!    Input, integer ( kind = 4 ) J, the number that divides I.
+!
+!    Output, integer ( kind = 4 ) I4_MODP, the nonnegative remainder when I is
+!    divided by J.
+!
+  implicit none
+
+  integer ( kind = 4 ) i
+  integer ( kind = 4 ) i4_modp
+  integer ( kind = 4 ) j
+
+  if ( j == 0 ) then
+    write ( *, '(a)' ) ' '
+    write ( *, '(a)' ) 'I4_MODP - Fatal error!'
+    write ( *, '(a,i6)' ) '  I4_MODP ( I, J ) called with J = ', j
+    stop
+  end if
+
+  i4_modp = mod ( i, j )
+
+  if ( i4_modp < 0 ) then
+    i4_modp = i4_modp + abs ( j )
+  end if
+
+  return
+end
+subroutine i4_swap ( i, j )
+
+!*****************************************************************************80
+!
+!! I4_SWAP switches two integer values.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    30 November 1998
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input/output, integer ( kind = 4 ) I, J.  On output, the values of I and
+!    J have been interchanged.
+!
+  implicit none
+
+  integer ( kind = 4 ) i
+  integer ( kind = 4 ) j
+  integer ( kind = 4 ) k
+
+  k = i
+  i = j
+  j = k
+
+  return
+end

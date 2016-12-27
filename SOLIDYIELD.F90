@@ -167,7 +167,8 @@ subroutine solve_SLD()
 					IF (error /= MKL_DSS_SUCCESS) call mkl_solver_error(error)
 					load=solution	
 				end if
-			   
+				
+		   
 				select case(solver_control.solver) 
 					case(N_R)
 						

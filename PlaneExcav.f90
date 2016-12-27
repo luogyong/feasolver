@@ -2292,7 +2292,7 @@ subroutine checksoilprofile()
         
     
     
-    
+    DEALLOCATE(IKP1)
 
         
     
