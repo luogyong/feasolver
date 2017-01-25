@@ -138,7 +138,7 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//$DATAPOINT"
 	README(IPP(I))=  "//"//'"'//"THE DataPoint IS USED TO OUTPUT THE DATA POINTS ALONG A POLYLINE YOU WANT TO LIST THE COMPUTATED RESULT."//'"'
 	README(IPP(I)) = "//{NDataPoint)}"  
-	README(IPP(I)) = "//{GROUPID [,ORDER=0,STARTPOINTGROUP]}*{NDataPoint(I)}  // 每行3个，共NDataPoint行.STARTPOINTGROUP为输出起点(这个GROUP只含一个点)，根据起点按顺序输出线上各点。"
+	README(IPP(I)) = "//{GROUPID [,ORDER=0,STARTPOINTGROUP,ISSUMQ]}*{NDataPoint(I)}  // 每行3个，共NDataPoint行.STARTPOINTGROUP为输出起点(这个GROUP只含一个点)，根据起点按顺序输出线上各点。ISSUM/=0,仅输出各点的流量和"
 	README(IPP(I)) = "//ORDER=0,表示输出散点的形式（不排序）.=1，表示以STARTPOINTGROUP为起点按点的顺序输出。"
 	README(IPP(I)) = "//$ENDDATAPOINT"		
 	

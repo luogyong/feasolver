@@ -12,9 +12,9 @@ program main
 	REAL time_begin, time_end,time_begin1, time_end1
 
 	CALL CPU_TIME (time_begin )
-	winfo%TYPE = QWIN$MAX 
-	status = SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo) 
-	status = SETWSIZEQQ(0, winfo)
+	!winfo%TYPE = QWIN$MAX 
+	!status = SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo) 
+	!status = SETWSIZEQQ(0, winfo)
 	Print *, 'FEASOLVER. LGY WORK.'
 
 	call TIME(char_time) 

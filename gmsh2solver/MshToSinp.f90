@@ -1,4 +1,5 @@
-program GmshToSolver
+    
+    program GmshToSolver
 	use ifcore
 	use ifqwin
 	use DS_Gmsh2Solver
@@ -9,21 +10,21 @@ program GmshToSolver
 	LOGICAL(4)::tof,pressed
 	integer,allocatable::IPERM(:)
 	
-	winfo%TYPE = QWIN$MAX
+	winfo%TYPE = QWIN$MIN
 	tof=SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo)
 	tof=SETWSIZEQQ(0, winfo)  
-	
+	NOPOPUP=1
 	print *, 'LGY Works. Msh2Sinp'
-	
+!!DEC$ IF DEFINED(NOPOP)
     IF(NOPOPUP==0) THEN
 	    write(*, 10) 
 	    key=getcharqq()
 	    if(ichar(key)==ichar('h').or.ichar(key)==ichar('H')) then		
 		    call write_readme_gmsh2sinp()			
 		    stop
-        end if
+        end if        
     ENDIF
-
+!!DEC$ ENDIF
 	
 	print *, 'Begin to read in data...'
 	call readin()
@@ -66,7 +67,11 @@ program GmshToSolver
 	call Tosolver()
 	
 	Print *, 'GMSHTOSOLVER IS DONE. PLEASE ADD OTHER PARAMETERS BY HAND.'
-    IF(NOPOPUP/=0) I =setexitqq(QWIN$EXITNOPERSIST)
+    
+
+    IF(NOPOPUP/=0)  I=setexitqq(QWIN$EXITNOPERSIST)
+
+    
 10 format("Press 'H' to write a keyword help file named 'D:\README_GMSH2SINP.TXT'. Any other key to read an Msh file.")		
 end program
 

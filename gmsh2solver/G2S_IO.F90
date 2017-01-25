@@ -485,7 +485,8 @@ subroutine kwcommand(term,unit)
 				call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
                 DataPoint(i).group=int(ar(1))
 				if(nread>1) DataPoint(i).order=int(ar(2))  
-				if(nread>2) DataPoint(i).spgroup=int(ar(3))                
+				if(nread>2) DataPoint(i).spgroup=int(ar(3))
+                if(nread>3) DataPoint(i).issumq=int(ar(4))
             end do
 		case('enddatapoint')
         	strL1=LEN('DataPoint')
@@ -1047,7 +1048,7 @@ subroutine Tosolver()
     if(ndatapoint>0) then
         WRITE(UNIT,170) NDATAPOINT
         do i=1, NDATAPOINT
-			write(unit,171) DATAPOINT(I).NNODE
+			write(unit,171) DATAPOINT(I).NNODE,DATAPOINT(I).ISSUMQ
 			write(unit,172) node(DATAPOINT(I).NODE).inode
 		end do
     end if
@@ -1088,7 +1089,7 @@ subroutine Tosolver()
 163 FORMAT("//{UNODE(I)=",I7,",DNODE(I)=",I7,",n(R),So(R),[Profileshape(1),Profileshape(2)]}")
 
 170 FORMAT(/"DATAPOINT,NUM=",I7)
-171	FORMAT(/I7)
+171	FORMAT(/2I7)
 172 FORMAT(10(I7,1X))
 
 end subroutine

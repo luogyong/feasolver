@@ -221,7 +221,7 @@ module solverds
         integer::RF_APP=0 !主动侧主动土压力荷载，开挖面以下是否按倒三角折减。
 		integer::INIEPP=2  !被动侧土弹簧抗力限值是否要减掉初始的土压力,2=主动土压力，1=静止土压力
         integer::nopopup=1
-        integer::isParasys=0 !是否为参数敏感性分析
+        integer::isParasys=0,CaseID=0 !isParasys,是否为参数敏感性分析(must start form 1)
 !		integer::isPostCal=0 !所有的未知量均为已知（由边界条件输入），仅进行后处理计算。
         !REAL(KIND=DPN),ALLOCATABLE::ETA(:),RATIO(:)
         
@@ -348,7 +348,7 @@ module solverds
 	integer::nsmnp=0
 	
 	type out_data_typdef
-        integer::nnode=0
+        integer::nnode=0,isSUMQ=0 !isSumQ/=0,ouput the sum of nodal discharges in node(). 
         integer,allocatable::node(:)        
     end type
     type(out_data_typdef),allocatable::DataPoint(:)

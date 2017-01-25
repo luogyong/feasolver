@@ -24,7 +24,7 @@
 			  All Files(*.*),*.*;"
 	term=trim(term)
 	call setmessageqq(term,QWIN$MSG_FILEOPENDLG)
-	winfo%TYPE = QWIN$MAX
+	winfo%TYPE = QWIN$MIN
 	tof=SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo)
 	tof=SETWSIZEQQ(0, winfo)  
 	term=' '
@@ -1129,7 +1129,9 @@ subroutine solvercommand(term,unit)
 			allocate(datapoint(ndatapoint))
 			do i=1,ndatapoint
 				call skipcomment(unit)
-				read(unit,*) datapoint(i).nnode
+				call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+				datapoint(i).nnode=int(ar(1))
+				if(n1>1) datapoint(i).issumq=1
 				allocate(datapoint(i).node(datapoint(i).nnode))
 				call skipcomment(unit)
 				read(unit,*) datapoint(i).node
@@ -1297,6 +1299,8 @@ subroutine solvercommand(term,unit)
                         solver_control.nopopup=int(property(i).value)
                     case('isparasys')
                         solver_control.isparasys=int(property(i).value)
+                    case('caseid')
+                        solver_control.caseid=int(property(i).value)
 					!case('ispostcal')
 					!	solver_control.ispostcal=int(property(i).value)
 					case default

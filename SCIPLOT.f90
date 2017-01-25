@@ -13,7 +13,7 @@ SUBROUTINE SCIPLOT()
 	!common unit
 	CHARACTER*32::WTITLE,CH,ch1,LEGEND1(8)
 	CHARACTER*32,ALLOCATABLE::datatitle(:),xtitle(:),ytitle(:),LEGENDS(:)
-	REAL(4),ALLOCATABLE::PDATA(:,:,:,:)
+	REAL(8),ALLOCATABLE::PDATA(:,:,:,:)
 	real(8)::t1=0
 		
 	LEGEND1=(/"AA+WA","SPA","MSPA","WA",&
@@ -243,8 +243,8 @@ subroutine LineStyle()
 		INTEGER::I,J,K,retcode,wx,wy,GT,axistype,wxc,wyc,BGC,linecolor,IsMarker,isThinLine
 		INTEGER::UNIT,GRAPHTYPE,WINNUM,DATASET,DATANUM,ISDIVX
 		CHARACTER*32::WTITLE,datatitle(WINNUM),xtitle(WINNUM),ytitle(WINNUM),LEGENDS(DATASET)
-		REAL(4)::PDATA(2,DATANUM,DATASET,WINNUM)
-		REAL*4,allocatable::xyData(:,:,:)
+		REAL(8)::PDATA(2,DATANUM,DATASET,WINNUM)
+		REAL(8),allocatable::xyData(:,:,:)
 		type(windowconfig)::wc1
 		type(GraphSettings)::xyGraph
 		type(DataSettings),allocatable::xyDataSets(:)    

@@ -67,6 +67,13 @@ subroutine write_readme_feasolver()
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD ELT_LOAD IS USED TO INPUT LOADS APPLIED ON AN ELEMENT GROUP."//'"'
 	README(IPP(I)) = "//{ELTGROUP(I),DOF(I),VALUE(I),STEPFUNC.(I)}  //ELTGROUP=I, 即关键词ELEMENT中定义的SET号.亦即为ESET(I)的单元."  
 	README(IPP(I)) = "//{......} //共NUM行. "
+	
+	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//DATAPOINT,NUM=...(I)  //NUM=输出数据集的个数."
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD DATAPOINT IS USED TO OUTPUT VALUES IN SPECIFIC NODES ."//'"'
+	README(IPP(I)) = "//{A:NNODE,ISSUMQ}  //NNODE=数据集的节点数，ISSUMQ/=0,表示仅输出此点集的各节点的流量和"  
+	README(IPP(I)) = "//{A1:iNodes} //共NNODE节点. "
+	README(IPP(I)) = "//{...} //共{A,A1}*NUM组. "
 
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//TIME STEP,NUM=...(I)  //NUM=个数."

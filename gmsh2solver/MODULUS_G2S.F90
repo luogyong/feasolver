@@ -125,6 +125,7 @@ module DS_Gmsh2Solver
         integer::Group
         integer::SPGroup !Startpoint Group,这个Group只有一个点。
 		integer::order=0
+        integer::issumq=0 !/=0, 表示仅输出各节点的流量和。
         integer::nnode=0
         integer,allocatable::node(:)        
     end type

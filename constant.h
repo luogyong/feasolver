@@ -218,6 +218,7 @@
 	integer,parameter::PHead=67
 	integer,parameter::kr_spg=68
 	integer, parameter::mw_spg = 69
+	integer,parameter::sumq=70
 
 integer::minet = 10000, maxet = -10000   !the ultimate element type number.
 !solver method

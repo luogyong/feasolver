@@ -353,12 +353,10 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 	use solverds
 	implicit none
 	INTEGER,INTENT(IN)::FILE_UNIT,ISTEP,ISUBTS,ITER
-	LOGICAL,SAVE::ISFIRSTCALL1
-	
-	
-	
-	integer::i,j,k,idof
+	LOGICAL,SAVE::ISFIRSTCALL1	
+	integer::i,j,k,idof,IDISQ1=0,NVO1=0
 	real(8),allocatable::NodalQ(:,:)
+	REAL(8)::SUMQ1=0
 	
 	allocate(NodalQ(nnum,nvo))
 	do i=1,nvo
@@ -558,6 +556,7 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 					!NodalQ(j,i)=node(j).velocity(3)
 				end do
 			case(discharge)
+				IDISQ1=I
 				NodalQ(:,i)=node.q
 			case(kr_spg)
 				NodalQ(:,i)=node.kr
@@ -581,10 +580,19 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 			
 		END IF
 		DO I=1,NDATAPOINT		
-
-			DO J=1,DATAPOINT(I).NNODE
-				write(DATAPOINT_UNIT,110) SOLVER_CONTROL.ISPARASYS,I,ISTEP,ISUBTS,ITER,J,(NodalQ(DATAPOINT(I).NODE(J),K),K=1,nvo)
-			END DO
+			IF (DATAPOINT(I).ISSUMQ==0) THEN
+				DO J=1,DATAPOINT(I).NNODE
+					write(DATAPOINT_UNIT,110) SOLVER_CONTROL.ISPARASYS,SOLVER_CONTROL.CaseID,I,ISTEP,ISUBTS,ITER,J,(NodalQ(DATAPOINT(I).NODE(J),K),K=1,nvo)
+				END DO
+			ELSE
+				SUMQ1=0.0				
+				DO J=1,DATAPOINT(I).NNODE					
+					SUMQ1=SUMQ1+NodalQ(DATAPOINT(I).NODE(J),IDISQ1)
+				END DO
+				NVO1=1
+				WRITE(DATAPOINT_UNIT,120) SOLVER_CONTROL.ISPARASYS,SOLVER_CONTROL.CaseID,I,ISTEP,ISUBTS,ITER,J,SUMQ1,'SUMQ'
+				
+			ENDIF
 		
 		END DO		
 		
@@ -595,8 +603,9 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 	
 	
 999 format(<nvo>E15.7)
-100	FORMAT("IPARASYS",7X,"DATASET",8X,"ISTEP",10X,"ISUBTS",9X,"ITER",11X,"NO",13X,<NVO>A15)
-110 FORMAT(6(I14,X),<nvo>(E14.7,X))
+100	FORMAT("IPARASYS",7X,"CaseID",9X,"DATASET",8X,"ISTEP",10X,"ISUBTS",9X,"ITER",11X,"NO",13X,<NVO>A15)
+110 FORMAT(7(I14,X),<nvo>(E14.7,X))
+120 FORMAT(7(I14,X),<NVO1>(E14.7,X),"//",<NVO1>A15)
 
 	if(allocated(NodalQ)) deallocate(NodalQ)
 	
