@@ -994,7 +994,7 @@ subroutine Tosolver()
 		if(.NOT.physicalgroup(N1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD的单元组不输出
 		item=len_trim(adjustL(physicalgroup(N1).et))
 		ITEM1=len_trim(adjustL(CH1))
-
+        IF(physicalgroup(N1).nel==0) CYCLE
 		write(unit,120) physicalgroup(N1).nel,N1,physicalgroup(N1).et, &
 						physicalgroup(N1).mat(1),CH1
 		item=len_trim(elttype(physicalgroup(N1).et_gmsh).description)
@@ -1063,7 +1063,7 @@ subroutine Tosolver()
 101 FORMAT('"',A<ITEM>,'"')
 
 110 FORMAT(/,'NODE,NUM=',I7,',DATAPACKING=',I2,',DIMENSION=',I2)
-111 FORMAT(<MODELDIMENSION>(F15.7,1X))
+111 FORMAT(<MODELDIMENSION>(F24.16,1X))
 112 FORMAT("//",<MODELDIMENSION>(A15,1X))
 
 120 FORMAT(/'ELEMENT,NUM=',I7,',SET=',I3,',ET=',A<ITEM>,',MATID=',I3,',TITLE=',A<ITEM1>)

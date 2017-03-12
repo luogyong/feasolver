@@ -16,7 +16,7 @@ program main
 	!status = SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo) 
 	!status = SETWSIZEQQ(0, winfo)
 	Print *, 'FEASOLVER. LGY WORK.'
-
+    !ef = setexitqq(QWIN$EXITNOPERSIST)
 	call TIME(char_time) 
     IF(SOLVER_CONTROL.NOPOPUP==0) THEN
 	    write(*, 10) 
@@ -31,6 +31,7 @@ program main
 	PRINT *, 'Reading data...',char_time
 	call readin(itype)
 	call TIME(char_time)
+
 	PRINT *, 'Initializing process...',char_time
 	call Initialization()
 	call TIME(char_time)

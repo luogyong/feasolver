@@ -62,7 +62,12 @@
 
 	close(1)
 	print * ,'Read in data completed!' 
-
+    if (solver_control.isParasys>0) then
+        msg = setexitqq(QWIN$EXITNOPERSIST)
+    endif
+    if(enum==0) then
+        STOP 'NO ELEMENT WAS INPUT.'
+    endif
     
     
     
