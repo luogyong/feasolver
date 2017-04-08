@@ -46,7 +46,7 @@ program main
 		ef = setexitqq(QWIN$EXITPERSIST)
     endif
     
-    ef = setexitqq(QWIN$EXITNOPERSIST)
+   ! ef = setexitqq(QWIN$EXITNOPERSIST)
 10 format("Press 'H' to write a keyword help file named 'D:\README_FEASOLVER.TXT'. Any other key to read an SINP file.")		
 
 end program main

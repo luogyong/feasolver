@@ -219,6 +219,8 @@
 	integer,parameter::kr_spg=68
 	integer, parameter::mw_spg = 69
 	integer,parameter::sumq=70
+			
+	integer,parameter::SFR=71 !Stress Failure Ratio
 
 integer::minet = 10000, maxet = -10000   !the ultimate element type number.
 !solver method
@@ -330,5 +332,6 @@ integer, parameter::MatWater = -9999
 integer, parameter::BISHOP = 2,ORDINARY=1,SPENCER=3,JANBU=4,GLE=5
 integer,parameter::CIRCULAR=1,NONCIRCULAR=0
 integer,parameter::GRID=1,MONTECARLO=2
+integer,parameter::	LEFT=-1,RIGHT=1
 
 	

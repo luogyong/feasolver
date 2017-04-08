@@ -1184,15 +1184,18 @@ subroutine el_alloc_room(ienum)
 			allocate(element(ienum).evp(6,element(ienum).ngp+element(ienum).nnum))	
 			allocate(element(ienum).ev(element(ienum).ngp), &
 			element(ienum).e(element(ienum).ngp))
+			allocate(element(ienum).sfr(6,element(ienum).ngp+element(ienum).nnum))	
 			element(ienum).pstrain=0.0D0
 			element(ienum).evp=0.0D0	
 			element(ienum).ev=0.0
 			element(ienum).e=0.0
+			element(ienum).sfr=0.d0
 			do i=1,element(ienum).nnum
 				if(.not.allocated(node(element(ienum).node(i)).stress)) then
 					allocate(node(element(ienum).node(i)).stress(6))
 					allocate(node(element(ienum).node(i)).strain(6))
 					allocate(node(element(ienum).node(i)).pstrain(6))
+					allocate(node(element(ienum).node(i)).sfr(6))
 				end if				
 			end do			
 	end select
@@ -1205,7 +1208,7 @@ subroutine el_ini_D(ienum)
 	use solverds
 	implicit none
 	integer::ienum
-	integer::nd1,mat1,isys1
+	integer::nd1,mat1,isys1,i
 	real(8)::t1=0,t2=0
 	
 	nd1=element(ienum).nd
@@ -1229,9 +1232,9 @@ subroutine el_ini_D(ienum)
 			element(ienum).d(3,3)=1.0
 			t1=material(mat1).property(2)
 			t2=material(mat1).property(1)
-			
-			element(ienum).d(4:2*ndimension,4:2*ndimension)=(1.0-2*t1)/(2*(1.0-t1))
-			
+			do i=4,2*ndimension
+				element(ienum).d(i,i)=(1.0-2*t1)/(2*(1.0-t1))
+			end	do
 			t1=t1/(1-t1)
 			element(ienum).d(2,1)=t1
 			element(ienum).d(1,2)=t1

@@ -57,7 +57,7 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
 				end do
 			end do
 		end do
-		!elb=0.d0
+		
 		select case(ec)
 			case(CPE,CPS,CAX)
 				do j=1,nshape

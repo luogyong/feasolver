@@ -1,3 +1,145 @@
+subroutine stree_failure_ratio_cal(ienum)
+	use solverds
+	implicit none
+	integer,intent(in)::ienum
+	integer::i,et1,nsh1,ndim1,dof1(3)
+	real(8)::ss1(6),pss1(4),t1,t2,C1,phi1,R1,PI1,dis1(3,30),disg1(3)
+	
+	PI1=Pi()
+	et1=element(ienum).et
+	nsh1=ecp(et1).nshape
+	ndim1=ecp(et1).ndim
+	do concurrent(i=1:element(ienum).nnum)	
+		dis1(1:ndim1,i)=Tdisp(node(element(ienum).node(i)).dof(1:ndim1))		
+	enddo
+		!MC material		
+		phi1=material(element(ienum).mat).property(4)
+		c1=material(element(ienum).mat).property(3)
+		
+	do i=1,element(ienum).ngp
+		ss1=element(ienum).stress(:,i)
+		!积分点的位移
+		disg1(1:ndim1)=matmul(dis1(1:ndim1,1:nsh1),ecp(et1).Lshape(:,i))		
+
+		call stress_in_failure_surface(element(ienum).sfr(:,i),ss1,ecp(element(ienum).et).ndim,c1,Phi1,disg1,solver_control.slidedirection)
+		
+        
+	enddo
+	
+end subroutine
+
+subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,dis,slidedirection)
+	implicit none
+	integer,intent(in)::ndim,slidedirection
+	real(8),intent(in)::stress(6),cohesion,PhiD,dis(3)
+	real(8),intent(inout)::sfr(6)
+	
+	integer::i
+	real(8)::ss1(6),pss1(4),t1,t2,C1,phi1,R1,PI1,sin1,cos1,t3,t4,t5,ta1(4)
+	
+	PI1=dATAN(1.0)*4.0
+	C1=cohesion
+	phi1=PhiD/180*PI1
+	sfr=0.d0
+	call principal_stress_cal(pss1,stress,ndim)
+	
+	t2=(pss1(1)-pss1(2))/2.0
+    if(pss1(1)+pss1(2)<0.d0) then 
+	    if(phi1>0) then
+		    t1=(-(pss1(1)+pss1(2))/2.0+c1/dtan(phi1))*dsin(phi1) !受拉为正			
+	    else
+		    t1=C1
+	    endif
+	    sfr(1)=t2/t1
+    else !>0.拉坏
+        sfr(1)=-1. !表拉坏
+    endif
+    !
+    t1=slidedirection
+    if(stress(2)>stress(1)) then !sigmax<sigmay
+        sfr(2)=pss1(4)+(PI1/2-phi1)/2.0*t1  
+    else
+        sfr(2)=pss1(4)-(PI1/2+phi1)/2.0*t1 
+    endif
+    sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(PI1/2-phi1)
+    sfr(4)=-t2*sin(PI1/2-phi1)*t1 
+    sfr(5)=-sfr(4)*dcos(sfr(2))
+    sfr(6)=-sfr(4)*dsin(sfr(2))
+    
+    !t1=0.5*(stress(1)+stress(2))
+    !t2=0.5*(stress(1)-stress(2))	
+    !t3=2*PI1
+    !do i=1,2
+    !    !找出破坏面上的剪应力与位移矢量较小的破坏面
+    !    if(i==1) then
+    !        t5=dasin(dsin(pss1(4)-pi1/2.-(pi1/4.+phi1/2.)))
+    !    else
+    !        t5=dasin(dsin(pss1(4)-pi1/2.+(pi1/4.+phi1/2.)))
+    !    endif
+    !
+    !    sin1=dsin(2*(t5+PI1/2.));cos1=dcos(2.*(t5+PI1/2.))
+    !    ta1(1)=t1+t2*cos1+stress(4)*sin1
+	   ! ta1(2)=-t2*sin1+stress(4)*cos1
+    !    ta1(3)=-ta1(2)*dcos(t5)
+	   ! ta1(4)=-ta1(2)*dsin(t5)    
+    !    t4=dacos(dot_product(dis(1:2),ta1(3:4))/(norm2(dis(1:2))*norm2(ta1(3:4))))
+    !    if(t4<t3) then
+    !        sfr(2)=t5
+    !        sfr(3:6)=ta1
+    !        t3=t4
+    !    endif
+    !
+    !enddo 
+    
+	sfr(2)=sfr(2)/PI1*180.0 !to degree
+	
+
+endsubroutine
+
+subroutine principal_stress_cal(pstress,stress,ndim)
+	implicit none
+	integer,intent(in)::ndim
+	real(8),intent(in)::stress(6)
+	real(8),intent(inout)::pstress(4) 
+	real(8)::t1,t2,sita,Pi
+    
+    Pi=datan(1.d0)*4.0
+	
+	pstress=0.0d0
+	if(ndim==3) then 
+		Print *, 'Not available yet. sub=principal_stress_cal'
+		stop
+	else
+		t1=(stress(1)+stress(2))/2.0d0
+		t2=(stress(1)-stress(2))/2.0d0
+		pstress(1)=t1+(t2**2+stress(4)**2)**0.5		
+		pstress(2)=t1-(t2**2+stress(4)**2)**0.5
+		Pstress(3)=stress(3)
+		!默认z方向为应力为中应力。
+		!sita 为大主应力作用面(走向，不是垂线)与x轴的夹角，逆时针为正。
+		!if (abs(stress(1)-stress(2))<1e-14) then
+		!	if (stress(4)>0) then
+		!		sita=0.75*Pi
+		!	else
+		!		sita=0.25*Pi
+		!	endif
+		!elseif (stress(1)>stress(2)) then			
+		!	sita=0.5*atan(2*stress(4)/(stress(1)-stress(2)))+Pi/2
+		!else
+			sita=0.5*atan(2*stress(4)/(stress(1)-stress(2)))
+		!endif
+		Pstress(4)=sita 
+			
+		
+		
+		!ref::https://en.wikipedia.org/wiki/Mohr%27s_circle 
+		!Mohr Circel sign cenverstion: tension is +, shear stress, clockwise is +
+		
+		
+	endif
+	
+end subroutine
+
 !calculate stress and strain at gauss points and element nodes for each element needed  
 subroutine average_stress_strain_cal(ienum)
 	use solverds
@@ -59,6 +201,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 				IF(ALLOCATED(ELEMENT(IENUM).VELOCITY)) ELEMENT(IENUM).VELOCITY(:,i)=ELEMENT(IENUM).VELOCITY(:,1)
 				IF(ALLOCATED(ELEMENT(IENUM).KR)) ELEMENT(IENUM).kr(i)=ELEMENT(IENUM).kr(1)
 				IF(ALLOCATED(ELEMENT(IENUM).MW)) ELEMENT(IENUM).mw(i)=ELEMENT(IENUM).mw(1)
+				IF(ALLOCATED(ELEMENT(IENUM).SFR)) ELEMENT(IENUM).SFR(:,i)=ELEMENT(IENUM).SFR(:,1)
 				IF(ALLOCATED(ELEMENT(IENUM).STRESS)) ELEMENT(IENUM).STRESS(:,i)=ELEMENT(IENUM).STRESS(:,1)
 				IF(ALLOCATED(ELEMENT(IENUM).STRAIN)) ELEMENT(IENUM).STRAIN(:,i)=ELEMENT(IENUM).STRAIN(:,1)
 				IF(ALLOCATED(ELEMENT(IENUM).PSTRAIN)) ELEMENT(IENUM).PSTRAIN(:,i)=ELEMENT(IENUM).PSTRAIN(:,1)
@@ -82,8 +225,12 @@ subroutine extrapolation_stress_strain_cal(ienum)
 					ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,i-n1+1))
 				IF(ALLOCATED(ELEMENT(IENUM).MW)) ELEMENT(IENUM).mw(i)=dot_product( &
 					ELEMENT(IENUM).mw(1:element(ienum).ngp), &
-					ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,i-n1+1))	
-				
+					ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,i-n1+1))
+				do CONCURRENT (j=1:4)
+					IF(ALLOCATED(ELEMENT(IENUM).SFR)) ELEMENT(IENUM).SFR(j,i)=dot_product( &
+						ELEMENT(IENUM).SFR(j,1:element(ienum).ngp), &
+						ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,i-n1+1))	
+				enddo
 				do CONCURRENT (j=1:6)
 					IF(ALLOCATED(ELEMENT(IENUM).STRESS)) ELEMENT(IENUM).STRESS(j,i)=dot_product( &
 						ELEMENT(IENUM).STRESS(j,1:element(ienum).ngp), &
@@ -113,7 +260,12 @@ subroutine extrapolation_stress_strain_cal(ienum)
 			ENDIF	
 			IF(ALLOCATED(ELEMENT(IENUM).MW)) THEN
 				CALL I2N_TRI15(element(ienum).MW(N1:N2),element(ienum).MW(1:ELEMENT(IENUM).NGP),ELEMENT(IENUM).ET)
-			ENDIF				
+			ENDIF
+			do j=1,4
+				IF(ALLOCATED(ELEMENT(IENUM).SFR)) THEN
+					CALL I2N_TRI15(element(ienum).SFR(j,N1:N2),element(ienum).SFR(j,1:ELEMENT(IENUM).NGP),ELEMENT(IENUM).ET)
+				ENDIF
+			enddo
 			do j=1,6
 				IF(ALLOCATED(ELEMENT(IENUM).STRESS)) THEN
 					CALL I2N_TRI15(element(ienum).STRESS(J,N1:N2),element(ienum).STRESS(J,1:ELEMENT(IENUM).NGP),ELEMENT(IENUM).ET)
@@ -180,6 +332,10 @@ subroutine extrapolation_stress_strain_cal(ienum)
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				IF(ALLOCATED(ELEMENT(IENUM).MW)) element(ienum).mw(N1:N2)=dot_product(ELEMENT(IENUM).mw(1:element(ienum).ngp), &
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
+				DO CONCURRENT (J=1:4) 
+					IF(ALLOCATED(ELEMENT(IENUM).SFR)) element(ienum).SFR(j,N1:N2)=dot_product(ELEMENT(IENUM).SFR(j,1:element(ienum).ngp), &
+							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
+				enddo
 				DO CONCURRENT (J=1:6)
 					IF(ALLOCATED(ELEMENT(IENUM).STRESS)) element(ienum).STRESS(J,N1:N2)=dot_product(ELEMENT(IENUM).STRESS(j,1:element(ienum).ngp), &
 								ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
@@ -411,7 +567,7 @@ subroutine E2N_stress_strain()
 	use solverds
 	implicit none
 	integer::i,j,k,n1,n2
-	real(8)::un(50)=0.0D0,vangle(15)=0.0
+	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3)
 
 	!clear zero
 	do i=1,nnum
@@ -420,9 +576,11 @@ subroutine E2N_stress_strain()
 		if(allocated(node(i).pstrain))	node(i).pstrain=0.0d0
 		if(allocated(node(i).igrad)) node(i).igrad=0.0d0
 		if(allocated(node(i).velocity)) node(i).velocity=0.0d0
+		if(allocated(node(i).sfr)) node(i).sfr=0.0d0
 		node(i).q=0.0d0
 		node(i).kr=0.0d0
 		node(i).mw=0.0d0
+        node(i).sfr(1)=-1.0d6
 	end do
 	
 	!averaged simplily at nodes
@@ -451,6 +609,13 @@ subroutine E2N_stress_strain()
 					+element(i).strain(:,n1+j)/n2
 					node(element(i).node(j)).pstrain=node(element(i).node(j)).pstrain &
 					+element(i).pstrain(:,n1+j)/n2
+					!get the mat for later nodal sfr cal. 
+                    
+					if(element(i).sfr(1,n1+j)>node(element(i).node(j)).sfr(1)) then					
+						node(element(i).node(j)).sfr(1)=element(i).sfr(1,n1+j)
+						node(element(i).node(j)).sfr(2)=element(i).mat !borrow 
+					endif
+				
 				end do
 			case(spg2d,spg,cax_spg)
 				do j=1,element(i).nnum
@@ -483,6 +648,13 @@ subroutine E2N_stress_strain()
 									+6*(node(i).stress(4)**2+node(i).stress(5)**2 &
 									+node(i).stress(6)**2))
 			node(i).mises=node(i).mises**0.5
+			!节点的材料假定为破坏比最大的单元材料，以模拟成层土中的软弱夹层
+			C1=material(node(i).sfr(2)).property(3)
+			Phi1=material(node(i).sfr(2)).property(4)
+            dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
+
+			call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,dis1,solver_control.slidedirection)
+			
 		end if
 		!total generalized shear stain
 		if(allocated(node(i).strain)) then
@@ -502,6 +674,10 @@ subroutine E2N_stress_strain()
 									+node(i).pstrain(6)**2))
 			node(i).peeq=2.0/3**0.5*node(i).peeq**0.5	
 		end if
+		
+
+		
+		
 	end do
 	
 end subroutine
@@ -636,6 +812,8 @@ subroutine vpolynomial(xy,ixy,jxy,order,p,ip,jp)
 	end do
 	
 end subroutine
+
+
 
 !use SPR method to calculate the polynomials for each patch.
 !subroutine spr_polynomial_cal()

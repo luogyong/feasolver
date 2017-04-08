@@ -24,7 +24,7 @@
 			  All Files(*.*),*.*;"
 	term=trim(term)
 	call setmessageqq(term,QWIN$MSG_FILEOPENDLG)
-	winfo%TYPE = QWIN$MIN
+	winfo%TYPE = QWIN$MAX
 	tof=SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo)
 	tof=SETWSIZEQQ(0, winfo)  
 	term=' '
@@ -65,9 +65,7 @@
     if (solver_control.isParasys>0) then
         msg = setexitqq(QWIN$EXITNOPERSIST)
     endif
-    if(enum==0) then
-        STOP 'NO ELEMENT WAS INPUT.'
-    endif
+
     
     
     
@@ -144,6 +142,9 @@
         CALL Gen_slope_model()
     ENDIF
     
+    if(enum==0) then
+        STOP 'NO ELEMENT WAS INPUT.'
+    endif
     
 	LF1D(0,1)=0.0D0
 	LF1D(0,2)=1.0D0	
@@ -1306,6 +1307,8 @@ subroutine solvercommand(term,unit)
                         solver_control.isparasys=int(property(i).value)
                     case('caseid')
                         solver_control.caseid=int(property(i).value)
+                    case('slidedirection')
+                        solver_control.slidedirection=int(property(i).value)
 					!case('ispostcal')
 					!	solver_control.ispostcal=int(property(i).value)
 					case default
@@ -1944,7 +1947,11 @@ subroutine solvercommand(term,unit)
 						outvar(kr_spg).value=kr_spg
 					case('mw')
 						outvar(mw_spg).name='mw'
-						outvar(mw_spg).value=mw_spg						
+						outvar(mw_spg).value=mw_spg
+					case('sfr')
+						outvar(SFR).name='sfr","sfr_sita(deg,CCW+)","Sn(Tension+)","Tn(CCW+)","Tnx","Tny'
+						outvar(SFR).value=SFR
+						outvar(SFR).nval=6
 					case default
 						call Err_msg(property(i).name)
 				end select

@@ -29,6 +29,8 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	anybarfamily=.false.
 	do i=1,enum
 		if(element(i).isactive==0) cycle
+        
+		CALL stree_failure_ratio_cal(I)
 		select case(element(i).ec)
 
 			case(stru,SPRING,SOILSPRING)
@@ -45,6 +47,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 					case(avg)
 						call average_stress_strain_cal(i)
 					case default
+						
 						call extrapolation_stress_strain_cal(i)
 				end select
 						
@@ -341,6 +344,7 @@ subroutine tecplot_variables(cstring)
 		if(outvar(i).value==0) cycle
 		nvo=nvo+1
 		vo(nvo)=i
+		nvo=nvo+outvar(i).nval-1 !一个变量包含多个数的情况
 		cstring=trim(adjustL(cstring))//'"'//trim(adjustL(outvar(i).name))//'",'
 	end do
 
@@ -359,7 +363,8 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 	REAL(8)::SUMQ1=0
 	
 	allocate(NodalQ(nnum,nvo))
-	do i=1,nvo
+	i=1
+	do while(i<=nvo)
 		select case(vo(i))
 			case(locx)
 				NodalQ(:,i)=node.coord(1)
@@ -562,7 +567,14 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 				NodalQ(:,i)=node.kr
 			case(mw_spg)
 				NodalQ(:,i)=node.mw
+			case(SFR)
+				do j=1,outvar(vo(i)).nval
+					NodalQ(:,i+j-1)=node.SFR(j)
+				enddo
 		end select
+		
+		i=i+outvar(vo(i)).nval
+		
 	end do
 	
 	do i=1,nnum
@@ -803,8 +815,8 @@ subroutine BlOCKout(file_unit)
 	real(kind=DPN),allocatable::dis(:)
 	
 	allocate(dis(nnum))
-	
-	do i=1,nvo
+	i=1
+	do while(i<=nvo)
 		select case(vo(i))
 			case(locx)
 				write(file_unit,999)  node.coord(1)
@@ -933,8 +945,13 @@ subroutine BlOCKout(file_unit)
 			case(kr_spg)
 				write(file_unit,999) node.kr
 			case(mw_spg)
-				write(file_unit,999) node.mw				
-		end select
+				write(file_unit,999) node.mw
+			case(SFR)
+				do j=1,4
+					write(file_unit,999) node.SFR(j)
+				enddo
+		end select		
+		i=i+outvar(vo(i)).nval
 	end do
 
 999 format(20E15.7)

@@ -11,7 +11,7 @@ module solverds
 		real(kind=DPN)::coord(3)=0.0D0 !coordinates (x,y,z)
 		integer::ndof=0 !节点的自由度个数
 		integer::dof(MNDOF)=inactive !-9999999,inactive dof; >0:active dof. if dof()>0, then it indexes the dof number.						 		
-		real(kind=DPN),allocatable::stress(:),strain(:),pstrain(:)
+		real(kind=DPN),allocatable::stress(:),strain(:),pstrain(:),SFR(:)  !SFR=应力破坏比
 		real(kind=DPN),allocatable::FQ(:),M(:) !nodal shear forces and nodal bending moments.
 		real(kind=DPN),allocatable::igrad(:),velocity(:)	!for spg element, gradients,velocities.
 		real(kind=DPN)::angle=0.0D0 !the angle around the vertex.
@@ -70,6 +70,8 @@ module solverds
 		real(kind=DPN),allocatable::stress(:,:),Dstress(:,:) !stress at gauss points and nodes, stress(6,ngp+nnum)
 		real(kind=DPN),allocatable::strain(:,:),Dstrain(:,:) !strain at gauss points and nodes, strain(6,ngp+nnum)
 														!for cpe3_spg, strain(2,2),strain(:,1)=gradient, strain(:,2)=velocity
+		real(kind=DPN),allocatable::sfr(:,:) !1.stress failure ratio,2.failure plane angle respective to x, anticlockwise is +ve.
+											 !3. sigman(tension is +ve ) 4 tn (clockwise is +ve),5. tnx, 6. tny 
 		real(kind=DPN),allocatable::pstrain(:,:) !total plastic strain in gp and centroid
 		real(kind=DPN),allocatable::evp(:,:) !plastic strain incremental of each incremental in gp and centroid.
 		real(kind=DPN),allocatable::xygp(:,:) !globe co-ordinates of gausian points.
@@ -89,6 +91,7 @@ module solverds
 		real(kind=DPN),allocatable::Mw(:) !slope of volumetric water content
 		real(kind=DPN),allocatable::sita_fin(:),sita_ini(:) !volume water content in the end and start of the time step.  
         		
+		
 		!real(kind=DPN),allocatable::lamda(:) !lamda(ngp)=1.0(by default),relative k. 
 		!additional variables for upper bound analysis
 		real(kind=DPN),allocatable::A12(:,:)  ! for UBZT4 is A23
@@ -220,10 +223,11 @@ module solverds
         integer::RF_EPP=0 !被动侧土弹簧抗力限值是否要减掉初始的土压力。
         integer::RF_APP=0 !主动侧主动土压力荷载，开挖面以下是否按倒三角折减。
 		integer::INIEPP=2  !被动侧土弹簧抗力限值是否要减掉初始的土压力,2=主动土压力，1=静止土压力
-        integer::nopopup=1
+        integer::nopopup=0
         integer::isParasys=0,CaseID=0 !isParasys,是否为参数敏感性分析(must start form 1)
 !		integer::isPostCal=0 !所有的未知量均为已知（由边界条件输入），仅进行后处理计算。
         !REAL(KIND=DPN),ALLOCATABLE::ETA(:),RATIO(:)
+        integer::slidedirection=right
         
 	end type
 	type(solver_tydef)::solver_control
@@ -315,7 +319,7 @@ module solverds
 
 	!output variables
 	type outvar_tydef
-		character(32)::name=''
+		character(128)::name=''
 		integer::value=0	!>0, variable output is required.
 		logical::iscentre=.false. !location, nodes or centroid of element.
 		integer::system=0	!reference systerm,the default system is the globel sysytem
@@ -323,6 +327,7 @@ module solverds
 								!the central line of the cylinder.
 								!if system=-9999,then the local system is a spherical syystem whose origin is located
 								!at the center of the sphere
+		integer::nval=1 !这个变量包含多少个数。
 	end type
 	type(outvar_tydef)::outvar(100)	
 	integer::vo(100)=0,nvo=0
@@ -436,8 +441,8 @@ module solverds
     
 	function pi()
 		real(kind=DPN)::pi
-		pi=1
-		pi=datan(pi)*4	
+		pi=1.d0
+		pi=datan(pi)*4.0d0	
 	end function
 	
 	real(DPN) function matproperty(imat,ipara,istep)
