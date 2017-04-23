@@ -222,12 +222,32 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	9999 format(<nc>I7)
 end subroutine
 
+SUBROUTINE NODAL_ACTIVE_DOF(INODE,DOFS,NDOFS)
+	USE SOLVERDS
+	IMPLICIT NONE
+	INTEGER,INTENT(IN)::INODE,NDOFS
+	INTEGER,INTENT(OUT)::DOFS(NDOFS)
+	INTEGER::N1,I,IDOF1
+	
+	N1=0
+	DOFS=-1
+	DO I=1,MNDOF
+		IDOF1=NODE(INODE).DOF(I)
+		IF(IDOF1>0) THEN
+			N1=N1+1
+			DOFS(N1)=IDOF1
+			IF(N1==NODE(INODE).NDOF) EXIT
+		ENDIF
+	ENDDO	
+	
+ENDSUBROUTINE
+
 subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 	use solverds
 	implicit none
 	INTEGER,INTENT(IN)::INC,ITER,ISUBTS
-	integer::i,DOF1
-	real(KIND=DPN)::t1,t2,t3,dt1
+	integer::i,J,NITEM1,N1,DOFS1(MNDOF)
+	real(KIND=DPN)::t1,t2,t3,dt1,VAL1(MNDOF)
 	
 	WRITE(99,20)
 	WRITE(99,10)
@@ -239,18 +259,24 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 
 	DO I=1, BL_NUM
 		if(sf(bc_load(i).sf).factor(inc)==-999.D0) cycle
-		WRITE(99,11) bc_load(i).node,bc_load(i).dof,'LOAD',INC,ITER,NODE(bc_load(i).node).Q*dt1
+		NITEM1=NODE(bc_load(i).node).NDOF
+		CALL NODAL_ACTIVE_DOF(bc_load(i).node,DOFS1,MNDOF)		
+		WRITE(99,11) bc_load(i).node,bc_load(i).dof,'LOAD',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1))*dt1,TDISP(DOFS1(1:NITEM1))*dt1
 		!QT=QT+NODE(bc_load(i).node).Q*dt1
 	END DO
 	DO I=1, BD_NUM
 		if(bc_disp(I).isdead==1) cycle
-		WRITE(99,11) bc_DISP(i).node,bc_DISP(i).dof,'B.C.',INC,ITER,NODE(bc_DISP(i).node).Q*dt1
+		NITEM1=NODE(bc_DISP(i).node).NDOF
+		CALL NODAL_ACTIVE_DOF(bc_DISP(i).node,DOFS1,MNDOF)		
+		WRITE(99,11) bc_DISP(i).node,bc_DISP(i).dof,'B.C.',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1))*dt1,TDISP(DOFS1(1:NITEM1))*dt1
 		!QT=QT+NODE(bc_DISP(i).node).Q*dt1
 	END DO
 	DO I=1, NUMNSEEP
 		if(sf(NSEEP(i).sf).factor(inc)==-999.D0) cycle
 		IF(NSEEP(I).ISDEAD==1) CYCLE
-		WRITE(99,11) NSEEP(i).node,NSEEP(i).dof,'S.F.',INC,ITER,NODE(NSEEP(i).node).Q*dt1
+		NITEM1=NODE(NSEEP(i).node).NDOF
+		CALL NODAL_ACTIVE_DOF(NSEEP(i).node,DOFS1,MNDOF)			
+		WRITE(99,11) NSEEP(i).node,NSEEP(i).dof,'S.F.',NI_NodalForce(DOFS1(1:NITEM1))*dt1,TDISP(DOFS1(1:NITEM1))*dt1
 		!QT=QT+NODE(NSEEP(i).node).Q*dt1
 	END DO
 	
@@ -262,8 +288,8 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 	
 	WRITE(99,21)
 
-10  format(3X,"NODE",5X,"DOF",3X,"TYPE",4X,"INC",3X,"ITER",11X,"LOAD")
-11	format(I7,1X,I7,3X,A4,4X,I3,4X,I4,1X,F15.7)
+10  format(3X,"NODE",5X,"DOF",3X,"TYPE",4X,"INC",3X,"ITER",11X,"GENERALIZED_LOADS",11X,"GENERALIZED_DISPLACEMENTS")
+11	format(I7,1X,I7,3X,A4,4X,I3,4X,I4,1X,<NITEM1>F15.7,<NITEM1>F15.7)
 12	format("WATER STORED:",F15.7,X,"WATER FLOWED IN:",F15.7,X,"RATIO:",F15.7)
 20	format("\N******************OUTPUT THE FLUX ON BOUNDARIES AND MASS CONVERSATION RATIO******************"C)
 21	format("******************END THE OUTPUT******************\N"C)
@@ -570,6 +596,12 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 			case(SFR)
 				do j=1,outvar(vo(i)).nval
 					NodalQ(:,i+j-1)=node.SFR(j)
+				enddo
+			case(NF)
+				do j=1,outvar(vo(i)).nval
+					DO K=1,NNUM
+						NodalQ(K,i+j-1)=NI_NodalForce(NODE(K).DOF(J))
+					ENDDO
 				enddo
 		end select
 		
@@ -947,8 +979,12 @@ subroutine BlOCKout(file_unit)
 			case(mw_spg)
 				write(file_unit,999) node.mw
 			case(SFR)
-				do j=1,4
+				do j=1,6
 					write(file_unit,999) node.SFR(j)
+				enddo
+			case(NF)
+				do j=1,NDIMENSION
+					write(file_unit,999) NI_NodalForce(NODE.DOF(J))
 				enddo
 		end select		
 		i=i+outvar(vo(i)).nval

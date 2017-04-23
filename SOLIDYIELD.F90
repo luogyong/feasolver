@@ -69,12 +69,14 @@ subroutine solve_SLD()
 	stepload=0.0D0
 	Tload=0.0D0
 	exdis=tdisp !用于存储上一荷载步的总位移。
-	
+	NI_NodalForce=0.D0
 	NormRes=1.d20
 	istep=1	
 	ttime1=0.0D0
 	
-	if(geostatic.isgeo) istep=0
+	if(geostatic.isgeo) then
+		istep=0		
+	endif
 	do iincs=istep,nstep
         !active element
         call element_activate(iincs)
@@ -170,7 +172,7 @@ subroutine solve_SLD()
 				
 		   
 				select case(solver_control.solver) 
-					case(N_R)
+					case(N_R,INISTIFF)
 						
 						!if(SOLVER_CONTROL.ISLS==1) then							
                         CALL Linesearch(iincs,isubts,iiter,iscon,relax,stepdis,LOAD,bdylds)
@@ -493,9 +495,9 @@ subroutine Cal_UnbalanceForce(iincs,iiter,iscon,stepdis,bdylds,isubts)
 	select case(solver_control.bfgm)
 		case(viscop)
 			call bload_viscoplasticity(iiter,iscon,bdylds)
-		case(inistress)
-			call bload_inistress(iiter,iscon,bdylds)
-		case(consistent,constant,continuum,iniflux)
+		!case(inistress)
+			!call bload_inistress(iiter,iscon,bdylds)
+		case(consistent,constant,continuum,iniflux,inistress)
 			!print *, iincs,iiter,resdis
 			call bload_consistent(iiter,iscon,bdylds,stepdis,iincs,isubts)
 		!case(iniflux)
@@ -1444,27 +1446,53 @@ subroutine invanrant(stress,inv)
 	
 end subroutine
 
+SUBROUTINE MC_KSITA(LODE,SITA,PHI,A,B,KSITA,D_KSITA)
+	IMPLICIT NONE
+	REAL(8),INTENT(IN)::LODE,SITA,A(2),B(2),PHI
+	REAL(8),INTENT(OUT)::KSITA,D_KSITA
+	REAL(8)::T3
+	
+	IF(ABS(LODE)<=SITA) THEN
+		KSITA=dcos(LODE)-dsin(LODE)*DSIN(PHI)/SQRT(3.0)
+		D_KSITA=-DSIN(LODE)-DCOS(LODE)*DSIN(PHI)/SQRT(3.0)
+	ELSE
+		T3=1.D0 !TRESCA
+		IF(ABS(LODE)>1E-14) T3=SIGN(1.D0,LODE)
+		KSITA=((A(1)+T3*A(2))-(T3*B(1)+B(2))*DSIN(3.*LODE))
+		D_KSITA=-3*(T3*B(1)+B(2))*DCOS(3.*LODE)
+	ENDIF
+ENDSUBROUTINE
+
 !according to the material(mat).type and stress invarants,calculate the value of the yield functions(vyt)
 subroutine yieldfun(vyf,mat,inv,ayf,ev)
 	use solverds	
 	implicit none
-	real(8)::vyf,inv(3),t1,t2,mcA(3),t3,ev
+	real(8)::vyf,inv(3),t1,t2,mcA(3),t3,ev,Ksita1,t4,sitat1,A1,A2,B1,B2,DKSITA1,PI1
 	integer::mat,ayf
 	logical::isqf=.false.
 	
+	PI1=pi()
 	select case(material(mat).type)
 		case(Mises)
 			vyf=inv(2)-material(mat).property(3)
 		case(MC)
-			call Mc_A(mcA,inv,mat,ayf,isqf)
-			t1=dsin(material(mat).property(4)/180.0*pi())
-			t2=dcos(material(mat).property(4)/180.0*pi())
-			vyf=inv(1)*t1+ &
-					inv(2)/3**0.5*mcA(1)-material(mat).property(3)*t2
-!			t3=(dcos(inv(3))/3**0.5-dsin(inv(3))*t1/3.0)*3**0.5
-!			vyf=inv(1)*t1+ &
-!					inv(2)*(dcos(inv(3))/3**0.5-dsin(inv(3))*t1/3.0)- &
-!					material(mat).property(3)*t2
+			!call Mc_A(mcA,inv,mat,ayf,isqf)
+			t1=dsin(material(mat).property(4)/180.0*PI1)
+			t2=dcos(material(mat).property(4)/180.0*PI1)
+            
+            IF(ABS(material(mat).property(22))>1E-14) THEN
+                !
+			    !roundoff parameters
+            
+			    t4=(material(mat).property(23)*t1)**2 !round off the apex.
+			    CALL MC_KSITA(INV(3),material(mat).property(8)/180.*PI1, material(mat).property(4)/180.*PI1,&
+						      material(mat).property(29:30),material(mat).property(31:32),KSITA1,DKSITA1)
+			    vyf=inv(1)*t1+SQRT((inv(2)/SQRT(3.0)*KSITA1)**2+T4)-material(mat).property(3)*t2
+            ELSE
+                t3=dcos(inv(3))/3**0.5-dsin(inv(3))*t1/3.0
+                vyf=inv(1)*t1+INV(2)*T3-material(mat).property(3)*t2
+            ENDIF
+            
 		case(camclay)
 			vyf=inv(2)**2-material(mat).property(1)**2*(inv(1)*(inv(1)-ev))
 		case default
@@ -1491,31 +1519,42 @@ end subroutine
 subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev)
 	use solverds
 	implicit none
-	real(8)::dywi(3),inv(3),c1=1.0,mcA(3),J2=0,ev
+	real(8)::dywi(3),inv(3),c1=1.0,mcA(3),J2=0,ev,KSITA1,DKSITA1,SITAT1,T1,T3,PI1,ALPHA1
 	integer::mat,ayf
 	logical::isqf=.false.
 	
 	dywi=0.0
+	PI1=PI()
 	select case(material(mat).type)
 		case(mises)
 			dywi(2)=3.0/2.0/inv(2)			
 		case(mc)
-			dywi(1)=dsin(material(mat).property(4)/180.0*pi())
-			J2=inv(2)**2/3.0
-			if(abs(dsin(inv(3)))<0.49) then
-				call Mc_A(mcA,inv,mat,ayf,isqf)
-				dywi(2)=0.5*(mcA(1)-dtan(3*inv(3))*mcA(2))/J2**0.5
-				dywi(3)=-3**0.5*McA(2)/(2*J2*dcos(3*inv(3)))
-!				dywi(2)=dcos(inv(3))/((4.0/3.0)**0.5*inv(2))* &
-!								(1+dtan(inv(3))*dtan(3*inv(3))+dywi(1)/3**0.5* &
-!								(dtan(3*inv(3))-dtan(inv(3))))
-!				dywi(3)=(3**0.5*dsin(inv(3))+dywi(1)*dcos(inv(3)))/ & 
-!								(2.0/3.0*inv(2)**2*dcos(3*inv(3)))
-			else
-				c1=1.0
-				if(dsin(inv(3))<0) c1=-1.0
-				dywi(2)=(3.0-c1*dywi(1))*0.25/inv(2)				
-			end if
+			dywi(1)=dsin(material(mat).property(4)/180.0*PI1)
+			T1=(material(mat).property(23)*dywi(1))**2
+            
+            IF(ABS(material(mat).property(22))>1E-14) THEN
+            
+			    sitat1=material(mat).property(8)/180.*PI1
+			    CALL MC_KSITA(INV(3),material(mat).property(8)/180.*PI1, material(mat).property(4)/180.*PI1,&
+						      material(mat).property(29:30),material(mat).property(31:32),KSITA1,DKSITA1)
+			
+			    ALPHA1=INV(2)*KSITA1/SQRT(3.0)/SQRT((INV(2)/SQRT(3.0)*KSITA1)**2+T1)
+			    dywi(2)=ALPHA1*(KSITA1-DTAN(3.*INV(3))*DKSITA1)/(2.0*INV(2)/SQRT(3.0))
+			    DYWI(3)=-ALPHA1*SQRT(3.0)/(2./3.0*INV(2)**2*DCOS(3.*INV(3)))*DKSITA1
+            ELSE
+			    if(abs(dsin(inv(3)))<0.49) then
+			    	dywi(2)=dcos(inv(3))/((4.0/3.0)**0.5*inv(2))* &
+			    					(1+dtan(inv(3))*dtan(3*inv(3))+dywi(1)/3**0.5* &
+			    					(dtan(3*inv(3))-dtan(inv(3))))
+			    	dywi(3)=(3**0.5*dsin(inv(3))+dywi(1)*dcos(inv(3)))/ & 
+			    					(2.0/3.0*inv(2)**2*dcos(3*inv(3)))
+			    else
+			    	c1=1.0
+			    	if(dsin(inv(3))<0) c1=-1.0
+			    	dywi(2)=(3.0-c1*dywi(1))*0.25/inv(2)				
+			    end if
+			ENDIF
+			
 		case(camclay)
 			dywi(1)=-material(mat).property(1)**2*(2*inv(1)-ev)
 			dywi(2)=3.0
@@ -1528,32 +1567,44 @@ end subroutine
 subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev)
 	use solverds
 	implicit none
-	real(8)::dywi(3),inv(3),c1=1.0,J2=0,mcA(3),ev
+	real(8)::dywi(3),inv(3),c1=1.0,J2=0,mcA(3),ev,PI1,T1,KSITA1,DKSITA1,ALPHA1
 	integer::mat,ayf
 	logical::isqf=.true.
 	
 	dywi=0.0
+	PI1=PI()
 	select case(material(mat).type)
 		case(mises)
 			dywi(2)=3.0/2.0/inv(2)			
 		case(mc)
-			dywi(1)=dsin(material(mat).property(5)/180.0*pi())
-			J2=inv(2)**2/3.0
-			if(abs(dsin(inv(3)))<0.49) then
-				call Mc_A(mcA,inv,mat,ayf,isqf)
-				dywi(2)=0.5*(mcA(1)-dtan(3*inv(3))*mcA(2))/J2**0.5
-				dywi(3)=-3**0.5*McA(2)/(2*J2*dcos(3*inv(3)))
-!				dywi(2)=dcos(inv(3))/((4.0/3.0)**0.5*inv(2))* &
-!								(1+dtan(inv(3))*dtan(3*inv(3))+dywi(1)/3**0.5* &
-!								(dtan(3*inv(3))-dtan(inv(3))))
-!				dywi(3)=(3**0.5*dsin(inv(3))+dywi(1)*dcos(inv(3)))/ & 
-!								(2.0/3.0*inv(2)**2*dcos(3*inv(3)))
-
-			else
-				c1=1.0
-				if(dsin(inv(3))<0) c1=-1.0
-				dywi(2)=(3.0-c1*dywi(1))*0.25/inv(2)				
-			end if
+			dywi(1)=dsin(material(mat).property(5)/180.0*PI1)
+            
+            IF(ABS(material(mat).property(22))>1E-14) THEN
+			    T1=(material(mat).property(24)*dywi(1))**2
+			    CALL MC_KSITA(INV(3),material(mat).property(8)/180.*PI1, material(mat).property(5)/180.*PI1,&
+						      material(mat).property(25:26),material(mat).property(27:28),KSITA1,DKSITA1)
+			
+			    ALPHA1=INV(2)*KSITA1/SQRT(3.0)/SQRT((INV(2)/SQRT(3.0)*KSITA1)**2+T1)
+			    dywi(2)=ALPHA1*(KSITA1-DTAN(3.*INV(3))*DKSITA1)/(2.0*INV(2)/SQRT(3.0))
+			    DYWI(3)=-ALPHA1*SQRT(3.0)/(2./3.0*INV(2)**2*DCOS(3.*INV(3)))*DKSITA1			
+			ELSE
+			    if(abs(dsin(inv(3)))<0.49) then
+			    	!call Mc_A(mcA,inv,mat,ayf,isqf)
+			    	!dywi(2)=0.5*(mcA(1)-dtan(3*inv(3))*mcA(2))/J2**0.5
+			    	!dywi(3)=-3**0.5*McA(2)/(2*J2*dcos(3*inv(3)))
+			    	dywi(2)=dcos(inv(3))/((4.0/3.0)**0.5*inv(2))* &
+			    					(1+dtan(inv(3))*dtan(3*inv(3))+dywi(1)/3**0.5* &
+			    					(dtan(3*inv(3))-dtan(inv(3))))
+			    	dywi(3)=(3**0.5*dsin(inv(3))+dywi(1)*dcos(inv(3)))/ & 
+			    					(2.0/3.0*inv(2)**2*dcos(3*inv(3)))
+       
+			    else
+			    	c1=1.0
+			    	if(dsin(inv(3))<0) c1=-1.0
+			    	dywi(2)=(3.0-c1*dywi(1))*0.25/inv(2)				
+			    end if
+            ENDIF
+            
 		case(camclay)
 			dywi(1)=-material(mat).property(1)**2*(2*inv(1)-ev)
 			dywi(2)=3.0			
@@ -1644,87 +1695,114 @@ subroutine timestep_vp(dt,mat)
 end subroutine
 
 !generation plastic body force using initial stress method.
-subroutine bload_inistress(iiter,iscon,bdylds)
+!Continuum_stress_update(iiter,iscon,istep,i,bload,un,nbload)
+
+subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
+
 	use solverds
 	!use operation_ix
 	implicit none
-	logical::iscon
-	integer::i,j,k,n1,iiter,ayf=0
-	real(8)::bdylds(ndof),un(50)=0.0,stress1(6)=0.0,strain1(6)=0.0, &
+	logical,intent(in)::iscon
+	integer,intent(in)::iiter,ienum,istep,nbload
+	real(kind=DPN),intent(in)::Ddis(nbload)
+	real(kind=DPN),intent(out)::bload(nbload)
+	
+	integer::i,j,k,n1,ayf=0
+	real(8)::stress1(6)=0.0,strain1(6)=0.0, &
 					dee(4,4)=0.0,sigma(6)=0.0,inv(3)=0.0,vyf=0.0, &
 					devp(6)=0.0,m(6,3)=0.0,dywi(3)=0.0,dyf(6)=0.0, &
-					evp(6),bload(50)=0.0,dt=0.0,vyf_old=0.0,fac=0.0, &
+					evp(6),dt=0.0,vyf_old=0.0,fac=0.0, &
 					stress2(6)=0.0,dqwi(3)=0.0,dqf(6)=0.0,dp(6,6)=0.0,&
 					de(6,6)=0.0,t1=0.0,pstress1(6)=0.0,lamda=0.0,&
 					buf1(6)=0.0,buf2(6)=0.0,pstrain(6)=0.0,ev=0
-
-	integer::nd1=0
+	REAL(8)::E1,V1,R1
+	integer::nd1=0,ndim1
 	
-	!bdylds=0.0
-	!
-	!do i=1,enum
-	!	n1=element(i).ngp
-	!	nd1=element(i).nd
-	!	bload=0.0
-	!	do k=1,element(i).nnum
-	!		un(2*k-1)=load(node(element(i).node(k)).dof(1))	
-	!		un(2*k)=load(node(element(i).node(k)).dof(2))	
-	!	end do
-	!	do j=1,n1
-	!		strain1=0.0
-	!		stress1=0.0
-	!		pstress1=0.0
-	!		!strain of this incrementals
-	!		strain1(1:nd1)=matmul(element(i).b(1:nd1,:,j),un(1:element(i).ndof))
-	!		!stress incremental
-	!		de(1:nd1,1:nd1)=element(i).d
-	!		stress2(1:nd1)=matmul(de(1:nd1,1:nd1),strain1(1:nd1))
-	!		!total stress
-	!		stress1=stress2+element(i).stress(:,j)
-	!		!check whether penetrate the yield surface.
-	!		call invanrant(stress1,inv)
- !			call yieldfun(vyf,element(i).mat,inv,ayf,ev)
-	!		
-	!		if(vyf>0) then
-	!			call invanrant(element(i).stress(:,j),inv)
-	!			call yieldfun(vyf_old,element(i).mat,inv,ayf,ev)
-	!			fac=vyf/(vyf-vyf_old)
-	!			stress1=stress2*(1-fac)+element(i).stress(:,j)
-	!			call invanrant(stress1,inv)
-	!			call deriv_sinv(m,stress1)
-	!			call deriv_qf_with_inv(dqwi,inv,element(i).mat,ayf,ev)
-	!			call deriv_yf_with_inv(dywi,inv,element(i).mat,ayf,ev)
-	!			call deriv_yf(dyf,dywi,m)
-	!			call deriv_yf(dqf,dqwi,m)
-	!			dp=0.0			
-	!			buf1(1:nd1)=matmul(dyf(1:nd1),de(1:nd1,1:nd1))
-	!			buf2(1:nd1)=matmul(de(1:nd1,1:nd1),dqf(1:nd1))
-	!			do k=1,nd1
-	!				dp(k,1:nd1)=buf2(k)*buf1(1:nd1)
-	!			end do				
-	!			t1=dot_product(buf1(1:nd1),dqf(1:nd1))
-	!			dp(1:nd1,1:nd1)=dp(1:nd1,1:nd1)/t1
-	!			dp=dp*fac
-	!			pstress1(1:nd1)=matmul(dp(1:nd1,1:nd1),strain1(1:nd1))
-	!			bload(1:element(i).ndof)=bload(1:element(i).ndof)+ &
-	!									matmul(pstress1(1:nd1),element(i).b(:,:,j))* &
-	!									element(i).detjac(j)*ecp(element(i).et).weight(j)
-	!		end if
-	!		!update the stress and strain
-	!		if(iscon.or.iiter==solver_control.niteration) then
-	!			element(i).stress(:,j)=element(i).stress(:,j)+stress2-pstress1
-	!			element(i).strain(:,j)=element(i).strain(:,j)+strain1
-	!			if(vyf>0) then
-	!				element(i).evp(1:nd1,j)=strain1(1:nd1)-(de(1:nd1,1:nd1).ix. &
-	!					(stress2(1:nd1)-pstress1(1:nd1)))
-	!				element(i).pstrain(:,j)=element(i).pstrain(:,j)+element(i).evp(:,j)
-	!			end if				
-	!		end if
-	!	end do
-	!	!get the globe self-equilibrating global body loads
-	!	bdylds(element(i).g)=bdylds(element(i).g)+bload(1:element(i).ndof)
-	!	
-	!end do
+	n1=element(ienum).ngp
+	nd1=element(ienum).nd
+	ndim1=ecp(element(ienum).et).ndim
+	bload=0.0
+	if(solver_control.bfgm==continuum) element(ienum).km=0.d0
+	do j=1,n1
+		strain1=0.0
+		stress1=0.0
+		pstress1=0.0
+		dp=0.0d0
+		!strain of this incrementals
+		strain1(1:nd1)=matmul(element(ienum).b(1:nd1,:,j),Ddis(1:element(ienum).ndof))
+		!stress incremental
+		de(1:nd1,1:nd1)=element(ienum).d
+		stress2(1:nd1)=matmul(de(1:nd1,1:nd1),strain1(1:nd1))
+		!total stress
+		stress1=stress2+element(ienum).stress(:,j)
+		!check whether penetrate the yield surface.
+		call invanrant(stress1,inv)
+		call yieldfun(vyf,element(ienum).mat,inv,ayf,ev)
+		if(vyf>0) then
+			call invanrant(element(ienum).stress(:,j),inv)
+			call yieldfun(vyf_old,element(ienum).mat,inv,ayf,ev)
+			fac=vyf/(vyf-vyf_old)
+			stress1=stress2*(1-fac)+element(ienum).stress(:,j)
+
+            if(material(element(ienum).mat).type==MC.AND.ABS(material(element(ienum).mat).PROPERTY(22))<1E-14) then
+                call mcdpl(material(element(ienum).mat).property(4),&
+                            material(element(ienum).mat).property(5),&
+                            de(1:nd1,1:nd1),stress1(1:nd1),dp(1:nd1,1:nd1),ND1)
+            elseif(material(element(ienum).mat).type==mises) then
+				CALL vmdpl(de(1:nd1,1:nd1),stress1(1:nd1),dp(1:nd1,1:nd1),ND1)
+			else
+			
+				call invanrant(stress1,inv)
+				call deriv_sinv(m,stress1)
+				call deriv_qf_with_inv(dqwi,inv,element(ienum).mat,ayf,ev)
+				call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
+				call deriv_yf(dyf,dywi,m)
+				call deriv_yf(dqf,dqwi,m)							
+				buf1(1:nd1)=matmul(dyf(1:nd1),de(1:nd1,1:nd1))
+				buf2(1:nd1)=matmul(de(1:nd1,1:nd1),dqf(1:nd1))
+				do k=1,nd1
+					dp(k,1:nd1)=buf2(k)*buf1(1:nd1)
+				end do				
+				t1=dot_product(buf1(1:nd1),dqf(1:nd1))
+				dp(1:nd1,1:nd1)=dp(1:nd1,1:nd1)/t1
+            endif
+            de=de-dp
+			dp=dp*fac
+			pstress1(1:nd1)=matmul(dp(1:nd1,1:nd1),strain1(1:nd1))
+			!stress1=stress1-pstress1
+            E1=MATERIAL(element(ienum).MAT).PROPERTY(1);V1=MATERIAL(element(ienum).MAT).PROPERTY(2)
+			element(ienum).evp(1:nd1,j)=strain1(1:nd1)-elastic_strain_inc(E1,V1,stress2(1:nd1)-pstress1(1:nd1),ND1)
+			!element(ienum).pstrain(:,j)=element(ienum).pstrain(:,j)+element(ienum).evp(:,j)
+			
+		end if
+        element(ienum).Dstress(1:nd1,j)=stress2(1:nd1)-pstress1(1:nd1)
+		element(ienum).Dstrain(1:nd1,j)=strain1(1:nd1)
+		!element(ienum).evp(:,j)=pstrain-element(ienum).pstrain(:,j)
+		element(ienum).ev(j)=ev
+		!element(ienum).e(j)=e
+        bload(1:element(ienum).ndof)=bload(1:element(ienum).ndof)+ &
+						matmul((element(ienum).stress(1:nd1,j)+element(ienum).Dstress(1:nd1,j)),element(ienum).b(:,:,j))* &
+						element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)
+						
+		if(solver_control.bfgm==continuum) then
+			r1=1.0 !for axis-sysmetrical element
+			if(element(ienum).ec==cax) r1=element(ienum).xygp(1,j)
+			element(ienum).km=element(ienum).km+matmul(matmul( &
+				transpose(element(ienum).b(:,:,j)),de(1:nd1,1:nd1)),element(ienum).b(:,:,j)) &
+				*element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*r1
+		end if				
+		!update the stress and strain
+		!if(iscon.or.iiter==solver_control.niteration) then
+		!	element(ienum).stress(:,j)=element(ienum).stress(:,j)+stress2-pstress1
+		!	element(ienum).strain(:,j)=element(ienum).strain(:,j)+strain1
+		!	if(vyf>0) then
+		!		E1=MATERIAL(element(ienum).MAT).PROPERTY(1);V1=MATERIAL(element(ienum).MAT).PROPERTY(2)
+		!		element(ienum).evp(1:nd1,j)=strain1(1:nd1)-elastic_strain_inc(E1,V1,stress2(1:nd1)-pstress1(1:nd1),ND1)
+		!		element(ienum).pstrain(:,j)=element(ienum).pstrain(:,j)+element(ienum).evp(:,j)
+		!	end if				
+		!end if
+	end do
+
 	return
 end subroutine
 
@@ -1737,6 +1815,7 @@ subroutine element_activate(istep)
     
     do concurrent (i=1:enum)
         if(element(i).ec/=soilspring) then
+			if(geostatic.isgeo) sf(element(i).sf).factor(0)=1.d0
             if(abs(sf(element(i).sf).factor(istep))>1e-7) then
                 element(i).isactive=1
             else
@@ -1747,3 +1826,5 @@ subroutine element_activate(istep)
         endif
     enddo
 end
+
+

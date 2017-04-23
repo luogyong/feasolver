@@ -419,7 +419,7 @@ subroutine solvercommand(term,unit)
 	character(1024) term
 	integer::i,j,k
 	integer::n1,n2,n3,n4,n5,n_toread,nmax
-	real(8)::ar(MaxNumRead)=0,t1
+	real(8)::ar(MaxNumRead)=0,t1,T2
 	integer(4)::msg
 	type(mat_tydef),allocatable::mat1(:)
 	type(element_tydef),allocatable::element1(:),element2(:)
@@ -868,6 +868,41 @@ subroutine solvercommand(term,unit)
 						material(matid1).weight=material(matid1).property(4)
 					case(mc)
 						material(matid1).weight=material(matid1).property(6)
+						if(n1<=6) then
+							if(abs(material(matid1).property(4))>1e-7) then
+								material(matid1).property(23)=0.05*material(matid1).property(3) &
+																/dtan(material(matid1).property(4)/180.*PI())
+							endif
+							if(abs(material(matid1).property(5))>1e-7) then
+								material(matid1).property(24)=0.05*material(matid1).property(3) &
+															/dtan(material(matid1).property(5)/180.*PI())
+							endif							
+							material(matid1).property(8)=25.d0
+						elseif(n1<=7) then                            
+							material(matid1).property(8)=25.d0
+						endif
+                        
+                        IF (ABS(material(matid1).property(8)-30.D0)<1E-14.AND.ABS(material(matid1).property(7))<1E-14 ) THEN
+                            material(matid1).property(22)=0.D0 !NO ROUNDED AND GRIFFITHS ALGORITHM IS USED
+                        ELSE
+						    !ROUNDOFF PARAMETERS
+                            material(matid1).property(22)=1.D0
+							if(n1>6) then
+								material(matid1).property(23:24)=material(matid1).property(7)
+							endif
+						    T1=material(matid1).property(8)/180.*PI()
+						    T2=DSIN(material(matid1).property(4)/180.*PI())
+						    material(matid1).property(29)=dcos(T1)/3.d0*(3.D0+DTAN(T1)*DTAN(3.*T1))
+						    material(matid1).property(30)=dcos(T1)/3.d0/SQRT(3.0)*(DTAN(3.*T1)-3.*DTAN(T1))*T2
+						    material(matid1).property(31)=DSIN(T1)/(3.d0*dcos(3.*T1))
+						    material(matid1).property(32)=T2*DCOS(T1)/(3.d0*SQRT(3.0)*dcos(3.*T1))
+						
+						    T2=DSIN(material(matid1).property(5)/180.*PI())
+						    material(matid1).property(25)=dcos(T1)/3.d0*(3.D0+DTAN(T1)*DTAN(3.*T1))
+						    material(matid1).property(26)=dcos(T1)/3.d0/SQRT(3.0)*(DTAN(3.*T1)-3.*DTAN(T1))*T2
+						    material(matid1).property(27)=DSIN(T1)/(3.d0*dcos(3.*T1))
+						    material(matid1).property(28)=T2*DCOS(T1)/(3.d0*SQRT(3.0)*dcos(3.*T1))						
+						ENDIF
 					case(eip_bar)
 						if(n1<=4) then
 							material(matid1).property(5)=-1.0D20 !最大轴向压力
@@ -893,6 +928,7 @@ subroutine solvercommand(term,unit)
 			n2=0
 			n3=0
 			n4=0
+			n5=0
 			do i=1,pro_num
 				select case(property(i).name)
 					case('num')
@@ -901,8 +937,10 @@ subroutine solvercommand(term,unit)
 						n2=int(property(i).value)
 					case('spg_isdual')
 						n3=int(property(i).value)
-					case('sf','stepfunction','stepfunc')
+					case('sf','stepfunction','stepfunc')					
 						n4=int(property(i).value)
+					case('isinc')
+						n5=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -913,7 +951,7 @@ subroutine solvercommand(term,unit)
 				bf1(i).node=int(ar(1))
 				bf1(i).dof=int(ar(2))
 				bf1(i).value=ar(3)
-				
+				bf1(i).isincrement=n5
 				bf1(i).sf=n4								
 				if(n1>=4) bf1(i).sf=int(ar(4))
 				bf1(i).isdual=n3
@@ -1033,6 +1071,7 @@ subroutine solvercommand(term,unit)
 			n2=0
 			n3=0
 			n4=0
+			n5=0
 			do i=1,pro_num
 				select case(property(i).name)
 					case('num')
@@ -1043,6 +1082,8 @@ subroutine solvercommand(term,unit)
 						n3=int(property(i).value)
 					case('sf','stepfunction','stepfunc')
 						n4=int(property(i).value)
+					case('isinc')
+						n5=int(property(i).value)	
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -1053,7 +1094,7 @@ subroutine solvercommand(term,unit)
 				bf1(i).node=int(ar(1))
 				bf1(i).dof=int(ar(2))
 				bf1(i).value=ar(3)
-				
+				bf1(i).isincrement=n5
 				bf1(i).sf=n4								
 				if(n1>=4) bf1(i).sf=int(ar(4))
 				bf1(i).isdual=n3
@@ -1314,7 +1355,14 @@ subroutine solvercommand(term,unit)
 					case default
 						call Err_msg(property(i).name)
 				end select
-            end do						
+            end do
+
+			if(solver_control.BFGM==INISTRESS) then
+				solver_control.solver=inistiff
+			endif	
+			if(solver_control.BFGM==CONTINUUM) then
+				solver_control.solver=N_R
+			endif			
 !			if(associated(solver_control.factor)) then
 !				read(unit,*)   solver_control.factor
 !			else
@@ -1949,9 +1997,14 @@ subroutine solvercommand(term,unit)
 						outvar(mw_spg).name='mw'
 						outvar(mw_spg).value=mw_spg
 					case('sfr')
-						outvar(SFR).name='sfr","sfr_sita(deg,CCW+)","Sn(Tension+)","Tn(CCW+)","Tnx","Tny'
+						outvar(SFR).name='sfr","sfr_sita(deg,CCW+)","Sn(Tension+)","Tn(CCW+)","SFRX","SFRY'
 						outvar(SFR).value=SFR
 						outvar(SFR).nval=6
+					case('nf')
+						IF(NDIMENSION==3) outvar(NF).name='NFX","NFY","NFZ'
+						IF(NDIMENSION==2) outvar(NF).name='NFX","NFY'
+						outvar(NF).value=NF
+						outvar(NF).nval=NDIMENSION	
 					case default
 						call Err_msg(property(i).name)
 				end select

@@ -802,7 +802,7 @@ subroutine not_nodal_force_weight(et)
 			Elttype(et).weight=0.
 			Elttype(et).weight(1:4,1)=-1./12.
 			Elttype(et).weight(5:8,1)=1./3.
-		case(23)
+		case(23) !CPE15
 			allocate(Elttype(et).weight(Elttype(et).nnode,1))
 			Elttype(et).weight=0.D0
 			Elttype(et).weight(4:6,1)=-1./45.

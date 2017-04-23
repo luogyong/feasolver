@@ -221,6 +221,8 @@
 	integer,parameter::sumq=70
 			
 	integer,parameter::SFR=71 !Stress Failure Ratio
+	
+	INTEGER,PARAMETER::NF=72 !½ÚµãÁ¦£¬NFX,NFY,NFZ
 
 integer::minet = 10000, maxet = -10000   !the ultimate element type number.
 !solver method

@@ -9,9 +9,9 @@ subroutine stree_failure_ratio_cal(ienum)
 	et1=element(ienum).et
 	nsh1=ecp(et1).nshape
 	ndim1=ecp(et1).ndim
-	do concurrent(i=1:element(ienum).nnum)	
-		dis1(1:ndim1,i)=Tdisp(node(element(ienum).node(i)).dof(1:ndim1))		
-	enddo
+	!do concurrent(i=1:element(ienum).nnum)	
+	!	dis1(1:ndim1,i)=Tdisp(node(element(ienum).node(i)).dof(1:ndim1))		
+	!enddo
 		!MC material		
 		phi1=material(element(ienum).mat).property(4)
 		c1=material(element(ienum).mat).property(3)
@@ -19,7 +19,7 @@ subroutine stree_failure_ratio_cal(ienum)
 	do i=1,element(ienum).ngp
 		ss1=element(ienum).stress(:,i)
 		!积分点的位移
-		disg1(1:ndim1)=matmul(dis1(1:ndim1,1:nsh1),ecp(et1).Lshape(:,i))		
+		!disg1(1:ndim1)=matmul(dis1(1:ndim1,1:nsh1),ecp(et1).Lshape(:,i))		
 
 		call stress_in_failure_surface(element(ienum).sfr(:,i),ss1,ecp(element(ienum).et).ndim,c1,Phi1,disg1,solver_control.slidedirection)
 		
@@ -50,7 +50,11 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,dis,slidedire
 	    else
 		    t1=C1
 	    endif
-	    sfr(1)=t2/t1
+	    IF(ABS(T1)>1E-14) THEN
+            sfr(1)=t2/t1
+        ELSE
+            SFR(1)=1
+        ENDIF
     else !>0.拉坏
         sfr(1)=-1. !表拉坏
     endif
@@ -63,8 +67,8 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,dis,slidedire
     endif
     sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(PI1/2-phi1)
     sfr(4)=-t2*sin(PI1/2-phi1)*t1 
-    sfr(5)=-sfr(4)*dcos(sfr(2))
-    sfr(6)=-sfr(4)*dsin(sfr(2))
+    sfr(5)=sign(sfr(1),-sfr(4))*dcos(sfr(2)) !输出归一化的剪应力
+    sfr(6)=sign(sfr(1),-sfr(4))*dsin(sfr(2))
     
     !t1=0.5*(stress(1)+stress(2))
     !t2=0.5*(stress(1)-stress(2))	
@@ -116,19 +120,12 @@ subroutine principal_stress_cal(pstress,stress,ndim)
 		pstress(2)=t1-(t2**2+stress(4)**2)**0.5
 		Pstress(3)=stress(3)
 		!默认z方向为应力为中应力。
-		!sita 为大主应力作用面(走向，不是垂线)与x轴的夹角，逆时针为正。
-		!if (abs(stress(1)-stress(2))<1e-14) then
-		!	if (stress(4)>0) then
-		!		sita=0.75*Pi
-		!	else
-		!		sita=0.25*Pi
-		!	endif
-		!elseif (stress(1)>stress(2)) then			
-		!	sita=0.5*atan(2*stress(4)/(stress(1)-stress(2)))+Pi/2
-		!else
-			sita=0.5*atan(2*stress(4)/(stress(1)-stress(2)))
-		!endif
-		Pstress(4)=sita 
+        IF(ABS(stress(1)-stress(2))>1E-14) THEN 
+		    sita=0.5*atan(2*stress(4)/(stress(1)-stress(2)))
+		    Pstress(4)=sita 
+        ELSE
+            Pstress(4)=0 
+        ENDIF
 			
 		
 		

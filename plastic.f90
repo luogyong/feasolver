@@ -138,8 +138,11 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 				
 			case default
 				un(1:element(i).ndof)=stepdis(element(i).g)
-				call Continuum_stress_update(iiter,iscon,istep,i,bload,un,nbload)
-
+				!if(solver_control.bfgm==inistress)then
+					call bload_inistress_update(iiter,iscon,istep,i,bload,un,nbload)
+				!else
+				!	call Continuum_stress_update(iiter,iscon,istep,i,bload,un,nbload)
+				!endif
 		end select
 		
 		bdylds(element(i).g)=bdylds(element(i).g)+bload(1:element(i).ndof)
@@ -147,54 +150,56 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 	!if the freedom i is constrained,the bodyforce, bdylds(i) at the freedom is set to zero
 	!for that pload(i)=0 at the case.
 	!it will speed the convergence but not affect the result.
-	
-	NI_NodalForce=bdylds
-	
-	Qinput=sum(NI_NodalForce)*dt1
-    
-	
-	call residual_bc_clear(isBCdis,istep)
+	!if (solver_control.bfgm/=inistress) then
+		NI_NodalForce=bdylds
+		
+		Qinput=sum(NI_NodalForce)*dt1
+		
+		
+		call residual_bc_clear(isBCdis,istep)
 
 
-	!update Signorini boundary condition
-	isref_spg=0
-	do i=1,numNseep
-		if(sf(NSeep(i).sf).factor(istep)==-999.D0) cycle
-		
-		if(Nseep(i).isdual>0) then
-            if(bc_disp(Nseep(i).isdual).isdead==0) cycle            
-        end if
-		
-		n1=node(Nseep(i).node).dof(Nseep(i).dof)
-		t1=bdylds(n1)
-		
-		if(stepinfo(istep).issteady) then
-			t2=stepdis(n1)-node(Nseep(i).node).coord(ndimension)
-		else
-			t2=stepdis(n1)-node(Nseep(i).node).coord(ndimension) !for a transient problem, tdisp is passed to stepdisp in the form of an initial value. 
-		end if		
-		
-				
-		if(Nseep(i).isdead==0) then
-			if(t1>1E-7) then
-				Nseep(i).isdead=1
-				isref_spg=1
+		!update Signorini boundary condition
+		isref_spg=0
+		do i=1,numNseep
+			if(sf(NSeep(i).sf).factor(istep)==-999.D0) cycle
+			
+			if(Nseep(i).isdual>0) then
+				if(bc_disp(Nseep(i).isdual).isdead==0) cycle            
 			end if
-		else
-			if(t2>1E-3) then
-				Nseep(i).isdead=0
-				isref_spg=1
+			
+			n1=node(Nseep(i).node).dof(Nseep(i).dof)
+			t1=bdylds(n1)
+			
+			if(stepinfo(istep).issteady) then
+				t2=stepdis(n1)-node(Nseep(i).node).coord(ndimension)
+			else
+				t2=stepdis(n1)-node(Nseep(i).node).coord(ndimension) !for a transient problem, tdisp is passed to stepdisp in the form of an initial value. 
+			end if		
+			
+					
+			if(Nseep(i).isdead==0) then
+				if(t1>1E-7) then
+					Nseep(i).isdead=1
+					isref_spg=1
+				end if
+			else
+				if(t2>1E-3) then
+					Nseep(i).isdead=0
+					isref_spg=1
+				end if
 			end if
-		end if
-!		write(99,20) iiter,i,Nseep(i).isdead,n1,t1,t2
-	end do
-!	if(isref_spg==0) print *, 'No necessary to refac.'
-	do i=1,ndof
-		bdylds(i)=Tload(i)-bdylds(i)
-		if(isBCdis(i))  bdylds(i)=0.D0
-	end do
-!	call residual_bc_clear(bdylds)
-
+	!		write(99,20) iiter,i,Nseep(i).isdead,n1,t1,t2
+		end do
+	!	if(isref_spg==0) print *, 'No necessary to refac.'
+		do i=1,ndof
+			bdylds(i)=Tload(i)-bdylds(i)
+			if(isBCdis(i))  bdylds(i)=0.D0
+		end do
+	!	call residual_bc_clear(bdylds)
+    !else
+    !    NI_NodalForce=0.d0
+	!endif
 	return
 
 end subroutine

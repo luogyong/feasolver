@@ -503,6 +503,30 @@ FUNCTION determinant(jac)RESULT(det)
  END SELECT
 RETURN
 END FUNCTION determinant 
+
+! computate the elastic compliance matrix [C] so that strain=matmul([C],stress)
+!ND>=4
+function elastic_strain_inc(E,V,DSS,ND) result(DEE)
+	implicit none
+	INTEGER,INTENT(IN)::ND
+	real(8),intent(in)::E,V,DSS(ND)
+	real(8),dimension(ND)::DEE
+	real(8)::C(ND,ND)
+	
+	C=0.D0
+	C(1:3,1:3)=-V
+	C(1,1)=1.D0
+	C(2,2)=1.D0
+	C(3,3)=1.D0
+	C(4,4)=2.D0*(1.D0+V)
+	IF(ND>4) THEN
+		C(5,5)=C(4,4)
+		C(6,6)=C(4,4)
+	ENDIF
+    C=C/E
+	DEE=MATMUL(C,DSS)
+	
+end function
     
 end module
 

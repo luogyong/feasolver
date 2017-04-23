@@ -242,9 +242,9 @@ subroutine incremental_load(iincs,iiter,method,isubts)
 !		write(10,*) load(2:ndof:2)
 	else
 		select case(method)
-			case(DIRECTI,LELASTIC,INISTIFF)
+			case(DIRECTI,LELASTIC)
 				load=stepload
-			case(N_R)
+			case DEFAULT
 				load=0.0D0 !the load for N_r in every interation is the incrementals. 
 		end select
 	end if
@@ -343,7 +343,7 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 		dof1=node(bc_disp(i).node).dof(bc_disp(i).dof)		
 		!when Newton Raphson is used, the none zero displacement is applied at the first
 		!iteration,a zero displacement is applied at the left iterations.
-		if(solver_control.solver==N_R) then
+		if(solver_control.solver==N_R.OR.solver_control.solver==INISTIFF) then
 			load1(dof1)=(bc_disp(i).value*t1-stepdis(dof1))*UM			
 		else
 			load1(dof1)=bc_disp(i).value*t1*UM			
@@ -476,8 +476,8 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
  resdis=dsqrt(dot_product(UBFORCE,UBFORCE))
 
  SumForce=dsqrt(dot_product(STEPLOAD,STEPLOAD))
- if(abs(SumForce)<1.d-15) then
-     if(abs(resdis)<1.d-15) then
+ if(abs(SumForce)<1.d-14) then
+     if(abs(resdis)<1.d-7) then
          iscon=.true.
          return
      end if
@@ -668,9 +668,11 @@ subroutine ko_initialstress()
 	implicit none
 	integer::i,j,k
 	logical::islast=.false.
+	REAL(8)::BLOAD(100)
 	
 	do i=1,enum
 		if(element(i).isactive==0) cycle
+		BLOAD=0.D0
 		do j=1,element(i).ngp
 			islast=.false.
 			do k=1,geostatic.nsoil
@@ -689,7 +691,11 @@ subroutine ko_initialstress()
 			if(islast) k=k+1
 			element(i).stress(1,j)=element(i).stress(2,j)*geostatic.ko(k-1)
 			element(i).stress(3,j)=element(i).stress(1,j)
+			bload(1:element(I).ndof)=bload(1:element(I).ndof)+ &
+				matmul(element(i).stress(1:ELEMENT(I).ND,J),element(I).b(:,:,j))* &
+				element(I).detjac(j)*ecp(element(I).et).weight(j)
 		end do
+		TLOAD(ELEMENT(I).G)=TLOAD(ELEMENT(I).G)+bload(1:element(I).ndof)
 	end do
 	
 end subroutine
@@ -699,22 +705,23 @@ subroutine bf_initialstress()
 	implicit none
 	integer::i,j,k,nnum1
 	real(8)::bf1=0,t1=0,w1=0
-	type(bc_tydef),allocatable::bc_load1(:),bc_load2(:)
-	integer::bfnum1
+	!type(bc_tydef),allocatable::bc_load1(:),bc_load2(:)
+	!integer::bfnum1
 	
-	bfnum1=0
-	do i=1,enum
-		if(abs(material(element(i).mat).weight)<1e-7) cycle
-		bfnum1=bfnum1+element(i).nnum
-	end do
-	allocate(bc_load1(bfnum1))
+	!bfnum1=0
+	!do i=1,enum
+	!	if(abs(material(element(i).mat).weight)<1e-7) cycle
+	!	bfnum1=bfnum1+element(i).nnum
+	!end do
+	!allocate(bc_load1(bfnum1))
 	
-	bfnum1=0
+	!bfnum1=0
 	t1=0	
 	do i=1,enum
 		w1=material(element(i).mat).weight
 		if(abs(w1)<1e-7) cycle
 		nnum1=element(i).nnum
+		BF1=0.D0
 		do j=1,nnum1
 			bf1=0.0
 			do k=1,element(i).ngp
@@ -722,26 +729,28 @@ subroutine bf_initialstress()
 					ecp(element(i).et).weight(k)* &
 					element(i).detjac(k)
 			end do
-			bfnum1=bfnum1+1
-			bc_load1(bfnum1).value=bf1*w1
-			bc_load1(bfnum1).node=element(i).node(j)
-			bc_load1(bfnum1).dof=2
-			bc_load1(bfnum1).sf=0
+			TLOAD(NODE(ELEMENT(I).NODE(J)).DOF(NDIMENSION))=TLOAD(NODE(ELEMENT(I).NODE(J)).DOF(NDIMENSION))+BF1
+			!bfnum1=bfnum1+1
+			!bc_load1(bfnum1).value=bf1*w1
+			!bc_load1(bfnum1).node=element(i).node(j)
+			!bc_load1(bfnum1).dof=2
+			!bc_load1(bfnum1).sf=0
 !			t1=t1+bf1
 			!write(10,*) bf1
 		end do
+		
 	end do
-	allocate(bc_load2(bfnum1+bl_num))
-	if(allocated(bc_load)) then
-		bc_load2(1:bl_num)=bc_load(1:bl_num)
-		deallocate(bc_load)
-	end if
-	bc_load2(bl_num+1:bl_num+bfnum1)=bc_load1(1:bfnum1)
-	deallocate(bc_load1)
+	!allocate(bc_load2(bfnum1+bl_num))
+	!if(allocated(bc_load)) then
+	!	bc_load2(1:bl_num)=bc_load(1:bl_num)
+	!	deallocate(bc_load)
+	!end if
+	!bc_load2(bl_num+1:bl_num+bfnum1)=bc_load1(1:bfnum1)
+	!deallocate(bc_load1)
 
-	bl_num=bl_num+bfnum1
-	allocate(bc_load(bl_num))
-	bc_load=bc_load2
-	deallocate(bc_load2)	
+	!bl_num=bl_num+bfnum1
+	!allocate(bc_load(bl_num))
+	!bc_load=bc_load2
+	!deallocate(bc_load2)	
 	
 end subroutine
