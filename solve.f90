@@ -210,17 +210,21 @@ subroutine incremental_load(iincs,iiter,method,isubts)
     real(kind=dpn),external::tsfactor
 	
 	
-	if(iiter==1) then 
+	if(iiter==1) then
 		load=0.0D0
-		do i=1,bl_num
-			if(sf(bc_load(i).sf).factor(iincs)==-999.D0) cycle
-			dof1=node(bc_load(i).node).dof(bc_load(i).dof)
-			t2=0
-			if(solver_control.type/=spg) t2=sf(bc_load(i).sf).factor(max(iincs-1,0))
-			if(t2==-999.d0 .OR. bc_load(i).ISINCREMENT==1) t2=0
-			t1=(sf(bc_load(i).sf).factor(iincs)-t2)*tsfactor(iincs,isubts,stepinfo(iincs).loadtype)
-			load(dof1)=load(dof1)+bc_load(i).value*t1
-		end do
+		if(iincs>0)	then		
+			do i=1,bl_num
+				if(sf(bc_load(i).sf).factor(iincs)==-999.D0) cycle
+				dof1=node(bc_load(i).node).dof(bc_load(i).dof)
+				t2=0
+				if(solver_control.type/=spg) t2=sf(bc_load(i).sf).factor(max(iincs-1,0))
+				if(t2==-999.d0 .OR. bc_load(i).ISINCREMENT==1) t2=0
+				t1=(sf(bc_load(i).sf).factor(iincs)-t2)*tsfactor(iincs,isubts,stepinfo(iincs).loadtype)
+				load(dof1)=load(dof1)+bc_load(i).value*t1
+			end do		
+		else !generate initial load for initial stress field
+			call bf_initialstress()
+		endif
 		
 		stepload=load
 !		Tload=Tload+load !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -668,7 +672,7 @@ subroutine ko_initialstress()
 	implicit none
 	integer::i,j,k
 	logical::islast=.false.
-	REAL(8)::BLOAD(100)
+	REAL(8)::BLOAD(100),r1
 	
 	do i=1,enum
 		if(element(i).isactive==0) cycle
@@ -691,9 +695,11 @@ subroutine ko_initialstress()
 			if(islast) k=k+1
 			element(i).stress(1,j)=element(i).stress(2,j)*geostatic.ko(k-1)
 			element(i).stress(3,j)=element(i).stress(1,j)
+			r1=1.0d0 !for axis-sysmetrical element
+			if(element(I).ec==cax) r1=element(i).xygp(1,j)
 			bload(1:element(I).ndof)=bload(1:element(I).ndof)+ &
 				matmul(element(i).stress(1:ELEMENT(I).ND,J),element(I).b(:,:,j))* &
-				element(I).detjac(j)*ecp(element(I).et).weight(j)
+				element(I).detjac(j)*ecp(element(I).et).weight(j)*r1
 		end do
 		TLOAD(ELEMENT(I).G)=TLOAD(ELEMENT(I).G)+bload(1:element(I).ndof)
 	end do
@@ -704,18 +710,8 @@ subroutine bf_initialstress()
 	use solverds
 	implicit none
 	integer::i,j,k,nnum1
-	real(8)::bf1=0,t1=0,w1=0
-	!type(bc_tydef),allocatable::bc_load1(:),bc_load2(:)
-	!integer::bfnum1
-	
-	!bfnum1=0
-	!do i=1,enum
-	!	if(abs(material(element(i).mat).weight)<1e-7) cycle
-	!	bfnum1=bfnum1+element(i).nnum
-	!end do
-	!allocate(bc_load1(bfnum1))
-	
-	!bfnum1=0
+	real(8)::bf1=0,t1=0,w1=0,r1
+
 	t1=0	
 	do i=1,enum
 		w1=material(element(i).mat).weight
@@ -725,32 +721,17 @@ subroutine bf_initialstress()
 		do j=1,nnum1
 			bf1=0.0
 			do k=1,element(i).ngp
+				r1=1.0d0 !for axis-sysmetrical element
+				if(element(i).ec==cax) r1=element(i).xygp(1,k)
 				bf1=bf1+ecp(element(i).et).Lshape(j,k)* &
 					ecp(element(i).et).weight(k)* &
-					element(i).detjac(k)
+					element(i).detjac(k)*r1*w1
 			end do
-			TLOAD(NODE(ELEMENT(I).NODE(J)).DOF(NDIMENSION))=TLOAD(NODE(ELEMENT(I).NODE(J)).DOF(NDIMENSION))+BF1
-			!bfnum1=bfnum1+1
-			!bc_load1(bfnum1).value=bf1*w1
-			!bc_load1(bfnum1).node=element(i).node(j)
-			!bc_load1(bfnum1).dof=2
-			!bc_load1(bfnum1).sf=0
-!			t1=t1+bf1
-			!write(10,*) bf1
+			LOAD(NODE(ELEMENT(I).NODE(J)).DOF(NDIMENSION))=LOAD(NODE(ELEMENT(I).NODE(J)).DOF(NDIMENSION))+BF1
+
 		end do
 		
 	end do
-	!allocate(bc_load2(bfnum1+bl_num))
-	!if(allocated(bc_load)) then
-	!	bc_load2(1:bl_num)=bc_load(1:bl_num)
-	!	deallocate(bc_load)
-	!end if
-	!bc_load2(bl_num+1:bl_num+bfnum1)=bc_load1(1:bfnum1)
-	!deallocate(bc_load1)
-
-	!bl_num=bl_num+bfnum1
-	!allocate(bc_load(bl_num))
-	!bc_load=bc_load2
-	!deallocate(bc_load2)	
+	
 	
 end subroutine

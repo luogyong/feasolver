@@ -182,6 +182,7 @@ module solverds
 		integer::FF1D(32)=0 !DEPENDENT FIELD FUNCTION,the default determined variable  is the centroid coordinates (Y)
 		logical::isff=.false. ! whether the parameters are dependent on  the field function
 		character(64)::name=""
+        REAL(kind=DPN),ALLOCATABLE::D(:,:),DINV(:,:) !ELASTIC K AND INVERSE(K)
 	end type
 	type(mat_tydef)::material(-2:maximat) 
 	
@@ -431,7 +432,60 @@ module solverds
 	real(kind=DPN)::barfamily_minxyz(3)=1.0d20,barfamily_maxxyz(3)=-1.0d20 !
     INTEGER::ISEXCA2D=0,ISHBEAM=0,ISSLOPE=0
 	
-    
+    INTERFACE
+         PURE subroutine INVARIANT(stress,inv)
+	        implicit none
+	        real(8),intent(in)::stress(6)
+	        real(8),intent(out)::inv(3)
+	
+        end subroutine 
+		
+		PURE subroutine yieldfun(vyf,mat,inv,ayf,ev)
+			!use solverds	
+			implicit none
+			INTEGER,INTENT(IN)::MAT,AYF
+			REAL(8),INTENT(IN)::INV(3),EV
+			REAL(8),INTENT(OUT)::VYF
+		END SUBROUTINE
+		
+		PURE SUBROUTINE MC_KSITA(LODE,SITA,PHI,A,B,KSITA,D_KSITA)
+			IMPLICIT NONE
+			REAL(8),INTENT(IN)::LODE,SITA,A(2),B(2),PHI
+			REAL(8),INTENT(OUT)::KSITA,D_KSITA
+		END SUBROUTINE
+		
+		PURE subroutine deriv_yf(dyf,dywi,m)
+			!use solverds
+			implicit none
+			REAL(8),INTENT(IN)::dywi(3),M(6,3)
+			REAL(8),INTENT(OUT)::DYF(6)
+		END SUBROUTINE
+		
+		PURE subroutine deriv_sinv(m,stress)
+			implicit none
+			REAL(8),INTENT(IN)::STRESS(6)
+			real(8),INTENT(OUT)::m(6,3)
+		END SUBROUTINE
+		
+		PURE subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev)
+			
+			implicit none
+			INTEGER,INTENT(IN)::MAT,AYF
+			real(8),INTENT(IN)::inv(3),EV
+			real(8),INTENT(OUT)::dywi(3)
+			
+		END SUBROUTINE
+		
+		PURE subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev)
+		
+			implicit none
+			INTEGER,INTENT(IN)::MAT,AYF
+			real(8),INTENT(IN)::inv(3),EV
+			real(8),INTENT(OUT)::dywi(3)	
+			
+		END SUBROUTINE
+		
+	END INTERFACE    
    
     
     contains
@@ -439,7 +493,7 @@ module solverds
     
 
     
-	function pi()
+	PURE function pi()
 		real(kind=DPN)::pi
 		pi=1.d0
 		pi=datan(pi)*4.0d0	
@@ -506,11 +560,10 @@ END FUNCTION determinant
 
 ! computate the elastic compliance matrix [C] so that strain=matmul([C],stress)
 !ND>=4
-function elastic_strain_inc(E,V,DSS,ND) result(DEE)
+pure function DINV(E,V,ND) result(C)
 	implicit none
 	INTEGER,INTENT(IN)::ND
-	real(8),intent(in)::E,V,DSS(ND)
-	real(8),dimension(ND)::DEE
+	real(8),intent(in)::E,V
 	real(8)::C(ND,ND)
 	
 	C=0.D0
@@ -524,9 +577,9 @@ function elastic_strain_inc(E,V,DSS,ND) result(DEE)
 		C(6,6)=C(4,4)
 	ENDIF
     C=C/E
-	DEE=MATMUL(C,DSS)
 	
 end function
+
     
 end module
 
@@ -737,3 +790,4 @@ SUBROUTINE invert(matrix)
  END IF
 RETURN
 END SUBROUTINE invert    
+

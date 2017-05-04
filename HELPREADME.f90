@@ -41,10 +41,10 @@ subroutine write_readme_feasolver()
 	
 	Do j=1,2
 		README(IPP(I)) ="\N//******************************************************************************************************"C
-		if(j==1) README(IPP(I)) = "//BC,NUM=(I)[,SF=(I),SSP_ONEPILE=(I),SPG_ISDUAL=(I)]   //NUM=节点约束个数,SF=时间因子，SSP_ONEPILE=是否只作用在一根钢板桩上(0,NO).此关键词可重复出现。"  
-		if(j==2) README(IPP(I)) = "//LOAD,NUM=(I)[,SF=(I),SSP_ONEPILE=(I),SPG_ISDUAL=(I)]   //NUM=节点荷载个数,SF=时间因子，SSP_ONEPILE=是否只作用在一根钢板桩上(0,NO).此关键词可重复出现。"  
+		if(j==1) README(IPP(I)) = "//BC,NUM=(I)[,SF=(I),SSP_ONEPILE=(I),SPG_ISDUAL=(I),ISINC=(I)]   //NUM=节点约束个数,SF=时间因子，SSP_ONEPILE=是否只作用在一根钢板桩上(0,NO).此关键词可重复出现。ISINC=是否为增量(默认为全量)."  
+		if(j==2) README(IPP(I)) = "//LOAD,NUM=(I)[,SF=(I),SSP_ONEPILE=(I),SPG_ISDUAL=(I),ISINC=(I)]   //NUM=节点荷载个数,SF=时间因子，SSP_ONEPILE=是否只作用在一根钢板桩上(0,NO).此关键词可重复出现。ISINC=是否为增量(默认为全量)."  
 		README(IPP(I))=  "//"//'"'//"THE KEYWORD BC IS USED TO INPUT NODAL CONSTRAINS."//'"'
-		README(IPP(I)) = "//{NODE(I),DOF(I),VALUE(R)[,SF(I),SPG_ISDUAL(I),SSP_ONEPILE(I)]}  //ISDUAL:如果isdual==i(>0),则表示此自由度可能与出溢边界Nseep(i)重复，如果边界水头小于位置水头，则变为出溢边界。"  
+		README(IPP(I)) = "//{NODE(I),DOF(I),VALUE(R)[,SF(I),SPG_ISDUAL(I),SSP_ONEPILE(I),ISINC(I)]}  //ISDUAL:如果isdual==i(>0),则表示此自由度可能与出溢边界Nseep(i)重复，如果边界水头小于位置水头，则变为出溢边界。"  
 		README(IPP(I)) = "//{...}  //共NUM行"	
 		README(IPP(I)) = "//注意，对于水头边界(dof=4)，如果边界值小于其相应的位置水头，则认为该边界无效，不起作用。"
 		README(IPP(I)) = "//注意，多步计算时，输入时要求每一步的水头均是总量，而不是增量."	

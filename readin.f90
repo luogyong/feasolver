@@ -868,6 +868,7 @@ subroutine solvercommand(term,unit)
 						material(matid1).weight=material(matid1).property(4)
 					case(mc)
 						material(matid1).weight=material(matid1).property(6)
+                        if(abs(material(matid1).property(4)-material(matid1).property(5))>1e-7) solver_control.issym=.false.
 						if(n1<=6) then
 							if(abs(material(matid1).property(4))>1e-7) then
 								material(matid1).property(23)=0.05*material(matid1).property(3) &
@@ -882,6 +883,16 @@ subroutine solvercommand(term,unit)
 							material(matid1).property(8)=25.d0
 						endif
                         
+                        !FOR CLAUSEN MC PARAMETERS
+                        T2=DSIN(material(matid1).property(4)/180.*PI())
+                        MATERIAL(MATID1).PROPERTY(19)=(1+T2)/(1-T2) !k
+                        MATERIAL(MATID1).PROPERTY(20)=2*MATERIAL(MATID1).PROPERTY(3)*sqrt(MATERIAL(MATID1).PROPERTY(19))
+                        T2=DSIN(material(matid1).property(5)/180.*PI()) 
+                        MATERIAL(MATID1).PROPERTY(21)=(1+T2)/(1-T2) !M
+						!INVERSE(d)
+						ALLOCATE(MATERIAL(MATID1).DINV(NDIMENSION*2,NDIMENSION*2)) 
+						MATERIAL(MATID1).DINV=DINV(MATERIAL(MATID1).PROPERTY(1),MATERIAL(MATID1).PROPERTY(2),NDIMENSION*2)
+                        
                         IF (ABS(material(matid1).property(8)-30.D0)<1E-14.AND.ABS(material(matid1).property(7))<1E-14 ) THEN
                             material(matid1).property(22)=0.D0 !NO ROUNDED AND GRIFFITHS ALGORITHM IS USED
                         ELSE
@@ -892,6 +903,7 @@ subroutine solvercommand(term,unit)
 							endif
 						    T1=material(matid1).property(8)/180.*PI()
 						    T2=DSIN(material(matid1).property(4)/180.*PI())
+							!A1,A2*SIN(PHI),B1,B2*SIN(PHI)
 						    material(matid1).property(29)=dcos(T1)/3.d0*(3.D0+DTAN(T1)*DTAN(3.*T1))
 						    material(matid1).property(30)=dcos(T1)/3.d0/SQRT(3.0)*(DTAN(3.*T1)-3.*DTAN(T1))*T2
 						    material(matid1).property(31)=DSIN(T1)/(3.d0*dcos(3.*T1))
@@ -958,6 +970,7 @@ subroutine solvercommand(term,unit)
 				if(n1>=5) bf1(i).isdual=int(ar(5)) !同是也可能是出溢边界
 				bf1(i).ssp_onepile=n2
 				if(n1>=6) bf1(i).ssp_onepile=int(ar(6))
+                IF(N1>=7) bf1(i).isincrement=int(ar(7))
 
 			end do
 			if(bl_num>0) then
@@ -1101,7 +1114,8 @@ subroutine solvercommand(term,unit)
 				if(n1>=5) bf1(i).isdual=int(ar(5)) !同是也可能是出溢边界
 				bf1(i).ssp_onepile=n2
 				if(n1>=6) bf1(i).ssp_onepile=int(ar(6))
-
+                if(n1>=7) bf1(i).isincrement=int(ar(7))
+                
 			end do
 			if(bd_num>0) then
 				bf1(1:bd_num)=bc_disp(1:bd_num)
@@ -1653,7 +1667,7 @@ subroutine solvercommand(term,unit)
 				select case(property(i).name)
 					case('method')
 						geostatic.method=int(property(i).value)
-					case('soil')
+					case('nsoil','soil')
 						geostatic.nsoil=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)

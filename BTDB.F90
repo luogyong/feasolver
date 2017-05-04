@@ -544,9 +544,9 @@ subroutine EL_SFR2(ET)
 	
 	!expolating to nodes using shape functions
 	select case(et)
-		case(cpe3,cpe3_spg,CAX3_SPG,TET4,TET4_SPG,TET4_CPL,CPE3_CPL,CAX3_CPL)
+		case(cpe3,cpe3_spg,CAX3_SPG,TET4,TET4_SPG,TET4_CPL,CPE3_CPL,CAX3_CPL,CAX3)
 			!just average over sharing elements
-		case(cpe6,cpe6_spg,CAX6_SPG,CPE6_CPL,CAX6_CPL)
+		case(cpe6,CAX6,cpe6_spg,CAX6_SPG,CPE6_CPL,CAX6_CPL)
 			localxy1=0.0D0
 			localxy1(1,1)=5.0/3.0D0
 			localxy1(2,1)=-1.0/3.0D0
@@ -562,7 +562,7 @@ subroutine EL_SFR2(ET)
 				call shapefunction_cal(CPE3,localxy1(1:ecp(et).ndim,i),& 
 						ecp(et).expolating_Lshape(:,i),ecp(et).ngp,ecp(et).ndim)
 			end do
-		case(cpe4,cpe4_spg,cpe8r,cpe8r_spg,CAX4_SPG,CAX8R_SPG,CPE4_CPL,CAX4_CPL,CPE8R_CPL,CAX8R_CPL,ZT4_SPG)
+		case(cpe4,CAX4,cpe4_spg,cpe8r,cpe8r_spg,CAX4_SPG,CAX8,CAX8R_SPG,CPE4_CPL,CAX4_CPL,CPE8R_CPL,CAX8R_CPL,ZT4_SPG)
 			localxy1=0.0D0
 			t1=sqrt(3.d0)
 			localxy1(1,1)=-t1
@@ -665,7 +665,7 @@ subroutine EL_SFR2(ET)
 				call shapefunction_cal(TET4,localxy1(1:ecp(et).ndim,i),& 
 						ecp(et).expolating_Lshape(1:ecp(et).ngp,i),ecp(et).ngp,ecp(et).ndim)
 			end do			
-		case(cpe15,cpe15_spg,CAX15_SPG,CPE15_CPL,CAX15_CPL)
+		case(cpe15,CAX15,cpe15_spg,CAX15_SPG,CPE15_CPL,CAX15_CPL)
 			call expolationMatrix15N(ecp(et).expolating_Lshape)
 			call multermxy15N(ecp(et).termval)
 		case default

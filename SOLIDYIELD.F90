@@ -92,8 +92,8 @@ subroutine solve_SLD()
 				call ko_initialstress()
 				call outdata(iincs,iiter,iscon,isfirstcall,isubts)
 				cycle
-			else
-				call bf_initialstress()
+			!else
+			!	call bf_initialstress()
 			end if
 		end if
 		
@@ -262,7 +262,10 @@ subroutine solve_SLD()
 					exit
 				end if
 				
-			end do	
+			end do
+			
+			
+			IF(IINCS==0) STEPDIS=0
             
             !各时间子步之间的位移更新。
 			IF(SOLVER_CONTROL.TYPE==SPG) THEN
@@ -612,7 +615,7 @@ subroutine Continuum_stress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		stress1=element(ienum).stress(:,j)+sigma
 		!check the stress resulted in the last interation whether it penetrate the yield surface.
 		!ayf=0
-		!call invanrant(stress1,inv)
+		!call INVARIANT(stress1,inv)
 		!call yieldfun(vyf,element(ienum).mat,inv,ayf,ev)
 		!n2=0
 		!lamda=0.0
@@ -625,7 +628,7 @@ subroutine Continuum_stress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		!invb=inv
 		!do while(vyf>=0.and.n2<=20)
 		!	n2=n2+1
-		!	call invanrant(stress1,inv)
+		!	call INVARIANT(stress1,inv)
 		!	call yieldfun(vyf,element(ienum).mat,inv,ayf,ev)
  
 		!	if(abs(vyf)<solver_control.ftol.or.n2+1>20.or.&
@@ -684,10 +687,10 @@ subroutine Continuum_stress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		!	ev=ev+dsigma(nd1+1)	
 		!			
 		!end do
-		
+		r1=1.0d0 !for axis-sysmetrical element
+		if(element(ienum).ec==cax) r1=element(ienum).xygp(1,j)		
 		if(solver_control.bfgm==continuum) then
-			r1=1.0 !for axis-sysmetrical element
-			if(element(ienum).ec==cax) r1=element(ienum).xygp(1,j)
+
 			element(ienum).km=element(ienum).km+matmul(matmul( &
 				transpose(element(ienum).b(:,:,j)),de(1:nd1,1:nd1)),element(ienum).b(:,:,j)) &
 				*element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*r1
@@ -700,7 +703,7 @@ subroutine Continuum_stress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		element(ienum).e(j)=e
 		bload(1:element(ienum).ndof)=bload(1:element(ienum).ndof)+ &
 								matmul(stress1(1:nd1),element(ienum).b(:,:,j))* &
-								element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)
+								element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*r1
 		!if(iscon.or.iiter==solver_control.niteration) then
 		!	element(ienum).stress(:,j)=stress1
 		!	element(ienum).strain(:,j)=element(ienum).strain(:,j)+strain1
@@ -868,70 +871,10 @@ subroutine sec_deriv_qf(Secdqf,sigma,inv,mat,fdqwi,fstM,activeyf)
 	return		
 end subroutine
 
-!according to the stress vector(stress)calculate the second derivertives of the p,J2,J3
-!stress(1-6)=sx,sy,sz,sxy,syz,sxz.
-subroutine second_deriv_sinv_2nd(secM,stress,inv)
-	implicit none
-	integer::i,j,p,q,m,n
-	integer,external::delta
-	real(8)::secm(6,6,3),stress(6),inv(3),devs(3,3)=0	
-	
-		
-	!devs=stress
-	devs(1,1)=2.0/3.0*stress(1)-1.0/3.0*(stress(2)+stress(3))
-	devs(2,2)=2.0/3.0*stress(2)-1.0/3.0*(stress(1)+stress(3))
-	devs(3,3)=2.0/3.0*stress(3)-1.0/3.0*(stress(2)+stress(1))
-	devs(1,2)=stress(4)
-	devs(2,1)=stress(4)
-	devs(2,3)=stress(5)
-	devs(3,2)=stress(5)
-	devs(1,3)=stress(6)
-	devs(3,1)=stress(6)
 
-	secM=0
-	secM(1,1,2)=2
-	secM(2,2,2)=2
-	secM(3,3,2)=2
-	secM(4,4,2)=6
-	secM(5,5,2)=6
-	secM(6,6,2)=6	
-	secM(1,2,2)=-1
-	secM(2,3,2)=-1
-	secM(1,3,2)=-1
-	secM(2,1,2)=-1
-	secM(3,1,2)=-1
-	secM(3,2,2)=-1
-	secM(:,:,2)=secM(:,:,2)*1.0/3.0
 
-	secM(1,1,3)=devs(1,1)
-	secM(2,2,3)=devs(2,2)
-	secM(3,3,3)=devs(3,3)
-	secM(4,4,3)=-3.0*devs(3,3)
-	secM(5,5,3)=-3.0*devs(1,1)
-	secM(6,6,3)=-3.0*devs(2,2)
-	secM(2,1,3)=devs(3,3)
-	secM(3,1,3)=devs(2,2)
-	secM(3,2,3)=devs(1,1)		
-	secM(4,1,3)=devs(1,2)
-	secM(4,2,3)=devs(1,2)
-	secM(4,3,3)=-2.0*devs(1,2)
-	secM(5,1,3)=-2.0*devs(2,3)
-	secM(5,2,3)=devs(2,3)
-	secM(5,3,3)=devs(2,3)
-	secM(5,4,3)=3*devs(1,3)
-	secM(6,1,3)=devs(1,3)
-	secM(6,2,3)=2*devs(1,3)
-	secM(6,3,3)=devs(1,3)
-	secM(6,4,3)=3*devs(2,3)
-	secM(6,5,3)=3*devs(1,3)
-	do i=1,6
-		do j=i+1,6
-			secM(i,j,3)=secM(j,i,3)
-		end do
-	end do
-	secM(:,:,3)=2.0/3.0*secM(:,:,3)
-	
-end subroutine
+
+
 
 
 
@@ -1393,10 +1336,13 @@ end function
 
 !according to the stress vector(stress)calculate the derivertives of the p,J2,J3 
 !stress(1-6)=sx,sy,sz,sxy,syz,sxz.
-subroutine deriv_sinv(m,stress)
+PURE subroutine deriv_sinv(m,stress)
 	implicit none
-	real(8)::m(6,3),stress(6),devs(6),J2=0.0
+	REAL(8),INTENT(IN)::STRESS(6)
+	real(8),INTENT(OUT)::m(6,3)
+	REAL(8)::devs(6),J2
 	
+	J2=0.D0	
 	devs=stress
 	devs(1)=2.0/3.0*stress(1)-1.0/3.0*(stress(2)+stress(3))
 	devs(2)=2.0/3.0*stress(2)-1.0/3.0*(stress(1)+stress(3))
@@ -1418,10 +1364,13 @@ end subroutine
 
 
 !according to the stress, calculate the stress invarants(p,(3J2)**0.5=q,Lode angle)
-subroutine invanrant(stress,inv)
+PURE subroutine INVARIANT(stress,inv)
 	implicit none
-	real(8)::stress(6),inv(3),devs(6),J3=0.0
+	real(8),intent(in)::stress(6)
+	real(8),intent(out)::inv(3)
+	real(8)::devs(6),J3
 	
+    J3=0.0
 	devs=stress
 	devs(1)=2.0/3.0*stress(1)-1.0/3.0*(stress(2)+stress(3))
 	devs(2)=2.0/3.0*stress(2)-1.0/3.0*(stress(1)+stress(3))
@@ -1446,7 +1395,7 @@ subroutine invanrant(stress,inv)
 	
 end subroutine
 
-SUBROUTINE MC_KSITA(LODE,SITA,PHI,A,B,KSITA,D_KSITA)
+PURE SUBROUTINE MC_KSITA(LODE,SITA,PHI,A,B,KSITA,D_KSITA)
 	IMPLICIT NONE
 	REAL(8),INTENT(IN)::LODE,SITA,A(2),B(2),PHI
 	REAL(8),INTENT(OUT)::KSITA,D_KSITA
@@ -1464,14 +1413,17 @@ SUBROUTINE MC_KSITA(LODE,SITA,PHI,A,B,KSITA,D_KSITA)
 ENDSUBROUTINE
 
 !according to the material(mat).type and stress invarants,calculate the value of the yield functions(vyt)
-subroutine yieldfun(vyf,mat,inv,ayf,ev)
+PURE subroutine yieldfun(vyf,mat,inv,ayf,ev)
 	use solverds	
 	implicit none
-	real(8)::vyf,inv(3),t1,t2,mcA(3),t3,ev,Ksita1,t4,sitat1,A1,A2,B1,B2,DKSITA1,PI1
-	integer::mat,ayf
-	logical::isqf=.false.
+	INTEGER,INTENT(IN)::MAT,AYF
+	REAL(8),INTENT(IN)::INV(3),EV
+	REAL(8),INTENT(OUT)::VYF
+	real(8)::t1,t2,mcA(3),t3,Ksita1,t4,sitat1,A1,A2,B1,B2,DKSITA1,PI1
+	logical::isqf
 	
 	PI1=pi()
+	isqf=.false.
 	select case(material(mat).type)
 		case(Mises)
 			vyf=inv(2)-material(mat).property(3)
@@ -1505,10 +1457,11 @@ end subroutine
 !and the derivatives of invarants w.r.t. sigma which stored in "m",
 !calculate the derivative of yield functions or potential function w.r.t.
 !stress, sigma.
-subroutine deriv_yf(dyf,dywi,m)
+PURE subroutine deriv_yf(dyf,dywi,m)
 	use solverds
 	implicit none
-	real(8)::dyf(6),dywi(3),m(6,3)
+	REAL(8),INTENT(IN)::dywi(3),M(6,3)
+	REAL(8),INTENT(OUT)::DYF(6)
 	
 	dyf=dywi(1)*m(:,1)+dywi(2)*m(:,2)+dywi(3)*m(:,3)
 	
@@ -1516,15 +1469,18 @@ end subroutine
 
 !according to material(mat).type and stress invarants, calculate the 
 !derivative of yield function with respect to the stress invarants(sigma_m,J2,J3).
-subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev)
+PURE subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev)
 	use solverds
 	implicit none
-	real(8)::dywi(3),inv(3),c1=1.0,mcA(3),J2=0,ev,KSITA1,DKSITA1,SITAT1,T1,T3,PI1,ALPHA1
-	integer::mat,ayf
-	logical::isqf=.false.
+	INTEGER,INTENT(IN)::MAT,AYF
+	real(8),INTENT(IN)::inv(3),EV
+	real(8),INTENT(OUT)::dywi(3)	
+	real(8)::c1,mcA(3),J2,KSITA1,DKSITA1,SITAT1,T1,T3,PI1,ALPHA1
+	logical::isqf
 	
-	dywi=0.0
+	dywi=0.0;J2=0;c1=1.0
 	PI1=PI()
+	isqf=.false.
 	select case(material(mat).type)
 		case(mises)
 			dywi(2)=3.0/2.0/inv(2)			
@@ -1564,13 +1520,16 @@ end subroutine
 
 !according to material(mat).type and stress invarants, calculate the 
 !derivative of potential function with respect to the stress invarants(sigma_m,J2,J3).
-subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev)
+PURE subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev)
 	use solverds
 	implicit none
-	real(8)::dywi(3),inv(3),c1=1.0,J2=0,mcA(3),ev,PI1,T1,KSITA1,DKSITA1,ALPHA1
-	integer::mat,ayf
-	logical::isqf=.true.
+	INTEGER,INTENT(IN)::MAT,AYF
+	real(8),INTENT(IN)::inv(3),EV
+	real(8),INTENT(OUT)::dywi(3)
+	REAL(8)::c1,J2,mcA(3),PI1,T1,KSITA1,DKSITA1,ALPHA1
+	logical::isqf
 	
+	c1=1.0;J2=0;isqf=.true.
 	dywi=0.0
 	PI1=PI()
 	select case(material(mat).type)
@@ -1645,7 +1604,7 @@ subroutine bload_viscoplasticity(iiter,iscon,bdylds)
 			!total stress
 			stress1=stress1+element(i).stress(:,j)
 			!check whether penetrate the yield surface.
-			call invanrant(stress1,inv)
+			call INVARIANT(stress1,inv)
  			call yieldfun(vyf,element(i).mat,inv,ayf,ev)
 			
 			if(vyf>0) then
@@ -1708,101 +1667,141 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 	real(kind=DPN),intent(out)::bload(nbload)
 	
 	integer::i,j,k,n1,ayf=0
-	real(8)::stress1(6)=0.0,strain1(6)=0.0, &
+	real(8)::Tstress1(6)=0.0,Dstrain1(6)=0.0, &
 					dee(4,4)=0.0,sigma(6)=0.0,inv(3)=0.0,vyf=0.0, &
 					devp(6)=0.0,m(6,3)=0.0,dywi(3)=0.0,dyf(6)=0.0, &
 					evp(6),dt=0.0,vyf_old=0.0,fac=0.0, &
-					stress2(6)=0.0,dqwi(3)=0.0,dqf(6)=0.0,dp(6,6)=0.0,&
+					Dstress1(6)=0.0,dqwi(3)=0.0,dqf(6)=0.0,dp(6,6)=0.0,&
 					de(6,6)=0.0,t1=0.0,pstress1(6)=0.0,lamda=0.0,&
-					buf1(6)=0.0,buf2(6)=0.0,pstrain(6)=0.0,ev=0
-	REAL(8)::E1,V1,R1
-	integer::nd1=0,ndim1
+					buf1(6)=0.0,buf2(6)=0.0,pstrain(6)=0.0,ev=0,PlasPar(3),SIGMAB(6),SIGMAC(6)
+	REAL(8)::E1,V1,R1,vyf2,AT1(6)
+	integer::nd1=0,ndim1,region
 	
 	n1=element(ienum).ngp
 	nd1=element(ienum).nd
 	ndim1=ecp(element(ienum).et).ndim
 	bload=0.0
-	if(solver_control.bfgm==continuum) element(ienum).km=0.d0
+    
+	if(solver_control.bfgm==continuum.OR.solver_control.bfgm==consistent) element(ienum).km=0.d0
+    
+!    !!dir$ IVDEP:LOOP
 	do j=1,n1
-		strain1=0.0
-		stress1=0.0
+		Dstrain1=0.0
+		Tstress1=0.0
 		pstress1=0.0
 		dp=0.0d0
 		!strain of this incrementals
-		strain1(1:nd1)=matmul(element(ienum).b(1:nd1,:,j),Ddis(1:element(ienum).ndof))
+		Dstrain1(1:nd1)=matmul(element(ienum).b(1:nd1,:,j),Ddis(1:element(ienum).ndof))
 		!stress incremental
 		de(1:nd1,1:nd1)=element(ienum).d
-		stress2(1:nd1)=matmul(de(1:nd1,1:nd1),strain1(1:nd1))
+		Dstress1(1:nd1)=matmul(de(1:nd1,1:nd1),Dstrain1(1:nd1))
 		!total stress
-		stress1=stress2+element(ienum).stress(:,j)
-		!check whether penetrate the yield surface.
-		call invanrant(stress1,inv)
-		call yieldfun(vyf,element(ienum).mat,inv,ayf,ev)
-		if(vyf>0) then
-			call invanrant(element(ienum).stress(:,j),inv)
-			call yieldfun(vyf_old,element(ienum).mat,inv,ayf,ev)
-			fac=vyf/(vyf-vyf_old)
-			stress1=stress2*(1-fac)+element(ienum).stress(:,j)
+		Tstress1=Dstress1+element(ienum).stress(:,j)
+        IF(istep>0) THEN !IINCS==0,假定只建立弹性应力场。
+            IF(MATERIAL(ELEMENT(IENUM).MAT).TYPE==MC.AND.solver_control.bfgm==consistent) THEN
+                PlasPar=MATERIAL(ELEMENT(IENUM).MAT).PROPERTY(19:21)
+                SIGMAB(1:4)=TSTRESS1(1:4);
+                IF(ND1>4) THEN
+                    SIGMAB(5)=TSTRESS1(6);SIGMAB(6)=TSTRESS1(5)
+                ENDIF
+                IF(ABS(MATERIAL(ELEMENT(IENUM).MAT).PROPERTY(4))>1E-7) THEN
+                    CALL MohrCoulombStressReturn(SIGMAB,ND1,PlasPar(1:3),&
+                                            element(ienum).d(1:ND1,1:ND1),MATERIAL(ELEMENT(IENUM).MAT).DINV(1:ND1,1:ND1),&
+                                            SIGMAC,DE(1:ND1,1:ND1),region)
+                ELSE
+                    CALL  TrescaStressReturn(SIGMAB,ND1,MATERIAL(ELEMENT(IENUM).MAT).PROPERTY(3)*2.0, &
+                                            element(ienum).d(1:ND1,1:ND1),MATERIAL(ELEMENT(IENUM).MAT).DINV(1:ND1,1:ND1),&
+                                            SIGMAC,DE(1:ND1,1:ND1),region)
+                ENDIF
+                IF(ND1>4) THEN
+                    T1=SIGMAC(5);SIGMAC(5)=SIGMAC(6);SIGMAC(6)=SIGMAC(5)
+                    AT1=DE(:,5);DE(:,5)=DE(:,6);DE(:,6)=AT1
+                    AT1=DE(5,:);DE(5,:)=DE(6,:);DE(6,:)=AT1
+                ENDIF
+                pstress1(1:nd1)=TSTRESS1-SIGMAC
+                !Tstress1=Tstress1-pstress1
+                element(ienum).evp(1:nd1,j)=Dstrain1(1:nd1)-MATMUL(MATERIAL(element(ienum).MAT).DINV(1:ND1,1:ND1),Dstress1(1:nd1)-pstress1(1:nd1))           
+            
+            ELSE
+        
+		        !check whether penetrate the yield surface.
+		        call INVARIANT(Tstress1,inv)
+		        call yieldfun(vyf,element(ienum).mat,inv,ayf,ev)
+		        if(vyf>0) then
+			        call INVARIANT(element(ienum).stress(:,j),inv)
+			        call yieldfun(vyf_old,element(ienum).mat,inv,ayf,ev)
 
-            if(material(element(ienum).mat).type==MC.AND.ABS(material(element(ienum).mat).PROPERTY(22))<1E-14) then
-                call mcdpl(material(element(ienum).mat).property(4),&
-                            material(element(ienum).mat).property(5),&
-                            de(1:nd1,1:nd1),stress1(1:nd1),dp(1:nd1,1:nd1),ND1)
-            elseif(material(element(ienum).mat).type==mises) then
-				CALL vmdpl(de(1:nd1,1:nd1),stress1(1:nd1),dp(1:nd1,1:nd1),ND1)
-			else
+			        fac=-vyf_old/(vyf-vyf_old)
+			        !improve fac. ref: nonlinear analysis in soil mechanics HF.Chen.
+			        !Tstress1=Dstress1*fac+element(ienum).stress(:,j)
+			        !call INVARIANT(Tstress1,inv)
+			        !call yieldfun(vyf2,element(ienum).mat,inv,ayf,ev)
+			        !if(abs(vyf2)>1d-5) then
+			        !	call deriv_sinv(m,Tstress1)
+			        !	call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
+			        !	call deriv_yf(dyf,dywi,m)
+			        !	fac=fac-vyf2/dot_product(dyf(1:nd1),Dstress1(1:nd1))
+			        !endif
 			
-				call invanrant(stress1,inv)
-				call deriv_sinv(m,stress1)
-				call deriv_qf_with_inv(dqwi,inv,element(ienum).mat,ayf,ev)
-				call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
-				call deriv_yf(dyf,dywi,m)
-				call deriv_yf(dqf,dqwi,m)							
-				buf1(1:nd1)=matmul(dyf(1:nd1),de(1:nd1,1:nd1))
-				buf2(1:nd1)=matmul(de(1:nd1,1:nd1),dqf(1:nd1))
-				do k=1,nd1
-					dp(k,1:nd1)=buf2(k)*buf1(1:nd1)
-				end do				
-				t1=dot_product(buf1(1:nd1),dqf(1:nd1))
-				dp(1:nd1,1:nd1)=dp(1:nd1,1:nd1)/t1
-            endif
-            de=de-dp
-			dp=dp*fac
-			pstress1(1:nd1)=matmul(dp(1:nd1,1:nd1),strain1(1:nd1))
-			!stress1=stress1-pstress1
-            E1=MATERIAL(element(ienum).MAT).PROPERTY(1);V1=MATERIAL(element(ienum).MAT).PROPERTY(2)
-			element(ienum).evp(1:nd1,j)=strain1(1:nd1)-elastic_strain_inc(E1,V1,stress2(1:nd1)-pstress1(1:nd1),ND1)
-			!element(ienum).pstrain(:,j)=element(ienum).pstrain(:,j)+element(ienum).evp(:,j)
+			        Tstress1=Dstress1*fac+element(ienum).stress(:,j)
+            
+                    !if(material(element(ienum).mat).type==MC.AND.ABS(material(element(ienum).mat).PROPERTY(22))<1E-14) then
+                    !    call mcdpl(material(element(ienum).mat).property(4),&
+                    !                material(element(ienum).mat).property(5),&
+                    !                de(1:nd1,1:nd1),Tstress1(1:nd1),dp(1:nd1,1:nd1),ND1)
+            !        elseif(material(element(ienum).mat).type==mises) then
+				        !CALL vmdpl(de(1:nd1,1:nd1),Tstress1(1:nd1),dp(1:nd1,1:nd1),ND1)
+			        !else
 			
-		end if
-        element(ienum).Dstress(1:nd1,j)=stress2(1:nd1)-pstress1(1:nd1)
-		element(ienum).Dstrain(1:nd1,j)=strain1(1:nd1)
+				        call INVARIANT(Tstress1,inv)
+				        call deriv_sinv(m,Tstress1)
+				        call deriv_qf_with_inv(dqwi,inv,element(ienum).mat,ayf,ev)
+				        call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
+				        call deriv_yf(dyf,dywi,m)
+				        call deriv_yf(dqf,dqwi,m)							
+				        buf1(1:nd1)=matmul(dyf(1:nd1),de(1:nd1,1:nd1))
+				        buf2(1:nd1)=matmul(de(1:nd1,1:nd1),dqf(1:nd1))
+				        do k=1,nd1
+					        dp(k,1:nd1)=buf2(k)*buf1(1:nd1)
+				        end do				
+				        t1=dot_product(buf1(1:nd1),dqf(1:nd1))
+				        dp(1:nd1,1:nd1)=dp(1:nd1,1:nd1)/t1
+                    !endif
+                    de=de-dp
+			        dp=dp*(1-fac)
+			        pstress1(1:nd1)=matmul(dp(1:nd1,1:nd1),Dstrain1(1:nd1))
+			        !Tstress1=Tstress1-pstress1
+                    E1=MATERIAL(element(ienum).MAT).PROPERTY(1);V1=MATERIAL(element(ienum).MAT).PROPERTY(2)
+			        element(ienum).evp(1:nd1,j)=Dstrain1(1:nd1)-MATMUL(DINV(E1,V1,ND1),Dstress1(1:nd1)-pstress1(1:nd1))
+			        !element(ienum).pstrain(:,j)=element(ienum).pstrain(:,j)+element(ienum).evp(:,j)
+			
+		        end if
+        
+            ENDIF
+        ENDIF
+        r1=1.0d0 !for axis-sysmetrical element
+		if(element(ienum).ec==cax) r1=element(ienum).xygp(1,j)
+        element(ienum).Dstress(1:nd1,j)=Dstress1(1:nd1)-pstress1(1:nd1)
+		element(ienum).Dstrain(1:nd1,j)=Dstrain1(1:nd1)
 		!element(ienum).evp(:,j)=pstrain-element(ienum).pstrain(:,j)
 		element(ienum).ev(j)=ev
 		!element(ienum).e(j)=e
+		
         bload(1:element(ienum).ndof)=bload(1:element(ienum).ndof)+ &
 						matmul((element(ienum).stress(1:nd1,j)+element(ienum).Dstress(1:nd1,j)),element(ienum).b(:,:,j))* &
-						element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)
+						element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*r1
 						
-		if(solver_control.bfgm==continuum) then
-			r1=1.0 !for axis-sysmetrical element
-			if(element(ienum).ec==cax) r1=element(ienum).xygp(1,j)
+		if(solver_control.bfgm==continuum.OR.solver_control.bfgm==consistent) then
+			
 			element(ienum).km=element(ienum).km+matmul(matmul( &
 				transpose(element(ienum).b(:,:,j)),de(1:nd1,1:nd1)),element(ienum).b(:,:,j)) &
 				*element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*r1
 		end if				
-		!update the stress and strain
-		!if(iscon.or.iiter==solver_control.niteration) then
-		!	element(ienum).stress(:,j)=element(ienum).stress(:,j)+stress2-pstress1
-		!	element(ienum).strain(:,j)=element(ienum).strain(:,j)+strain1
-		!	if(vyf>0) then
-		!		E1=MATERIAL(element(ienum).MAT).PROPERTY(1);V1=MATERIAL(element(ienum).MAT).PROPERTY(2)
-		!		element(ienum).evp(1:nd1,j)=strain1(1:nd1)-elastic_strain_inc(E1,V1,stress2(1:nd1)-pstress1(1:nd1),ND1)
-		!		element(ienum).pstrain(:,j)=element(ienum).pstrain(:,j)+element(ienum).evp(:,j)
-		!	end if				
-		!end if
+
 	end do
 
+    
+    
 	return
 end subroutine
 

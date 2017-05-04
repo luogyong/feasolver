@@ -228,7 +228,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 						ELEMENT(IENUM).SFR(j,1:element(ienum).ngp), &
 						ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,i-n1+1))	
 				enddo
-				do CONCURRENT (j=1:6)
+				do CONCURRENT (j=1:ELEMENT(IENUM).ND)
 					IF(ALLOCATED(ELEMENT(IENUM).STRESS)) ELEMENT(IENUM).STRESS(j,i)=dot_product( &
 						ELEMENT(IENUM).STRESS(j,1:element(ienum).ngp), &
 						ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,i-n1+1))
@@ -263,7 +263,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 					CALL I2N_TRI15(element(ienum).SFR(j,N1:N2),element(ienum).SFR(j,1:ELEMENT(IENUM).NGP),ELEMENT(IENUM).ET)
 				ENDIF
 			enddo
-			do j=1,6
+			do j=1,ELEMENT(IENUM).ND
 				IF(ALLOCATED(ELEMENT(IENUM).STRESS)) THEN
 					CALL I2N_TRI15(element(ienum).STRESS(J,N1:N2),element(ienum).STRESS(J,1:ELEMENT(IENUM).NGP),ELEMENT(IENUM).ET)
 				ENDIF			
@@ -333,7 +333,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 					IF(ALLOCATED(ELEMENT(IENUM).SFR)) element(ienum).SFR(j,N1:N2)=dot_product(ELEMENT(IENUM).SFR(j,1:element(ienum).ngp), &
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				enddo
-				DO CONCURRENT (J=1:6)
+				DO CONCURRENT (J=1:ELEMENT(IENUM).ND)
 					IF(ALLOCATED(ELEMENT(IENUM).STRESS)) element(ienum).STRESS(J,N1:N2)=dot_product(ELEMENT(IENUM).STRESS(j,1:element(ienum).ngp), &
 								ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 					IF(ALLOCATED(ELEMENT(IENUM).STRAIN)) element(ienum).STRAIN(J,N1:N2)=dot_product(ELEMENT(IENUM).STRAIN(j,1:element(ienum).ngp), &
@@ -573,11 +573,14 @@ subroutine E2N_stress_strain()
 		if(allocated(node(i).pstrain))	node(i).pstrain=0.0d0
 		if(allocated(node(i).igrad)) node(i).igrad=0.0d0
 		if(allocated(node(i).velocity)) node(i).velocity=0.0d0
-		if(allocated(node(i).sfr)) node(i).sfr=0.0d0
+		if(allocated(node(i).sfr)) then
+            node(i).sfr=0.0d0
+            node(i).sfr(1)=-1.0d6
+        endif
 		node(i).q=0.0d0
 		node(i).kr=0.0d0
 		node(i).mw=0.0d0
-        node(i).sfr(1)=-1.0d6
+        !node(i).sfr(1)=-1.0d6
 	end do
 	
 	!averaged simplily at nodes
