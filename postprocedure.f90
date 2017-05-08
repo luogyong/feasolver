@@ -30,7 +30,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	do i=1,enum
 		if(element(i).isactive==0) cycle
         
-		if(outvar(SFR).value>0) CALL stree_failure_ratio_cal(I)	
+		if(outvar(SFR).value>0) CALL stree_failure_ratio_cal(I,IINCS)	
 		select case(element(i).ec)
 
 			case(stru,SPRING,SOILSPRING)
@@ -55,7 +55,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 
 	end do
 	
-	call E2N_stress_strain()
+	call E2N_stress_strain(IINCS)
 	
 	CALL BC_RHS_OUT(iincs,iiter,ISUBTS)
 	
@@ -309,7 +309,7 @@ subroutine LIMITOUT(IINCS,IITER,ISCON,ISFIRSTCALL,C)
 		if(element(i).isactive==0) cycle
 		select case(element(i).et)			
 			case(UB3)
-				n2=element(i).ndof-int(material(element(i).mat).property(1))+1						
+				n2=element(i).ndof-int(material(element(i).mat).GET(1,IINCS))+1						
 			case(UBZT4)
 				n2=element(i).ndof-4+1
 		end select 

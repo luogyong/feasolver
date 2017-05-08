@@ -366,7 +366,11 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 		CASE('right')
 			value=Right
 		CASE('left')
-			value=LEFT			
+			value=LEFT
+		CASE('sloan')
+			value=sloan
+		CASE('dang')
+			value=dang			
 		case default
 			cvalue=str
 			print *, 'No such Constant:'//trim(str)//',It will be returned as a character variable.'

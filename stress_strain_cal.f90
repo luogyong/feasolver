@@ -1,7 +1,7 @@
-subroutine stree_failure_ratio_cal(ienum)
+subroutine stree_failure_ratio_cal(ienum,ISTEP)
 	use solverds
 	implicit none
-	integer,intent(in)::ienum
+	integer,intent(in)::ienum,ISTEP
 	integer::i,et1,nsh1,ndim1,dof1(3)
 	real(8)::ss1(6),pss1(4),t1,t2,C1,phi1,R1,PI1,dis1(3,30),disg1(3)
 	
@@ -13,8 +13,8 @@ subroutine stree_failure_ratio_cal(ienum)
 	!	dis1(1:ndim1,i)=Tdisp(node(element(ienum).node(i)).dof(1:ndim1))		
 	!enddo
 		!MC material		
-		phi1=material(element(ienum).mat).property(4)
-		c1=material(element(ienum).mat).property(3)
+		phi1=material(element(ienum).mat).GET(4,ISTEP)
+		c1=material(element(ienum).mat).GET(3,ISTEP)
 		
 	do i=1,element(ienum).ngp
 		ss1=element(ienum).stress(:,i)
@@ -560,10 +560,10 @@ end subroutine
 !end subroutine
 
 !according average the nodal stress in elements.
-subroutine E2N_stress_strain()
+subroutine E2N_stress_strain(ISTEP)
 	use solverds
 	implicit none
-	integer::i,j,k,n1,n2
+	integer::i,j,k,n1,n2,ISTEP
 	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3)
 
 	!clear zero
@@ -649,8 +649,8 @@ subroutine E2N_stress_strain()
 									+node(i).stress(6)**2))
 			node(i).mises=node(i).mises**0.5
 			!节点的材料假定为破坏比最大的单元材料，以模拟成层土中的软弱夹层
-			C1=material(node(i).sfr(2)).property(3)
-			Phi1=material(node(i).sfr(2)).property(4)
+			C1=material(node(i).sfr(2)).GET(3,ISTEP)
+			Phi1=material(node(i).sfr(2)).GET(4,ISTEP)
             dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
 
 			call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,dis1,solver_control.slidedirection)

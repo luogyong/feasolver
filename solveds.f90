@@ -183,6 +183,10 @@ module solverds
 		logical::isff=.false. ! whether the parameters are dependent on  the field function
 		character(64)::name=""
         REAL(kind=DPN),ALLOCATABLE::D(:,:),DINV(:,:) !ELASTIC K AND INVERSE(K)
+		CONTAINS
+			PROCEDURE::GET_ARRAY=>GET_MAT_PROPERTY_ARRAY
+			PROCEDURE::GET_SCALAR=>GET_MAT_PROPERTY_SCALAR
+			GENERIC::GET=>GET_ARRAY,GET_SCALAR
 	end type
 	type(mat_tydef)::material(-2:maximat) 
 	
@@ -218,9 +222,9 @@ module solverds
         integer::mur=1
 		real(kind=DPN)::BarfamilyScale=15.D0
         !parameter for line search
-        INTEGER::ISLS=0
+        INTEGER::ISLS=0,ISACC=DANG  !ISACC=0,NO ACCELERATION, =1,SLOAN, =2,DANG(DEFAULT)
         INTEGER::NLS=10
-        real(kind=DPN)::STOL=0.8D0,S0=0.D0
+        real(kind=DPN)::STOL=0.8D0,S0=0.D0,ALPHA=1.0D0 !ALPHA =INISTIFFNESS ACCELERATION PARAMETER
         integer::RF_EPP=0 !被动侧土弹簧抗力限值是否要减掉初始的土压力。
         integer::RF_APP=0 !主动侧主动土压力荷载，开挖面以下是否按倒三角折减。
 		integer::INIEPP=2  !被动侧土弹簧抗力限值是否要减掉初始的土压力,2=主动土压力，1=静止土压力
@@ -440,10 +444,16 @@ module solverds
 	
         end subroutine 
 		
-		PURE subroutine yieldfun(vyf,mat,inv,ayf,ev)
+        PURE SUBROUTINE KSITA_MC_C2(KSITA,LODE,SITA,PHI)
+            !LODE IN RAD,SITA IN RAD, TRANSITIONAL ANGLE.
+	        IMPLICIT NONE
+	        REAL(8),INTENT(IN)::LODE,SITA,PHI
+	        REAL(8),INTENT(OUT)::KSITA(6)
+        END SUBROUTINE
+		PURE subroutine yieldfun(vyf,mat,inv,ayf,ev,ISTEP)
 			!use solverds	
 			implicit none
-			INTEGER,INTENT(IN)::MAT,AYF
+			INTEGER,INTENT(IN)::MAT,AYF,ISTEP
 			REAL(8),INTENT(IN)::INV(3),EV
 			REAL(8),INTENT(OUT)::VYF
 		END SUBROUTINE
@@ -467,32 +477,63 @@ module solverds
 			real(8),INTENT(OUT)::m(6,3)
 		END SUBROUTINE
 		
-		PURE subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev)
+		PURE subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev,ISTEP)
 			
 			implicit none
-			INTEGER,INTENT(IN)::MAT,AYF
+			INTEGER,INTENT(IN)::MAT,AYF,ISTEP
 			real(8),INTENT(IN)::inv(3),EV
 			real(8),INTENT(OUT)::dywi(3)
 			
 		END SUBROUTINE
 		
-		PURE subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev)
+		PURE subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev,ISTEP)
 		
 			implicit none
-			INTEGER,INTENT(IN)::MAT,AYF
+			INTEGER,INTENT(IN)::MAT,AYF,ISTEP
 			real(8),INTENT(IN)::inv(3),EV
 			real(8),INTENT(OUT)::dywi(3)	
 			
 		END SUBROUTINE
+        
+        PURE FUNCTION PARA_MC_CLAUSEN(MATID,ISTEP) RESULT(PARA)
+            IMPLICIT NONE
+            INTEGER,INTENT(IN)::MATID,ISTEP
+            REAL(8)::PARA(3)
+        END FUNCTION
 		
 	END INTERFACE    
    
     
     contains
     
-    
+    FUNCTION GET_MAT_PROPERTY_ARRAY(MAT,IPARA,ISTEP) RESULT(VAL)
+		CLASS(mat_tydef),INTENT(in):: MAT
+		INTEGER,INTENT(IN)::IPARA(:),ISTEP
+        REAL(DPN)::VAL(SIZE(IPARA))
+        INTEGER::I
+		VAL=MAT.property(ipara)*sf(MAT.sf(ipara)).factor(istep) 
+        IF(MAT.TYPE==MC) THEN
+            DO I=1,SIZE(IPARA)
+                IF(IPARA(I)==4.OR.IPARA(I)==5) THEN
+                    VAL(I)=TAN(MAT.property(IPARA(I))/180.*PI())*sf(MAT.sf(IPARA(I))).factor(istep) 
+                    VAL(I)=ATAN(VAL(I))/PI()*180
+                ENDIF
+            ENDDO
+        ENDIF
+	END FUNCTION GET_MAT_PROPERTY_ARRAY
 
-    
+    FUNCTION GET_MAT_PROPERTY_SCALAR(MAT,IPARA,ISTEP) RESULT(VAL)
+		CLASS(mat_tydef),INTENT(in):: MAT
+		INTEGER,INTENT(IN)::IPARA,ISTEP
+        REAL(DPN)::VAL
+		VAL=MAT.property(ipara)*sf(MAT.sf(ipara)).factor(istep) 
+        IF(MAT.TYPE==MC.AND.(IPARA==4.OR.IPARA==5)) THEN
+            !SCALE TAN(ANGLE) BUT NOT ANGLE
+           VAL=TAN(MAT.property(IPARA)/180.*PI())*sf(MAT.sf(IPARA)).factor(istep) 
+           VAL=ATAN(VAL)/PI()*180
+        ENDIF        
+	END FUNCTION GET_MAT_PROPERTY_SCALAR
+	
 	PURE function pi()
 		real(kind=DPN)::pi
 		pi=1.d0
@@ -583,7 +624,14 @@ end function
     
 end module
 
-    
+INCLUDE 'mkl_dss.f90' 
+MODULE MKLDS
+	
+	USE MKL_DSS
+	
+	TYPE(MKL_DSS_HANDLE) :: handle ! Allocate storage for the solver handle.
+	
+END MODULE
     
 
 MODULE SOLVERLIB

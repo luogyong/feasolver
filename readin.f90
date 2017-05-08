@@ -295,6 +295,7 @@
         
 	endif
 
+    if(solver_control.bfgm==inistress) solver_control.issym=.true.
 	
 	!if(solver_control.bfgm==lacy) then
 	!	do i=1,bd_num
@@ -878,9 +879,9 @@ subroutine solvercommand(term,unit)
 								material(matid1).property(24)=0.05*material(matid1).property(3) &
 															/dtan(material(matid1).property(5)/180.*PI())
 							endif							
-							material(matid1).property(8)=25.d0
+							material(matid1).property(8)=28.d0
 						elseif(n1<=7) then                            
-							material(matid1).property(8)=25.d0
+							material(matid1).property(8)=28.d0
 						endif
                         
                         !FOR CLAUSEN MC PARAMETERS
@@ -926,12 +927,10 @@ subroutine solvercommand(term,unit)
 					call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
 					material(matid1).ff1d(1:n1)=int(ar(1:n1))
 				end if
-				
+				material(matid1).sf=0
 				if(n3==1) then
 					call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
 					material(matid1).sf(1:n1)=int(ar(1:n1))
-				else
-					material(matid1).sf=0
 				end if
 			
 			enddo
@@ -1351,7 +1350,9 @@ subroutine solvercommand(term,unit)
 							solver_control.isls=.true.
 						else
 							solver_control.isls=.false.
-                        end if                        
+                        end if
+                    CASE('acc') 
+						solver_control.isacc=int(property(i).value)
                     case('mur')
                         solver_control.mur=int(property(i).value)
 					case('barfamilyscale')
@@ -1374,7 +1375,7 @@ subroutine solvercommand(term,unit)
 			if(solver_control.BFGM==INISTRESS) then
 				solver_control.solver=inistiff
 			endif	
-			if(solver_control.BFGM==CONTINUUM) then
+			if(solver_control.BFGM==CONTINUUM.OR.solver_control.BFGM==CONSISTENT) then
 				solver_control.solver=N_R
 			endif			
 !			if(associated(solver_control.factor)) then

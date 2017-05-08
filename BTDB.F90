@@ -166,7 +166,7 @@ subroutine CMM_SPG_Cal(istep) !for transient seepage problem.
             
 			!if(element(ienum).mw(k)==0.0d0)	then	
                 
-			call slope_SWWC_spg(ienum,hj,element(ienum).xygp(ndimension,k),slope1,sita1,element(ienum).sita_ini(k),hj)
+			call slope_SWWC_spg(ienum,hj,element(ienum).xygp(ndimension,k),slope1,sita1,element(ienum).sita_ini(k),hj,ISTEP)
 			
 			element(ienum).sita_ini(k)=sita1
 			
@@ -182,7 +182,7 @@ subroutine CMM_SPG_Cal(istep) !for transient seepage problem.
 			END IF
 			
 			element(ienum).cmm=element(ienum).cmm+csproduct(ecp(element(ienum).et).Lshape(:,k),ecp(element(ienum).et).Lshape(:,k))* &
-				(R1*slope1*ecp(element(ienum).et).weight(k)*element(ienum).detjac(k)*material(element(ienum).mat).property(13)/dt1)
+				(R1*slope1*ecp(element(ienum).et).weight(k)*element(ienum).detjac(k)*MATERIAL(ELEMENT(IENUM).MAT).GET(13,ISTEP)/dt1)
 		end do	
 	
 	end do	

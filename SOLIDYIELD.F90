@@ -8,10 +8,10 @@ subroutine mkl_solver_error(error)
 
 end subroutine
 
-INCLUDE 'mkl_dss.f90' 
+!INCLUDE 'mkl_dss.f90' 
 
 subroutine solve_SLD()
-	use mkl_dss
+	use MKLDS
 	use solverds
     use ifqwin
     USE IFCORE
@@ -24,7 +24,7 @@ subroutine solve_SLD()
 	logical::iscon=.false.,isfirstcall=.true.,isfirstcall2=.true.,isoscilated=.false.
 	real(kind=dpn)::NormBL=0.0,resdis=0,t1,relax=1.0,convratio=0.0, &
                     normres=0.0,sumforce=0.0,TTime1=0.d0,R0,R1
-	real(kind=dpn),ALLOCATABLE::bdylds(:),exdis(:),stepdis(:),stepstress(:,:,:),stepstrain(:,:,:),YFACUPDATE(:)
+	real(kind=dpn),ALLOCATABLE::bdylds(:),exdis(:),stepdis(:),stepstress(:,:,:),stepstrain(:,:,:),YFACUPDATE(:),PDDIS(:,:)
 	logical,allocatable::IsBCDis(:)
     character(1)::key
 	
@@ -36,7 +36,7 @@ subroutine solve_SLD()
 	
 	INTEGER :: error,nRhs=1
 	INTEGER, PARAMETER :: bufLen = 20
-	TYPE(MKL_DSS_HANDLE) :: handle ! Allocate storage for the solver handle.
+	!TYPE(MKL_DSS_HANDLE) :: handle ! Allocate storage for the solver handle.
 	REAL(KIND=DPN),ALLOCATABLE::statOUt( : ),solution(:)
 	CHARACTER*15 statIn
 	INTEGER perm(1)
@@ -46,7 +46,7 @@ subroutine solve_SLD()
 		! Initialize the solver.
 		error = DSS_CREATE( handle, MKL_DSS_DEFAULTS )
 		IF (error /= MKL_DSS_SUCCESS) call mkl_solver_error(error)
-		! Define the non-zero structure of the matrix.
+		! Define the non-zero structure of the matrix.        
 		if(solver_control.issym) then
 			error = DSS_DEFINE_STRUCTURE( handle, MKL_DSS_SYMMETRIC, rowIndex, ndof, ndof, jcol, nnz )
 		else
@@ -63,9 +63,9 @@ subroutine solve_SLD()
 
 		
 	allocate(bdylds(ndof),exdis(ndof),stepload(ndof),stepdis(ndof),isBCdis(ndof),NI_NodalForce(ndof),&
-				YFACUPDATE(NDOF),Tload(ndof))
+				YFACUPDATE(NDOF),Tload(ndof),PDDIS(NDOF,2))
 
-	bdylds=0.0D0
+	bdylds=0.0D0;PDDIS=0.0D0
 	stepload=0.0D0
 	Tload=0.0D0
 	exdis=tdisp !用于存储上一荷载步的总位移。
@@ -175,11 +175,13 @@ subroutine solve_SLD()
 					case(N_R,INISTIFF)
 						
 						!if(SOLVER_CONTROL.ISLS==1) then							
-                        CALL Linesearch(iincs,isubts,iiter,iscon,relax,stepdis,LOAD,bdylds)
+                        CALL Linesearch(iincs,isubts,iiter,iscon,relax,stepdis,LOAD,bdylds,PDDIS)
 						!endif
 						
 						stepdis=stepdis+load*relax
-						
+                        IF(SOLVER_CONTROL.ISACC==DANG.AND.SOLVER_CONTROL.SOLVER==INISTIFF) PDDIS(:,MOD(IITER-1,2)+1)=LOAD*RELAX                         
+
+                        
 						!call Cal_UnbalanceForce(iincs,iiter,iscon,stepdis,bdylds,isubts) 
 
 						if(.not.solver_control.isfc) then
@@ -331,6 +333,7 @@ subroutine solve_SLD()
     
 	if(allocated(solution)) deallocate(solution)
 	if(allocated(bdylds)) deallocate(bdylds)
+    if(allocated(PDDIS)) deallocate(PDDIS)
 	if(allocated(YFACUPDATE)) deallocate(YFACUPDATE)
 	if(allocated(exdis)) deallocate(exdis)	
 	if(allocated(stepdis)) deallocate(stepdis)	
@@ -358,30 +361,98 @@ subroutine solve_SLD()
 40 format('Isconverged=',L1,'.Qinput=',E15.7,',Qstored=',E15.7,',Massbalance=',E15.7,',Niteration=',I4,',NSubTS(E.Time)=',I3,'(',F10.3,'), NIncr=',I3,'TIME TAKEN=',E15.7,'.')
 end subroutine
 
-subroutine Linesearch(iincs,isubts,iiter,iscon,relax,stepdis,Ddis,bdylds)
+SUBROUTINE INISTIFF_ACCELERATION_DANG(RELAX,PDDIS,IITER)
+   !ref:Dang HK, Yacoub T, Curran J, Visser M, Wai D. Evaluate the performance of an accelerated initial stiffness method in three dimensional finite element analysis. Computers and Geotechnics. 2014;62(293-303.
+	USE SOLVERDS
+	IMPLICIT NONE
+	INTEGER,INTENT(IN)::IITER
+	REAL(8),INTENT(IN)::PDDIS(NDOF,2)
+	REAL(8),INTENT(OUT)::RELAX
+	REAL(8)::T1
+	
+	IF(IITER==1) SOLVER_CONTROL.ALPHA=1.D0
+	IF(MOD(IITER,2)==1.AND.IITER>3) THEN
+		T1=DOT_PRODUCT(PDDIS(:,2),PDDIS(:,2))/DOT_PRODUCT(PDDIS(:,2),PDDIS(:,1))
+		RELAX=MAX(MIN(SOLVER_CONTROL.ALPHA+T1,5.0D0),0.1)
+		SOLVER_CONTROL.ALPHA=RELAX
+	ELSE
+		RELAX=1.0D0
+	ENDIF 
+	
+ENDSUBROUTINE
+
+SUBROUTINE INISTIFF_ACCELERATION_SLOAN(RELAX,DDIS,STEPDIS,RFORCE,ISTEP,ISUBSTEP,IITER,ISCON)
+   !ref:Dang HK, Yacoub T, Curran J, Visser M, Wai D. Evaluate the performance of an accelerated initial stiffness method in three dimensional finite element analysis. Computers and Geotechnics. 2014;62(293-303.
+	use MKLDS
+	USE SOLVERDS
+	IMPLICIT NONE
+	INTEGER,INTENT(IN)::ISTEP,ISUBSTEP,IITER
+	REAL(8),INTENT(IN)::STEPDIS(NDOF)
+    LOGICAL,INTENT(IN)::ISCON
+	REAL(8),INTENT(INOUT)::RELAX,RFORCE(NDOF),DDIS(NDOF)
+	REAL(8)::T1,STEPDIS1(ndof)
+    INTEGER::ERROR,NRHS
+    
+    RELAX=1.0D0
+        
+	stepdis1=stepdis+SOLVER_CONTROL.ALPHA*Ddis
+	call Cal_UnbalanceForce(ISTEP,iiter,iscon,stepdis1,RFORCE,ISUBSTEP) 
+	if(solver_control.issym.and.(.not.solver_control.ismkl)) then
+		call chosol(km,bw,RFORCE,ndof,bwmax)
+	else
+        NRHS=1;STEPDIS1=0.D0;
+		error = DSS_SOLVE_REAL(handle, MKL_DSS_DEFAULTS, RFORCE, nRhs, stepdis1 )
+		IF (error /= MKL_DSS_SUCCESS) call mkl_solver_error(error)
+        RFORCE=stepdis1
+	end if
+		
+    stepdis1=RFORCE+SOLVER_CONTROL.ALPHA*Ddis
+        
+    SOLVER_CONTROL.ALPHA=SOLVER_CONTROL.ALPHA+DOT_PRODUCT(DDIS,RFORCE)/DOT_PRODUCT(DDIS,DDIS)
+    
+    DDIS=stepdis1
+    
+
+	
+ENDSUBROUTINE
+
+subroutine Linesearch(iincs,isubts,iiter,iscon,relax,stepdis,Ddis,bdylds,PDDIS)
 	use solverlib 	
 	implicit none
 	integer,intent(in)::iincs,isubts,iiter
     LOGICAL,INTENT(IN)::iscon
-	real(kind=DPN),intent(in)::stepdis(ndof),Ddis(ndof)
-	real(kind=DPN)::relax,bdylds(ndof)
+	real(kind=DPN),intent(in)::stepdis(ndof),PDDIS(NDOF,2)
+	real(kind=DPN),INTENT(INOUT)::relax,bdylds(ndof),Ddis(ndof)
 	real(kinD=DPN)::stepdis1(ndof)
     INTEGER::ILS1=0,INEG1,IPOS1,N1,N2,I
-    real(kind=DPN)::ETA1(SOLVER_CONTROL.NLS),RATIO1(SOLVER_CONTROL.NLS),T1,ETAALT1,S0,T2
+    real(kind=DPN)::ETA1(SOLVER_CONTROL.NLS),RATIO1(SOLVER_CONTROL.NLS),T1,ETAALT1,S0,T2,ALPHA1
 	
-   
-	stepdis1=stepdis+RELAX*Ddis	
-	call Cal_UnbalanceForce(iincs,iiter,iscon,stepdis1,bdylds,isubts)
+    
+    
+	IF(MOD(IITER,50)==0) RELAX=MAX(RELAX/2.0D0,0.1d0)
+	
+    IF(SOLVER_CONTROL.SOLVER==INISTIFF.AND.SOLVER_CONTROL.ISACC>0) THEN
+		IF(SOLVER_CONTROL.ISACC==DANG) CALL INISTIFF_ACCELERATION_DANG(RELAX,PDDIS,IITER)
+		IF(SOLVER_CONTROL.ISACC==SLOAN) CALL INISTIFF_ACCELERATION_SLOAN(RELAX,DDIS,STEPDIS,bdylds,iincs,isubts,IITER,ISCON)
+    ENDIF
+    
+	
+	
+    stepdis1=stepdis+RELAX*Ddis
+    call Cal_UnbalanceForce(iincs,iiter,iscon,stepdis1,bdylds,isubts)  
+	
+	
+    
+	IF(SOLVER_CONTROL.ISLS==0) RETURN
+    
+    
     T1=dot_product(bdylds,Ddis)
     IF(IITER<30) THEN
         SOLVER_CONTROL.S0=T1
         !RELAX=1.0D0
         RETURN
-    ELSEIF(IITER>=50) THEN
-        IF(MOD(IITER,50)==0) RELAX=MAX(RELAX/2.0D0,0.01)
-        RETURN
     ENDIF
-    IF(SOLVER_CONTROL.ISLS==0) RETURN
+   
     
     
     ETA1=0.D0
@@ -497,7 +568,7 @@ subroutine Cal_UnbalanceForce(iincs,iiter,iscon,stepdis,bdylds,isubts)
 	
 	select case(solver_control.bfgm)
 		case(viscop)
-			call bload_viscoplasticity(iiter,iscon,bdylds)
+			call bload_viscoplasticity(iiter,iscon,bdylds,IINCS)
 		!case(inistress)
 			!call bload_inistress(iiter,iscon,bdylds)
 		case(consistent,constant,continuum,iniflux,inistress)
@@ -717,159 +788,159 @@ subroutine Continuum_stress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 
 end subroutine
 
-subroutine FQderivatives(mat,ayf,ev,e,stress1,inv,m,dywi,dyf,dqwi,dqf, &
-	PLM,DPMWS,DPMWEV,DYWEV)
-	implicit none
-	integer::mat,ayf
-	real(8)::ev,e,stress1(6),inv(3),m(6,3),dywi(3),dqwi(3),dyf(7),dqf(7), &
-		PLM,DPMWS(6),DPMWEV,DYWEV
-	
-	call deriv_sinv(m,stress1)
-	call deriv_yf_with_inv(dywi,inv,mat,ayf,ev)
-	call deriv_yf(dyf(1:6),dywi,m)
-	call deriv_qf_with_inv(dqwi,inv,mat,ayf,ev)
-	call deriv_yf(dqf(1:6),dqwi,m)
-	call PlasticModuli(PLM,inv,mat,e,ev)
-	call deri_PM_W_S(DPMWS,inv,mat,e,ev)
-	call deri_PM_W_EV(DPMWEV,inv,mat,e,ev)
-	call deri_yf_w_EV(DYWEV,inv,mat)	
-	
-end subroutine
-
-subroutine formRmat(Rmat,sigma,inv,fstM,mat,nd,lamda,lamda2,lamda3,de,& 
-	fdqwi,fdqwi2,fdqwi3,ayf,e,DPMWS,DPMWEV)
-	use solverds
-!	use operation_ix
-!	use operation_i
-	implicit none
-	integer::mat,nd,i,ayf,ayf1
-	real(8)::Rmat(7,7),secdqf(6,6)=0,inv(3),sigma(6),&
-		lamda,de(nd,nd),buf1(6,6)=0,fdqwi(3),fstM(6,3),lamda2,lamda3, &
-		fdqwi2(3),fdqwi3(3),SDQWEV(6)=0.0,DPMWS(6),DPMWEV,e
+!subroutine FQderivatives(mat,ayf,ev,e,stress1,inv,m,dywi,dyf,dqwi,dqf, &
+!	PLM,DPMWS,DPMWEV,DYWEV)
+!	implicit none
+!	integer::mat,ayf
+!	real(8)::ev,e,stress1(6),inv(3),m(6,3),dywi(3),dqwi(3),dyf(7),dqf(7), &
+!		PLM,DPMWS(6),DPMWEV,DYWEV
 !	
-!	Rmat=0.0	
+!	call deriv_sinv(m,stress1)
+!	call deriv_yf_with_inv(dywi,inv,mat,ayf,ev)
+!	call deriv_yf(dyf(1:6),dywi,m)
+!	call deriv_qf_with_inv(dqwi,inv,mat,ayf,ev)
+!	call deriv_yf(dqf(1:6),dqwi,m)
+!	call PlasticModuli(PLM,inv,mat,e,ev)
+!	call deri_PM_W_S(DPMWS,inv,mat,e,ev)
+!	call deri_PM_W_EV(DPMWEV,inv,mat,e,ev)
+!	call deri_yf_w_EV(DYWEV,inv,mat)	
+!	
+!end subroutine
+
+!subroutine formRmat(Rmat,sigma,inv,fstM,mat,nd,lamda,lamda2,lamda3,de,& 
+!	fdqwi,fdqwi2,fdqwi3,ayf,e,DPMWS,DPMWEV)
+!	use solverds
+!!	use operation_ix
+!!	use operation_i
+!	implicit none
+!	integer::mat,nd,i,ayf,ayf1
+!	real(8)::Rmat(7,7),secdqf(6,6)=0,inv(3),sigma(6),&
+!		lamda,de(nd,nd),buf1(6,6)=0,fdqwi(3),fstM(6,3),lamda2,lamda3, &
+!		fdqwi2(3),fdqwi3(3),SDQWEV(6)=0.0,DPMWS(6),DPMWEV,e
+!!	
+!!	Rmat=0.0	
+!!	select case(material(mat).type)
+!!		case(mises)
+!!			!call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi,fdinv,activeyf)
+!!			Rmat(1,1)=2
+!!			Rmat(2,2)=2
+!!			Rmat(3,3)=2
+!!			Rmat(4,4)=6
+!!			Rmat(5,5)=6
+!!			Rmat(6,6)=6	
+!!			Rmat(1,2)=-1
+!!			Rmat(2,3)=-1
+!!			Rmat(1,3)=-1
+!!			Rmat(2,1)=-1
+!!			Rmat(3,1)=-1
+!!			Rmat(3,2)=-1				
+!!			Rmat=0.5*Rmat/inv(2)
+!!			do i=1,6
+!!				buf1(i,:)=fstM(i,2)*fstM(:,2)
+!!			end do
+!!			buf1=buf1*2.25/inv(2)**3
+!!			secdqf=Rmat(1:6,1:6)-buf1
+!!			Rmat=0.0
+!!			Rmat(1:nd,1:nd)=lamda*matmul(de(1:nd,1:nd), &
+!!				secdqf(1:nd,1:nd))
+!!			do i=1,nd
+!!				Rmat(i,i)=Rmat(i,i)+1.0
+!!			end do
+!!			Rmat(1:nd,1:nd)=Rmat(1:nd,1:nd).ix.de(1:nd,1:nd)
+!!			return
+!!		case(MC) !in MC R is the T in the crisfield text. vol2, equ(14.83), P121 
+!!			select case(ayf)
+!!				case(12,23)
+!!					ayf1=0
+!!					call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi,fstM,ayf1)
+!!					Rmat(1:nd,1:nd)=-lamda*matmul(secdqf(1:nd,1:nd),de(1:nd,1:nd))
+!!					ayf1=ayf
+!!					call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi2,fstM,ayf1)
+!!					Rmat(1:nd,1:nd)=Rmat(1:nd,1:nd)-lamda2*matmul(secdqf(1:nd,1:nd),de(1:nd,1:nd))
+!!				case(123)
+!!					ayf1=0
+!!					call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi,fstM,ayf1)
+!!					Rmat(1:nd,1:nd)=-lamda*matmul(secdqf(1:nd,1:nd),de(1:nd,1:nd))
+!!					ayf1=12
+!!					call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi2,fstM,ayf1)
+!!					Rmat(1:nd,1:nd)=Rmat(1:nd,1:nd)-lamda2*matmul(secdqf(1:nd,1:nd),de(1:nd,1:nd))
+!!					ayf1=23
+!!					call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi3,fstM,ayf1)
+!!					Rmat(1:nd,1:nd)=Rmat(1:nd,1:nd)-lamda3*matmul(secdqf(1:nd,1:nd),de(1:nd,1:nd))
+!!				case default
+!!					call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi,fstM,ayf)
+!!					Rmat(1:nd,1:nd)=-lamda*matmul(secdqf(1:nd,1:nd),de(1:nd,1:nd))
+!!			end select
+!!			do i=1,nd
+!!				Rmat(i,i)=Rmat(i,i)+1.0
+!!			end do
+!!!			write(20,'(4e15.7)') (rmat(i,1:4),i=1,4)
+!!			return
+!!		case(camclay)
+!!			call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi,fstM,ayf)
+!!			call Sec_deri_qf_w_EV(SDQWEV,inv,mat)
+!!			Rmat(1:nd,1:nd)=(.i.de(1:nd,1:nd))+lamda*secdqf(1:nd,1:nd)
+!!			Rmat(nd+1,1:nd)=lamda*DPMWS(1:nd)
+!!			Rmat(1:nd,nd+1)=lamda*SDQWEV(1:nd)
+!!			Rmat(nd+1,nd+1)=-1+lamda*DPMWEV
+!!			Rmat(1:nd+1,1:nd+1)=(.i.Rmat(1:nd+1,1:nd+1))
+!			
+!!	end select
+
+!	
+!end subroutine
+
+!!yield the second derivative plastic potential function
+!subroutine sec_deriv_qf(Secdqf,sigma,inv,mat,fdqwi,fstM,activeyf)
+
+!	use solverds
+!	implicit none
+!	integer::i,j,mat,activeyf,ii,ji,ie,je
+!	real(8)::Secdqf(6,6),inv(3),sigma(6),secM(6,6,3)=0,fdqwi(3),fstM(6,3), &
+!	sdqwi(3,3)=0.0
+
+!	secdqf=0.0
+!!	cpm=0.0
+!	ii=1
+!	ji=1
+!	ie=3
+!	je=3
 !	select case(material(mat).type)
 !		case(mises)
-!			!call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi,fdinv,activeyf)
-!			Rmat(1,1)=2
-!			Rmat(2,2)=2
-!			Rmat(3,3)=2
-!			Rmat(4,4)=6
-!			Rmat(5,5)=6
-!			Rmat(6,6)=6	
-!			Rmat(1,2)=-1
-!			Rmat(2,3)=-1
-!			Rmat(1,3)=-1
-!			Rmat(2,1)=-1
-!			Rmat(3,1)=-1
-!			Rmat(3,2)=-1				
-!			Rmat=0.5*Rmat/inv(2)
-!			do i=1,6
-!				buf1(i,:)=fstM(i,2)*fstM(:,2)
-!			end do
-!			buf1=buf1*2.25/inv(2)**3
-!			secdqf=Rmat(1:6,1:6)-buf1
-!			Rmat=0.0
-!			Rmat(1:nd,1:nd)=lamda*matmul(de(1:nd,1:nd), &
-!				secdqf(1:nd,1:nd))
-!			do i=1,nd
-!				Rmat(i,i)=Rmat(i,i)+1.0
-!			end do
-!			Rmat(1:nd,1:nd)=Rmat(1:nd,1:nd).ix.de(1:nd,1:nd)
-!			return
-!		case(MC) !in MC R is the T in the crisfield text. vol2, equ(14.83), P121 
-!			select case(ayf)
-!				case(12,23)
-!					ayf1=0
-!					call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi,fstM,ayf1)
-!					Rmat(1:nd,1:nd)=-lamda*matmul(secdqf(1:nd,1:nd),de(1:nd,1:nd))
-!					ayf1=ayf
-!					call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi2,fstM,ayf1)
-!					Rmat(1:nd,1:nd)=Rmat(1:nd,1:nd)-lamda2*matmul(secdqf(1:nd,1:nd),de(1:nd,1:nd))
-!				case(123)
-!					ayf1=0
-!					call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi,fstM,ayf1)
-!					Rmat(1:nd,1:nd)=-lamda*matmul(secdqf(1:nd,1:nd),de(1:nd,1:nd))
-!					ayf1=12
-!					call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi2,fstM,ayf1)
-!					Rmat(1:nd,1:nd)=Rmat(1:nd,1:nd)-lamda2*matmul(secdqf(1:nd,1:nd),de(1:nd,1:nd))
-!					ayf1=23
-!					call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi3,fstM,ayf1)
-!					Rmat(1:nd,1:nd)=Rmat(1:nd,1:nd)-lamda3*matmul(secdqf(1:nd,1:nd),de(1:nd,1:nd))
-!				case default
-!					call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi,fstM,ayf)
-!					Rmat(1:nd,1:nd)=-lamda*matmul(secdqf(1:nd,1:nd),de(1:nd,1:nd))
-!			end select
-!			do i=1,nd
-!				Rmat(i,i)=Rmat(i,i)+1.0
-!			end do
-!!			write(20,'(4e15.7)') (rmat(i,1:4),i=1,4)
-!			return
+!			ii=2
+!			ji=2
+!			ie=2
+!			je=2			
+!		case(mc)
+!			ii=2
+!			ji=2
+!			ie=3
+!			je=3
 !		case(camclay)
-!			call sec_deriv_qf(secdqf,sigma,inv,mat,fdqwi,fstM,ayf)
-!			call Sec_deri_qf_w_EV(SDQWEV,inv,mat)
-!			Rmat(1:nd,1:nd)=(.i.de(1:nd,1:nd))+lamda*secdqf(1:nd,1:nd)
-!			Rmat(nd+1,1:nd)=lamda*DPMWS(1:nd)
-!			Rmat(1:nd,nd+1)=lamda*SDQWEV(1:nd)
-!			Rmat(nd+1,nd+1)=-1+lamda*DPMWEV
-!			Rmat(1:nd+1,1:nd+1)=(.i.Rmat(1:nd+1,1:nd+1))
-			
+!			ii=1
+!			ji=1
+!			ie=1
+!			je=1		
 !	end select
 
-	
-end subroutine
-
-!yield the second derivative plastic potential function
-subroutine sec_deriv_qf(Secdqf,sigma,inv,mat,fdqwi,fstM,activeyf)
-
-	use solverds
-	implicit none
-	integer::i,j,mat,activeyf,ii,ji,ie,je
-	real(8)::Secdqf(6,6),inv(3),sigma(6),secM(6,6,3)=0,fdqwi(3),fstM(6,3), &
-	sdqwi(3,3)=0.0
-
-	secdqf=0.0
-!	cpm=0.0
-	ii=1
-	ji=1
-	ie=3
-	je=3
-	select case(material(mat).type)
-		case(mises)
-			ii=2
-			ji=2
-			ie=2
-			je=2			
-		case(mc)
-			ii=2
-			ji=2
-			ie=3
-			je=3
-		case(camclay)
-			ii=1
-			ji=1
-			ie=1
-			je=1		
-	end select
-
-	call second_deriv_sinv_2nd(secM,sigma,inv) 
-	call sec_deriv_qfwi(sdqwi,inv,mat,activeyf)
-	secdqf=fdqwi(2)*secM(:,:,2)+fdqwi(3)*secM(:,:,3)
-	do i=ii,ie
-		do j=ji,je
-!			cpm(:,:,i,j)=csproduct(fstM(:,i),fstm(:,j))
-			secdqf=secdqf+csproduct(fstM(:,i),fstm(:,j))*sdqwi(i,j)
-!			m22s=csproduct(fstM(:,2),fstm(:,2))
-!			m23s=csproduct(fstM(:,2),fstm(:,3))
-!			m32s=csproduct(fstM(:,3),fstm(:,2))
-!			m33s=csproduct(fstM(:,3),fstm(:,3))
-		end do
-	end do
-!	secdqf=fdqwi(2)*secM(:,:,2)+fdqwi(3)*secM(:,:,3)+sdqwi(2,2)*m22s+ &
-!		sdqwi(2,3)*(m23s+m32s)+sdqwi(3,3)*m33s
-	
-	return		
-end subroutine
+!	call second_deriv_sinv_2nd(secM,sigma,inv) 
+!	call sec_deriv_qfwi(sdqwi,inv,mat,activeyf)
+!	secdqf=fdqwi(2)*secM(:,:,2)+fdqwi(3)*secM(:,:,3)
+!	do i=ii,ie
+!		do j=ji,je
+!!			cpm(:,:,i,j)=csproduct(fstM(:,i),fstm(:,j))
+!			secdqf=secdqf+csproduct(fstM(:,i),fstm(:,j))*sdqwi(i,j)
+!!			m22s=csproduct(fstM(:,2),fstm(:,2))
+!!			m23s=csproduct(fstM(:,2),fstm(:,3))
+!!			m32s=csproduct(fstM(:,3),fstm(:,2))
+!!			m33s=csproduct(fstM(:,3),fstm(:,3))
+!		end do
+!	end do
+!!	secdqf=fdqwi(2)*secM(:,:,2)+fdqwi(3)*secM(:,:,3)+sdqwi(2,2)*m22s+ &
+!!		sdqwi(2,3)*(m23s+m32s)+sdqwi(3,3)*m33s
+!	
+!	return		
+!end subroutine
 
 
 
@@ -878,342 +949,342 @@ end subroutine
 
 
 
-!second derivative of the potential function with invarants p,J2,J3
-subroutine sec_deriv_qfwi(secdqfwi,inv,mat,activeyf)
-	use solverds
-	implicit none
-	integer::mat,activeyf
-	logical::isqf=.true.
-	real(8)::Secdqfwi(3,3),inv(3),vcos,vtan,vsin,J2,mcA(3),c4,c1
-	
-	secdqfwi=0.0
-	
-	select case(material(mat).type)
-		case(mises)
-			secdqfwi(2,2)=-2.25/inv(2)**3
-		case(mc)
-			J2=inv(2)**2/3.0
-			vsin=dsin(material(mat).property(5)/180.0*pi())
-			if(abs(dsin(inv(3)))<0.49) then
-				call Mc_A(mcA,inv,mat,activeyf,isqf)
-				vcos=dcos(3*inv(3))
-				vtan=dtan(3*inv(3))
-				c4=mcA(3)+3*vtan*mcA(2)
-				secdqfwi(2,2)=-(mcA(1)-vtan**2*c4-3*vtan*mcA(2))/(4*J2**1.5)
-				secdqfwi(3,3)=3*c4/(4*J2**2.5*vcos**2)
-				secdqfwi(2,3)=(0.5*vtan*c4+mcA(2))*3**0.5/(2*J2**2*vcos)
-				secdqfwi(3,2)=secdqfwi(2,3)
-			else
-				c1=1.0
-				if(dsin(inv(3))<0) c1=-1.0
-				secdqfwi(2,2)=(3.0-c1*vsin)/(-8*3**0.5*J2**1.5)				
-			end if
-		case(camclay)
-			secdqfwi(1,1)=-2*material(mat).property(1)**2			
-	end select
-	
-end subroutine
+!!second derivative of the potential function with invarants p,J2,J3
+!subroutine sec_deriv_qfwi(secdqfwi,inv,mat,activeyf)
+!	use solverds
+!	implicit none
+!	integer::mat,activeyf
+!	logical::isqf=.true.
+!	real(8)::Secdqfwi(3,3),inv(3),vcos,vtan,vsin,J2,mcA(3),c4,c1
+!	
+!	secdqfwi=0.0
+!	
+!	select case(material(mat).type)
+!		case(mises)
+!			secdqfwi(2,2)=-2.25/inv(2)**3
+!		case(mc)
+!			J2=inv(2)**2/3.0
+!			vsin=dsin(material(mat).property(5)/180.0*pi())
+!			if(abs(dsin(inv(3)))<0.49) then
+!				call Mc_A(mcA,inv,mat,activeyf,isqf)
+!				vcos=dcos(3*inv(3))
+!				vtan=dtan(3*inv(3))
+!				c4=mcA(3)+3*vtan*mcA(2)
+!				secdqfwi(2,2)=-(mcA(1)-vtan**2*c4-3*vtan*mcA(2))/(4*J2**1.5)
+!				secdqfwi(3,3)=3*c4/(4*J2**2.5*vcos**2)
+!				secdqfwi(2,3)=(0.5*vtan*c4+mcA(2))*3**0.5/(2*J2**2*vcos)
+!				secdqfwi(3,2)=secdqfwi(2,3)
+!			else
+!				c1=1.0
+!				if(dsin(inv(3))<0) c1=-1.0
+!				secdqfwi(2,2)=(3.0-c1*vsin)/(-8*3**0.5*J2**1.5)				
+!			end if
+!		case(camclay)
+!			secdqfwi(1,1)=-2*material(mat).property(1)**2			
+!	end select
+!	
+!end subroutine
 
-subroutine deri_yf_w_EV(dYWEV,inv,mat)
-	use solverds
-	implicit none
-	real(8)::dYWEV,inv(3)
-	integer::mat
-	
-	dYWEV=0
-	select case(material(mat).type)
-		case(camclay)
-			dYWEV=material(mat).property(1)**2*inv(1)
-	end select 
-	
-end subroutine
+!subroutine deri_yf_w_EV(dYWEV,inv,mat)
+!	use solverds
+!	implicit none
+!	real(8)::dYWEV,inv(3)
+!	integer::mat
+!	
+!	dYWEV=0
+!	select case(material(mat).type)
+!		case(camclay)
+!			dYWEV=material(mat).property(1)**2*inv(1)
+!	end select 
+!	
+!end subroutine
 
-!calculate the derivative of the gradient of potential function with evolution variable.
-subroutine Sec_deri_qf_w_EV(SDQWEV,inv,mat)
-	use solverds
-	implicit none
-	real(8)::SDQWEV(6),inv(3)
-	integer::mat
-	
-	SDQWEV=0
-	select case(material(mat).type)
-		case(camclay)
-			SDQWEV(1:3)=1.0/3.0*material(mat).property(1)**2
-	end select 
-	
-end subroutine
+!!calculate the derivative of the gradient of potential function with evolution variable.
+!subroutine Sec_deri_qf_w_EV(SDQWEV,inv,mat)
+!	use solverds
+!	implicit none
+!	real(8)::SDQWEV(6),inv(3)
+!	integer::mat
+!	
+!	SDQWEV=0
+!	select case(material(mat).type)
+!		case(camclay)
+!			SDQWEV(1:3)=1.0/3.0*material(mat).property(1)**2
+!	end select 
+!	
+!end subroutine
 
-!calculate the derivative of the plastic modulus with stress
-subroutine deri_PM_W_S(DPMWS,inv,mat,e,ev)
-	use solverds
-	implicit none
-	real(8)::DPMWS(6),inv(3),e,ev
-	integer::mat
-	
-	DPMWS=0
-	select case(material(mat).type)
-		case(camclay)
-			DPMWS(1:3)=2.0/3.0*material(mat).property(1)**2*(1+e)*ev/ &
-				(material(mat).property(3)-material(mat).property(4))
-	end select 
-	
-end subroutine
+!!calculate the derivative of the plastic modulus with stress
+!subroutine deri_PM_W_S(DPMWS,inv,mat,e,ev)
+!	use solverds
+!	implicit none
+!	real(8)::DPMWS(6),inv(3),e,ev
+!	integer::mat
+!	
+!	DPMWS=0
+!	select case(material(mat).type)
+!		case(camclay)
+!			DPMWS(1:3)=2.0/3.0*material(mat).property(1)**2*(1+e)*ev/ &
+!				(material(mat).property(3)-material(mat).property(4))
+!	end select 
+!	
+!end subroutine
 
-!calculate the derivative of the plastic modulus with evolution variable
-subroutine deri_PM_W_EV(DPMWEV,inv,mat,e,ev)
-	use solverds
-	implicit none
-	real(8)::DPMWEV,inv(3),e,ev
-	integer::mat
-	
-	DPMWEV=0
-	select case(material(mat).type)
-		case(camclay)
-			DPMWEV=2.0*material(mat).property(1)**2*(1+e)*(inv(1)-ev)/ &
-				(material(mat).property(3)-material(mat).property(4))
-	end select 
-	
-end subroutine
+!!calculate the derivative of the plastic modulus with evolution variable
+!subroutine deri_PM_W_EV(DPMWEV,inv,mat,e,ev)
+!	use solverds
+!	implicit none
+!	real(8)::DPMWEV,inv(3),e,ev
+!	integer::mat
+!	
+!	DPMWEV=0
+!	select case(material(mat).type)
+!		case(camclay)
+!			DPMWEV=2.0*material(mat).property(1)**2*(1+e)*(inv(1)-ev)/ &
+!				(material(mat).property(3)-material(mat).property(4))
+!	end select 
+!	
+!end subroutine
 
-!calculate the hardening moduli
-subroutine PlasticModuli(PLM,inv,mat,e,ev)
-	use solverds
-	implicit none
-	real(8)::PLM,inv(3),e,ev
-	integer::mat
-	
-	PLM=0
-	select case(material(mat).type)
-		case(camclay)
-			PLM=material(mat).property(1)**2*(1+e)*ev*(2*inv(1)-ev)/ &
-				(material(mat).property(3)-material(mat).property(4))
-	end select 	
-end subroutine
+!!calculate the hardening moduli
+!subroutine PlasticModuli(PLM,inv,mat,e,ev)
+!	use solverds
+!	implicit none
+!	real(8)::PLM,inv(3),e,ev
+!	integer::mat
+!	
+!	PLM=0
+!	select case(material(mat).type)
+!		case(camclay)
+!			PLM=material(mat).property(1)**2*(1+e)*ev*(2*inv(1)-ev)/ &
+!				(material(mat).property(3)-material(mat).property(4))
+!	end select 	
+!end subroutine
 
-subroutine MC_Depc(ayf,nd1,ienum,lamda,lamda2,lamda3,dqf,dqf2,dqf3,dyf,dyf2,dyf3, &
-	dqwi,dqwi2,dqwi3,stressb,invb,m,Rmat,de,c)
-	use solverds
-	implicit none
-	integer::i1,j1
-	integer::nd1,ienum,ayf
-	real(8)::lamda,lamda2,lamda3,dqf(7),dqf2(7),dqf3(7),dyf(7), &
-		dyf2(7),dyf3(7),dqwi(3),dqwi2(3),dqwi3(3),Rmat(7,7), &
-		de(6,6),stressb(6),invb(3),m(6,3),c(3,3)
-	real(8)::MCQ(6,3)=0,MAC(6,3)=0,DPMWS(6)=0,e=0,DPMWEV=0, &
-		buf1(6)=0,buf2(6)=0
-			
-	select case(ayf)
-		case(12,23)
-			MCQ(1:nd1,1)=matmul(element(ienum).d,dqf(1:nd1))
-			MCQ(1:nd1,2)=matmul(element(ienum).d,dqf2(1:nd1))
-			MAC(1:nd1,1)=matmul(dyf(1:nd1),element(ienum).d)
-			MAC(1:nd1,2)=matmul(dyf2(1:nd1),element(ienum).d)
-			de(1:nd1,1:nd1)=element(ienum).d
-			do i1=1,2
-				do j1=1,2
-					de(1:nd1,1:nd1)=de(1:nd1,1:nd1)-csproduct(MCQ(1:nd1,i1), &
-						MAC(1:nd1,j1))*c(i1,j1)
-				end do
-			end do										
-		case(123)
-			MCQ(1:nd1,1)=matmul(element(ienum).d,dqf(1:nd1))
-			MCQ(1:nd1,2)=matmul(element(ienum).d,dqf2(1:nd1))
-			MCQ(1:nd1,3)=matmul(element(ienum).d,dqf3(1:nd1))
-			MAC(1:nd1,1)=matmul(dyf(1:nd1),element(ienum).d)
-			MAC(1:nd1,2)=matmul(dyf2(1:nd1),element(ienum).d)
-			MAC(1:nd1,3)=matmul(dyf3(1:nd1),element(ienum).d)
-			de(1:nd1,1:nd1)=element(ienum).d
-			do i1=1,3
-				do j1=1,3
-					de(1:nd1,1:nd1)=de(1:nd1,1:nd1)-csproduct(MCQ(1:nd1,i1), &
-						MAC(1:nd1,j1))*c(i1,j1)
-				end do
-			end do									
-		case default
-			buf1(1:nd1)=matmul(element(ienum).d,dqf(1:nd1))
-			buf2(1:nd1)=matmul(dyf(1:nd1),element(ienum).d)
-			de(1:nd1,1:nd1)=element(ienum).d-csproduct(buf1(1:nd1), &
-				buf2(1:nd1))/dot_product(buf2(1:nd1),dqf(1:nd1))
-	end select
-	
-	call formRmat(Rmat,stressb,invb,m,element(ienum).mat,nd1,lamda, &
-		lamda2,lamda3,element(ienum).d,dqwi,dqwi2,dqwi3,ayf,e,DPMWS, &
-		DPMWEV)
-	de(1:nd1,1:nd1)=matmul(de(1:nd1,1:nd1),Rmat(1:nd1,1:nd1))
-	!write(20,'(4e15.7)') (de(i1,1:4),i1=1,4)
-	!write(20,'(a)') ''	
-	
-end subroutine
+!subroutine MC_Depc(ayf,nd1,ienum,lamda,lamda2,lamda3,dqf,dqf2,dqf3,dyf,dyf2,dyf3, &
+!	dqwi,dqwi2,dqwi3,stressb,invb,m,Rmat,de,c)
+!	use solverds
+!	implicit none
+!	integer::i1,j1
+!	integer::nd1,ienum,ayf
+!	real(8)::lamda,lamda2,lamda3,dqf(7),dqf2(7),dqf3(7),dyf(7), &
+!		dyf2(7),dyf3(7),dqwi(3),dqwi2(3),dqwi3(3),Rmat(7,7), &
+!		de(6,6),stressb(6),invb(3),m(6,3),c(3,3)
+!	real(8)::MCQ(6,3)=0,MAC(6,3)=0,DPMWS(6)=0,e=0,DPMWEV=0, &
+!		buf1(6)=0,buf2(6)=0
+!			
+!	select case(ayf)
+!		case(12,23)
+!			MCQ(1:nd1,1)=matmul(element(ienum).d,dqf(1:nd1))
+!			MCQ(1:nd1,2)=matmul(element(ienum).d,dqf2(1:nd1))
+!			MAC(1:nd1,1)=matmul(dyf(1:nd1),element(ienum).d)
+!			MAC(1:nd1,2)=matmul(dyf2(1:nd1),element(ienum).d)
+!			de(1:nd1,1:nd1)=element(ienum).d
+!			do i1=1,2
+!				do j1=1,2
+!					de(1:nd1,1:nd1)=de(1:nd1,1:nd1)-csproduct(MCQ(1:nd1,i1), &
+!						MAC(1:nd1,j1))*c(i1,j1)
+!				end do
+!			end do										
+!		case(123)
+!			MCQ(1:nd1,1)=matmul(element(ienum).d,dqf(1:nd1))
+!			MCQ(1:nd1,2)=matmul(element(ienum).d,dqf2(1:nd1))
+!			MCQ(1:nd1,3)=matmul(element(ienum).d,dqf3(1:nd1))
+!			MAC(1:nd1,1)=matmul(dyf(1:nd1),element(ienum).d)
+!			MAC(1:nd1,2)=matmul(dyf2(1:nd1),element(ienum).d)
+!			MAC(1:nd1,3)=matmul(dyf3(1:nd1),element(ienum).d)
+!			de(1:nd1,1:nd1)=element(ienum).d
+!			do i1=1,3
+!				do j1=1,3
+!					de(1:nd1,1:nd1)=de(1:nd1,1:nd1)-csproduct(MCQ(1:nd1,i1), &
+!						MAC(1:nd1,j1))*c(i1,j1)
+!				end do
+!			end do									
+!		case default
+!			buf1(1:nd1)=matmul(element(ienum).d,dqf(1:nd1))
+!			buf2(1:nd1)=matmul(dyf(1:nd1),element(ienum).d)
+!			de(1:nd1,1:nd1)=element(ienum).d-csproduct(buf1(1:nd1), &
+!				buf2(1:nd1))/dot_product(buf2(1:nd1),dqf(1:nd1))
+!	end select
+!	
+!	call formRmat(Rmat,stressb,invb,m,element(ienum).mat,nd1,lamda, &
+!		lamda2,lamda3,element(ienum).d,dqwi,dqwi2,dqwi3,ayf,e,DPMWS, &
+!		DPMWEV)
+!	de(1:nd1,1:nd1)=matmul(de(1:nd1,1:nd1),Rmat(1:nd1,1:nd1))
+!	!write(20,'(4e15.7)') (de(i1,1:4),i1=1,4)
+!	!write(20,'(a)') ''	
+!	
+!end subroutine
 
-subroutine MC_UPDATE(ayf,nd1,ienum,vyf,ev,dlamda,dlamda2,dlamda3,lamda,lamda2,&
-	lamda3,dqf,dqf2,dqf3,dyf,dyf2,dyf3,dqwi,dqwi2,dqwi3,dsigma,inv,m,Rmat,de,c)
-	use solverds
-	implicit none
-	integer::i1,j1
-	integer::nd1,ienum,ayf,ayf1
-	real(8)::vyf,ev,dlamda,dlamda2,dlamda3,lamda,lamda2,lamda3,dqf(7),dqf2(7), &
-		dqf3(7),dyf(7),dyf2(7),dyf3(7),dqwi(3),dqwi2(3),dqwi3(3),Rmat(7,7), &
-		de(6,6),dsigma(7),inv(3),m(6,3),c(3,3)
-	real(8)::vyf2=0,vyf3=0,dywi(3)=0
-	
-	call active_yf(vyf,inv,element(ienum).mat,ayf)
-	select case(ayf)
-		case(0)
-			dlamda=vyf/dot_product(matmul(dyf(1:nd1),de(1:nd1,1:nd1)),&
-				dqf(1:nd1))
-			dsigma(1:nd1)=-dlamda*matmul(de(1:nd1,1:nd1),dqf(1:nd1))
-		case(12,23) !return to edge
-			call yieldfun(vyf2,element(ienum).mat,inv,ayf,ev)
-			call deriv_qf_with_inv(dqwi2,inv,element(ienum).mat,ayf,ev)
-			call deriv_yf(dqf2(1:6),dqwi2,m)
-			call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
-			call deriv_yf(dyf2(1:6),dywi,m)								
-			call TVR_Coef(c,de(1:nd1,1:nd1),nd1,dyf(1:6),dqf(1:6), &
-				dyf2(1:6),dqf2(1:6),dyf3(1:6),dqf3(1:6),ayf)
-			
-			dlamda=c(1,1)*vyf+c(1,2)*vyf2
-			dlamda2=c(2,1)*vyf+c(2,2)*vyf2
-			dsigma(1:nd1)=-dlamda*matmul(de(1:nd1,1:nd1),dqf(1:nd1))- &
-				dlamda2*matmul(de(1:nd1,1:nd1),dqf2(1:nd1))
-			lamda2=lamda2+dlamda2
+!subroutine MC_UPDATE(ayf,nd1,ienum,vyf,ev,dlamda,dlamda2,dlamda3,lamda,lamda2,&
+!	lamda3,dqf,dqf2,dqf3,dyf,dyf2,dyf3,dqwi,dqwi2,dqwi3,dsigma,inv,m,Rmat,de,c)
+!	use solverds
+!	implicit none
+!	integer::i1,j1
+!	integer::nd1,ienum,ayf,ayf1
+!	real(8)::vyf,ev,dlamda,dlamda2,dlamda3,lamda,lamda2,lamda3,dqf(7),dqf2(7), &
+!		dqf3(7),dyf(7),dyf2(7),dyf3(7),dqwi(3),dqwi2(3),dqwi3(3),Rmat(7,7), &
+!		de(6,6),dsigma(7),inv(3),m(6,3),c(3,3)
+!	real(8)::vyf2=0,vyf3=0,dywi(3)=0
+!	
+!	call active_yf(vyf,inv,element(ienum).mat,ayf)
+!	select case(ayf)
+!		case(0)
+!			dlamda=vyf/dot_product(matmul(dyf(1:nd1),de(1:nd1,1:nd1)),&
+!				dqf(1:nd1))
+!			dsigma(1:nd1)=-dlamda*matmul(de(1:nd1,1:nd1),dqf(1:nd1))
+!		case(12,23) !return to edge
+!			call yieldfun(vyf2,element(ienum).mat,inv,ayf,ev)
+!			call deriv_qf_with_inv(dqwi2,inv,element(ienum).mat,ayf,ev)
+!			call deriv_yf(dqf2(1:6),dqwi2,m)
+!			call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
+!			call deriv_yf(dyf2(1:6),dywi,m)								
+!			call TVR_Coef(c,de(1:nd1,1:nd1),nd1,dyf(1:6),dqf(1:6), &
+!				dyf2(1:6),dqf2(1:6),dyf3(1:6),dqf3(1:6),ayf)
+!			
+!			dlamda=c(1,1)*vyf+c(1,2)*vyf2
+!			dlamda2=c(2,1)*vyf+c(2,2)*vyf2
+!			dsigma(1:nd1)=-dlamda*matmul(de(1:nd1,1:nd1),dqf(1:nd1))- &
+!				dlamda2*matmul(de(1:nd1,1:nd1),dqf2(1:nd1))
+!			lamda2=lamda2+dlamda2
 
-		case(123) !return to apex
-			ayf1=12
-			call yieldfun(vyf2,element(ienum).mat,inv,ayf1,ev)
-			call deriv_qf_with_inv(dqwi2,inv,element(ienum).mat,ayf1,ev)
-			call deriv_yf(dqf2(1:6),dqwi2,m)
-			call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
-			call deriv_yf(dyf2(1:6),dywi,m)								
-			ayf1=23
-			call yieldfun(vyf3,element(ienum).mat,inv,ayf1,ev)
-			call deriv_qf_with_inv(dqwi3,inv,element(ienum).mat,ayf1,ev)
-			call deriv_yf(dqf3(1:6),dqwi3,m)
-			call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
-			call deriv_yf(dyf3(1:6),dywi,m)								
-			call TVR_Coef(c,de(1:nd1,1:nd1),nd1,dyf(1:6),dqf(1:6),dyf2(1:6), &
-				dqf2(1:6),dyf3(1:6),dqf3(1:6),ayf)
-			dlamda=c(1,1)*vyf+c(1,2)*vyf2+c(1,3)*vyf3
-			dlamda2=c(2,1)*vyf+c(2,2)*vyf2+c(2,3)*vyf3
-			dlamda3=c(3,1)*vyf+c(3,2)*vyf2+c(3,3)*vyf3
-			dsigma(1:nd1)=-dlamda*matmul(de(1:nd1,1:nd1),dqf(1:nd1))- &
-				dlamda2*matmul(de(1:nd1,1:nd1),dqf2(1:nd1))- &
-				dlamda3*matmul(de(1:nd1,1:nd1),dqf3(1:nd1))
-			lamda2=lamda2+dlamda2	
-			lamda3=lamda3+dlamda3
-	end select
+!		case(123) !return to apex
+!			ayf1=12
+!			call yieldfun(vyf2,element(ienum).mat,inv,ayf1,ev)
+!			call deriv_qf_with_inv(dqwi2,inv,element(ienum).mat,ayf1,ev)
+!			call deriv_yf(dqf2(1:6),dqwi2,m)
+!			call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
+!			call deriv_yf(dyf2(1:6),dywi,m)								
+!			ayf1=23
+!			call yieldfun(vyf3,element(ienum).mat,inv,ayf1,ev)
+!			call deriv_qf_with_inv(dqwi3,inv,element(ienum).mat,ayf1,ev)
+!			call deriv_yf(dqf3(1:6),dqwi3,m)
+!			call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
+!			call deriv_yf(dyf3(1:6),dywi,m)								
+!			call TVR_Coef(c,de(1:nd1,1:nd1),nd1,dyf(1:6),dqf(1:6),dyf2(1:6), &
+!				dqf2(1:6),dyf3(1:6),dqf3(1:6),ayf)
+!			dlamda=c(1,1)*vyf+c(1,2)*vyf2+c(1,3)*vyf3
+!			dlamda2=c(2,1)*vyf+c(2,2)*vyf2+c(2,3)*vyf3
+!			dlamda3=c(3,1)*vyf+c(3,2)*vyf2+c(3,3)*vyf3
+!			dsigma(1:nd1)=-dlamda*matmul(de(1:nd1,1:nd1),dqf(1:nd1))- &
+!				dlamda2*matmul(de(1:nd1,1:nd1),dqf2(1:nd1))- &
+!				dlamda3*matmul(de(1:nd1,1:nd1),dqf3(1:nd1))
+!			lamda2=lamda2+dlamda2	
+!			lamda3=lamda3+dlamda3
+!	end select
 
-end subroutine
+!end subroutine
 
-!yield the zero, first and second derivative of the A function implemented in MC criteria.
-!REf to book written by Crisfield. vol 2, p102,equ (14.10) and p119 equ (14.19)
-subroutine MC_A(mcA,inv,mat,activeyf,isqf)
-	use solverds
-	implicit none
-	logical::isqf
-	integer::activeyf,mat
-	real(8)::McA(3),inv(3),phi,sq3,vcos,vsin,vsin2
-	
-	if(isqf) then
-		phi=material(mat).property(5)/180.0*pi()
-	else
-		phi=material(mat).property(4)/180.0*pi()
-	end if
-	sq3=3**0.5
-	vcos=dcos(inv(3))
-	vsin=dsin(inv(3))
-	vsin2=dsin(phi)
+!!yield the zero, first and second derivative of the A function implemented in MC criteria.
+!!REf to book written by Crisfield. vol 2, p102,equ (14.10) and p119 equ (14.19)
+!subroutine MC_A(mcA,inv,mat,activeyf,isqf)
+!	use solverds
+!	implicit none
+!	logical::isqf
+!	integer::activeyf,mat
+!	real(8)::McA(3),inv(3),phi,sq3,vcos,vsin,vsin2
+!	
+!	if(isqf) then
+!		phi=material(mat).property(5)/180.0*pi()
+!	else
+!		phi=material(mat).property(4)/180.0*pi()
+!	end if
+!	sq3=3**0.5
+!	vcos=dcos(inv(3))
+!	vsin=dsin(inv(3))
+!	vsin2=dsin(phi)
 
-	select case(activeyf)
-		case(12) !f3b
-			McA(1)=0.5*vcos*(1-vsin2)+vsin*(3+vsin2)/sq3/2
-			McA(2)=-0.5*vsin*(1-vsin2)+vcos*(3+vsin2)/sq3/2
-		case(23) !f2b
-			McA(1)=0.5*vcos*(1+vsin2)+vsin*(-3+vsin2)/sq3/2
-			McA(2)=-0.5*vsin*(1+vsin2)+vcos*(-3+vsin2)/sq3/2		
-		case default
-			McA(1)=vcos-vsin*vsin2/sq3
-			McA(2)=-vsin-vcos*vsin2/sq3		
-	end select
-	
-	McA(3)=-McA(1)
-end subroutine
+!	select case(activeyf)
+!		case(12) !f3b
+!			McA(1)=0.5*vcos*(1-vsin2)+vsin*(3+vsin2)/sq3/2
+!			McA(2)=-0.5*vsin*(1-vsin2)+vcos*(3+vsin2)/sq3/2
+!		case(23) !f2b
+!			McA(1)=0.5*vcos*(1+vsin2)+vsin*(-3+vsin2)/sq3/2
+!			McA(2)=-0.5*vsin*(1+vsin2)+vcos*(-3+vsin2)/sq3/2		
+!		case default
+!			McA(1)=vcos-vsin*vsin2/sq3
+!			McA(2)=-vsin-vcos*vsin2/sq3		
+!	end select
+!	
+!	McA(3)=-McA(1)
+!end subroutine
 
-!judge which yield function is active
-!ayf=0, one vector return
-!ayf=12, two vector return, yield funciton s1>=s2>s3 and s2>=s1>=s3 are activated.
-!ayf=23, two vector return, yield funciton s1>=s2>s3 and s21>=s3>=s2 are activated.
-!afy=123, return to apex.
-subroutine active_yf(vyf,inv,mat,ayf)
-	use solverds
-	implicit none
-	integer::mat,ayf
-	real(8)::vyf,inv(3),u12,u23,v,J2,s,q,c1
-	
+!!judge which yield function is active
+!!ayf=0, one vector return
+!!ayf=12, two vector return, yield funciton s1>=s2>s3 and s2>=s1>=s3 are activated.
+!!ayf=23, two vector return, yield funciton s1>=s2>s3 and s21>=s3>=s2 are activated.
+!!afy=123, return to apex.
+!subroutine active_yf(vyf,inv,mat,ayf)
+!	use solverds
+!	implicit none
+!	integer::mat,ayf
+!	real(8)::vyf,inv(3),u12,u23,v,J2,s,q,c1
+!	
 
-	v=material(mat).property(2)
-	J2=inv(2)**2/3.0
-	s=dsin(material(mat).property(4)/180*pi())
-	q=dsin(material(mat).property(5)/180*pi())
-	c1=2*(1-2*v+s*q)/((1-2*v)*(q+1))*J2**0.5
-	
-	u12=vyf-c1*dsin(pi()/6.0-inv(3))
-	u23=vyf-c1*dsin(pi()/6.0+inv(3))
-	
-	ayf=123
-	if(u12<0.and.u23<0) ayf=0
-	if(u12>0.and.u23<0) ayf=12
-	if(u12<0.and.u23>0) ayf=23
+!	v=material(mat).property(2)
+!	J2=inv(2)**2/3.0
+!	s=dsin(material(mat).property(4)/180*pi())
+!	q=dsin(material(mat).property(5)/180*pi())
+!	c1=2*(1-2*v+s*q)/((1-2*v)*(q+1))*J2**0.5
+!	
+!	u12=vyf-c1*dsin(pi()/6.0-inv(3))
+!	u23=vyf-c1*dsin(pi()/6.0+inv(3))
+!	
+!	ayf=123
+!	if(u12<0.and.u23<0) ayf=0
+!	if(u12>0.and.u23<0) ayf=12
+!	if(u12<0.and.u23>0) ayf=23
 
-	if(dsin(inv(3))>=0.49) ayf=0
-		
-	
-end subroutine
+!	if(dsin(inv(3))>=0.49) ayf=0
+!		
+!	
+!end subroutine
 
-!calculate the coefficients matrix C(3,3) for two vector return method 
-!implemented in MC model, return its inverse. 
-subroutine TVR_Coef(c,de,nd,dyf1,dqf1,dyf2,dqf2,dyf3,dqf3,ayf)
-	use solverds
-	!use operation_i
-	implicit none
-	integer::nd,ayf,afy1
-	real(8)::c(3,3),de(nd,nd),dyf1(6),dqf1(6),dyf2(6),dqf2(6), &
-		m2(nd,1),dyf3(6),dqf3(6),c1(3,3)=0,t1=0
-	
-	!c=0
-	!select case(ayf)
-	!	case(12,23)
-	!		m2(:,1)=dyf1(1:nd)
-	!		c(1,1)=dot_product(matmul(m2(:,1),de),dqf1(1:nd))
-	!		!c(1,1)=dot_product(m2(:,1),matmul(de,dqf1(1:nd)))
-	!		c(1,2)=dot_product(matmul(m2(:,1),de),dqf2(1:nd))
-	!		m2(:,1)=dyf2(1:nd)
-	!		c(2,1)=dot_product(matmul(m2(:,1),de),dqf1(1:nd))
-	!		c(2,2)=dot_product(matmul(m2(:,1),de),dqf2(1:nd))
-	!		t1=c(1,1)*c(2,2)-c(1,2)*c(2,1)
-	!		c1=c
-	!		c(1,1)=c1(2,2)
-	!		c(2,2)=c1(1,1)
-	!		c(1,2)=-c1(1,2)
-	!		c(2,1)=-c1(2,1)
-	!		c=c/t1
-	!	case(123)
-	!		m2(:,1)=dyf1(1:nd)
-	!		c(1,1)=dot_product(matmul(m2(:,1),de),dqf1(1:nd))
-	!		c(1,2)=dot_product(matmul(m2(:,1),de),dqf2(1:nd))
-	!		c(1,3)=dot_product(matmul(m2(:,1),de),dqf3(1:nd))			
-	!		m2(:,1)=dyf2(1:nd)
-	!		c(2,1)=dot_product(matmul(m2(:,1),de),dqf1(1:nd))
-	!		c(2,2)=dot_product(matmul(m2(:,1),de),dqf2(1:nd))
-	!		c(2,3)=dot_product(matmul(m2(:,1),de),dqf3(1:nd))
-	!		m2(:,1)=dyf3(1:nd)
-	!		c(3,1)=dot_product(matmul(m2(:,1),de),dqf1(1:nd))
-	!		c(3,2)=dot_product(matmul(m2(:,1),de),dqf2(1:nd))
-	!		c(3,3)=dot_product(matmul(m2(:,1),de),dqf3(1:nd))
-	!		c(1:3,1:3)=.i.c(1:3,1:3)
-	!end select
+!!calculate the coefficients matrix C(3,3) for two vector return method 
+!!implemented in MC model, return its inverse. 
+!subroutine TVR_Coef(c,de,nd,dyf1,dqf1,dyf2,dqf2,dyf3,dqf3,ayf)
+!	use solverds
+!	!use operation_i
+!	implicit none
+!	integer::nd,ayf,afy1
+!	real(8)::c(3,3),de(nd,nd),dyf1(6),dqf1(6),dyf2(6),dqf2(6), &
+!		m2(nd,1),dyf3(6),dqf3(6),c1(3,3)=0,t1=0
+!	
+!	!c=0
+!	!select case(ayf)
+!	!	case(12,23)
+!	!		m2(:,1)=dyf1(1:nd)
+!	!		c(1,1)=dot_product(matmul(m2(:,1),de),dqf1(1:nd))
+!	!		!c(1,1)=dot_product(m2(:,1),matmul(de,dqf1(1:nd)))
+!	!		c(1,2)=dot_product(matmul(m2(:,1),de),dqf2(1:nd))
+!	!		m2(:,1)=dyf2(1:nd)
+!	!		c(2,1)=dot_product(matmul(m2(:,1),de),dqf1(1:nd))
+!	!		c(2,2)=dot_product(matmul(m2(:,1),de),dqf2(1:nd))
+!	!		t1=c(1,1)*c(2,2)-c(1,2)*c(2,1)
+!	!		c1=c
+!	!		c(1,1)=c1(2,2)
+!	!		c(2,2)=c1(1,1)
+!	!		c(1,2)=-c1(1,2)
+!	!		c(2,1)=-c1(2,1)
+!	!		c=c/t1
+!	!	case(123)
+!	!		m2(:,1)=dyf1(1:nd)
+!	!		c(1,1)=dot_product(matmul(m2(:,1),de),dqf1(1:nd))
+!	!		c(1,2)=dot_product(matmul(m2(:,1),de),dqf2(1:nd))
+!	!		c(1,3)=dot_product(matmul(m2(:,1),de),dqf3(1:nd))			
+!	!		m2(:,1)=dyf2(1:nd)
+!	!		c(2,1)=dot_product(matmul(m2(:,1),de),dqf1(1:nd))
+!	!		c(2,2)=dot_product(matmul(m2(:,1),de),dqf2(1:nd))
+!	!		c(2,3)=dot_product(matmul(m2(:,1),de),dqf3(1:nd))
+!	!		m2(:,1)=dyf3(1:nd)
+!	!		c(3,1)=dot_product(matmul(m2(:,1),de),dqf1(1:nd))
+!	!		c(3,2)=dot_product(matmul(m2(:,1),de),dqf2(1:nd))
+!	!		c(3,3)=dot_product(matmul(m2(:,1),de),dqf3(1:nd))
+!	!		c(1:3,1:3)=.i.c(1:3,1:3)
+!	!end select
 
-	
-end subroutine
+!	
+!end subroutine
 
 !according to the stress vector(stress)calculate the second derivertives of the p,q,theta 
 !stress(1-6)=sx,sy,sz,sxy,syz,sxz.
@@ -1413,40 +1484,43 @@ PURE SUBROUTINE MC_KSITA(LODE,SITA,PHI,A,B,KSITA,D_KSITA)
 ENDSUBROUTINE
 
 !according to the material(mat).type and stress invarants,calculate the value of the yield functions(vyt)
-PURE subroutine yieldfun(vyf,mat,inv,ayf,ev)
+PURE subroutine yieldfun(vyf,mat,inv,ayf,ev,ISTEP)
 	use solverds	
 	implicit none
-	INTEGER,INTENT(IN)::MAT,AYF
+	INTEGER,INTENT(IN)::MAT,AYF,ISTEP
 	REAL(8),INTENT(IN)::INV(3),EV
 	REAL(8),INTENT(OUT)::VYF
-	real(8)::t1,t2,mcA(3),t3,Ksita1,t4,sitat1,A1,A2,B1,B2,DKSITA1,PI1
+	real(8)::t1,t2,t3,KSITA(6),t4,sitat1,PI1,PHI1
 	logical::isqf
 	
 	PI1=pi()
 	isqf=.false.
 	select case(material(mat).type)
 		case(Mises)
-			vyf=inv(2)-material(mat).property(3)
+			vyf=inv(2)-material(mat).GET(3,ISTEP)
 		case(MC)
 			!call Mc_A(mcA,inv,mat,ayf,isqf)
-			t1=dsin(material(mat).property(4)/180.0*PI1)
-			t2=dcos(material(mat).property(4)/180.0*PI1)
+			PHI1=material(mat).GET(4,ISTEP)/180.0*PI1
+			t1=dsin(PHI1)
+			t2=dcos(PHI1)
             
-            IF(ABS(material(mat).property(22))>1E-14) THEN
+            IF(ABS(material(mat).GET(22,ISTEP))>1E-14) THEN
                 !
 			    !roundoff parameters
             
-			    t4=(material(mat).property(23)*t1)**2 !round off the apex.
-			    CALL MC_KSITA(INV(3),material(mat).property(8)/180.*PI1, material(mat).property(4)/180.*PI1,&
-						      material(mat).property(29:30),material(mat).property(31:32),KSITA1,DKSITA1)
-			    vyf=inv(1)*t1+SQRT((inv(2)/SQRT(3.0)*KSITA1)**2+T4)-material(mat).property(3)*t2
+			    t4=(material(mat).GET(23,ISTEP)*t1)**2 !round off the apex.
+			    !CALL MC_KSITA(INV(3),material(mat).GET(8,ISTEP)/180.*PI1, material(mat).GET(4,ISTEP)/180.*PI1,&
+				!		      material(mat).GET([29,30],ISTEP),material(mat).GET([31,32],ISTEP),KSITA(1),KSITA(2))
+				SITAT1=material(mat).GET(8,ISTEP)/180.*PI1
+				CALL KSITA_MC_C2(KSITA(1:6),INV(3),SITAT1,PHI1)
+			    vyf=inv(1)*t1+SQRT((inv(2)/SQRT(3.0)*KSITA(1))**2+T4)-material(mat).GET(3,ISTEP)*t2
             ELSE
                 t3=dcos(inv(3))/3**0.5-dsin(inv(3))*t1/3.0
-                vyf=inv(1)*t1+INV(2)*T3-material(mat).property(3)*t2
+                vyf=inv(1)*t1+INV(2)*T3-material(mat).GET(3,ISTEP)*t2
             ENDIF
             
 		case(camclay)
-			vyf=inv(2)**2-material(mat).property(1)**2*(inv(1)*(inv(1)-ev))
+			vyf=inv(2)**2-material(mat).GET(1,ISTEP)**2*(inv(1)*(inv(1)-ev))
 		case default
 			vyf=-1.0
 	end select 
@@ -1469,13 +1543,13 @@ end subroutine
 
 !according to material(mat).type and stress invarants, calculate the 
 !derivative of yield function with respect to the stress invarants(sigma_m,J2,J3).
-PURE subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev)
+PURE subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev,ISTEP)
 	use solverds
 	implicit none
-	INTEGER,INTENT(IN)::MAT,AYF
+	INTEGER,INTENT(IN)::MAT,AYF,ISTEP
 	real(8),INTENT(IN)::inv(3),EV
 	real(8),INTENT(OUT)::dywi(3)	
-	real(8)::c1,mcA(3),J2,KSITA1,DKSITA1,SITAT1,T1,T3,PI1,ALPHA1
+	real(8)::c1,mcA(3),J2,KSITA(6),SITAT1,T1,T3,PI1,ALPHA1,PHI1
 	logical::isqf
 	
 	dywi=0.0;J2=0;c1=1.0
@@ -1485,18 +1559,19 @@ PURE subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev)
 		case(mises)
 			dywi(2)=3.0/2.0/inv(2)			
 		case(mc)
-			dywi(1)=dsin(material(mat).property(4)/180.0*PI1)
-			T1=(material(mat).property(23)*dywi(1))**2
+			PHI1=material(mat).GET(4,ISTEP)/180.0*PI1
+			dywi(1)=dsin(PHI1)
+			T1=(material(mat).GET(23,ISTEP)*dywi(1))**2
             
-            IF(ABS(material(mat).property(22))>1E-14) THEN
+            IF(ABS(material(mat).GET(22,ISTEP))>1E-14) THEN
             
-			    sitat1=material(mat).property(8)/180.*PI1
-			    CALL MC_KSITA(INV(3),material(mat).property(8)/180.*PI1, material(mat).property(4)/180.*PI1,&
-						      material(mat).property(29:30),material(mat).property(31:32),KSITA1,DKSITA1)
-			
-			    ALPHA1=INV(2)*KSITA1/SQRT(3.0)/SQRT((INV(2)/SQRT(3.0)*KSITA1)**2+T1)
-			    dywi(2)=ALPHA1*(KSITA1-DTAN(3.*INV(3))*DKSITA1)/(2.0*INV(2)/SQRT(3.0))
-			    DYWI(3)=-ALPHA1*SQRT(3.0)/(2./3.0*INV(2)**2*DCOS(3.*INV(3)))*DKSITA1
+			    sitat1=material(mat).GET(8,ISTEP)/180.*PI1
+			    !CALL MC_KSITA(INV(3),material(mat).GET(8,ISTEP)/180.*PI1, material(mat).GET(4,ISTEP)/180.*PI1,&
+				!		      material(mat).GET([29,30],ISTEP),material(mat).GET([31,32],ISTEP),KSITA(1),KSITA(2))
+				CALL KSITA_MC_C2(KSITA(1:6),INV(3),SITAT1,PHI1)
+			    ALPHA1=INV(2)*KSITA(1)/SQRT(3.0)/SQRT((INV(2)/SQRT(3.0)*KSITA(1))**2+T1)
+			    dywi(2)=ALPHA1*(KSITA(1)-DTAN(3.*INV(3))*KSITA(2))/(2.0*INV(2)/SQRT(3.0))
+			    DYWI(3)=-ALPHA1*SQRT(3.0)/(2./3.0*INV(2)**2*DCOS(3.*INV(3)))*KSITA(2)
             ELSE
 			    if(abs(dsin(inv(3)))<0.49) then
 			    	dywi(2)=dcos(inv(3))/((4.0/3.0)**0.5*inv(2))* &
@@ -1512,7 +1587,7 @@ PURE subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev)
 			ENDIF
 			
 		case(camclay)
-			dywi(1)=-material(mat).property(1)**2*(2*inv(1)-ev)
+			dywi(1)=-material(mat).GET(1,ISTEP)**2*(2*inv(1)-ev)
 			dywi(2)=3.0
 			
 	end select	
@@ -1520,13 +1595,13 @@ end subroutine
 
 !according to material(mat).type and stress invarants, calculate the 
 !derivative of potential function with respect to the stress invarants(sigma_m,J2,J3).
-PURE subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev)
+PURE subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev,ISTEP)
 	use solverds
 	implicit none
-	INTEGER,INTENT(IN)::MAT,AYF
+	INTEGER,INTENT(IN)::MAT,AYF,ISTEP
 	real(8),INTENT(IN)::inv(3),EV
 	real(8),INTENT(OUT)::dywi(3)
-	REAL(8)::c1,J2,mcA(3),PI1,T1,KSITA1,DKSITA1,ALPHA1
+	REAL(8)::c1,J2,PI1,T1,KSITA(6),ALPHA1,PHI1,SITAT1
 	logical::isqf
 	
 	c1=1.0;J2=0;isqf=.true.
@@ -1536,16 +1611,18 @@ PURE subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev)
 		case(mises)
 			dywi(2)=3.0/2.0/inv(2)			
 		case(mc)
-			dywi(1)=dsin(material(mat).property(5)/180.0*PI1)
+			PHI1=material(mat).GET(5,ISTEP)/180.0*PI1
+			dywi(1)=dsin(PHI1)
             
-            IF(ABS(material(mat).property(22))>1E-14) THEN
-			    T1=(material(mat).property(24)*dywi(1))**2
-			    CALL MC_KSITA(INV(3),material(mat).property(8)/180.*PI1, material(mat).property(5)/180.*PI1,&
-						      material(mat).property(25:26),material(mat).property(27:28),KSITA1,DKSITA1)
-			
-			    ALPHA1=INV(2)*KSITA1/SQRT(3.0)/SQRT((INV(2)/SQRT(3.0)*KSITA1)**2+T1)
-			    dywi(2)=ALPHA1*(KSITA1-DTAN(3.*INV(3))*DKSITA1)/(2.0*INV(2)/SQRT(3.0))
-			    DYWI(3)=-ALPHA1*SQRT(3.0)/(2./3.0*INV(2)**2*DCOS(3.*INV(3)))*DKSITA1			
+            IF(ABS(material(mat).GET(22,ISTEP))>1E-14) THEN
+			    T1=(material(mat).GET(24,ISTEP)*dywi(1))**2
+				sitat1=material(mat).GET(8,ISTEP)/180.*PI1
+			    !CALL MC_KSITA(INV(3),material(mat).GET(8,ISTEP)/180.*PI1, material(mat).GET(5,ISTEP)/180.*PI1,&
+				!		      material(mat).GET([25,26],ISTEP),material(mat).GET([27,28],ISTEP),KSITA(1),KSITA(2))
+				CALL KSITA_MC_C2(KSITA(1:6),INV(3),SITAT1,PHI1)
+			    ALPHA1=INV(2)*KSITA(1)/SQRT(3.0)/SQRT((INV(2)/SQRT(3.0)*KSITA(1))**2+T1)
+			    dywi(2)=ALPHA1*(KSITA(1)-DTAN(3.*INV(3))*KSITA(2))/(2.0*INV(2)/SQRT(3.0))
+			    DYWI(3)=-ALPHA1*SQRT(3.0)/(2./3.0*INV(2)**2*DCOS(3.*INV(3)))*KSITA(2)			
 			ELSE
 			    if(abs(dsin(inv(3)))<0.49) then
 			    	!call Mc_A(mcA,inv,mat,ayf,isqf)
@@ -1571,11 +1648,11 @@ PURE subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev)
 end subroutine
 
 !generation plastic body force using viscoplasticity method.
-subroutine bload_viscoplasticity(iiter,iscon,bdylds)
+subroutine bload_viscoplasticity(iiter,iscon,bdylds,ISTEP)
 	use solverds
 	implicit none
 	logical::iscon
-	integer::i,j,k,n1,iiter,ayf=0
+	integer::i,j,k,n1,iiter,ayf=0,ISTEP
 	real(8)::bdylds(ndof),un(50)=0.0,stress1(6)=0.0,strain1(6)=0.0, &
 					dee(4,4)=0.0,sigma(6)=0.0,inv(3)=0.0,vyf=0.0, &
 					devp(6)=0.0,m(6,3)=0.0,dywi(3)=0.0,dyf(6)=0.0, &
@@ -1589,7 +1666,7 @@ subroutine bload_viscoplasticity(iiter,iscon,bdylds)
 		strain1=0.0
 		stress1=0.0
 		bload=0.0
-		call timestep_vp(dt,element(i).mat)
+		call timestep_vp(dt,element(i).mat,ISTEP)
 		do k=1,element(i).nnum
 			un(2*k-1)=load(node(element(i).node(k)).dof(1))	
 			un(2*k)=load(node(element(i).node(k)).dof(2))	
@@ -1605,11 +1682,11 @@ subroutine bload_viscoplasticity(iiter,iscon,bdylds)
 			stress1=stress1+element(i).stress(:,j)
 			!check whether penetrate the yield surface.
 			call INVARIANT(stress1,inv)
- 			call yieldfun(vyf,element(i).mat,inv,ayf,ev)
+ 			call yieldfun(vyf,element(i).mat,inv,ayf,ev,ISTEP)
 			
 			if(vyf>0) then
 				call deriv_sinv(m,stress1)
-				call deriv_qf_with_inv(dywi,inv,element(i).mat,ayf,ev)
+				call deriv_qf_with_inv(dywi,inv,element(i).mat,ayf,ev,ISTEP)
 				call deriv_yf(dyf,dywi,m)
 				evp=dt*vyf*dyf
 				element(i).evp(:,j)=element(i).evp(:,j)+evp
@@ -1633,21 +1710,21 @@ subroutine bload_viscoplasticity(iiter,iscon,bdylds)
 	
 end subroutine
 
-subroutine timestep_vp(dt,mat)
+subroutine timestep_vp(dt,mat,ISTEP)
 	use solverds
 	implicit none
-	integer::mat
+	integer::mat,ISTEP
 	real(8)::dt,E,v,vsin
 	
 	dt=0.0	
 	select case(material(mat).type)
 		case(mises)
-			E=material(mat).property(1)
-			v=material(mat).property(2)
+			E=material(mat).GET(1,ISTEP)
+			v=material(mat).GET(2,ISTEP)
 			dt=4*(v+1)/(3*E)
 		case(MC)
-			E=material(mat).property(1)
-			v=material(mat).property(2)
+			E=material(mat).GET(1,ISTEP)
+			v=material(mat).GET(2,ISTEP)
 			vsin=dsin(material(mat).property(4)/180.0*pi())
 			dt=4*(v+1)*(1-2*v)/(E*(1-2*v+vsin**2))		
 	end select
@@ -1674,15 +1751,15 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 					Dstress1(6)=0.0,dqwi(3)=0.0,dqf(6)=0.0,dp(6,6)=0.0,&
 					de(6,6)=0.0,t1=0.0,pstress1(6)=0.0,lamda=0.0,&
 					buf1(6)=0.0,buf2(6)=0.0,pstrain(6)=0.0,ev=0,PlasPar(3),SIGMAB(6),SIGMAC(6)
-	REAL(8)::E1,V1,R1,vyf2,AT1(6)
-	integer::nd1=0,ndim1,region
+	REAL(8)::E1,V1,R1,vyf2,AT1(6),DLAMDA
+	integer::nd1=0,ndim1,region,SITER1
 	
 	n1=element(ienum).ngp
 	nd1=element(ienum).nd
 	ndim1=ecp(element(ienum).et).ndim
 	bload=0.0
     
-	if(solver_control.bfgm==continuum.OR.solver_control.bfgm==consistent) element(ienum).km=0.d0
+	if(ISTEP>0.AND.(solver_control.bfgm==continuum.OR.solver_control.bfgm==consistent)) element(ienum).km=0.d0
     
 !    !!dir$ IVDEP:LOOP
 	do j=1,n1
@@ -1690,6 +1767,7 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		Tstress1=0.0
 		pstress1=0.0
 		dp=0.0d0
+        element(ienum).evp(1:nd1,j)=0.D0
 		!strain of this incrementals
 		Dstrain1(1:nd1)=matmul(element(ienum).b(1:nd1,:,j),Ddis(1:element(ienum).ndof))
 		!stress incremental
@@ -1699,17 +1777,17 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		Tstress1=Dstress1+element(ienum).stress(:,j)
         IF(istep>0) THEN !IINCS==0,假定只建立弹性应力场。
             IF(MATERIAL(ELEMENT(IENUM).MAT).TYPE==MC.AND.solver_control.bfgm==consistent) THEN
-                PlasPar=MATERIAL(ELEMENT(IENUM).MAT).PROPERTY(19:21)
+                PlasPar=PARA_MC_CLAUSEN(ELEMENT(IENUM).MAT,ISTEP)
                 SIGMAB(1:4)=TSTRESS1(1:4);
                 IF(ND1>4) THEN
                     SIGMAB(5)=TSTRESS1(6);SIGMAB(6)=TSTRESS1(5)
                 ENDIF
-                IF(ABS(MATERIAL(ELEMENT(IENUM).MAT).PROPERTY(4))>1E-7) THEN
+                IF(ABS(MATERIAL(ELEMENT(IENUM).MAT).GET(4,ISTEP))>1E-7) THEN
                     CALL MohrCoulombStressReturn(SIGMAB,ND1,PlasPar(1:3),&
                                             element(ienum).d(1:ND1,1:ND1),MATERIAL(ELEMENT(IENUM).MAT).DINV(1:ND1,1:ND1),&
                                             SIGMAC,DE(1:ND1,1:ND1),region)
                 ELSE
-                    CALL  TrescaStressReturn(SIGMAB,ND1,MATERIAL(ELEMENT(IENUM).MAT).PROPERTY(3)*2.0, &
+                    CALL  TrescaStressReturn(SIGMAB,ND1,MATERIAL(ELEMENT(IENUM).MAT).GET(3,ISTEP)*2.0, &
                                             element(ienum).d(1:ND1,1:ND1),MATERIAL(ELEMENT(IENUM).MAT).DINV(1:ND1,1:ND1),&
                                             SIGMAC,DE(1:ND1,1:ND1),region)
                 ENDIF
@@ -1718,65 +1796,83 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
                     AT1=DE(:,5);DE(:,5)=DE(:,6);DE(:,6)=AT1
                     AT1=DE(5,:);DE(5,:)=DE(6,:);DE(6,:)=AT1
                 ENDIF
-                pstress1(1:nd1)=TSTRESS1-SIGMAC
-                !Tstress1=Tstress1-pstress1
-                element(ienum).evp(1:nd1,j)=Dstrain1(1:nd1)-MATMUL(MATERIAL(element(ienum).MAT).DINV(1:ND1,1:ND1),Dstress1(1:nd1)-pstress1(1:nd1))           
-            
+                IF(REGION>0) THEN
+                    pstress1(1:nd1)=TSTRESS1-SIGMAC
+                    !Tstress1=Tstress1-pstress1
+                    element(ienum).evp(1:nd1,j)=Dstrain1(1:nd1)-MATMUL(MATERIAL(element(ienum).MAT).DINV(1:ND1,1:ND1),Dstress1(1:nd1)-pstress1(1:nd1))           
+                ENDIF
             ELSE
         
 		        !check whether penetrate the yield surface.
 		        call INVARIANT(Tstress1,inv)
-		        call yieldfun(vyf,element(ienum).mat,inv,ayf,ev)
-		        if(vyf>0) then
-			        call INVARIANT(element(ienum).stress(:,j),inv)
-			        call yieldfun(vyf_old,element(ienum).mat,inv,ayf,ev)
-
-			        fac=-vyf_old/(vyf-vyf_old)
-			        !improve fac. ref: nonlinear analysis in soil mechanics HF.Chen.
+		        call yieldfun(vyf,element(ienum).mat,inv,ayf,ev,ISTEP)
+                SITER1=0
+		        DO WHILE(vyf>1E-7.AND.SITER1<=20) 
+			        !call INVARIANT(element(ienum).stress(:,j),inv)
+			        !call yieldfun(vyf_old,element(ienum).mat,inv,ayf,ev,ISTEP)
+           !         IF(vyf_old>1.D0) vyf_old=1.D0
+			        !fac=-vyf_old/(vyf-vyf_old)
+			        !!improve fac. ref: nonlinear analysis in soil mechanics HF.Chen.
+			        !!Tstress1=Dstress1*fac+element(ienum).stress(:,j)
+			        !!call INVARIANT(Tstress1,inv)
+			        !!call yieldfun(vyf2,element(ienum).mat,inv,ayf,ev)
+			        !!if(abs(vyf2)>1d-5) then
+			        !!	call deriv_sinv(m,Tstress1)
+			        !!	call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
+			        !!	call deriv_yf(dyf,dywi,m)
+			        !!	fac=fac-vyf2/dot_product(dyf(1:nd1),Dstress1(1:nd1))
+			        !!endif
+			        !
 			        !Tstress1=Dstress1*fac+element(ienum).stress(:,j)
-			        !call INVARIANT(Tstress1,inv)
-			        !call yieldfun(vyf2,element(ienum).mat,inv,ayf,ev)
-			        !if(abs(vyf2)>1d-5) then
-			        !	call deriv_sinv(m,Tstress1)
-			        !	call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
-			        !	call deriv_yf(dyf,dywi,m)
-			        !	fac=fac-vyf2/dot_product(dyf(1:nd1),Dstress1(1:nd1))
-			        !endif
-			
-			        Tstress1=Dstress1*fac+element(ienum).stress(:,j)
             
-                    !if(material(element(ienum).mat).type==MC.AND.ABS(material(element(ienum).mat).PROPERTY(22))<1E-14) then
-                    !    call mcdpl(material(element(ienum).mat).property(4),&
-                    !                material(element(ienum).mat).property(5),&
-                    !                de(1:nd1,1:nd1),Tstress1(1:nd1),dp(1:nd1,1:nd1),ND1)
+
             !        elseif(material(element(ienum).mat).type==mises) then
 				        !CALL vmdpl(de(1:nd1,1:nd1),Tstress1(1:nd1),dp(1:nd1,1:nd1),ND1)
 			        !else
-			
-				        call INVARIANT(Tstress1,inv)
-				        call deriv_sinv(m,Tstress1)
-				        call deriv_qf_with_inv(dqwi,inv,element(ienum).mat,ayf,ev)
-				        call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev)
-				        call deriv_yf(dyf,dywi,m)
-				        call deriv_yf(dqf,dqwi,m)							
-				        buf1(1:nd1)=matmul(dyf(1:nd1),de(1:nd1,1:nd1))
-				        buf2(1:nd1)=matmul(de(1:nd1,1:nd1),dqf(1:nd1))
-				        do k=1,nd1
-					        dp(k,1:nd1)=buf2(k)*buf1(1:nd1)
-				        end do				
-				        t1=dot_product(buf1(1:nd1),dqf(1:nd1))
-				        dp(1:nd1,1:nd1)=dp(1:nd1,1:nd1)/t1
-                    !endif
-                    de=de-dp
-			        dp=dp*(1-fac)
-			        pstress1(1:nd1)=matmul(dp(1:nd1,1:nd1),Dstrain1(1:nd1))
+                    IF(SITER1>0) THEN
+                        call INVARIANT(Tstress1,inv)
+                        call yieldfun(vyf,element(ienum).mat,inv,ayf,ev,ISTEP)			
+                    ENDIF
+				    call deriv_sinv(m,Tstress1)
+				    call deriv_qf_with_inv(dqwi,inv,element(ienum).mat,ayf,ev,ISTEP)
+				    call deriv_yf_with_inv(dywi,inv,element(ienum).mat,ayf,ev,ISTEP)
+				    call deriv_yf(dyf,dywi,m)
+				    call deriv_yf(dqf,dqwi,m)							
+				    buf1(1:nd1)=matmul(dyf(1:nd1),de(1:nd1,1:nd1))
+                    t1=dot_product(buf1(1:nd1),dqf(1:nd1))
+                    
+                    DLAMDA=vyf/T1
+                    buf2(1:nd1)=matmul(de(1:nd1,1:nd1),dqf(1:nd1))
+
+                    pstress1(1:nd1)=pstress1(1:nd1)+DLAMDA*buf2(1:nd1)
+                    element(ienum).evp(1:nd1,j)=element(ienum).evp(1:nd1,j)+DLAMDA*dqf(1:nd1)
+                    Tstress1(1:ND1)=Tstress1(1:ND1)-DLAMDA*buf2(1:nd1)
+                    
+                    IF((.NOT.vyf>1E-7).AND.SOLVER_CONTROL.BFGM/=INISTRESS)THEN
+                        !GRIFFITH
+                        if(material(element(ienum).mat).type==MC.AND.ABS(material(element(ienum).mat).PROPERTY(22))<1E-14) then
+                            call mcdpl(material(element(ienum).mat).GET(4,ISTEP),&
+                                        material(element(ienum).mat).GET(5,ISTEP),&
+                                        de(1:nd1,1:nd1),Tstress1(1:nd1),dp(1:nd1,1:nd1),ND1)
+                        ELSE
+                    	    do k=1,nd1
+					            dp(k,1:nd1)=buf2(k)*buf1(1:nd1)
+				            end do
+                            dp(1:nd1,1:nd1)=dp(1:nd1,1:nd1)/t1
+                        ENDIF
+                    ENDIF
+                    
+                    
+			        !dp=dp*(1-fac)
+			        !pstress1(1:nd1)=matmul(dp(1:nd1,1:nd1),Dstrain1(1:nd1))
+                    
 			        !Tstress1=Tstress1-pstress1
-                    E1=MATERIAL(element(ienum).MAT).PROPERTY(1);V1=MATERIAL(element(ienum).MAT).PROPERTY(2)
-			        element(ienum).evp(1:nd1,j)=Dstrain1(1:nd1)-MATMUL(DINV(E1,V1,ND1),Dstress1(1:nd1)-pstress1(1:nd1))
+                    !E1=MATERIAL(element(ienum).MAT).PROPERTY(1);V1=MATERIAL(element(ienum).MAT).PROPERTY(2)
+			        !element(ienum).evp(1:nd1,j)=Dstrain1(1:nd1)-MATMUL(MATERIAL(element(ienum).MAT).DINV(1:ND1,1:ND1),Dstress1(1:nd1)-pstress1(1:nd1))
 			        !element(ienum).pstrain(:,j)=element(ienum).pstrain(:,j)+element(ienum).evp(:,j)
-			
-		        end if
-        
+			        SITER1=SITER1+1
+		        end DO
+                de=de-dp
             ENDIF
         ENDIF
         r1=1.0d0 !for axis-sysmetrical element
@@ -1791,7 +1887,7 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 						matmul((element(ienum).stress(1:nd1,j)+element(ienum).Dstress(1:nd1,j)),element(ienum).b(:,:,j))* &
 						element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*r1
 						
-		if(solver_control.bfgm==continuum.OR.solver_control.bfgm==consistent) then
+		if(ISTEP>0.AND.(solver_control.bfgm==continuum.OR.solver_control.bfgm==consistent)) then
 			
 			element(ienum).km=element(ienum).km+matmul(matmul( &
 				transpose(element(ienum).b(:,:,j)),de(1:nd1,1:nd1)),element(ienum).b(:,:,j)) &

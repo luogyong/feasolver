@@ -25,7 +25,7 @@ subroutine solver_initialization(kref,iincs,iiter)
 	integer::iincs,iiter
 
 	
-	if(iincs==1.and.iiter==1) then
+	if(iincs<=1.and.iiter==1) then
 		kref=1
 		return
 	end if
@@ -74,7 +74,7 @@ subroutine assemble_km(istep)
 		select case(element(i).ec)
 			case(CND)
 				var1=((tdisp(element(i).g(1))+load(element(i).g(1)))+(tdisp(element(i).g(2))+load(element(i).g(2))))/2.0
-				element(i).property(1)=material(element(i).mat).property(1)+material(element(i).mat).property(2)*var1				
+				element(i).property(1)=material(element(i).mat).GET(1,ISTEP)+material(element(i).mat).GET(2,ISTEP)*var1				
 				t1=element(i).property(1)
 			case(cps,cpe,cax)
 				element(i).property(1)=1.0

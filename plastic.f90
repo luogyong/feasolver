@@ -52,7 +52,7 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 					!for seepage elements, element.ndof=element.nnum
 					hj=dot_product(ecp(element(i).et).Lshape(1:element(i).nnum,j),un(1:element(i).nnum))
 					
-					call lamda_spg(i,hj,element(i).xygp(ndimension,j),lamda,iiter,j)                   						
+					call lamda_spg(i,hj,element(i).xygp(ndimension,j),lamda,iiter,j,ISTEP)                   						
                     
                     if(iiter>1) lamda=(element(i).kr(j)+lamda)/2.0D0
                     
@@ -71,7 +71,7 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 					!flux
 					if(.not.stepinfo(istep).issteady) then
 						hj_ini=dot_product(ecp(element(i).et).Lshape(1:element(i).nnum,j),inivaluedof(element(i).g))
-						call slope_SWWC_spg(i,hj,element(i).xygp(ndimension,j),slope1,sita1,element(i).sita_ini(j),hj_ini)
+						call slope_SWWC_spg(i,hj,element(i).xygp(ndimension,j),slope1,sita1,element(i).sita_ini(j),hj_ini,ISTEP)
                         
                         element(i).mw(j)=slope1
                         element(i).sita_fin(j)=sita1
@@ -82,7 +82,7 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 						if(j==1) element(i).cmm=0.d0  !clear 
                         if(slope1/=0.0d0) then
 						    element(i).cmm=element(i).cmm+csproduct(ecp(element(i).et).Lshape(:,j),ecp(element(i).et).Lshape(:,j))* &
-											(R1*slope1*ecp(element(i).et).weight(j)*element(i).detjac(j)*material(element(i).mat).property(13)/dt1)
+											(R1*slope1*ecp(element(i).et).weight(j)*element(i).detjac(j)*MATERIAL(ELEMENT(I).MAT).GET(13,ISTEP)/dt1)
                         end if
                         if((j==n1).and.any(element(i).cmm/=0.d0)) then
 							bload(1:element(i).nnum)=bload(1:element(i).nnum)+matmul(element(i).cmm,(stepdis(element(i).g)-inivaluedof(element(i).g)))
@@ -205,11 +205,11 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 end subroutine
 
 
-subroutine lamda_spg(ienum,hj,z,lamda,iiter,igp)
+subroutine lamda_spg(ienum,hj,z,lamda,iiter,igp,ISTEP)
 	
 	use solverds
 	implicit none
-	integer,intent(in)::ienum,iiter,igp
+	integer,intent(in)::ienum,iiter,igp,ISTEP
 	real(8),intent(in)::hj,z
 	real(8),intent(out)::lamda
 	real(8)::t1,epsilon1,epsilon2,krsml
@@ -234,8 +234,8 @@ subroutine lamda_spg(ienum,hj,z,lamda,iiter,igp)
 			if (t1 .ge. 0.d0) then
 				lamda = 1.d0
 			else
-			   alpha1 = material(element(ienum).mat).property(7)
-			   fn1 = material(element(ienum).mat).property(8)
+			   alpha1 = material(element(ienum).mat).GET(7,ISTEP)
+			   fn1 = material(element(ienum).mat).GET(8,ISTEP)
 				fm1 = 1.d0 - 1.d0 / fn1
 				seff1 = (1.d0 + (-alpha1*t1)**fn1) ** (- fm1)
 				lamda = (1.d0 - (1.d0 - seff1 ** (1.d0 / fm1)) ** fm1) ** 2 * dsqrt (seff1)
@@ -244,22 +244,22 @@ subroutine lamda_spg(ienum,hj,z,lamda,iiter,igp)
             if(t1>=0.d0) then
                lamda = 1.d0     
             else
-               alpha1 = material(element(ienum).mat).property(7)
-			   fn1 = material(element(ienum).mat).property(8) 
-               fm1= material(element(ienum).mat).property(9)
-               lamda=(dlog(dexp(1.d0)+(-t1/alpha1)**fn1))**-fm1
+               alpha1 = material(element(ienum).mat).GET(7,ISTEP)
+			   fn1 = material(element(ienum).mat).GET(8,ISTEP)
+               fm1= material(element(ienum).mat).GET(9,ISTEP)
+               lamda=(dlog(dexp(1.d0)+(-t1/alpha1)**fn1))**(-fm1)
             end if
         case(exp_spg)
             if(t1>=0.d0) then
                lamda = 1.d0     
             else
-               alpha1 = material(element(ienum).mat).property(7)            
+               alpha1 = material(element(ienum).mat).GET(7,ISTEP)            
                lamda=dexp(alpha1*t1)
             end if                   
 		case default
 !			if(mod(iiter,1000)==0) scale1=scale1*2 
-			epsilon1=element(ienum).property(3)
-			epsilon2=element(ienum).property(2)
+			epsilon1=element(ienum).PROPERTY(3)
+			epsilon2=element(ienum).PROPERTY(2)
 			
 			if(t1>=epsilon2) then
 				lamda=1.0
@@ -288,28 +288,28 @@ subroutine lamda_spg(ienum,hj,z,lamda,iiter,igp)
 	
 end subroutine
 
-subroutine slope_SWWC_spg(ienum,hj,z,slope,sita,sita_ini,hj_ini)
+subroutine slope_SWWC_spg(ienum,hj,z,slope,sita,sita_ini,hj_ini,ISTEP)
     use solverds
     implicit none
-    integer,intent(in)::ienum
+    integer,intent(in)::ienum,ISTEP
     Real(kind=DPN),intent(in)::hj,z,sita_ini,hj_ini
     Real(kind=DPN),intent(out)::slope,sita
     real(kind=DPN)::t1,alpha1,fn1,fm1,seff1,sita_s,sita_r,rw1
     
     t1=hj-z
-    sita_s = material(element(ienum).mat).property(11) !饱和体积含水量
+    sita_s = material(element(ienum).mat).GET(11,ISTEP)!饱和体积含水量
     
     if(t1>=0.d0) then
-        slope=material(element(ienum).mat).property(10)
+        slope=material(element(ienum).mat).GET(10,ISTEP)
 		sita=sita_s
         return
     end if
     
     !sita
-    alpha1 = material(element(ienum).mat).property(7)
-    fn1 = material(element(ienum).mat).property(8)
-    sita_r = material(element(ienum).mat).property(12) !!残余体积含水量(默认为0)
-    rw1=material(element(ienum).mat).property(13)  !水的重度    
+    alpha1 = material(element(ienum).mat).GET(7,ISTEP)
+    fn1 = material(element(ienum).mat).GET(8,ISTEP)
+    sita_r = material(element(ienum).mat).GET(12,ISTEP) !!残余体积含水量(默认为0)
+    rw1=material(element(ienum).mat).GET(13,ISTEP) !水的重度    
     
    select case(material(element(ienum).mat).type)
 					
@@ -327,7 +327,7 @@ subroutine slope_SWWC_spg(ienum,hj,z,slope,sita,sita_ini,hj_ini)
 			end if
 			
         case(lr_spg)
-            fm1= material(element(ienum).mat).property(9)
+            fm1= material(element(ienum).mat).GET(9,ISTEP)
             sita=sita_r+(sita_s-sita_r)*(dlog(dexp(1.d0)+(-t1/alpha1)**fn1))**(-fm1)
             !slope=mw2
 			if(abs(hj-hj_ini)<1e-7.or.solver_control.mur==0) then
@@ -383,25 +383,25 @@ subroutine residual_bc_clear(isBCdis,istep)
 	end do	
 end subroutine
 
-subroutine eip_bar_update(iel,Tgforce,Ntgforce)
+subroutine eip_bar_update(iel,Tgforce,Ntgforce,ISTEP)
 	use solverds
 	implicit none
-	integer,intent(in)::iel,Ntgforce
+	integer,intent(in)::iel,Ntgforce,ISTEP
 	real(kind=DPN),intent(in out)::Tgforce(Ntgforce)
 	integer::i
 
 	do i=1,2
 	
-		if(element(iel).gforceILS(i)<material(element(iel).mat).property(5)) then
+		if(element(iel).gforceILS(i)<material(element(iel).mat).GET(5,ISTEP)) then
 			
 			Tgforce(ndimension*(i-1)+1:ndimension*i)=Tgforce(ndimension*(i-1)+1:ndimension*i)* &
-			& material(element(iel).mat).property(5)/element(iel).gforceILS(i)		
-			element(iel).gforceILS(i)=material(element(iel).mat).property(5)
+			& material(element(iel).mat).GET(5,ISTEP)/element(iel).gforceILS(i)		
+			element(iel).gforceILS(i)=material(element(iel).mat).GET(5,ISTEP)
 		else
-			if(element(iel).gforceILS(i)>material(element(iel).mat).property(6)) then
+			if(element(iel).gforceILS(i)>material(element(iel).mat).GET(6,ISTEP)) then
 				Tgforce(ndimension*(i-1)+1:ndimension*i)=Tgforce(ndimension*(i-1)+1:ndimension*i)* &
-				& material(element(iel).mat).property(6)/element(iel).gforceILS(i)			
-				element(iel).gforceILS(i)=material(element(iel).mat).property(6)
+				& material(element(iel).mat).GET(6,ISTEP)/element(iel).gforceILS(i)			
+				element(iel).gforceILS(i)=material(element(iel).mat).GET(6,ISTEP)
 			end if
 		end if	
 	
@@ -421,8 +421,8 @@ subroutine eip_spring_update(iel,Tgforce,Ntgforce,istep)
 	i=1
 	mat1=element(iel).mat
 	if(mat1>0) then
-		minv1=matproperty(mat1,2,istep)
-		maxv1=matproperty(mat1,3,istep)
+		minv1=MATERIAL(mat1).GET(2,istep)
+		maxv1=MATERIAL(mat1).GET(3,istep)
 	else
         minv1=minval(-(element(iel).property(2:3)-element(iel).property(1)))
         maxv1=maxval(-(element(iel).property(2:3)-element(iel).property(1)))
@@ -442,11 +442,11 @@ subroutine eip_spring_update(iel,Tgforce,Ntgforce,istep)
 
 end subroutine
 
-subroutine eip_beam2D_update(iel,Tgforce,Ntgforce)
+subroutine eip_beam2D_update(iel,Tgforce,Ntgforce,ISTEP)
 
 	use solverds
 	implicit none
-	integer,intent(in)::iel,Ntgforce
+	integer,intent(in)::iel,Ntgforce,ISTEP
 	real(kind=DPN),intent(in out)::Tgforce(Ntgforce)
 	integer::i,n1,n2
 	real(kind=DPN)::gforceILS1(6)=0.d0
@@ -461,23 +461,23 @@ subroutine eip_beam2D_update(iel,Tgforce,Ntgforce)
 		n2=n1+2
         
 		!Qx		
-		if(element(iel).gforceILS(n1)<material(element(iel).mat).property(9)) then
-			element(iel).gforceILS(n1)=material(element(iel).mat).property(9)
+		if(element(iel).gforceILS(n1)<material(element(iel).mat).GET(9,ISTEP)) then
+			element(iel).gforceILS(n1)=material(element(iel).mat).GET(9,ISTEP)
             isvoilated=.true.
 		else
-			if(element(iel).gforceILS(n1)>material(element(iel).mat).property(10)) then
-				element(iel).gforceILS(n1)=material(element(iel).mat).property(10)
+			if(element(iel).gforceILS(n1)>material(element(iel).mat).GET(10,ISTEP)) then
+				element(iel).gforceILS(n1)=material(element(iel).mat).GET(10,ISTEP)
                 isvoilated=.true.
 			end if
 		end if			
 		!Mz
-		if(element(iel).gforceILS(n2)<material(element(iel).mat).property(15)) then
-			element(iel).gforceILS(n2)=material(element(iel).mat).property(15)
+		if(element(iel).gforceILS(n2)<material(element(iel).mat).GET(15,ISTEP)) then
+			element(iel).gforceILS(n2)=material(element(iel).mat).GET(15,ISTEP)
             isvoilated=.true.
             ismzvlted=.true.
 		else
-			if(element(iel).gforceILS(n2)>material(element(iel).mat).property(16)) then
-				element(iel).gforceILS(n2)=material(element(iel).mat).property(16)
+			if(element(iel).gforceILS(n2)>material(element(iel).mat).GET(16,ISTEP)) then
+				element(iel).gforceILS(n2)=material(element(iel).mat).GET(16,ISTEP)
                 isvoilated=.true.
                 ismzvlted=.true.
 			end if
@@ -518,11 +518,11 @@ subroutine eip_beam2D_update(iel,Tgforce,Ntgforce)
 
 end subroutine
 
-subroutine eip_beam_update(iel,Tgforce,Ntgforce)
+subroutine eip_beam_update(iel,Tgforce,Ntgforce,ISTEP)
 
 	use solverds
 	implicit none
-	integer,intent(in)::iel,Ntgforce
+	integer,intent(in)::iel,Ntgforce,ISTEP
 	real(kind=DPN),intent(in out)::Tgforce(Ntgforce)
 	integer::i,n1,n2
 	real(kind=DPN)::gforceILS1(12)=0.d0
@@ -537,12 +537,12 @@ subroutine eip_beam_update(iel,Tgforce,Ntgforce)
 		n2=n1+2
 		
 		if(mod(i,2)==1) then  !Qx		
-			if(element(iel).gforceILS(n1)<material(element(iel).mat).property(9)) then
-				element(iel).gforceILS(n1)=material(element(iel).mat).property(9)
+			if(element(iel).gforceILS(n1)<material(element(iel).mat).GET(9,ISTEP)) then
+				element(iel).gforceILS(n1)=material(element(iel).mat).GET(9,ISTEP)
 				isvoilated=.true.
 			else
-				if(element(iel).gforceILS(n1)>material(element(iel).mat).property(10)) then
-					element(iel).gforceILS(n1)=material(element(iel).mat).property(10)
+				if(element(iel).gforceILS(n1)>material(element(iel).mat).GET(10,ISTEP)) then
+					element(iel).gforceILS(n1)=material(element(iel).mat).GET(10,ISTEP)
 					isvoilated=.true.
 				end if
 			end if
@@ -550,38 +550,38 @@ subroutine eip_beam_update(iel,Tgforce,Ntgforce)
 		
 		if(mod(i,2)==0) then
 			!Mx
-			if(element(iel).gforceILS(n1)<material(element(iel).mat).property(11)) then
-				element(iel).gforceILS(n1)=material(element(iel).mat).property(11)
+			if(element(iel).gforceILS(n1)<material(element(iel).mat).GET(11,ISTEP)) then
+				element(iel).gforceILS(n1)=material(element(iel).mat).GET(11,ISTEP)
 				isvoilated=.true.
 				ismxvlted=.true.
 			else
-				if(element(iel).gforceILS(n1)>material(element(iel).mat).property(12)) then
-					element(iel).gforceILS(n1)=material(element(iel).mat).property(12)
+				if(element(iel).gforceILS(n1)>material(element(iel).mat).GET(12,ISTEP)) then
+					element(iel).gforceILS(n1)=material(element(iel).mat).GET(12,ISTEP)
 					isvoilated=.true.
 					ismxvlted=.true.
 				end if
 			end if		
 			!My
-			if(element(iel).gforceILS(n1+1)<material(element(iel).mat).property(13)) then
-				element(iel).gforceILS(n1+1)=material(element(iel).mat).property(13)
+			if(element(iel).gforceILS(n1+1)<material(element(iel).mat).GET(13,ISTEP)) then
+				element(iel).gforceILS(n1+1)=material(element(iel).mat).GET(13,ISTEP)
 				isvoilated=.true.
 				ismyvlted=.true.
 				
 			else
-				if(element(iel).gforceILS(n1+1)>material(element(iel).mat).property(14)) then
-					element(iel).gforceILS(n1+1)=material(element(iel).mat).property(14)
+				if(element(iel).gforceILS(n1+1)>material(element(iel).mat).GET(14,ISTEP)) then
+					element(iel).gforceILS(n1+1)=material(element(iel).mat).GET(14,ISTEP)
 					isvoilated=.true.
 					ismyvlted=.true.
 				end if
 			end if				
 			!Mz
-			if(element(iel).gforceILS(n2)<material(element(iel).mat).property(15)) then
-				element(iel).gforceILS(n2)=material(element(iel).mat).property(15)
+			if(element(iel).gforceILS(n2)<material(element(iel).mat).GET(15,ISTEP)) then
+				element(iel).gforceILS(n2)=material(element(iel).mat).GET(15,ISTEP)
 				isvoilated=.true.
 				ismzvlted=.true.
 			else
-				if(element(iel).gforceILS(n2)>material(element(iel).mat).property(16)) then
-					element(iel).gforceILS(n2)=material(element(iel).mat).property(16)
+				if(element(iel).gforceILS(n2)>material(element(iel).mat).GET(16,ISTEP)) then
+					element(iel).gforceILS(n2)=material(element(iel).mat).GET(16,ISTEP)
 					isvoilated=.true.
 					ismzvlted=.true.
 				end if
@@ -677,7 +677,7 @@ subroutine NodalForceInLocalSystem(iel,Tgforce,Ntgforce,istep)
             end do
 			
 			!elastic-ideal Plastic bar
-			if(material(element(iel).mat).type==eip_bar) call eip_bar_update(iel,Tgforce,Ntgforce)
+			if(material(element(iel).mat).type==eip_bar) call eip_bar_update(iel,Tgforce,Ntgforce,ISTEP)
 			
 		case(beam2D)
 			do i=1,2
@@ -699,7 +699,7 @@ subroutine NodalForceInLocalSystem(iel,Tgforce,Ntgforce,istep)
 			
 			!if(element(iel).et==ssp2d) call  ssp_contact_force(iel)
 			
-			if(material(element(iel).mat).type==eip_beam) call eip_beam2D_update(iel,Tgforce,Ntgforce)
+			if(material(element(iel).mat).type==eip_beam) call eip_beam2D_update(iel,Tgforce,Ntgforce,ISTEP)
 		
 		case(ssp2d)
 			do i=1,2
@@ -721,7 +721,7 @@ subroutine NodalForceInLocalSystem(iel,Tgforce,Ntgforce,istep)
 			
 			!if(element(iel).et==ssp2d) call  ssp_contact_force(iel)
 			
-			if(material(element(iel).mat).type==eip_beam) call eip_beam2D_update(iel,Tgforce,Ntgforce)	
+			if(material(element(iel).mat).type==eip_beam) call eip_beam2D_update(iel,Tgforce,Ntgforce,ISTEP)	
 		
 		case(beam)
 			do i=1,4
@@ -757,7 +757,7 @@ subroutine NodalForceInLocalSystem(iel,Tgforce,Ntgforce,istep)
 				end if				
 			end do	
 			
-			if(material(element(iel).mat).type==eip_beam) call eip_beam_update(iel,Tgforce,Ntgforce)
+			if(material(element(iel).mat).type==eip_beam) call eip_beam_update(iel,Tgforce,Ntgforce,ISTEP)
 			
 		case(SHELL3)
 			
@@ -811,7 +811,7 @@ subroutine ssp_slave_master_contact_force_cal(istep,isubts,iiter,iel,Tforce,nTfo
 	end if
 	!当前步总的垂直力
 	smnp(i).interforce=smnp(i).interforce+smnp(i).load
-	smnp(i).aff=abs(smnp(i).interforce*material(element(smnp(i).pe).mat).property(1))
+	smnp(i).aff=abs(smnp(i).interforce*material(element(smnp(i).pe).mat).GET(1,ISTEP))
 				
 	!当前荷载步下剪切力增量
 	if(abs(Tforce(1))<smnp(i).aff) then
@@ -947,8 +947,8 @@ subroutine spring_update4(iel,istep,iiter,Ddis,nDdis)
 	if(element(iel).mat>0) then
 		km1=matproperty(element(iel).mat,1,istep)
 		if(material(element(iel).mat).type==eip_spring) then		
-			minV1=matproperty(element(iel).mat,2,istep)
-			maxV1=matproperty(element(iel).mat,3,istep)
+			minV1=MATERIAL(element(iel).mat).GET(2,istep)
+			maxV1=MATERIAL(element(iel).mat).GET(3,istep)
 		else
 			minV1=-1.d20;maxv1=1.d20
 		endif
