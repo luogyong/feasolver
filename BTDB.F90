@@ -67,7 +67,7 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
 					elb(4,2*j,i)=gsderiv(j,1)
 					
 					if(ec==cax) then
-						r1=dot_product(ecp(et).Lshape(:,i),xy(1,:))
+						r1=abs(dot_product(ecp(et).Lshape(:,i),xy(1,:)))
 						if(abs(r1)<1e-7) r1=1.0e-7
 						elb(3,2*j-1,i)=ecp(et).Lshape(j,i)/r1
 					end if
@@ -115,7 +115,7 @@ subroutine BTDB(elb,ielb,jelb,kelb,eld,ield,jeld,elk,ielk,jelk,weight,iweight,de
 		if(element(ienum).ec==cax.or.element(ienum).ec==CAX_SPG) then
 !			r1=dot_product(ecp(element(ienum).et).Lshape(:,i), &
 !								node(element(ienum).node(1:element(ienum).nnum)).coord(1))
-			r1=element(ienum).xygp(1,i)
+			r1=abs(element(ienum).xygp(1,i))
 			if(abs(r1)<1e-7) r1=1.0e-7
 		end if
 !		ELK=ELK+weight(i)*(ELB(:,:,i).TX.ELD.X.ELB(:,:,i))*detjac(i)*r1
@@ -175,7 +175,7 @@ subroutine CMM_SPG_Cal(istep) !for transient seepage problem.
             if(slope1==0.0d0) cycle
             
 			if(element(ienum).ec==CAX.or.element(ienum).ec==CAX_SPG) THEN
-				r1=element(ienum).xygp(1,K)
+				r1=abs(element(ienum).xygp(1,K))
 				if(abs(r1)<1e-7) r1=1.0e-7
 			ELSE
 				R1=1.0

@@ -24,9 +24,7 @@
 			  All Files(*.*),*.*;"
 	term=trim(term)
 	call setmessageqq(term,QWIN$MSG_FILEOPENDLG)
-	winfo%TYPE = QWIN$MAX
-	tof=SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo)
-	tof=SETWSIZEQQ(0, winfo)  
+ 
 	term=' '
 	title=''
 	open(1,file=' ',status='old' )
@@ -54,6 +52,7 @@
 		EXCAB_STRURES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_stru.dat'
 		EXCAB_EXTREMEBEAMRES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_minmaxbeam.dat'
         Slope_file=trim(drive)//trim(dir)//trim(name)//'_slope_res.dat'
+        helpfile=trim(drive)//trim(dir)//'IFSOLVER_HELP.TXT'
 	end if
 	open(99,file=resultfile3,status='replace')
 	!the default value of Title=resultfile2.
@@ -64,8 +63,12 @@
 	print * ,'Read in data completed!' 
     if (solver_control.isParasys>0) then
         msg = setexitqq(QWIN$EXITNOPERSIST)
+        winfo%TYPE = QWIN$MIN
+    else
+    	winfo%TYPE = QWIN$MAX
     endif
-
+	tof=SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo)
+	tof=SETWSIZEQQ(0, winfo) 
     
     
     
@@ -463,6 +466,19 @@ subroutine solvercommand(term,unit)
 			end do
 			call skipcomment(unit)			
 			read(unit,'(a1024)') title
+        CASE('helpfile')
+            print *, 'WRITING A HELPFILE IN THE CURRENT DIR'
+            call write_readme_FEASOLVER()
+			do i=1, pro_num
+				select case(property(i).name)
+					case('exit')
+						IF(INT(PROPERTY(I).VALUE)==1) STOP "DONE.A HELPFILE IS OUT IN THE CURRENT DIR."
+					case default
+						call Err_msg(property(i).name)
+				end select
+			end do            
+		    
+    
 		case('node')
 			print *, 'Reading NODE data...'
 			do i=1, pro_num

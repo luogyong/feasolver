@@ -41,12 +41,12 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 				!art1(1:element(i).nnum)=un(1:element(i).nnum)-node(element(i).node).coord(ndimension)
 				!tof1=minval(art1(1:element(i).nnum))>=1e-1
 				!tof2=maxval(art1(1:element(i).nnum))<-1e-1
-				if(stepinfo(istep).issteady) then
-					IF(SOLVER_CONTROL.TYPE==SPG) un(1:element(i).ndof)=stepdis(element(i).g)
-				else
-					un(1:element(i).ndof)=stepdis(element(i).g) !for a transient problem, tdisp is passed to stepdisp in the form of an initial value. 
-				end if
-				
+				!if(stepinfo(istep).issteady) then
+				!	IF(SOLVER_CONTROL.TYPE==SPG) un(1:element(i).ndof)=stepdis(element(i).g)
+				!else
+				!	un(1:element(i).ndof)=stepdis(element(i).g) !for a transient problem, tdisp is passed to stepdisp in the form of an initial value. 
+				!end if
+				un(1:element(i).ndof)=stepdis(element(i).g)
 				do j=1,n1
 					!head in integration point
 					!for seepage elements, element.ndof=element.nnum
@@ -61,7 +61,7 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 					
 					!if(iiter>solver_control.niteration-10) write(99,40) iiter,i,j,element(i).xygp(1,j),element(i).xygp(2,j),hj,lamda,element(i).property(3),element(i).property(2)
 					R1=1.D0
-					if(element(i).ec==cax_spg) R1=element(i).xygp(1,j)
+					if(element(i).ec==cax_spg) R1=ABS(element(i).xygp(1,j))
 					
 					!gradient
 					element(i).igrad(1:nd1,j)=matmul(element(i).B(:,:,j),un(1:element(i).ndof))

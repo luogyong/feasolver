@@ -9,7 +9,7 @@ subroutine write_readme_feasolver()
 	character(1024)::readme(nreadme)
 	
     print *, "The help file is in d:\README_FEASOLVER.TXT."
-	open(2,file='d:\README_FEASOLVER.TXT',STATUS='REPLACE')
+	open(2,file=HELPFILE,STATUS='REPLACE')
 	
 	I=0
 	README(IPP(I)) ="//THE KEYWORD STRUCTURE USED IN THE INPUT FILE SINP IS EXPLAINED HEREIN"
@@ -21,6 +21,11 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) = "//TITLE"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD TITLE IS USED TO INPUT THE INFOMATION OF THE MODEL."//'"'
 	README(IPP(I))= "//{TITLE(A)} "
+    
+	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//HELPFILE,EXIT=YES|NO"
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD TITLE IS USED TO OUTPUT A IFSOLVER HELPFILE IN THE CURRENT DIRECTION."//'"'
+	README(IPP(I))= "//NO PARAMETER IS NEEDED.IS EIXT=YES, WHEN THE OUTPUT IS COMPLETED, STOP RUNNING AND EXIT."    
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//NODE,NUM=...(I) [,DATAPACKING=1|2] [,DEMENSION=1|2|3]   // NUM=节点数"
@@ -141,7 +146,7 @@ subroutine write_readme_feasolver()
 !	README(IPP(I)) = "//G:{NO_STRUT(I)}*NSTRUT   //支撑号，共NSTRUT个" 
 	README(IPP(I)) = "//{A0,A,B,C,D,E}*NUM。   //共NUM组"
 	README(IPP(I)) = "//注意：\n//1)每一时间步，土层按顺序从上而下输入，不同时间步间的土层可以重叠,同一时间步有效各土层不要出现重叠和空隙。 &
-						\n//2)各时间步地下水位处要分层;桩顶处要分层(如果桩在土里面);桩的材料分界处要分层。 &
+						\n//2)各时间步地下水位处要分层;桩顶(底)处要分层(如果桩在土里面);桩的材料分界处要分层。 &
 						\n//3)考虑渗透力时，假定awL>pwL. &
 						\n//4)如果水面高于地表，将水等效为为土层（令c,phi,模量均设为0，渗透系数<=0)"C
 	

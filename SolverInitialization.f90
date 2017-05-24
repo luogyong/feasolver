@@ -1384,7 +1384,7 @@ subroutine cbf2nf()
 				do k=1,element(el1).ngp
 					
 					if(element(el1).ec==CAX.or.element(el1).ec==CAX_SPG) THEN
-						r1=element(EL1).xygp(1,K)
+						r1=abs(element(EL1).xygp(1,K))
 						if(abs(r1)<1e-7) r1=1.0e-7
 					ELSE
 						R1=1.0

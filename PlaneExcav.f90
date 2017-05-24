@@ -833,11 +833,15 @@ subroutine Gen_USER_NSET_EXCA(N1,N2,NAME,ISET)
 	integer,intent(in)::N1,N2
 	CHARACTER(32),INTENT(IN)::NAME
 	integer,intent(out)::ISET
-	INTEGER::I
+	INTEGER::I,NNODE1
 	
+	NNODE1=KPNODE(N2)-KPNODE(N1)+1
+	IF(NNODE1<1) THEN
+		RETURN !SOIL BELOW BOTTOM OF THE PILE
+	ENDIF
 	ISET=NUNSET+1
 	UNSET(ISET).NAME=NAME
-	UNSET(ISET).NNUM=KPNODE(N2)-KPNODE(N1)+1
+	UNSET(ISET).NNUM=NNODE1
 	ALLOCATE(UNSET(ISET).NODE(UNSET(ISET).NNUM))
 	DO I=1,UNSET(ISET).NNUM
 		UNSET(ISET).NODE(I)=KPNODE(N1)+I-1
@@ -852,11 +856,13 @@ subroutine Gen_USER_ESET_EXCA(N1,N2,NAME,ISET)
 	integer,intent(in)::N1,N2
 	CHARACTER(32),INTENT(IN)::NAME
 	integer,intent(out)::ISET
-	INTEGER::I
+	INTEGER::I,NEL1
 	
+	NEL1=KPELEMENT(1,N2)-KPELEMENT(2,N1)+1
+	IF(NEL1<=1) RETURN !SOIL BELOW BOTTOM OF THE PILE
 	ISET=NUESET+1
 	UESET(ISET).NAME=NAME
-	UESET(ISET).ENUM=KPELEMENT(1,N2)-KPELEMENT(2,N1)+1
+	UESET(ISET).ENUM=NEL1
 	!if(ueset(ISET).enum==0) then
 	!	pause
 	!endif
@@ -926,8 +932,10 @@ subroutine soilstiffness_cal(isp,istep,iz,soil) !iz,为开挖面高程点。
 	real(double)::fi1,C1,m1,z1,dz1,Xdis1,b1,d1,Es1,Ep1,mu1,Iz1,Gs1
 	integer::i
 	
+	IF(soil.iueset<0) RETURN
 	Es1=matproperty(soil.mat,4,istep)
 	mu1=matproperty(soil.mat,5,istep)
+	
 	Ep1=matproperty(element(ueset(soil.iueset).element(1)).mat,1,istep) !假定同一土层内的支护桩的参数保持一致。
 	Iz1=matproperty(element(ueset(soil.iueset).element(1)).mat,5,istep) !假定同一土层内的支护桩的参数保持一致。
 	d1=matproperty(element(ueset(soil.iueset).element(1)).mat,7,istep) !假定同一土层内的支护桩的参数保持一致。
@@ -1015,6 +1023,7 @@ subroutine Initialize_soilspringEelement_EXCA(ipile,istep,aside,aop,soil)
 	real(double),external::interpolation
 	
 
+	IF(soil.iueset<0) RETURN
 	
 	if(sf(soil.sf).factor(istep)/=0) then 
 	
@@ -1022,7 +1031,7 @@ subroutine Initialize_soilspringEelement_EXCA(ipile,istep,aside,aop,soil)
 		sign1=aside
 		if(aop==2) sign1=-aside
 		
-	
+		
 		do i=1,ueset(soil.iueset).enum
 			ieL1=ueset(soil.iueset).element(i)
 			d1=matproperty(element(ieL1).mat,7,istep) !假定同一土层内的支护桩的参数保持一致。

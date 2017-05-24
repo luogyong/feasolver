@@ -197,8 +197,9 @@ module solverds
 		integer::solver=N_R !solution method, =-2, upper bound analysis,the default solver is N_R
 		integer::bfgm=continuum  !body force generation method(stress update algorithm) if the INISTIFF method is applied.
 		integer::niteration=100  !Maximum number of iterations allowed for each increment
+        integer::NYITER=20 !Maximum number of iterations allowed for STRESS RETURN
 		real(kind=DPN)::tolerance=0.001D0 !Convergence tolenance factor.
-		real(kind=DPN)::ftol=1.D-6 !tolerance permitted for yiled criterion to be vilated
+		real(kind=DPN)::Yftol=1.D-3 !tolerance permitted for yiled criterion to be vilated
 		real(kind=DPN)::force_tol=1.D-2 !tolerance permitted for unbalanced residual force to be vilated
 		real(kind=DPN)::disp_tol=1.D-3 !tolerance permitted for residual displacement to be vilated
 		integer::output=1 !1:output for mod(increments,output)=0 iteration
@@ -377,7 +378,7 @@ module solverds
 
 	
 	character(1024)::title,resultfile,resultfile1,resultfile2,resultfile3,resultfile21,resultfile22,EXCAMSGFILE,EXCAB_BEAMRES_FILE,&
-					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE,SLOPE_FILE
+					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE,SLOPE_FILE,helpfile
 	INTEGER::DATAPOINT_UNIT=29
 	integer::datapacking=1	!=1,point format:{x1,y1,z1},{x2,y2,z2},..., . (Default Format)
 						 != 2, block format, {x1,x2,...},{y1,y2,...},{z1,z2,...}
@@ -433,8 +434,8 @@ module solverds
 	real(kind=DPN)::Qinput=0.0d0,Qstored=0.0d0,Qstorted_ini=0.0d0 !质量守恒 
 	
 	real(kind=DPN)::BARFAMILY_DIAGRAM_SCALE(12)=0.0D0 !先存绝对最大值，后存画图放大系数，DISX,DISY,DISZ,RX,RY,RZ,FX,FY,FZ,MX,MY,MZ
-	real(kind=DPN)::barfamily_minxyz(3)=1.0d20,barfamily_maxxyz(3)=-1.0d20 !
-    INTEGER::ISEXCA2D=0,ISHBEAM=0,ISSLOPE=0
+	real(kind=DPN)::barfamily_minxyz(3)=1.0d20,barfamily_maxxyz(3)=-1.0d20,MYFVAL=-1.0D20,SICR=0 ! SICR=STRESS INTEGRATION CONVERGE RATIO
+    INTEGER::ISEXCA2D=0,ISHBEAM=0,ISSLOPE=0,NYITER(2)=0
 	
     INTERFACE
          PURE subroutine INVARIANT(stress,inv)

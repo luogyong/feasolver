@@ -696,7 +696,7 @@ subroutine ko_initialstress()
 			element(i).stress(1,j)=element(i).stress(2,j)*geostatic.ko(k-1)
 			element(i).stress(3,j)=element(i).stress(1,j)
 			r1=1.0d0 !for axis-sysmetrical element
-			if(element(I).ec==cax) r1=element(i).xygp(1,j)
+			if(element(I).ec==cax) r1=abs(element(i).xygp(1,j))
 			bload(1:element(I).ndof)=bload(1:element(I).ndof)+ &
 				matmul(element(i).stress(1:ELEMENT(I).ND,J),element(I).b(:,:,j))* &
 				element(I).detjac(j)*ecp(element(I).et).weight(j)*r1
@@ -722,7 +722,7 @@ subroutine bf_initialstress()
 			bf1=0.0
 			do k=1,element(i).ngp
 				r1=1.0d0 !for axis-sysmetrical element
-				if(element(i).ec==cax) r1=element(i).xygp(1,k)
+				if(element(i).ec==cax) r1=abs(element(i).xygp(1,k))
 				bf1=bf1+ecp(element(i).et).Lshape(j,k)* &
 					ecp(element(i).et).weight(k)* &
 					element(i).detjac(k)*r1*w1

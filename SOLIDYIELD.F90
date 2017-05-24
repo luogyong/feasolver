@@ -119,10 +119,12 @@ subroutine solve_SLD()
             npslope=0
             isref_spgcount=0
             relax=1.0d0
+            
 			stepdis=0.0d0 !the incremental displacement of the current step.
             !if(iincs==4) solver_control.niteration=4
 			do while(iiter<=solver_control.niteration)
-				
+				NYITER=0
+				MYFVAL=-1E7
 				iiter=iiter+1
 				call solver_initialization(kref,iincs,iiter)
 
@@ -243,9 +245,14 @@ subroutine solve_SLD()
 						end if					
 				end select
 				
-				write(*,10) solver_control.isfc,KREF==1,isref_spg,convratio,sumforce,resdis, &
+                IF(NYITER(1)+NYITER(2)/=0) THEN
+                    SICR=REAL(NYITER(1))/REAL((NYITER(1)+NYITER(2)))
+                ELSE
+                    SICR=-1
+                ENDIF
+				write(*,10) solver_control.isfc,SICR,MYFVAL,convratio,sumforce,resdis, &
 						relax*maxval(abs(load)),maxloc(abs(load)),relax,iiter,isubts,ttime1,iincs
-				write(99,10) solver_control.isfc,KREF==1,isref_spg,convratio,sumforce,resdis, &
+				write(99,10) solver_control.isfc,SICR,MYFVAL,convratio,sumforce,resdis, &
 						relax*maxval(abs(load)),maxloc(abs(load)),relax,iiter,isubts,ttime1,iincs
 
 				
@@ -268,16 +275,18 @@ subroutine solve_SLD()
 			
 			
 			IF(IINCS==0) STEPDIS=0
-            
+            Qstorted_ini=Qstored
+			
             !各时间子步之间的位移更新。
-			IF(SOLVER_CONTROL.TYPE==SPG) THEN
-				Qstorted_ini=Qstored
-				do concurrent (i=1:enum)
-					if(element(i).isactive==1.and.allocated(element(i).sita_ini)) element(i).sita_ini=element(i).sita_fin
-                end do
-            else
+			!IF(SOLVER_CONTROL.TYPE==SPG) THEN
+			!	Qstorted_ini=Qstored
+			!	do concurrent (i=1:enum)
+			!		if(element(i).isactive==1.and.allocated(element(i).sita_ini)) element(i).sita_ini=element(i).sita_fin
+            !    end do
+            !else
                 do concurrent (i=1:enum)
 					if(element(i).isactive==1) then
+						if(allocated(element(i).sita_ini)) element(i).sita_ini=element(i).sita_fin
 						if(allocated(element(i).gforce)) element(i).gforce=element(i).gforce+element(i).Dgforce
 						if(allocated(element(i).stress)) element(i).stress=element(i).stress+element(i).Dstress
 						if(allocated(element(i).strain)) element(i).strain=element(i).strain+element(i).Dstrain
@@ -286,7 +295,7 @@ subroutine solve_SLD()
 				end do
 				
 
-            END IF
+!            END IF
             
 			if(stepinfo(iincs).issteady) then
 
@@ -353,7 +362,7 @@ subroutine solve_SLD()
     if(allocated(inivaluedof)) deallocate(inivaluedof)
     if(allocated(Tstepdis)) deallocate(Tstepdis)
 
-10 format('ISFC=',L1,',ISFAC=',L1,',IsRef_SPG=',L1 ',ConvCoff.=',f6.3,',SumForce.=', E10.3,',SumRes=',E10.3 ',MaxDiff.=',f7.3,'(N=',I7,'),R.F.=',f8.5, &
+10 format('ISFC=',L1,',SICR=',F6.3,',MYFVAL=',F6.4 ',ConvCoff.=',f6.3,',SumForce.=', E10.3,',SumRes=',E10.3 ',MaxDiff.=',f7.3,'(N=',I7,'),R.F.=',f8.5, &
 				',NIter=',I4,',NSubTS(E.Time)=',I4,'(',F8.3,'),NIncr=',I2,'.')	
 20 format('TOTAL REFACTORIZATION. NINCR=',I4,' NITE=',I4,' Duration=',f12.6) 
 21 format('PARTIAL REFACTORIZATION. NINCR=',I4,' NITE=',I4,' Duration=',f12.6,' NUMBERS OF BCs UPDATED=',I7) 
@@ -409,6 +418,7 @@ SUBROUTINE INISTIFF_ACCELERATION_SLOAN(RELAX,DDIS,STEPDIS,RFORCE,ISTEP,ISUBSTEP,
     stepdis1=RFORCE+SOLVER_CONTROL.ALPHA*Ddis
         
     SOLVER_CONTROL.ALPHA=SOLVER_CONTROL.ALPHA+DOT_PRODUCT(DDIS,RFORCE)/DOT_PRODUCT(DDIS,DDIS)
+    SOLVER_CONTROL.ALPHA=max(min(SOLVER_CONTROL.ALPHA,10.d0),0.1d0)
     
     DDIS=stepdis1
     
@@ -759,7 +769,7 @@ subroutine Continuum_stress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		!			
 		!end do
 		r1=1.0d0 !for axis-sysmetrical element
-		if(element(ienum).ec==cax) r1=element(ienum).xygp(1,j)		
+		if(element(ienum).ec==cax) r1=abs(element(ienum).xygp(1,j))		
 		if(solver_control.bfgm==continuum) then
 
 			element(ienum).km=element(ienum).km+matmul(matmul( &
@@ -1751,7 +1761,7 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 					Dstress1(6)=0.0,dqwi(3)=0.0,dqf(6)=0.0,dp(6,6)=0.0,&
 					de(6,6)=0.0,t1=0.0,pstress1(6)=0.0,lamda=0.0,&
 					buf1(6)=0.0,buf2(6)=0.0,pstrain(6)=0.0,ev=0,PlasPar(3),SIGMAB(6),SIGMAC(6)
-	REAL(8)::E1,V1,R1,vyf2,AT1(6),DLAMDA
+	REAL(8)::E1,V1,R1,vyf2,AT1(6),DLAMDA,DSIGMAP1(6),VYF1
 	integer::nd1=0,ndim1,region,SITER1
 	
 	n1=element(ienum).ngp
@@ -1807,7 +1817,7 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		        call INVARIANT(Tstress1,inv)
 		        call yieldfun(vyf,element(ienum).mat,inv,ayf,ev,ISTEP)
                 SITER1=0
-		        DO WHILE(vyf>1E-7.AND.SITER1<=20) 
+		        DO WHILE(vyf>SOLVER_CONTROL.YFTOL.AND.SITER1<=SOLVER_CONTROL.NYITER) 
 			        !call INVARIANT(element(ienum).stress(:,j),inv)
 			        !call yieldfun(vyf_old,element(ienum).mat,inv,ayf,ev,ISTEP)
            !         IF(vyf_old>1.D0) vyf_old=1.D0
@@ -1841,14 +1851,24 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 				    buf1(1:nd1)=matmul(dyf(1:nd1),de(1:nd1,1:nd1))
                     t1=dot_product(buf1(1:nd1),dqf(1:nd1))
                     
-                    DLAMDA=vyf/T1
+                    DLAMDA=MAX(vyf/T1,0.D0)
                     buf2(1:nd1)=matmul(de(1:nd1,1:nd1),dqf(1:nd1))
-
-                    pstress1(1:nd1)=pstress1(1:nd1)+DLAMDA*buf2(1:nd1)
-                    element(ienum).evp(1:nd1,j)=element(ienum).evp(1:nd1,j)+DLAMDA*dqf(1:nd1)
-                    Tstress1(1:ND1)=Tstress1(1:ND1)-DLAMDA*buf2(1:nd1)
                     
-                    IF((.NOT.vyf>1E-7).AND.SOLVER_CONTROL.BFGM/=INISTRESS)THEN
+                    dsigmap1(1:nd1)=DLAMDA*buf2(1:nd1)
+                    
+                    !call INVARIANT(Tstress1-dsigmap1,inv)
+                    !call yieldfun(vyf1,element(ienum).mat,inv,ayf,ev,ISTEP)
+                    !if(abs(vyf1)>abs(vyf)) then
+                    !    DLAMDA=VYF/DOT_PRODUCT(DYF(1:ND1),DYF(1:ND1))
+                    !    dsigmap1(1:nd1)=DLAMDA*DYF(1:ND1)
+                    !endif
+                    
+                    pstress1(1:nd1)=pstress1(1:nd1)+dsigmap1(1:nd1)
+                    element(ienum).evp(1:nd1,j)=element(ienum).evp(1:nd1,j)+DLAMDA*dqf(1:nd1)
+                    Tstress1(1:ND1)=Tstress1(1:ND1)-dsigmap1(1:nd1)
+
+                    
+                    IF(((.NOT.vyf>SOLVER_CONTROL.YFTOL).OR.SITER1==SOLVER_CONTROL.NYITER).AND.SOLVER_CONTROL.BFGM/=INISTRESS)THEN
                         !GRIFFITH
                         if(material(element(ienum).mat).type==MC.AND.ABS(material(element(ienum).mat).PROPERTY(22))<1E-14) then
                             call mcdpl(material(element(ienum).mat).GET(4,ISTEP),&
@@ -1872,11 +1892,19 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 			        !element(ienum).pstrain(:,j)=element(ienum).pstrain(:,j)+element(ienum).evp(:,j)
 			        SITER1=SITER1+1
 		        end DO
+				MYFVAL=MAX(MYFVAL,vyf)
+                IF(vyf<=SOLVER_CONTROL.YFTOL) THEN
+                    NYITER(1)=NYITER(1)+1
+                ELSE
+                    NYITER(2)=NYITER(2)+1
+                ENDIF
+                
+				
                 de=de-dp
             ENDIF
         ENDIF
         r1=1.0d0 !for axis-sysmetrical element
-		if(element(ienum).ec==cax) r1=element(ienum).xygp(1,j)
+		if(element(ienum).ec==cax) r1=abs(element(ienum).xygp(1,j))
         element(ienum).Dstress(1:nd1,j)=Dstress1(1:nd1)-pstress1(1:nd1)
 		element(ienum).Dstrain(1:nd1,j)=Dstrain1(1:nd1)
 		!element(ienum).evp(:,j)=pstrain-element(ienum).pstrain(:,j)
