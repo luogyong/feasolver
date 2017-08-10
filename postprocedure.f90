@@ -4,7 +4,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	implicit none
 	integer::iincs,iiter,isubts,file_unit,ieset,file_diagram
 	logical::iscon,isfirstcall,isbarfamily,anybarfamily
-	integer::i,j,nc,n1,k,k1
+	integer::i,j,nc,n1,k,k1,iset1
 	character(1024)::cstring=''
 	real(8)::rar(MNDOF),t1
 
@@ -30,7 +30,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	do i=1,enum
 		if(element(i).isactive==0) cycle
         
-		if(outvar(SFR).value>0) CALL stree_failure_ratio_cal(I,IINCS)	
+		if(outvar(SFR).value>0.AND.ELEMENT(I).EC==CPE) CALL stree_failure_ratio_cal(I,IINCS)	
 		select case(element(i).ec)
 
 			case(stru,SPRING,SOILSPRING)
@@ -75,14 +75,15 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 		call tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 		
 		do i=1,neset
-			write(file_unit,'(a1024)') eset(i).zonetitle
-			!if(anybarfamily) write(file_diagram,'(a1024)') eset(i).zonetitle
+            iset1=esetid(i)
+			write(file_unit,'(a1024)') eset(iset1).zonetitle
+			!if(anybarfamily) write(file_diagram,'(a1024)') eset(iset1).zonetitle
 			
-			isbarfamily=eset(i).et==bar.or.eset(i).et==bar2d.or.eset(i).et==beam.or.eset(i).et==beam2d.or.eset(i).et==ssp2d
+			isbarfamily=eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam.or.eset(iset1).et==beam2d.or.eset(iset1).et==ssp2d
 			
 			if(isbarfamily) then
 				if(solver_control.datapaking)then
-					call pointout_barfamily(file_unit,i)
+					call pointout_barfamily(file_unit,iset1)
 					!call pointout_barfamily_diagram(file_diagram,i,iincs,isubts)
                 else
                     print *, "To be improved. SUB=outdata"    
@@ -97,8 +98,8 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 					end if
 				end if
 			end if
-			do j=eset(i).enums,eset(i).enume				
-				select case(eset(i).et)
+			do j=eset(iset1).enums,eset(iset1).enume				
+				select case(eset(iset1).et)
 					case(cpe8,cps8,CAX8,cpe8r,cps8r,CAX8R, &
 							 cpe8_spg,cps8_spg,CAX8_spg,cpe8r_spg,cps8r_spg,CAX8R_spg, &
 							 cpe8_cpl,cps8_cpl,CAX8_cpl,cpe8r_cpl,cps8r_cpl,CAX8R_cpl) 
@@ -196,11 +197,12 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 		open(unit=file_unit,file=resultfile2,status='old',access='append')
 		call tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 		do i=1,neset
-			write(file_unit,'(a1024)') eset(i).zonetitle
-			isbarfamily=eset(i).et==bar.or.eset(i).et==bar2d.or.eset(i).et==beam.or.eset(i).et==beam2d.or.eset(i).et==ssp2d
+            iset1=esetid(i)
+			write(file_unit,'(a1024)') eset(iset1).zonetitle
+			isbarfamily=eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam.or.eset(iset1).et==beam2d.or.eset(iset1).et==ssp2d
 			if(isbarfamily) then
 				if(solver_control.datapaking)then
-					call pointout_barfamily(file_unit,i)					  
+					call pointout_barfamily(file_unit,iset1)					  
                 else
                     print *, "To be improved. SUB=outdata"    
 					!call blockout_barfamily(file_unit,ieset)
@@ -276,7 +278,7 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 		IF(NSEEP(I).ISDEAD==1) CYCLE
 		NITEM1=NODE(NSEEP(i).node).NDOF
 		CALL NODAL_ACTIVE_DOF(NSEEP(i).node,DOFS1,MNDOF)			
-		WRITE(99,11) NSEEP(i).node,NSEEP(i).dof,'S.F.',NI_NodalForce(DOFS1(1:NITEM1))*dt1,TDISP(DOFS1(1:NITEM1))*dt1
+		WRITE(99,11) NSEEP(i).node,NSEEP(i).dof,'S.F.',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1))*dt1,TDISP(DOFS1(1:NITEM1))*dt1
 		!QT=QT+NODE(NSEEP(i).node).Q*dt1
 	END DO
 	
@@ -997,7 +999,7 @@ end subroutine
 subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 	use solverds
 	implicit none
-	integer::i,j,k,nc,n1,iincs,iiter,isubts
+	integer::i,j,k,nc,n1,iincs,iiter,isubts,iset1
     real(kind=dpn)::t1=0.d0
 	logical::isfirstcall,isbarfamily
 	character(1024)::cstring='',cstring2='',cstring3=''
@@ -1007,38 +1009,39 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 	
 	do i=1,neset
 		nzone_tec=nzone_tec+1
+        iset1=esetid(i)
 		write(cword1,*) i
 		
 		
-		isbarfamily=eset(i).et==bar.or.eset(i).et==bar2d.or.eset(i).et==beam.or.eset(i).et==beam2d.or.eset(i).et==ssp2d
+		isbarfamily=eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam.or.eset(iset1).et==beam2d.or.eset(iset1).et==ssp2d
 		
 		if(isbarfamily) then
-			write(cword2,*) 4*eset(i).noutorder !将杆系单元以六面体实体单元输出，方便后处理。
+			write(cword2,*) 4*eset(iset1).noutorder !将杆系单元以六面体实体单元输出，方便后处理。
 		else
 			write(cword2,*) nnum
 		end if
 		
 		
 		
-		select case(eset(i).et)
+		select case(eset(iset1).et)
 			case(cpe6,cps6,CAX6,&
 					 cpe6_spg,cps6_spg,CAX6_spg, &
 					 cpe6_cpl,cps6_cpl,cax6_cpl)
-				n1=(eset(i).enume-eset(i).enums+1)*4
+				n1=(eset(iset1).enume-eset(iset1).enums+1)*4
 			case(cpe15,cps15,CAX15, &
 					 cpe15_spg,cps15_spg,CAX15_spg, &
 					 cpe15_cpl,cps15_cpl,CAX15_cpl)
-				n1=(eset(i).enume-eset(i).enums+1)*16
+				n1=(eset(iset1).enume-eset(iset1).enums+1)*16
 			case(cpe8,cps8,CAX8,cpe8r,cps8r,CAX8R, &
 					 cpe8_spg,cps8_spg,CAX8_spg,cpe8r_spg,cps8r_spg,CAX8R_spg, &
 					 cpe8_cpl,cps8_cpl,CAX8_cpl,cpe8r_cpl,cps8r_cpl,CAX8R_cpl) 
-				n1=(eset(i).enume-eset(i).enums+1)*5
+				n1=(eset(iset1).enume-eset(iset1).enums+1)*5
 			case(prm15,prm15_spg,prm15_cpl)
-				n1=(eset(i).enume-eset(i).enums+1)*14
+				n1=(eset(iset1).enume-eset(iset1).enums+1)*14
 			case(tet10,tet10_spg,tet10_cpl)
-				n1=(eset(i).enume-eset(i).enums+1)*8
+				n1=(eset(iset1).enume-eset(iset1).enums+1)*8
 			case default
-				n1=eset(i).enume-eset(i).enums+1
+				n1=eset(iset1).enume-eset(iset1).enums+1
 		end select
 		write(cword3,*) n1
 		if(solver_control.datapaking) then
@@ -1058,14 +1061,14 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 				write(cword4,*) 'block'
 			end if
 		end if
-		if(len_trim(eset(i).grouptitle)==0) then
-			eset(i).zonetitle ='ZONE,T=ESET'//trim(adjustL(cword1))//',N='//trim(adjustL(cword2))//',E=' &
+		if(len_trim(eset(iset1).grouptitle)==0) then
+			eset(iset1).zonetitle ='ZONE,T=ESET'//trim(adjustL(cword1))//',N='//trim(adjustL(cword2))//',E=' &
 					//trim(adjustL(cword3))//',ZONETYPE=' &
-					//trim(adjustL(eset(i).stype))//',DATAPACKING='//trim(cword4) 
+					//trim(adjustL(eset(iset1).stype))//',DATAPACKING='//trim(cword4) 
 		else
-			eset(i).zonetitle ='ZONE,T='//trim(adjustL(eset(i).grouptitle))//',N='//trim(adjustL(cword2))//',E=' &
+			eset(iset1).zonetitle ='ZONE,T='//trim(adjustL(eset(iset1).grouptitle))//',N='//trim(adjustL(cword2))//',E=' &
 					//trim(adjustL(cword3))//',ZONETYPE=' &
-					//trim(adjustL(eset(i).stype))//',DATAPACKING='//trim(cword4) 		
+					//trim(adjustL(eset(iset1).stype))//',DATAPACKING='//trim(cword4) 		
 		endif
         t1=0.d0
         do j=1,iincs
@@ -1080,16 +1083,16 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
         end do
 		write(cword7,'(E15.7)') t1
 !		write(cword8,'(i8)') iiter
-		eset(i).zonetitle=trim(eset(i).zonetitle)//',StrandID='//trim(adjustL(cword1))//',Solutiontime='//trim(adjustL(cword7))
+		eset(iset1).zonetitle=trim(eset(iset1).zonetitle)//',StrandID='//trim(adjustL(cword1))//',Solutiontime='//trim(adjustL(cword7))
 		if(.not.isfirstcall) then
-			eset(i).zonetitle=trim(eset(i).zonetitle)//',connectivitysharezone='//trim(adjustL(cword1))
+			eset(iset1).zonetitle=trim(eset(iset1).zonetitle)//',connectivitysharezone='//trim(adjustL(cword1))
 		end if
 		
 		if(i==1) varsharezone_tec=nzone_tec
 		if((i>1).and.(.not.isbarfamily)) then
 			write(cword1,*) nvo
 			write(cword2,*) varsharezone_tec
-			eset(i).zonetitle=trim(eset(i).zonetitle)//',VARSHARELIST=([1-'//trim(adjustL(cword1))//']=' &
+			eset(iset1).zonetitle=trim(eset(iset1).zonetitle)//',VARSHARELIST=([1-'//trim(adjustL(cword1))//']=' &
 												//trim(adjustL(cword2))//')'
 		
 		end if
@@ -1277,7 +1280,7 @@ subroutine pointout_barfamily_diagram()
 	use solverds
 	implicit none
 	integer::i,j,k,K1,NL1,NL2,N2,N3,zc1=0,enum1=0,nnum1=0,n1,LSTR,OUTV(12)=0, &
-           & file_diagram,barfamily_res,EF=0
+           & file_diagram,barfamily_res,EF=0,iset1
 	PARAMETER(LSTR=1024)
 	integer,save::zonenum=0
 	real(kind=DPN)::t1,VecILS1(12,2),V1(3),V2(3),LCS(3,3)
@@ -1317,19 +1320,20 @@ subroutine pointout_barfamily_diagram()
 	DO WHILE(EF==0)
 	
 		DO I=1,NESET
-			IF(ESET(I).EC/=STRU) CYCLE
+            iset1=esetid(i)
+			IF(eset(iset1).EC/=STRU) CYCLE
 			
 			!同一单元集中的所有单元的局部坐标一样
 			v1=(/0.d0,1.d0,0.d0/)
-			v1=matmul(transpose(element(eset(i).enums).g2l),v1)
+			v1=matmul(transpose(element(eset(iset1).enums).g2l),v1)
 			
 			zc1=0
-			enum1=eset(i).enume-eset(i).enums+1
+			enum1=eset(iset1).enume-eset(iset1).enums+1
 			nnum1=4*enum1
 			
 			!OUTV(1...12)=DISX,DISY,DISZ,RX,RY,RZ,QX,QY,QZ,MX,MY,MZ
 			IF(ALLOCATED(VRES1)) DEALLOCATE(VRES1)
-			SELECT CASE(ESET(I).ET)
+			SELECT CASE(eset(iset1).ET)
 				CASE(BAR,BAR2D)
 					N1=4
 					OUTV=(/DISX,0,0,0,0,0,QX,0,0,0,0,0/)
@@ -1341,7 +1345,7 @@ subroutine pointout_barfamily_diagram()
 					OUTV=(/DISX,DISY,0,0,0,0,QX,QY,0,0,0,MZ/)
 			END SELECT
 			
-			ALLOCATE(VRES1(N1,eset(i).enumS:eset(i).enume))
+			ALLOCATE(VRES1(N1,eset(iset1).enumS:eset(iset1).enume))
 			
 			!READ DATA
 !			INQUIRE(BARFAMILY_RES,IOSTAT=EF) 
@@ -1358,7 +1362,7 @@ subroutine pointout_barfamily_diagram()
 				END IF
 			END DO
 			CALL SKIPCOMMENT(BARFAMILY_RES)
-			READ(BARFAMILY_RES,*) ((VRES1(K,J),K=1,N1),J=eset(i).enumS,eset(i).enume)
+			READ(BARFAMILY_RES,*) ((VRES1(K,J),K=1,N1),J=eset(iset1).enumS,eset(iset1).enume)
 			
 			
 			
@@ -1378,10 +1382,10 @@ subroutine pointout_barfamily_diagram()
 					write(file_diagram,21) trim(adjustL(outvar(OUTV(J)).name)),nnum1,enum1,J,t1,zonenum+1
 				end if
 				
-				DO K=ESET(i).ENUMS,ESET(i).ENUME
+				DO K=eset(iset1).ENUMS,eset(iset1).ENUME
 					VECILS1=0.D0
 					
-					SELECT CASE(ESET(I).ET)
+					SELECT CASE(eset(iset1).ET)
 						CASE(BAR,BAR2D)
 							DO K1=1,2
 								VECILS1(1,K1)=VRES1((K1-1)*N1/2+1,K)
@@ -1423,7 +1427,7 @@ subroutine pointout_barfamily_diagram()
 				
 				IF(ZC1==1) THEN
 					N3=0
-					DO K=ESET(i).ENUMS,ESET(i).ENUME						
+					DO K=eset(iset1).ENUMS,eset(iset1).ENUME						
 						WRITE(file_diagram,'(4(I7,X))') N3+1,N3+2,N3+3,N3+4
 						N3=N3+4
 					END DO
@@ -1447,22 +1451,23 @@ subroutine pointout_barfamily_diagram()
     color(1:6)=(/'RED','GREEN','BLUE','CYAN','YELLOW','PURPLE'/)
     CSD(1:3)=(/'X','Y','Z'/)
     DO I=1,NESET
-        IF(ESET(I).EC/=STRU) CYCLE
+        iset1=esetid(i)
+        IF(eset(iset1).EC/=STRU) CYCLE
         LCS=0.D0
 
         !同一集的局部坐标系相同
                 
-        lcs(1:ndimension,1:ndimension)=transpose(element(eset(i).enums).g2l(1:ndimension,1:ndimension))*T1
+        lcs(1:ndimension,1:ndimension)=transpose(element(eset(iset1).enums).g2l(1:ndimension,1:ndimension))*T1
                                       
         DO J=1,NDIMENSION
             IF(NDIMENSION==3) WRITE(file_diagram,40) color(mod(i,6))
             IF(NDIMENSION==2) WRITE(file_diagram,41) color(mod(i,6))
             WRITE(file_diagram,'(I3)') 1
             WRITE(file_diagram,'(I3)') 2
-            WRITE(file_diagram,'(3E15.7)') node(element(eset(i).enums).node(1)).coord(1:ndimension) 
-            WRITE(file_diagram,'(3E15.7)') (LCS(K,J)+node(element(eset(i).enums).node(1)).coord(K),K=1,NDIMENSION)
-            IF(NDIMENSION==3) WRITE(file_diagram,50) (LCS(K,J)+node(element(eset(i).enums).node(1)).coord(K),K=1,NDIMENSION),TRIM(ADJUSTL(CSD(J)))
-            IF(NDIMENSION==2) WRITE(file_diagram,51) (LCS(K,J)+node(element(eset(i).enums).node(1)).coord(K),K=1,NDIMENSION),TRIM(ADJUSTL(CSD(J)))
+            WRITE(file_diagram,'(3E15.7)') node(element(eset(iset1).enums).node(1)).coord(1:ndimension) 
+            WRITE(file_diagram,'(3E15.7)') (LCS(K,J)+node(element(eset(iset1).enums).node(1)).coord(K),K=1,NDIMENSION)
+            IF(NDIMENSION==3) WRITE(file_diagram,50) (LCS(K,J)+node(element(eset(iset1).enums).node(1)).coord(K),K=1,NDIMENSION),TRIM(ADJUSTL(CSD(J)))
+            IF(NDIMENSION==2) WRITE(file_diagram,51) (LCS(K,J)+node(element(eset(iset1).enums).node(1)).coord(K),K=1,NDIMENSION),TRIM(ADJUSTL(CSD(J)))
         END DO
         
     END DO
@@ -1520,7 +1525,7 @@ subroutine barfamily_outfordiagram(iincs,isubts)
 	integer,intent(in)::iincs,isubts
 	LOGICAL::ISFIRST1=.TRUE.
     logical,save::exists=.false.
-	integer::barfamily_res,i,j,K,K1,N1,N2
+	integer::barfamily_res,i,j,K,K1,N1,N2,iset1
 	REAL(KIND=DPN)::T1,VOUT1(NVO)
 	REAL(KIND=DPN)::VecILS(12)=0.0D0,forceILS(12)=0.0D0
     CHARACTER(1024)::CSTRING1=''
@@ -1549,22 +1554,23 @@ subroutine barfamily_outfordiagram(iincs,isubts)
 	
     ISFIRST1=.TRUE.
 	do i=1,neset
-		if(eset(i).ec/=stru) cycle
-		SELECT CASE(ESET(I).ET) 
+        iset1=esetid(i)
+		if(eset(iset1).ec/=stru) cycle
+		SELECT CASE(eset(iset1).ET) 
 			CASE(BAR,BAR2D)
 				N1=1
-				WRITE(barfamily_res,100) I,iincs,isubts,T1
+				WRITE(barfamily_res,100) iset1,iincs,isubts,T1
 			CASE(BEAM)
 				N1=6
-				WRITE(barfamily_res,102) I,iincs,isubts,T1
+				WRITE(barfamily_res,102) iset1,iincs,isubts,T1
 			CASE(BEAM2D,SSP2D)
 				N1=3
-				WRITE(barfamily_res,101) I,iincs,isubts,T1
+				WRITE(barfamily_res,101) iset1,iincs,isubts,T1
 		END SELECT
 
 		VECILS=0.0D0
 		FORCEILS=0.0D0
-		DO J=ESET(I).ENUMS,ESET(I).ENUME
+		DO J=eset(iset1).ENUMS,eset(iset1).ENUME
 		
 			call G2L_barfamily_diagram(j,VecILS)
 				

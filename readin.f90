@@ -247,9 +247,9 @@
 	
 	!!!以水头为未知量的渗流模型，水头不具有叠加性，导致其多步求解时与以位移为未知量的其它模型不同，必须注意。
     !!!假定，如果为渗流模型，则模型中所有的单元均为渗流单元。
-	if(solver_control.type/=spg.and.(element(1).ec==spg2d.or.element(1).ec==spg.or.element(1).ec==cax_spg)) then
-		solver_control.type=spg
-	end if
+	!if(solver_control.type/=spg.and.(element(1).ec==spg2d.or.element(1).ec==spg.or.element(1).ec==cax_spg)) then
+	!	solver_control.type=spg
+	!end if
 	
 	do i=1, bd_num
 		if(bc_disp(i).isdual>0) then
@@ -745,6 +745,7 @@ subroutine solvercommand(term,unit)
             system1=0
 			name1=""
 			sf1=0
+            n2=-1
 			do i=1,pro_num
 				select case(property(i).name)
 					case('num')
@@ -752,15 +753,17 @@ subroutine solvercommand(term,unit)
 					case('set')
 						set1=int(property(i).value)
 						isset=.true.
+                    CASE('coupleset')
+                        n2=int(property(i).value)
 					case('et','type')
 						et1=int(property(i).value)
 !						if(et1>maxet) maxet=et1
 !						if(et1<minet) minet=et1
 						!according to the element type, return the element node number,and the dofs number
 						call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1)
-					case('material','mat')
-						material1=int(property(i).value)
-					case('matid','material id')
+					!case('material','mat')
+					!	material1=int(property(i).value)
+					case('mat','matid','material id')
 						matid1=int(property(i).value)
 					case('system') !local coordinate
 						system1=int(property(i).value)
@@ -773,13 +776,34 @@ subroutine solvercommand(term,unit)
 				end select
 			end do
 			
-			if(matid1==0) matid1=material1 !If there is only one set of such material of this type in this model 
-			if(isset) then
+			!if(matid1==0) matid1=material1 !If there is only one set of such material of this type in this model 
+			neset=neset+1
+            
+            if(isset) then
 				isset=.false.
 			else
-				set1=set1+1
+				set1=neset
 			end if
+            
+            SET1=ESET_GETFREEID(SET1)
+            
+            esetid(neset)=set1
+            
+            if(n2<0) n2=set1
+			
+			if(material(matid1).type==0) then
+				select case(ec1)
+					CASE(SPG,SPG2D,CAX_SPG)
+						MATERIAL(MATID1).TYPE=linear_spg
+					CASE DEFAULT
+						MATERIAL(MATID1).TYPE=ELASTIC
+				end select
+			endif
+            
 			allocate(element1(enum1))
+			
+			
+			
 			do i=1,enum1
 				element1(i).nnum=nnum1
 				allocate(element1(i).node(nnum1))
@@ -796,7 +820,7 @@ subroutine solvercommand(term,unit)
 				end select
 				element1(i).id=i
 				element1(i).et=et1
-				element1(i).set=set1
+				element1(i).set=set1                
 				element1(i).mat=matid1
 				element1(i).mattype=material1
 				element1(i).ndof=ndof1
@@ -806,21 +830,21 @@ subroutine solvercommand(term,unit)
 				element1(i).sf=sf1
 				if(et1==beam) element1(i).system=system1
 			end do
-			neset=neset+1
-			eset(neset).num=set1
-			eset(neset).stype=stype
-			eset(neset).grouptitle=name1
-			eset(neset).et=et1
-			eset(neset).ec=ec1
-            eset(neset).system=system1
-			eset(neset).enums=enum+1
+			!eset(set1).num=set1
+			eset(set1).stype=stype
+			eset(set1).grouptitle=name1
+			eset(set1).et=et1
+			eset(set1).ec=ec1
+            eset(set1).system=system1
+			eset(set1).enums=enum+1
+            eset(set1).coupleset=n2            
 			allocate(element2(enum+enum1))
 			element2(1:enum)=element(1:enum)
 			element2(enum+1:enum+enum1)=element1(1:enum1)
 			if(allocated(element))	deallocate(element)
 			deallocate(element1)
 			enum=enum+enum1
-			eset(neset).enume=enum
+			eset(set1).enume=enum
 			allocate(element(enum))
 			element=element2
 			deallocate(element2)
@@ -874,7 +898,7 @@ subroutine solvercommand(term,unit)
 				
 				if(matid1==0) matid1=j !If there is only one set of such material of this type in this model 
 				
-				material(matid1).type=j
+				if(j/=0) material(matid1).type=j
 				material(matid1).name=name1
 				if(n1==1) material(matid1).isff=.true.
 				call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
@@ -2031,6 +2055,30 @@ subroutine solvercommand(term,unit)
 						outvar(SFR).name='sfr","sfr_sita(deg,CCW+)","Sn(Tension+)","Tn(CCW+)","SFRX","SFRY'
 						outvar(SFR).value=SFR
 						outvar(SFR).nval=6
+					case('spg')
+						outvar(Gradx).name='Ix'
+						outvar(Gradx).value=Gradx
+						outvar(Grady).name='Iy'
+						outvar(Grady).value=Grady
+						outvar(vx).name='Vx'
+						outvar(vx).value=Vx
+						outvar(Vy).name='Vy'
+						outvar(Vy).value=Vy
+						outvar(head).name='H'
+						outvar(head).value=head	
+						outvar(discharge).name='Q'
+						outvar(discharge).value=discharge
+						outvar(phead).name='PH'
+						outvar(phead).value=Phead
+
+						IF(NDIMENSION==3) THEN
+							outvar(Gradz).name='Iz'
+							outvar(Gradz).value=Gradz
+							outvar(Vz).name='Vz'
+							outvar(Vz).value=Vz							
+						ENDIF						
+
+						
 					case('nf')
 						IF(NDIMENSION==3) outvar(NF).name='NFX","NFY","NFZ'
 						IF(NDIMENSION==2) outvar(NF).name='NFX","NFY'

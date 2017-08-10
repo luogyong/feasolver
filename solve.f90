@@ -217,7 +217,7 @@ subroutine incremental_load(iincs,iiter,method,isubts)
 				if(sf(bc_load(i).sf).factor(iincs)==-999.D0) cycle
 				dof1=node(bc_load(i).node).dof(bc_load(i).dof)
 				t2=0
-				if(solver_control.type/=spg) t2=sf(bc_load(i).sf).factor(max(iincs-1,0))
+				if(bc_load(i).dof/=4) t2=sf(bc_load(i).sf).factor(max(iincs-1,0))
 				if(t2==-999.d0 .OR. bc_load(i).ISINCREMENT==1) t2=0
 				t1=(sf(bc_load(i).sf).factor(iincs)-t2)*tsfactor(iincs,isubts,stepinfo(iincs).loadtype)
 				load(dof1)=load(dof1)+bc_load(i).value*t1
@@ -227,12 +227,14 @@ subroutine incremental_load(iincs,iiter,method,isubts)
 		endif
 		
 		stepload=load
-!		Tload=Tload+load !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		if(solver_control.type==spg) then
-			Tload=load !对于seepage，由于荷载是流量，子步之间流量这里认为不具有可加性。
-		else
-			Tload=Tload+load
-		end if
+		Tload=Tload+load !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		TLOAD(DOFHEAD)=LOAD(DOFHEAD) !对于seepage，由于荷载是流量，子步之间流量这里认为不具有可加性（注意是单位时间，相当于流速）。
+		
+		!if(solver_control.type==spg) then
+		!	Tload=load 
+		!else
+		!	Tload=Tload+load
+		!end if
         
         if(.not.stepinfo(iincs).issteady) then
             do i=1,enum
@@ -318,7 +320,7 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 	
 	do i=1,bd_num
 		t2=0
-		if(solver_control.type/=SPG) t2=sf(bc_disp(i).sf).factor(max(iincs-1,0))
+		if(bc_disp(i).dof/=4) t2=sf(bc_disp(i).sf).factor(max(iincs-1,0))
 		if(t2==-999.d0 .OR. bc_disp(i).ISINCREMENT==1 ) t2=0.d0
 		t1=(sf(bc_disp(i).sf).factor(iincs)-t2)*tsfactor(iincs,isubts,stepinfo(iincs).bctype)
 		
@@ -465,28 +467,59 @@ SUBROUTINE checon_sec(iscon,PUBForce,UBForce,ndof,tol,resdis,convratio,niter)
 RETURN
 END SUBROUTINE
 
-SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,niter)
+SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,ndofhead,dofhead,niter)
 !
 !
  IMPLICIT NONE
  INTEGER::I
  INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
- INTEGER,INTENT(IN)::NDOF,niter
+ INTEGER,INTENT(IN)::NDOF,NDOFHEAD,niter,DOFHEAD(NDOFHEAD)
  REAL(iwp),INTENT(IN)::UBForce(ndof),tol
  REAL(iwp),INTENT(IN OUT)::stepload(ndof),resdis,sumforce,convratio
  LOGICAL,INTENT(OUT)::iscon
+ REAL(IWP)::RESDIS_SPG,SUMFORCE_SPG
+ 
  
  iscon=.false.
- resdis=dsqrt(dot_product(UBFORCE,UBFORCE))
+ resdis_SPG=0.D0;SUMFORCE_SPG=0.D0
+ 
+ if(ndofhead>0) resdis_SPG=(dot_product(UBFORCE(DOFHEAD),UBFORCE(DOFHEAD)))
+ 
+ resdis=dsqrt(dot_product(UBFORCE,UBFORCE)-resdis_SPG)
 
- SumForce=dsqrt(dot_product(STEPLOAD,STEPLOAD))
+ 
+ if(ndofhead>0) SumForce_SPG=(dot_product(STEPLOAD(DOFHEAD),STEPLOAD(DOFHEAD)))
+ SumForce=dsqrt(dot_product(STEPLOAD,STEPLOAD)-SumForce_SPG)
+ if(ndofhead>0) then
+     resdis_SPG=DSQRT(resdis_SPG)
+     SumForce_SPG=DSQRT(SumForce_SPG)
+ endif
+ 
  if(abs(SumForce)<1.d-14) then
      if(abs(resdis)<1.d-7) then
-         iscon=.true.
-         return
+         !iscon=.true.
+		 convratio=TOL*0.1
+         !return
+	 
      end if
+ ELSE
+	convratio=resdis/SumForce
  end if
- convratio=resdis/SumForce
+ if(ndofhead>0) then
+     if(abs(SumForce_SPG)<1.d-14) then
+         if(abs(resdis_SPG)<1.d-7) then
+             !iscon_SPG=.true.
+		     convratio=MAX(TOL*0.1,convratio)
+             !return
+         end if
+     ELSE
+	    convratio=MAX(convratio,resdis_SPG/SumForce_SPG)
+     end if
+ endif
+ 
+ 
+ !convratio=resdis/SumForce
+ 
  ISCON=(convratio<=TOL)
 
  

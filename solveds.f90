@@ -17,8 +17,8 @@ module solverds
 		real(kind=DPN)::angle=0.0D0 !the angle around the vertex.
 		real(kind=DPN)::MISES=0.0D0,EEQ=0.0D0,PEEQ=0.0D0
 		real(kind=DPN)::Q=0.0D0,Kr=0.0D0,Mw=0.0D0  !nodal flux,relative permeability,slope of volumetric water content.		
-		integer::nelist=0
-		integer,allocatable::elist(:) !elements sharing the node.
+		integer::nelist=0,NELIST_SPG=0
+		integer,allocatable::elist(:),ELIST_SPG(:) !elements sharing the node.
 !		integer::Property=0 !for SPG, Property=1 suggesting that the node is on the seepage surface.
 	end type
 	integer::nnum !节点数
@@ -33,7 +33,7 @@ module solverds
 		integer::et  !单元类型
 		integer::mat,mattype  !material id and material type.the paramters is got from material(mat)
 		!for et=soilspring, mat=-1,主动侧单元，mat=-2,被动侧单元
-		integer::set=1 !element set
+		integer::set=0 !element set
 		integer::ndof !total dofs of the element
 		integer::ngp !the number of gauss points		
 		integer::isactive=1 !1Y0N。
@@ -187,6 +187,7 @@ module solverds
 			PROCEDURE::GET_ARRAY=>GET_MAT_PROPERTY_ARRAY
 			PROCEDURE::GET_SCALAR=>GET_MAT_PROPERTY_SCALAR
 			GENERIC::GET=>GET_ARRAY,GET_SCALAR
+			!
 	end type
 	type(mat_tydef)::material(-2:maximat) 
 	
@@ -247,7 +248,7 @@ module solverds
 	integer::pro_num 
 
 	type eset_tydef !for output
-		integer::num=0 !the name of the set
+		!integer::num=0 !the name of the set
 		character(16)::Stype  !for tecplot FETRIANGLE, OR FEQUADRILATERAL
 		integer::enums=0,enume=0 !the first and the last element number in the element() of the set. 
 		integer::ec
@@ -255,15 +256,17 @@ module solverds
         integer::system=0
 		character(1024)::zonetitle=""
 		character(64)::grouptitle=""
-        
+        integer::coupleset=-1
+        integer::isini=0 !>0
 		!for bar ane beam element only.
 		real(kind=DPN),allocatable::xyz_section(:,:) !单元集的统一的截面的四个角点的坐标，现假定一个单元集内的所有杆单元或梁单元的局部坐标一样。
 		integer,allocatable::outorder(:) !输出后处理时，同一局部坐标下节点的输出顺序，与element.node2节点号对应。
         integer::noutorder=0
 		integer,allocatable::elist(:,:) !单元集内的elist(2,noutorder)，目前假定一个节点最多有2个杆系单元。
+
     end type
 	type(eset_tydef)::eset(maxset) !the maximum set number allowed is MAXSET.
-	integer::neset=0  !set number in the model.	
+	integer::esetid(maxset)=-1,neset=0  !set number in the model.	
 	
 	type ueset_type !for boundary conditions apply.
 		integer::enum=0 !element number in the set
@@ -437,6 +440,9 @@ module solverds
 	real(kind=DPN)::barfamily_minxyz(3)=1.0d20,barfamily_maxxyz(3)=-1.0d20,MYFVAL=-1.0D20,SICR=0 ! SICR=STRESS INTEGRATION CONVERGE RATIO
     INTEGER::ISEXCA2D=0,ISHBEAM=0,ISSLOPE=0,NYITER(2)=0
 	
+	INTEGER::NDOFHEAD=0,NDOFMEC=0 !!每步的渗流自由度数及利息自由度数，
+	INTEGER,ALLOCATABLE::DOFHEAD(:),DOFMEC(:) !head dofs in the model.
+	
     INTERFACE
          PURE subroutine INVARIANT(stress,inv)
 	        implicit none
@@ -535,6 +541,35 @@ module solverds
         ENDIF        
 	END FUNCTION GET_MAT_PROPERTY_SCALAR
 	
+    INTEGER FUNCTION ESET_GETFREEID(ISET) 
+		!CLASS(ESET_tydef),INTENT(in):: ESET
+		INTEGER,OPTIONAL,INTENT(IN)::ISET
+        INTEGER::I
+        
+        ESET_GETFREEID=-1
+		IF(PRESENT(ISET)) THEN
+			IF(ESET(ISET).ISINI==0) THEN
+				ESET_GETFREEID=ISET
+				ESET(ISET).ISINI=ISET
+			ELSE
+				PRINT *,'THE ESET(ID) HAS BEEN USED. PLEASE GIVE ANOTHER SETID.ID=',ISET
+				STOP
+			ENDIF
+		ELSE
+			DO I=1,MAXSET
+				IF(ESET(I).ISINI==0) THEN
+					ESET_GETFREEID=I
+					ESET(I).ISINI=I
+					EXIT
+				ENDIF
+			ENDDO
+		ENDIF
+        IF(ESET_GETFREEID==-1) THEN
+            STOP 'exceed maxset limit. please increase it.'
+        ENDIF
+   
+	END FUNCTION ESET_GETFREEID    
+    
 	PURE function pi()
 		real(kind=DPN)::pi
 		pi=1.d0

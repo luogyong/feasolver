@@ -255,15 +255,12 @@ integer,parameter::MAT_SPG=12
 integer,parameter::MAT_BAR=13
 integer,parameter::MAT_BEAM=14
 integer,parameter::MAT_SPRING=15
-
-
-!Seepage Parameters to control nonlinear conductivity
-integer, parameter::step_spg = 7 !step funtion >= 0, kr = 1; < 0, kr = 1e-6.
-integer, parameter::linear_spg = 8 !default case.linear function, <-epsilon1, kr = 1e-6; >epsilon2, kr = 1; others, intepolating.
-integer, parameter::VG_SPG = 9	!simulating the unsaturated soil behavior using the van genuchten model.
-integer, parameter::LR_SPG = 10	!simulating the unsaturated soil behavior using the Leong and Rahardjo model.
+integer, parameter::step_spg = 16 !step funtion >= 0, kr = 1; < 0, kr = 1e-6.
+integer, parameter::linear_spg = 17 !default case.linear function, <-epsilon1, kr = 1e-6; >epsilon2, kr = 1; others, intepolating.
+integer, parameter::VG_SPG = 18	!simulating the unsaturated soil behavior using the van genuchten model.
+integer, parameter::LR_SPG = 19	!simulating the unsaturated soil behavior using the Leong and Rahardjo model.
 !Refer to Leong, E.C.and Rahardjo, H. (1997).¡°A review of soil - water characteristic curve equations¡±, J of Geotechnical and Geo - environment Engineering, 123(12), p1106 - 1117.
-integer, parameter::EXP_SPG = 11	!simulating the unsaturated soil behavior using the exponent model.
+integer, parameter::EXP_SPG = 20	!simulating the unsaturated soil behavior using the exponent model.
 
 
 !node coordinates input format constants

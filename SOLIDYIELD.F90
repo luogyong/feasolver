@@ -27,6 +27,8 @@ subroutine solve_SLD()
 	real(kind=dpn),ALLOCATABLE::bdylds(:),exdis(:),stepdis(:),stepstress(:,:,:),stepstrain(:,:,:),YFACUPDATE(:),PDDIS(:,:)
 	logical,allocatable::IsBCDis(:)
     character(1)::key
+    TYPE (rccoord) curpos
+    INTEGER(2)::IRESULT=0
 	
 	
 	DOUBLE PRECISION START_TIME, STOP_TIME, DCLOCK
@@ -188,12 +190,12 @@ subroutine solve_SLD()
 
 						if(.not.solver_control.isfc) then
 							!call checon_sec(iscon,exdis,stepdis,ndof,solver_control.disp_tol,resdis,convratio,iiter)
-							call CHECON_THD(iscon,STEPDIS,load,ndof,solver_control.disp_tol,resdis,sumforce,convratio,iiter)
+							call CHECON_THD(iscon,STEPDIS,load,ndof,solver_control.disp_tol,resdis,sumforce,convratio,ndofhead,dofhead,iiter)
 							
 							t1=dsqrt(dot_product(bdylds,bdylds))	
                         else
 							!call checon_sec(iscon,pload,bdylds,ndof,solver_control.force_tol,resdis,convratio,iiter)
-							call CHECON_THD(iscon,NI_NodalForce,bdylds,ndof,solver_control.FORCE_tol,resdis,sumforce,convratio,iiter)
+							call CHECON_THD(iscon,NI_NodalForce,bdylds,ndof,solver_control.FORCE_tol,resdis,sumforce,convratio,ndofhead,dofhead,iiter)
 							t1=resdis
 							
 
@@ -240,7 +242,7 @@ subroutine solve_SLD()
 						else
 							if(.not.solver_control.isfc) then
 								!call checon_sec(iscon,exdis,load,ndof,solver_control.disp_tol,resdis,convratio,iiter)
-								call CHECON_THD(iscon,STEPDIS,load,ndof,solver_control.disp_tol,resdis,sumforce,convratio,iiter)
+								call CHECON_THD(iscon,STEPDIS,load,ndof,solver_control.disp_tol,resdis,sumforce,convratio,ndofhead,dofhead,iiter)
 							end if
 						end if					
 				end select
@@ -250,22 +252,43 @@ subroutine solve_SLD()
                 ELSE
                     SICR=-1
                 ENDIF
-				write(*,10) solver_control.isfc,SICR,MYFVAL,convratio,sumforce,resdis, &
-						relax*maxval(abs(load)),maxloc(abs(load)),relax,iiter,isubts,ttime1,iincs
-				write(99,10) solver_control.isfc,SICR,MYFVAL,convratio,sumforce,resdis, &
-						relax*maxval(abs(load)),maxloc(abs(load)),relax,iiter,isubts,ttime1,iincs
+                
+                !CALL SETTEXTPOSITION (CURPOS.ROW, CURPOS.COL, curpos)   
+				!write(*,10) solver_control.isfc,SICR,MYFVAL,convratio,sumforce,resdis, &
+				!		relax*maxval(abs(load)),maxloc(abs(load)),relax,iiter,isubts,ttime1,iincs
+                IF(IITER==1) THEN
+                    WRITE(*,50)
+                    WRITE(*,11)
+                    WRITE(99,50)
+                    WRITE(99,11)                    
+                ENDIF
+                WRITE(*,12) SICR,MYFVAL,convratio,sumforce,resdis,relax,relax*maxval(abs(load)),maxloc(abs(load)),iiter,isubts,iincs,ttime1
+                WRITE(99,12) SICR,MYFVAL,convratio,sumforce,resdis,relax,relax*maxval(abs(load)),maxloc(abs(load)),iiter,isubts,iincs,ttime1                    
+                
+				!write(99,10) solver_control.isfc,SICR,MYFVAL,convratio,sumforce,resdis, &
+				!		relax*maxval(abs(load)),maxloc(abs(load)),relax,iiter,isubts,ttime1,iincs
+                
 
 				
 
 				if((.not.iscon).and.iiter==solver_control.niteration) then
+                    WRITE(*,50)
+                    IRESULT=SETTEXTCOLOR(INT2(4))
 					write(*,30) iiter,isubts,ttime1,iincs
+                    IRESULT=SETTEXTCOLOR(INT2(7))
+                    WRITE(99,50)
 					write(99,30) iiter,isubts,ttime1,iincs
 				end if
 				
 				if(iscon.or.iiter==solver_control.niteration) then
 					STOP_TIME= DCLOCK()
 					!call Cal_UnbalanceForce(iincs,iiter,iscon,stepdis,bdylds,isubts)
+                    WRITE(*,50)
+                    IRESULT=SETTEXTCOLOR(INT2(2))
 					write(*,40) iscon,Qinput,(Qstored-Qstorted_ini),(Qstored-Qstorted_ini)/Qinput,iiter,isubts,ttime1,iincs,STOP_TIME-START_TIME
+                    IRESULT=SETTEXTCOLOR(INT2(7))
+                    !CALL GETTEXTPOSITION (curpos)
+                    WRITE(99,50)
 					write(99,40) iscon,Qinput,(Qstored-Qstorted_ini),(Qstored-Qstorted_ini)/Qinput,iiter,isubts,ttime1,iincs,STOP_TIME-START_TIME
 					load=stepdis
 					exit
@@ -296,17 +319,21 @@ subroutine solve_SLD()
 				
 
 !            END IF
-            
+				
+			Tstepdis(:,iincs)=Tstepdis(:,iincs)+stepdis
+			Tstepdis(DOFHEAD,iincs)=stepdis(DOFHEAD) !HEAD DOF 
+			
 			if(stepinfo(iincs).issteady) then
 
-				IF(SOLVER_CONTROL.TYPE==SPG) then 
-					Tstepdis(:,iincs)=stepdis
-				else
-					Tstepdis(:,iincs)=Tstepdis(:,iincs)+stepdis
-				end if
-				 
+				!IF(SOLVER_CONTROL.TYPE==SPG) then 
+				!	Tstepdis(:,iincs)=stepdis
+				!else
+				!	Tstepdis(:,iincs)=Tstepdis(:,iincs)+stepdis
+				!end if
+
+				
 			else
-				Tstepdis(:,iincs)=stepdis  !For a transient problem, tdisp is passed to stepdisp in the form of an initial value. 			
+				!Tstepdis(:,iincs)=stepdis  !For a transient problem, tdisp is passed to stepdisp in the form of an initial value. 			
 			    
 				inivaluedof=Tstepdis(:,iincs) !!!!!
 				
@@ -363,11 +390,15 @@ subroutine solve_SLD()
     if(allocated(Tstepdis)) deallocate(Tstepdis)
 
 10 format('ISFC=',L1,',SICR=',F6.3,',MYFVAL=',F6.4 ',ConvCoff.=',f6.3,',SumForce.=', E10.3,',SumRes=',E10.3 ',MaxDiff.=',f7.3,'(N=',I7,'),R.F.=',f8.5, &
-				',NIter=',I4,',NSubTS(E.Time)=',I4,'(',F8.3,'),NIncr=',I2,'.')	
+				',NIter=',I4,',NSubTS(E.Time)=',I4,'(',F8.3,'),NIncr=',I2,'.')
+11 FORMAT('|','   SICR |','MAX_YFV |','CONV.RA.|','SumForce|','ResForce|','RelaxFac|','MAXDISIN|','iDOF_MDI|','    ITER|','ISUBSTEP|','   ISTEP|','STEPTIME|')   
+12 FORMAT('|',7(F7.3,X,'|'),4(I7,X,'|'),(F7.3,X,'|'))
 20 format('TOTAL REFACTORIZATION. NINCR=',I4,' NITE=',I4,' Duration=',f12.6) 
 21 format('PARTIAL REFACTORIZATION. NINCR=',I4,' NITE=',I4,' Duration=',f12.6,' NUMBERS OF BCs UPDATED=',I7) 
 30 format('Exit with the Max iteration without convergence. Niteration=',I4,',NSubTS(E.Time)=',I3,'(',F10.3,'), NIncr=',I3,'.')
 40 format('Isconverged=',L1,'.Qinput=',E15.7,',Qstored=',E15.7,',Massbalance=',E15.7,',Niteration=',I4,',NSubTS(E.Time)=',I3,'(',F10.3,'), NIncr=',I3,'TIME TAKEN=',E15.7,'.')
+50 FORMAT('------------------------------------------------------------------------------------------------------------')
+
 end subroutine
 
 SUBROUTINE INISTIFF_ACCELERATION_DANG(RELAX,PDDIS,IITER)

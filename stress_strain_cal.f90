@@ -21,17 +21,17 @@ subroutine stree_failure_ratio_cal(ienum,ISTEP)
 		!积分点的位移
 		!disg1(1:ndim1)=matmul(dis1(1:ndim1,1:nsh1),ecp(et1).Lshape(:,i))		
 
-		call stress_in_failure_surface(element(ienum).sfr(:,i),ss1,ecp(element(ienum).et).ndim,c1,Phi1,disg1,solver_control.slidedirection)
+		call stress_in_failure_surface(element(ienum).sfr(:,i),ss1,ecp(element(ienum).et).ndim,c1,Phi1,solver_control.slidedirection)
 		
         
 	enddo
 	
 end subroutine
 
-subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,dis,slidedirection)
+subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirection)
 	implicit none
 	integer,intent(in)::ndim,slidedirection
-	real(8),intent(in)::stress(6),cohesion,PhiD,dis(3)
+	real(8),intent(in)::stress(6),cohesion,PhiD
 	real(8),intent(inout)::sfr(6)
 	
 	integer::i
@@ -44,8 +44,8 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,dis,slidedire
 	call principal_stress_cal(pss1,stress,ndim)
 	
 	t2=(pss1(1)-pss1(2))/2.0
-    if(pss1(1)+pss1(2)<0.d0) then 
-	    if(phi1>0) then
+    if((pss1(1)+pss1(2))<0.d0) then 
+	    if(phi1>0.d0) then
 		    t1=(-(pss1(1)+pss1(2))/2.0+c1/dtan(phi1))*dsin(phi1) !受拉为正			
 	    else
 		    t1=C1
@@ -602,7 +602,7 @@ subroutine E2N_stress_strain(ISTEP)
 		select case(element(i).ec)
 			case(C3D,CPE,CPS,CAX,CPL,CAX_CPL)
 				do j=1,element(i).nnum
-					n2=node(element(i).node(j)).nelist
+					n2=node(element(i).node(j)).nelist-node(element(i).node(j)).nelist_SPG
 					node(element(i).node(j)).stress=node(element(i).node(j)).stress &
 					+element(i).stress(:,n1+j)/n2
 					node(element(i).node(j)).strain=node(element(i).node(j)).strain &
@@ -619,7 +619,7 @@ subroutine E2N_stress_strain(ISTEP)
 				end do
 			case(spg2d,spg,cax_spg)
 				do j=1,element(i).nnum
-					n2=node(element(i).node(j)).nelist
+					n2=node(element(i).node(j)).nelist_SPG
 					node(element(i).node(j)).igrad=node(element(i).node(j)).igrad &
 					+element(i).igrad(:,n1+j)/n2
 					node(element(i).node(j)).velocity=node(element(i).node(j)).velocity &
@@ -651,9 +651,9 @@ subroutine E2N_stress_strain(ISTEP)
 			!节点的材料假定为破坏比最大的单元材料，以模拟成层土中的软弱夹层
 			C1=material(node(i).sfr(2)).GET(3,ISTEP)
 			Phi1=material(node(i).sfr(2)).GET(4,ISTEP)
-            dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
+            !dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
 
-			call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,dis1,solver_control.slidedirection)
+			call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection)
 			
 		end if
 		!total generalized shear stain

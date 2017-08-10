@@ -15,7 +15,7 @@ subroutine Initialization()
 !**************************************************************************************************************
 	use solverds
 	implicit none
-	integer::i,j,k,nj,p,j1,j2
+	integer::i,j,k,nj,p,j1,j2,iset1
 	integer::n1,n2,n3,n4
 	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord1(3,4)=0,trans1(12,12)=0,c1(3,3)=0,b2(3),c2(3),R1,R2,R3,R4
 	real(kind=DPN)::km1(6,6)=0.d0
@@ -1052,16 +1052,20 @@ subroutine Initialization()
 	
 	!form element list
 	call FormElementList()
+	!INITIALIZED DOFHEAD
+	CALL NDOF_HEAD()
 	
 	!generate brickelement information for bar and beam family element to post-processing.
-	do i=1,neset	
-		if(eset(i).ec==stru) then
-			if(eset(i).et==bar.or.eset(i).et==bar2d.or.eset(i).et==beam2d.or.eset(i).et==beam.or.eset(i).et==ssp2d)	call generate_brickelement_bar_beam(i)
+	do i=1,neset
+        iset1=esetid(i)
+		if(eset(iset1).ec==stru) then
+			if(eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam2d.or.eset(iset1).et==beam.or.eset(iset1).et==ssp2d)	call generate_brickelement_bar_beam(i)
 		end if
 	end do
 	
 	
 end subroutine
+
 
 
 
@@ -1428,23 +1432,35 @@ subroutine FormElementList()
 	use solverds
 	implicit none
 	integer::i,j,k,n1
+	LOGICAL::ISSPG1
+	
+	
 	
 	do i=1,enum
-		do j=1,element(i).nnum
-			n1=element(i).node(j)
-			node(n1).nelist=node(n1).nelist+1												 
-		end do
-	end do
-	do i=1,nnum
-		allocate(node(i).elist(node(i).nelist))
-	end do
-	node.nelist=0
-	
-	do i=1,enum
+		ISSPG1=ELEMENT(I).EC==SPG.OR.ELEMENT(I).EC==SPG2D.OR.ELEMENT(I).EC==CAX_SPG
 		do j=1,element(i).nnum
 			n1=element(i).node(j)
 			node(n1).nelist=node(n1).nelist+1
-			node(n1).elist(node(n1).nelist)=i												 
+			IF(ISSPG1) THEN
+				node(n1).nelist_SPG=node(n1).nelist_SPG+1
+			ENDIF
+		end do
+	end do
+	do i=1,nnum
+		allocate(node(i).elist(node(i).nelist),node(i).elist_SPG(node(i).nelist_SPG))
+	end do
+	node.nelist=0;node.nelist_SPG=0
+	
+	do i=1,enum
+		ISSPG1=ELEMENT(I).EC==SPG.OR.ELEMENT(I).EC==SPG2D.OR.ELEMENT(I).EC==CAX_SPG
+		do j=1,element(i).nnum
+			n1=element(i).node(j)
+			node(n1).nelist=node(n1).nelist+1
+			node(n1).elist(node(n1).nelist)=i
+			IF(ISSPG1) THEN
+				node(n1).nelist_SPG=node(n1).nelist_SPG+1
+				node(n1).elist_SPG(node(n1).nelist_SPG)=i
+			ENDIF
 		end do
 	end do	
 
@@ -1547,5 +1563,31 @@ subroutine BARFAMILY_EXTREMEVALUE(IENUM)
 	end do
 	
 end subroutine
+
+!COUNT AND INDEX THE HEAD DOFS.
+SUBROUTINE NDOF_HEAD()
+	USE SOLVERDS
+	IMPLICIT NONE
+    !INTEGER,INTENT(IN)::ISTEP
+	INTEGER::I
+	
+	NDOFHEAD=0
+	DO I=1,NNUM
+		IF(NODE(I).DOF(4)>0) NDOFHEAD=NDOFHEAD+1
+	ENDDO
+	
+	IF(NDOFHEAD<1) RETURN
+	
+	IF(.NOT.ALLOCATED(DOFHEAD)) ALLOCATE(DOFHEAD(NDOFHEAD))
+	NDOFHEAD=0
+	DO I=1,NNUM
+		IF(NODE(I).DOF(4)>0) THEN
+			NDOFHEAD=NDOFHEAD+1
+			DOFHEAD(NDOFHEAD)=NODE(I).DOF(4)
+		ENDIF
+	ENDDO
+	
+
+ENDSUBROUTINE
 
 

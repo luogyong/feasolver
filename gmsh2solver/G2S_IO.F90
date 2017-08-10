@@ -970,7 +970,7 @@ end subroutine
 subroutine Tosolver()
 	use DS_Gmsh2Solver
 	implicit none
-	integer::unit,item,n1,N2,i,j,K,width,ITEM1
+	integer::unit,item,n1,N2,i,j,K,width,ITEM1,nset
 	CHARACTER(32)::CH1,CH2
 	
 	unit=20
@@ -987,6 +987,7 @@ subroutine Tosolver()
 		n1=Noutputorder(i)
 		write(unit,111) node(n1).xy(1:modeldimension)
 	end do
+    nset=0
 	do i=1,nphgp
 		N1=phgpnum(i)		
 		CH1=physicalgroup(N1).NAME
@@ -995,8 +996,9 @@ subroutine Tosolver()
 		item=len_trim(adjustL(physicalgroup(N1).et))
 		ITEM1=len_trim(adjustL(CH1))
         IF(physicalgroup(N1).nel==0) CYCLE
-		write(unit,120) physicalgroup(N1).nel,N1,physicalgroup(N1).et, &
-						physicalgroup(N1).mat(1),CH1
+        nset=nset+1
+		write(unit,120) physicalgroup(N1).nel,nset,physicalgroup(N1).et, &
+						physicalgroup(N1).mat(1),NSET,CH1
 		item=len_trim(elttype(physicalgroup(N1).et_gmsh).description)
 		write(unit,122) elttype(physicalgroup(N1).et_gmsh).description
 		item=elttype(physicalgroup(N1).et_gmsh).nnode
@@ -1066,7 +1068,7 @@ subroutine Tosolver()
 111 FORMAT(<MODELDIMENSION>(F24.16,1X))
 112 FORMAT("//",<MODELDIMENSION>(A15,1X))
 
-120 FORMAT(/'ELEMENT,NUM=',I7,',SET=',I3,',ET=',A<ITEM>,',MATID=',I3,',TITLE=',A<ITEM1>)
+120 FORMAT(/'ELEMENT,NUM=',I7,',SET=',I3,',ET=',A<ITEM>,',MATID=',I3,',COUPLESET=',I3,',TITLE=',A<ITEM1>)
 121 FORMAT(<ITEM>(I7,1X))
 122 FORMAT("//",A<ITEM>)
 123 FORMAT("// ", <ITEM>("N",I<width(j)>,5X))
@@ -1075,7 +1077,7 @@ subroutine Tosolver()
 131 FORMAT(I7,1X,I2,1X,E15.7,1X,I4)
 132 FORMAT("// ","NODE DOF VALUE [STEPFUNC.]")
 
-140 FORMAT(/'LOAD,NUM=',I7,',ISINC=1')
+140 FORMAT(/'LOAD,NUM=',I7,',ISINC=0')
 141 FORMAT(I7,1X,I2,1X,E15.7,1X,I4)
 142 FORMAT("// ","NODE DOF VALUE [STEPFUNC.] ")
 

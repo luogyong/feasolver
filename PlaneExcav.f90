@@ -446,7 +446,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 	implicit none
 	integer::i,j,k,K1,IAR(500),NAR=500,NNODE1=0,NEL1=0,N1=0,N2=0,IDP,JDP,IPILE,ISP1,IAC1
 	real(double)::DPOINT1(3,1000)=0,t1
-	INTEGER::et1,nnum1,ndof1,ngp1,nd1,ec1
+	INTEGER::et1,nnum1,ndof1,ngp1,nd1,ec1,iset1
 	CHARACTER(16)::STYPE,CH1,CH2
     CHARACTER(32)::TITLE1=""
     !integer,allocatable::kpelement(:)
@@ -475,6 +475,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 
 			NAR=SIZE(IAR)
 			call aovis2d(PILE(IPILE).kpoint(j),PILE(IPILE).kpoint(j+1),IAR,NAR)
+			ISET1=ESET_GETFREEID()
 			do k=1,NAR-1
                 IDP=3
                 JDP=1000
@@ -513,7 +514,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 					element1(NEL1).ngp=ngp1
 					element1(NEL1).nd=nd1
 					element1(NEL1).ec=ec1
-					ELEMENT1(NEL1).SET=NESET+1 !!!!
+					ELEMENT1(NEL1).SET=ISET1!!!!
 					!ELEMENT(NEL1).SYSTEM=0  !!!!!
                 ENDDO				
                 NNODE1=NNODE1+N1
@@ -523,13 +524,15 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		enddo
 		
 		neset=neset+1
-		eset(neset).num=NESET
-		eset(neset).stype=stype
-		eset(neset).grouptitle="BEAM"
-		eset(neset).et=et1
-		eset(neset).ec=ec1
-		eset(neset).system=0  !!!!!
-		eset(neset).enums=enum+1
+		esetid(neset)=ISET1
+		!eset(ISET1).num=NESET
+		eset(ISET1).stype=stype
+		eset(ISET1).grouptitle="BEAM"
+		eset(ISET1).et=et1
+		eset(ISET1).ec=ec1
+		eset(ISET1).system=0  !!!!!
+		eset(ISET1).enums=enum+1
+        eset(ISET1).coupleset=ISET1
 		
 		allocate(element2(enum+NEL1),PILE(IPILE).ELEMENT(NEL1))
 		element2(1:enum)=element(1:enum)
@@ -537,12 +540,12 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		if(allocated(element))	deallocate(element)
 		deallocate(element1)
 		enum=enum+NEL1
-		eset(neset).enume=enum
+		eset(ISET1).enume=enum
 		allocate(element(enum))
 		element=element2
 		deallocate(element2)
         DO J=1,NEL1
-            PILE(IPILE).ELEMENT(J)=eset(neset).ENUMS-1+J
+            PILE(IPILE).ELEMENT(J)=eset(ISET1).ENUMS-1+J
         ENDDO
 		pile(ipile).nel=nel1
         
@@ -638,15 +641,18 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		enddo
 		
 		neset=neset+1
-		eset(neset).num=NESET
-		eset(neset).stype=stype
-		eset(neset).grouptitle="soilspring"
-		eset(neset).et=et1
-		eset(neset).ec=ec1
-		eset(neset).system=0  !!!!!
-		eset(neset).enums=N1
-	    eset(neset).enume=enum
-
+        ISET1=ESET_GETFREEID()
+		esetid(ISET1)=ISET1
+		!eset(ISET1).num=NESET
+		eset(ISET1).stype=stype
+		eset(ISET1).grouptitle="soilspring"
+		eset(ISET1).et=et1
+		eset(ISET1).ec=ec1
+		eset(ISET1).system=0  !!!!!
+		eset(ISET1).enums=N1
+	    eset(ISET1).enume=enum
+        eset(ISET1).coupleset=ISET1
+        
 		
 		
         
@@ -1195,7 +1201,7 @@ subroutine EarthPressure(istep)
                 T1=MAX((wL1-kpoint(ndimension,soilprofile(i).PSOIL(N1).z(1)))*GA,0.d0)
 				soilprofile(i).PSOIL(N1).SigmaVT(1)=T1+soilprofile(i).pLoad*sf(soilprofile(i).sf_pload).factor(istep)+soilprofile(i).PSOIL(N1).pv
 				soilprofile(i).PSOIL(N1).SigmaV(1)=soilprofile(i).PSOIL(N1).SigmaVT(1)-soilprofile(i).PSOIL(N1).pw(1)
-                if( soilprofile(i).PSOIL(N1).SigmaV(1)<0) then
+                if( soilprofile(i).PSOIL(N1).SigmaV(1)<-1e-7) then
                     print *, 'The effective vertical stress is <0 in soilprofile(i).PSOIL(N1).SigmaV1. i,N1=',i,N1
                     soilprofile(i).PSOIL(N1).SigmaV(1)=0.d0
                 endif
@@ -1213,7 +1219,7 @@ subroutine EarthPressure(istep)
 			soilprofile(i).PSOIL(N1).SigmaVT(2)=soilprofile(i).PSOIL(N1).SigmaVT(1)+gamma1*(t1)
             soilprofile(i).PSOIL(N1).SigmaV(2)=soilprofile(i).PSOIL(N1).SigmaVT(2)-soilprofile(i).PSOIL(N1).pw(2)
             
-            if( soilprofile(i).PSOIL(N1).SigmaV(2)<0) then
+            if( soilprofile(i).PSOIL(N1).SigmaV(2)<-1e-7) then
                 print *, 'The effective vertical stress is <0 in soilprofile(i).PSOIL(N1).SigmaV2. i,N1=',i,N1
                 soilprofile(i).PSOIL(N1).SigmaV(2)=0.d0
             endif

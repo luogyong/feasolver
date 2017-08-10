@@ -6,7 +6,8 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 	integer::i,j,k,n1,iiter,n2=0,istep,ayf=0,ayf1=0,i1,j1,k1,isubts
 	real(kind=dpn)::bdylds(ndof),stepdis(ndof)
 	real(kind=dpn)::un(100)=0.0,stress1(6)=0.0,strain1(6)=0.0,bload(100)=0.0,lamda=0.0, &
-			hj=0.0,gforce1(100)=0.0,t1=0.0,t2=0.0,art1(50)=0.0,r1,dt1,slope1,sita1,hj_ini=0.d0
+			hj=0.0,gforce1(100)=0.0,t1=0.0,t2=0.0,art1(50)=0.0,r1,dt1,slope1,sita1,hj_ini=0.d0, & 
+            inihead(100)
 	logical::isBCdis(ndof)
 					
 	integer::nd1=0,nbload=100
@@ -47,65 +48,69 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 				!	un(1:element(i).ndof)=stepdis(element(i).g) !for a transient problem, tdisp is passed to stepdisp in the form of an initial value. 
 				!end if
 				un(1:element(i).ndof)=stepdis(element(i).g)
-				do j=1,n1
-					!head in integration point
-					!for seepage elements, element.ndof=element.nnum
-					hj=dot_product(ecp(element(i).et).Lshape(1:element(i).nnum,j),un(1:element(i).nnum))
-					
-					call lamda_spg(i,hj,element(i).xygp(ndimension,j),lamda,iiter,j,ISTEP)                   						
-                    
-                    if(iiter>1) lamda=(element(i).kr(j)+lamda)/2.0D0
-                    
-                    element(i).kr(j)=lamda
-                    
-					
-					!if(iiter>solver_control.niteration-10) write(99,40) iiter,i,j,element(i).xygp(1,j),element(i).xygp(2,j),hj,lamda,element(i).property(3),element(i).property(2)
-					R1=1.D0
-					if(element(i).ec==cax_spg) R1=ABS(element(i).xygp(1,j))
-					
-					!gradient
-					element(i).igrad(1:nd1,j)=matmul(element(i).B(:,:,j),un(1:element(i).ndof))
-					!velocity
-					element(i).velocity(1:nd1,j)=-Lamda*matmul(element(i).d, &
-																element(i).igrad(1:nd1,j))
-					!flux
-					if(.not.stepinfo(istep).issteady) then
-						hj_ini=dot_product(ecp(element(i).et).Lshape(1:element(i).nnum,j),inivaluedof(element(i).g))
-						call slope_SWWC_spg(i,hj,element(i).xygp(ndimension,j),slope1,sita1,element(i).sita_ini(j),hj_ini,ISTEP)
-                        
-                        element(i).mw(j)=slope1
-                        element(i).sita_fin(j)=sita1
-						
-						Qstored=Qstored+sita1*ecp(element(i).et).weight(j)*element(i).detjac(j)
-						
-						
-						if(j==1) element(i).cmm=0.d0  !clear 
-                        if(slope1/=0.0d0) then
-						    element(i).cmm=element(i).cmm+csproduct(ecp(element(i).et).Lshape(:,j),ecp(element(i).et).Lshape(:,j))* &
-											(R1*slope1*ecp(element(i).et).weight(j)*element(i).detjac(j)*MATERIAL(ELEMENT(I).MAT).GET(13,ISTEP)/dt1)
-                        end if
-                        if((j==n1).and.any(element(i).cmm/=0.d0)) then
-							bload(1:element(i).nnum)=bload(1:element(i).nnum)+matmul(element(i).cmm,(stepdis(element(i).g)-inivaluedof(element(i).g)))
-						end if
-					end if
-										
-						
-					if(solver_control.bfgm==continuum) then
-                        if(j==1) element(i).km=0.0D0
-						element(i).km=element(i).km+ &
-							matmul(MATMUL(TRANSPOSE(element(i).b(:,:,j)),lamda*element(i).d),element(i).b(:,:,j))* &
-							(element(i).detjac(j)*ecp(element(i).et).weight(j)*R1)
-                        if(j==n1) then
-							bload(1:element(i).nnum)=bload(1:element(i).nnum)+matmul(element(i).km,un(1:element(i).ndof))
-						end if							
-					else !iniflux
-						bload(1:element(i).nnum)=bload(1:element(i).nnum)+ &
-						matmul(-element(i).velocity(1:nd1,j),element(i).b(:,:,j))* &
-						element(i).detjac(j)*ecp(element(i).et).weight(j)*R1					
-					end if
-					
-				end do
-				element(i).flux(1:element(i).nnum)=bload(1:element(i).nnum)
+                if(.not.stepinfo(istep).issteady) inihead(1:element(i).ndof)=inivaluedof(element(i).g)
+                call SPG_Q_UPDATE(bload,un,INIHEAD,DT1,element(i).ndof,i,iiter,istep,iscon)
+    !            
+				!do j=1,n1
+				!	!head in integration point
+				!	!for seepage elements, element.ndof=element.nnum
+				!	hj=dot_product(ecp(element(i).et).Lshape(1:element(i).nnum,j),un(1:element(i).nnum))
+				!	
+				!	call lamda_spg(i,hj,element(i).xygp(ndimension,j),lamda,iiter,j,ISTEP)                   						
+    !                
+    !                if(iiter>1) lamda=(element(i).kr(j)+lamda)/2.0D0
+    !                
+    !                element(i).kr(j)=lamda
+    !                
+				!	
+				!	!if(iiter>solver_control.niteration-10) write(99,40) iiter,i,j,element(i).xygp(1,j),element(i).xygp(2,j),hj,lamda,element(i).property(3),element(i).property(2)
+				!	R1=1.D0
+				!	if(element(i).ec==cax_spg) R1=ABS(element(i).xygp(1,j))
+				!	
+				!	!gradient
+				!	element(i).igrad(1:nd1,j)=matmul(element(i).B(:,:,j),un(1:element(i).ndof))
+				!	!velocity
+				!	
+				!	element(i).velocity(1:nd1,j)=-Lamda*matmul(element(i).d, &
+				!												element(i).igrad(1:nd1,j))
+				!	!flux
+				!	if(.not.stepinfo(istep).issteady) then
+				!		hj_ini=dot_product(ecp(element(i).et).Lshape(1:element(i).nnum,j),inivaluedof(element(i).g))
+				!		call slope_SWWC_spg(i,hj,element(i).xygp(ndimension,j),slope1,sita1,element(i).sita_ini(j),hj_ini,ISTEP)
+    !                    
+    !                    element(i).mw(j)=slope1
+    !                    element(i).sita_fin(j)=sita1
+				!		
+				!		Qstored=Qstored+sita1*ecp(element(i).et).weight(j)*element(i).detjac(j)
+				!		
+				!		
+				!		if(j==1) element(i).cmm=0.d0  !clear 
+    !                    if(slope1/=0.0d0) then
+				!		    element(i).cmm=element(i).cmm+csproduct(ecp(element(i).et).Lshape(:,j),ecp(element(i).et).Lshape(:,j))* &
+				!							(R1*slope1*ecp(element(i).et).weight(j)*element(i).detjac(j)*MATERIAL(ELEMENT(I).MAT).GET(13,ISTEP)/dt1)
+    !                    end if
+    !                    if((j==n1).and.any(element(i).cmm/=0.d0)) then
+				!			bload(1:element(i).nnum)=bload(1:element(i).nnum)+matmul(element(i).cmm,(stepdis(element(i).g)-inivaluedof(element(i).g)))
+				!		end if
+				!	end if
+				!						
+				!		
+				!	if(solver_control.bfgm==continuum.or.solver_control.bfgm==consistent) then
+    !                    if(j==1) element(i).km=0.0D0
+				!		element(i).km=element(i).km+ &
+				!			matmul(MATMUL(TRANSPOSE(element(i).b(:,:,j)),lamda*element(i).d),element(i).b(:,:,j))* &
+				!			(element(i).detjac(j)*ecp(element(i).et).weight(j)*R1)
+    !                    if(j==n1) then
+				!			bload(1:element(i).nnum)=bload(1:element(i).nnum)+matmul(element(i).km,un(1:element(i).ndof))
+				!		end if							
+				!	else !iniflux
+				!		bload(1:element(i).nnum)=bload(1:element(i).nnum)+ &
+				!		matmul(-element(i).velocity(1:nd1,j),element(i).b(:,:,j))* &
+				!		element(i).detjac(j)*ecp(element(i).et).weight(j)*R1					
+				!	end if
+				!	
+				!end do
+				!element(i).flux(1:element(i).nnum)=bload(1:element(i).nnum)
 			case(STRU)
 				un(1:element(i).ndof)=stepdis(element(i).g)  
 				element(i).Dgforce(1:element(i).ndof)=matmul(element(i).km,un)
@@ -153,44 +158,45 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 	!if (solver_control.bfgm/=inistress) then
 		NI_NodalForce=bdylds
 		
-		Qinput=sum(NI_NodalForce)*dt1
+		Qinput=sum(NI_NodalForce(DOFHEAD))*dt1
 		
 		
 		call residual_bc_clear(isBCdis,istep)
 
-
-		!update Signorini boundary condition
-		isref_spg=0
-		do i=1,numNseep
-			if(sf(NSeep(i).sf).factor(istep)==-999.D0) cycle
-			
-			if(Nseep(i).isdual>0) then
-				if(bc_disp(Nseep(i).isdual).isdead==0) cycle            
-			end if
-			
-			n1=node(Nseep(i).node).dof(Nseep(i).dof)
-			t1=bdylds(n1)
-			
-			if(stepinfo(istep).issteady) then
-				t2=stepdis(n1)-node(Nseep(i).node).coord(ndimension)
-			else
-				t2=stepdis(n1)-node(Nseep(i).node).coord(ndimension) !for a transient problem, tdisp is passed to stepdisp in the form of an initial value. 
-			end if		
-			
-					
-			if(Nseep(i).isdead==0) then
-				if(t1>1E-7) then
-					Nseep(i).isdead=1
-					isref_spg=1
-				end if
-			else
-				if(t2>1E-3) then
-					Nseep(i).isdead=0
-					isref_spg=1
-				end if
-			end if
-	!		write(99,20) iiter,i,Nseep(i).isdead,n1,t1,t2
-		end do
+		CALL SPG_Signorini_BC_UPDATE(bdylds,STEPDIS,ISTEP)
+		
+	!	!update Signorini boundary condition
+	!	isref_spg=0
+	!	do i=1,numNseep
+	!		if(sf(NSeep(i).sf).factor(istep)==-999.D0) cycle
+	!		
+	!		if(Nseep(i).isdual>0) then
+	!			if(bc_disp(Nseep(i).isdual).isdead==0) cycle            
+	!		end if
+	!		
+	!		n1=node(Nseep(i).node).dof(Nseep(i).dof)
+	!		t1=bdylds(n1)
+	!		
+	!		if(stepinfo(istep).issteady) then
+	!			t2=stepdis(n1)-node(Nseep(i).node).coord(ndimension)
+	!		else
+	!			t2=stepdis(n1)-node(Nseep(i).node).coord(ndimension) !for a transient problem, tdisp is passed to stepdisp in the form of an initial value. 
+	!		end if		
+	!		
+	!				
+	!		if(Nseep(i).isdead==0) then
+	!			if(t1>1E-7) then
+	!				Nseep(i).isdead=1
+	!				isref_spg=1
+	!			end if
+	!		else
+	!			if(t2>1E-3) then
+	!				Nseep(i).isdead=0
+	!				isref_spg=1
+	!			end if
+	!		end if
+	!!		write(99,20) iiter,i,Nseep(i).isdead,n1,t1,t2
+	!	end do
 	!	if(isref_spg==0) print *, 'No necessary to refac.'
 		do i=1,ndof
 			bdylds(i)=Tload(i)-bdylds(i)
@@ -205,153 +211,7 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 end subroutine
 
 
-subroutine lamda_spg(ienum,hj,z,lamda,iiter,igp,ISTEP)
-	
-	use solverds
-	implicit none
-	integer,intent(in)::ienum,iiter,igp,ISTEP
-	real(8),intent(in)::hj,z
-	real(8),intent(out)::lamda
-	real(8)::t1,epsilon1,epsilon2,krsml
-	real(8)::alpha1,fn1,fm1,seff1,scale1=1.0
-	
-	scale1=1.0d0
-	t1=hj-z
-	krsml=1.e-3
 
-!	epsilon1=max(eps1,0.1)
-!	epsilon2=max(eps2,0.1)
-	select case(material(element(ienum).mat).type)
-		case(step_spg)
-			if(t1>=0.d0) then
-				lamda=1.d0
-			else
-				lamda=krsml
-			end if
-			
-		case(vg_spg)
-
-			if (t1 .ge. 0.d0) then
-				lamda = 1.d0
-			else
-			   alpha1 = material(element(ienum).mat).GET(7,ISTEP)
-			   fn1 = material(element(ienum).mat).GET(8,ISTEP)
-				fm1 = 1.d0 - 1.d0 / fn1
-				seff1 = (1.d0 + (-alpha1*t1)**fn1) ** (- fm1)
-				lamda = (1.d0 - (1.d0 - seff1 ** (1.d0 / fm1)) ** fm1) ** 2 * dsqrt (seff1)
-            endif
-        case(lr_spg)
-            if(t1>=0.d0) then
-               lamda = 1.d0     
-            else
-               alpha1 = material(element(ienum).mat).GET(7,ISTEP)
-			   fn1 = material(element(ienum).mat).GET(8,ISTEP)
-               fm1= material(element(ienum).mat).GET(9,ISTEP)
-               lamda=(dlog(dexp(1.d0)+(-t1/alpha1)**fn1))**(-fm1)
-            end if
-        case(exp_spg)
-            if(t1>=0.d0) then
-               lamda = 1.d0     
-            else
-               alpha1 = material(element(ienum).mat).GET(7,ISTEP)            
-               lamda=dexp(alpha1*t1)
-            end if                   
-		case default
-!			if(mod(iiter,1000)==0) scale1=scale1*2 
-			epsilon1=element(ienum).PROPERTY(3)
-			epsilon2=element(ienum).PROPERTY(2)
-			
-			if(t1>=epsilon2) then
-				lamda=1.0
-			else
-				if(t1<=-epsilon1) then
-					lamda=krsml
-				else
-					lamda=(1-krsml)/(epsilon1+epsilon2)*(t1-epsilon2)+1
-				end if
-			end if
-			
-			!if(lamda<1e-3) lamda=1.e-3
-			
-!			if(iiter>30) then
-!		         if(lamda>10*element(ienum).lamda(igp)) then
-!                       lamda=10*element(ienum).lamda(igp)
-!		         else
-!		              if(lamda<0.1*element(ienum).lamda(igp)) lamda=0.1*element(ienum).lamda(igp)
-!		          end if
-!			end if
-!			
-!			element(ienum).lamda(igp)=lamda
-				
-	end select
-
-	
-end subroutine
-
-subroutine slope_SWWC_spg(ienum,hj,z,slope,sita,sita_ini,hj_ini,ISTEP)
-    use solverds
-    implicit none
-    integer,intent(in)::ienum,ISTEP
-    Real(kind=DPN),intent(in)::hj,z,sita_ini,hj_ini
-    Real(kind=DPN),intent(out)::slope,sita
-    real(kind=DPN)::t1,alpha1,fn1,fm1,seff1,sita_s,sita_r,rw1
-    
-    t1=hj-z
-    sita_s = material(element(ienum).mat).GET(11,ISTEP)!饱和体积含水量
-    
-    if(t1>=0.d0) then
-        slope=material(element(ienum).mat).GET(10,ISTEP)
-		sita=sita_s
-        return
-    end if
-    
-    !sita
-    alpha1 = material(element(ienum).mat).GET(7,ISTEP)
-    fn1 = material(element(ienum).mat).GET(8,ISTEP)
-    sita_r = material(element(ienum).mat).GET(12,ISTEP) !!残余体积含水量(默认为0)
-    rw1=material(element(ienum).mat).GET(13,ISTEP) !水的重度    
-    
-   select case(material(element(ienum).mat).type)
-					
-        case(vg_spg)
-
-            fm1 = 1.d0 - 1.d0 / fn1
-            seff1 = (1.d0 + (-alpha1*t1)**fn1) ** (-fm1)
-            sita=sita_r+(sita_s-sita_r)*seff1
-			
-			!slope:mw2
-			if(abs(hj-hj_ini)<1e-7.or.solver_control.mur==0) then
-				slope=fm1*fn1*(-t1*alpha1)**fn1*(sita_s-sita_r)/(-t1*rw1*(1.d0+(-t1*alpha1)**fn1)**(fm1+1))
-			else
-				slope=(sita-sita_ini)/((hj-hj_ini)*rw1)
-			end if
-			
-        case(lr_spg)
-            fm1= material(element(ienum).mat).GET(9,ISTEP)
-            sita=sita_r+(sita_s-sita_r)*(dlog(dexp(1.d0)+(-t1/alpha1)**fn1))**(-fm1)
-            !slope=mw2
-			if(abs(hj-hj_ini)<1e-7.or.solver_control.mur==0) then
-				slope=dexp(1.d0)+(-t1/alpha1)**fn1
-				slope=fm1*fn1*(-t1/alpha1)**fn1*(sita_s-sita_r)/(-t1*rw1*slope*(dlog(slope))**(fm1+1))
-			else
-				slope=(sita-sita_ini)/((hj-hj_ini)*rw1)
-			end if
-           
-        case(exp_spg)
-            sita=sita_r+(sita_s-sita_r)*dexp(alpha1*t1)
-			if(abs(hj-hj_ini)<1e-7.or.solver_control.mur==0) then
-				slope=(sita_s-sita_r)*dexp(alpha1*t1)*alpha1/rw1
-			else
-				slope=(sita-sita_ini)/((hj-hj_ini)*rw1)
-			end if
-    
-        case default            
-				sita=sita_ini
-				slope=0
-		!stop "No such an SWCC function."
-    end select 
-   
-end subroutine
 
 subroutine residual_bc_clear(isBCdis,istep)
 	use solverds
