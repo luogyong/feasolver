@@ -273,9 +273,9 @@ subroutine solve_SLD()
 
 				if((.not.iscon).and.iiter==solver_control.niteration) then
                     WRITE(*,50)
-                    IRESULT=SETTEXTCOLOR(INT2(4))
+                    IRESULT=SETTEXTCOLOR(INT2(4)) !red
 					write(*,30) iiter,isubts,ttime1,iincs
-                    IRESULT=SETTEXTCOLOR(INT2(7))
+                    IRESULT=SETTEXTCOLOR(INT2(7)) !white
                     WRITE(99,50)
 					write(99,30) iiter,isubts,ttime1,iincs
 				end if
@@ -284,7 +284,7 @@ subroutine solve_SLD()
 					STOP_TIME= DCLOCK()
 					!call Cal_UnbalanceForce(iincs,iiter,iscon,stepdis,bdylds,isubts)
                     WRITE(*,50)
-                    IRESULT=SETTEXTCOLOR(INT2(2))
+                    IRESULT=SETTEXTCOLOR(INT2(2)) !green
 					write(*,40) iscon,Qinput,(Qstored-Qstorted_ini),(Qstored-Qstorted_ini)/Qinput,iiter,isubts,ttime1,iincs,STOP_TIME-START_TIME
                     IRESULT=SETTEXTCOLOR(INT2(7))
                     !CALL GETTEXTPOSITION (curpos)
@@ -367,6 +367,8 @@ subroutine solve_SLD()
 		nc1 = setexitqq(QWIN$EXITNOPERSIST)
     endif
     
+    call plot_func
+    
 	if(allocated(solution)) deallocate(solution)
 	if(allocated(bdylds)) deallocate(bdylds)
     if(allocated(PDDIS)) deallocate(PDDIS)
@@ -388,6 +390,8 @@ subroutine solve_SLD()
 	if(allocated(element)) deallocate(element)
     if(allocated(inivaluedof)) deallocate(inivaluedof)
     if(allocated(Tstepdis)) deallocate(Tstepdis)
+	IF(ALLOCATED(NODALQ)) DEALLOCATE(NODALQ)
+    IF(ALLOCATED(VEC)) DEALLOCATE(VEC)
 
 10 format('ISFC=',L1,',SICR=',F6.3,',MYFVAL=',F6.4 ',ConvCoff.=',f6.3,',SumForce.=', E10.3,',SumRes=',E10.3 ',MaxDiff.=',f7.3,'(N=',I7,'),R.F.=',f8.5, &
 				',NIter=',I4,',NSubTS(E.Time)=',I4,'(',F8.3,'),NIncr=',I2,'.')

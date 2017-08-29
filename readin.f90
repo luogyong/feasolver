@@ -1813,6 +1813,7 @@ subroutine solvercommand(term,unit)
 					  outvar(disz).name='disz'  
 					  outvar(disz).value=disz
 					  outvar(disz).system=property(i).value
+					
 					case('sxx')
 					  outvar(sxx).name='sxx'  
 					  outvar(sxx).value=sxx
@@ -2052,9 +2053,19 @@ subroutine solvercommand(term,unit)
 						outvar(mw_spg).name='mw'
 						outvar(mw_spg).value=mw_spg
 					case('sfr')
-						outvar(SFR).name='sfr","sfr_sita(deg,CCW+)","Sn(Tension+)","Tn(CCW+)","SFRX","SFRY'
+						outvar(SFR).name='SFR'
 						outvar(SFR).value=SFR
-						outvar(SFR).nval=6
+						outvar(sfr_sita).name='sfr_sita(deg,CCW+)'
+						outvar(sfr_sita).value=sfr_sita
+						outvar(SFR_SN).name='Sn(Tension+)'
+						outvar(SFR_SN).value=SFR_SN
+						outvar(SFR_TN).name='Tn(CCW+)'
+						outvar(SFR_TN).value=SFR_TN
+						outvar(SFR_SFRX).name='SFRX'
+						outvar(SFR_SFRX).value=SFR_SFRX
+						outvar(SFR_SFRY).name='SFRY'
+						outvar(SFR_SFRY).value=SFR_SFRY						
+						!outvar(SFR).nval=6
 					case('spg')
 						outvar(Gradx).name='Ix'
 						outvar(Gradx).value=Gradx
@@ -2070,20 +2081,136 @@ subroutine solvercommand(term,unit)
 						outvar(discharge).value=discharge
 						outvar(phead).name='PH'
 						outvar(phead).value=Phead
-
-						IF(NDIMENSION==3) THEN
+						outvar(kr_spg).name='Kr'
+						outvar(kr_spg).value=kr_spg
+						outvar(mw_spg).name='mw'
+						outvar(mw_spg).value=mw_spg
+						
+						IF(NDIMENSION>2) THEN
 							outvar(Gradz).name='Iz'
 							outvar(Gradz).value=Gradz
 							outvar(Vz).name='Vz'
 							outvar(Vz).value=Vz							
 						ENDIF						
-
+					case('dis')
+					  outvar(disx).name='disx'  
+					  outvar(disx).value=disx
+					  outvar(disx).system=property(i).value						
+					  outvar(disy).name='disy'  
+					  outvar(disy).value=disy
+					  outvar(disy).system=property(i).value
+					  IF(NDIMENSION>2) THEN
+						outvar(disz).name='disz'  
+						outvar(disz).value=disz
+						outvar(disz).system=property(i).value
+					  ENDIF
+					case('disf')
+					  outvar(xf_out).name='xf'  
+					  outvar(xf_out).value=xf_out
+					  outvar(xf_out).system=property(i).value						
+					  outvar(yf_out).name='yf'  
+					  outvar(yf_out).value=xf_out
+					  outvar(yf_out).system=property(i).value
+					  IF(NDIMENSION>2) THEN
+						outvar(zf_out).name='zf'  
+						outvar(zf_out).value=zf_out
+						outvar(zf_out).system=property(i).value
+					  ENDIF					  
+					case('nf','force')
+						outvar(NFX).name='NFX'
+						outvar(NFX).value=NFX
+						outvar(NFY).name='NFY'
+						outvar(NFY).value=NFY
+						outvar(NFZ).name='NFZ'
+						outvar(NFZ).value=NFZ						
+						IF(NDIMENSION>2) THEN
+							outvar(NFZ).name='NFZ'
+							outvar(NFZ).value=NFZ
+						ENDIF
+						!IF(NDIMENSION==2) outvar(NF).name='NFX","NFY'
 						
-					case('nf')
-						IF(NDIMENSION==3) outvar(NF).name='NFX","NFY","NFZ'
-						IF(NDIMENSION==2) outvar(NF).name='NFX","NFY'
-						outvar(NF).value=NF
-						outvar(NF).nval=NDIMENSION	
+						!outvar(NF).nval=NDIMENSION	
+					CASE('stress','s')
+						outvar(sxx).name='sxx'  
+						outvar(sxx).value=sxx
+						outvar(syy).name='syy'  
+						outvar(syy).value=syy
+						outvar(szz).name='szz'  
+						outvar(szz).value=szz
+						outvar(sxy).name='sxy'  
+						outvar(sxy).value=sxy
+						outvar(SXX:SXY).system=property(i).value
+						outvar(sigma_mises).name='mises'
+						outvar(sigma_mises).value=sigma_mises						
+						IF(NDIMENSION>2) THEN
+							outvar(syz).name='syz'  
+							outvar(syz).value=syz
+							outvar(szx).name='szx'  
+							outvar(szx).value=szx
+							outvar(SYZ:SZX).system=property(i).value
+						ENDIF
+					CASE('strain','e')
+						outvar(exx).name='exx'  
+						outvar(exx).value=exx						
+						outvar(eyy).name='eyy'  
+						outvar(eyy).value=eyy	
+						outvar(ezz).name='ezz'  
+						outvar(ezz).value=ezz
+						outvar(exy).name='exy'  
+						outvar(exy).value=exy
+						outvar(eeq).name='eeq'
+						outvar(eeq).value=eeq
+						outvar(EXX:EXY).system=property(i).value
+						IF(NDIMENSION>2) THEN
+						  outvar(eyz).name='eyz'  
+						  outvar(eyz).value=eyz	
+						  outvar(ezx).name='ezx'  
+						  outvar(ezx).value=ezx
+						  outvar(EYZ:EZX).system=property(i).value
+						ENDIF
+					CASE('pstrain','pe')
+						outvar(pexx).name='pexx'  
+						outvar(pexx).value=pexx						
+						outvar(peyy).name='peyy'  
+						outvar(peyy).value=peyy	
+						outvar(pezz).name='pezz'  
+						outvar(pezz).value=pezz
+						outvar(pexy).name='pexy'  
+						outvar(pexy).value=pexy
+						outvar(peeq).name='peeq'
+						outvar(peeq).value=peeq
+						outvar(PEXX:PEXY).system=property(i).value
+						IF(NDIMENSION>2) THEN
+						  outvar(peyz).name='peyz'  
+						  outvar(peyz).value=peyz	
+						  outvar(pezx).name='pezx'  
+						  outvar(pezx).value=pezx
+						  outvar(PEYZ:PEZX).system=property(i).value
+						ENDIF
+					CASE('m','moment')
+						outvar(mz).name='mz'
+						outvar(mz).value=mz
+						outvar(mz).system=property(i).value
+						if(ndimension>2) then
+							outvar(mx).name='mx'
+							outvar(mx).value=mx
+							outvar(mx).system=property(i).value	
+							outvar(my).name='my'
+							outvar(my).value=my
+							outvar(my).system=property(i).value
+						endif
+					CASE('r','rotate')
+						if(ndimension>2) then
+							outvar(rx).name='rx'
+							outvar(rx).value=rx
+							outvar(rx).system=property(i).value
+							outvar(ry).name='ry'
+							outvar(ry).value=ry
+							outvar(ry).system=property(i).value
+						endif
+						outvar(rz).name='rz'
+						outvar(rz).value=rz
+						outvar(rz).system=property(i).value						
 					case default
 						call Err_msg(property(i).name)
 				end select

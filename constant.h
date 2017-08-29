@@ -221,8 +221,16 @@
 	integer,parameter::sumq=70
 			
 	integer,parameter::SFR=71 !Stress Failure Ratio
+	INTEGER,PARAMETER::sfr_sita=72 
+	INTEGER,PARAMETER::SFR_SN=73 
+	INTEGER,PARAMETER::SFR_TN=74
+	INTEGER,PARAMETER::SFR_SFRX=75 
+	INTEGER,PARAMETER::SFR_SFRY=76 
 	
-	INTEGER,PARAMETER::NF=72 !节点力，NFX,NFY,NFZ
+	INTEGER,PARAMETER::NF=77 !节点力，NFX,NFY,NFZ
+	INTEGER,PARAMETER::NFX=77
+	INTEGER,PARAMETER::NFY=78
+	INTEGER,PARAMETER::NFZ=79
 
 integer::minet = 10000, maxet = -10000   !the ultimate element type number.
 !solver method

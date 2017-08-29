@@ -14,6 +14,7 @@ subroutine Initialization()
 !Last update: 2009,10,04 
 !**************************************************************************************************************
 	use solverds
+    USE MESHGEO
 	implicit none
 	integer::i,j,k,nj,p,j1,j2,iset1
 	integer::n1,n2,n3,n4
@@ -1052,6 +1053,9 @@ subroutine Initialization()
 	
 	!form element list
 	call FormElementList()
+    call SETUP_EDGE_TBL()
+    call SETUP_FACE_TBL()
+    
 	!INITIALIZED DOFHEAD
 	CALL NDOF_HEAD()
 	
@@ -1277,7 +1281,7 @@ subroutine calangle(ienum)
 	implicit none
 	integer::i
 	integer::ienum,idim=2,jdim=2,v1,v2
-	real(8)::vec(2,2)=0.0,angle=0.0,vangle(15)=0.0
+	real(8)::vec1(2,2)=0.0,angle=0.0,vangle(15)=0.0
 	
 	!assume that all element edges are straight lines. such that the angle
 	!of the nodes inside a line equel to pi.
@@ -1296,9 +1300,9 @@ subroutine calangle(ienum)
 				v1=i-1
 				if(v1<1) v1=3
 				v2=i+1
-				vec(:,1)=node(element(ienum).node(v1)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
-				vec(:,2)=node(element(ienum).node(v2)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
-				call vecangle(vec,idim,jdim,angle)
+				vec1(:,1)=node(element(ienum).node(v1)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
+				vec1(:,2)=node(element(ienum).node(v2)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
+				call vecangle(vec1,idim,jdim,angle)
 				element(ienum).angle(i)=angle
 				element(ienum).angle(3)=element(ienum).angle(3)-angle
 			end do
@@ -1320,13 +1324,13 @@ subroutine calangle(ienum)
 				v1=i-1
 				if(v1<1) v1=4
 				v2=i+1
-				vec(:,1)=node(element(ienum).node(v1)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
-				vec(:,2)=node(element(ienum).node(v2)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
+				vec1(:,1)=node(element(ienum).node(v1)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
+				vec1(:,2)=node(element(ienum).node(v2)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
 				IF(ELEMENT(IENUM).ET==ZT4_SPG) THEN
-					vec(:,1)=GNODE(1:2,element(ienum).node2(v1))-Gnode(1:2,element(ienum).node2(i))
-					vec(:,2)=GNODE(1:2,element(ienum).node2(v2))-Gnode(1:2,element(ienum).node2(i))			
+					vec1(:,1)=GNODE(1:2,element(ienum).node2(v1))-Gnode(1:2,element(ienum).node2(i))
+					vec1(:,2)=GNODE(1:2,element(ienum).node2(v2))-Gnode(1:2,element(ienum).node2(i))			
 				ENDIF
-				call vecangle(vec,idim,jdim,angle)
+				call vecangle(vec1,idim,jdim,angle)
 				element(ienum).angle(i)=angle
 				element(ienum).angle(4)=element(ienum).angle(4)-angle				
 			end do

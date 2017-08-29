@@ -27,8 +27,8 @@ module solverds
 	INTEGER::NGNODE=0
     
 	type element_tydef
-		integer::nnum !node numbers of this element
-		integer,allocatable::node(:) !单元的节点
+		integer::nnum,ndege=0,nface=0 !node numbers of this element
+		integer,allocatable::node(:),EDGE(:),FACE(:) !单元的节点
         integer,allocatable::node2(:) !为方便Bar和Beam单元的后处理，为单元集内的节点编号，将其转换成实体六面体单元后输出。
 		integer::et  !单元类型
 		integer::mat,mattype  !material id and material type.the paramters is got from material(mat)
@@ -329,7 +329,7 @@ module solverds
 	!output variables
 	type outvar_tydef
 		character(128)::name=''
-		integer::value=0	!>0, variable output is required.
+		integer::value=0,ivo=0	!>0, variable output is required.,ivo=此量存贮在NodalQ(:,ivo)
 		logical::iscentre=.false. !location, nodes or centroid of element.
 		integer::system=0	!reference systerm,the default system is the globel sysytem
 								!if system=-999, then the local system is a cylindrical system whose origin is along 
@@ -442,7 +442,9 @@ module solverds
 	
 	INTEGER::NDOFHEAD=0,NDOFMEC=0 !!每步的渗流自由度数及利息自由度数，
 	INTEGER,ALLOCATABLE::DOFHEAD(:),DOFMEC(:) !head dofs in the model.
-	
+	real(kind=DPN),allocatable::NodalQ(:,:),VEC(:,:)
+	real(dpn)::modelr !模型外接圆半径
+    
     INTERFACE
          PURE subroutine INVARIANT(stress,inv)
 	        implicit none

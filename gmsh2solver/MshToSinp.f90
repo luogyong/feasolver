@@ -65,6 +65,10 @@
 	CALL elt_bc_load_translate()
 	
 	call Tosolver()
+    
+    
+    
+    
 	
 	Print *, 'GMSHTOSOLVER IS DONE. PLEASE ADD OTHER PARAMETERS BY HAND.'
     

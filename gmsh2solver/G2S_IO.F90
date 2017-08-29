@@ -53,8 +53,17 @@ subroutine readin()
 		physicalgroup(modelgroup(i)).ismodel=.true.
     end do
 	
-    
-    
+    DO I=1,nphgp
+		PHYSICALGROUP(phgpnum(I)).COUPLESET=PHYSICALGROUP(phgpnum(I)).MAT(NLAYER+1)
+		IF(PHYSICALGROUP(phgpnum(I)).COUPLESET<=0) THEN
+			PHYSICALGROUP(phgpnum(I)).COUPLESET=phgpnum(I)
+		ENDIF
+		IF(phgpnum(I)>PHYSICALGROUP(phgpnum(I)).COUPLESET) THEN
+			PHYSICALGROUP(phgpnum(I)).ISMASTER=.FALSE.
+			PHYSICALGROUP(phgpnum(I)).ELEMENT=PHYSICALGROUP(PHYSICALGROUP(phgpnum(I)).COUPLESET).ELEMENT
+		ENDIF
+	ENDDO
+		
 	return
 
  end subroutine
@@ -998,7 +1007,8 @@ subroutine Tosolver()
         IF(physicalgroup(N1).nel==0) CYCLE
         nset=nset+1
 		write(unit,120) physicalgroup(N1).nel,nset,physicalgroup(N1).et, &
-						physicalgroup(N1).mat(1),NSET,CH1
+						physicalgroup(N1).mat(1),physicalgroup(N1).COUPLESET,CH1
+		!IF(physicalgroup(N1).ISMASTER) THEN
 		item=len_trim(elttype(physicalgroup(N1).et_gmsh).description)
 		write(unit,122) elttype(physicalgroup(N1).et_gmsh).description
 		item=elttype(physicalgroup(N1).et_gmsh).nnode
@@ -1008,7 +1018,7 @@ subroutine Tosolver()
 			item=element(n2).nnode
 			write(unit,121) node(element(n2).node).inode
 		end do
-
+		!ENDIF
 	end do
 	
 	if(nnodalBC>0) then

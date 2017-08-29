@@ -372,6 +372,7 @@ subroutine tecplot_variables(cstring)
 		if(outvar(i).value==0) cycle
 		nvo=nvo+1
 		vo(nvo)=i
+		outvar(i).ivo=nvo
 		nvo=nvo+outvar(i).nval-1 !一个变量包含多个数的情况
 		cstring=trim(adjustL(cstring))//'"'//trim(adjustL(outvar(i).name))//'",'
 	end do
@@ -387,10 +388,11 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 	INTEGER,INTENT(IN)::FILE_UNIT,ISTEP,ISUBTS,ITER
 	LOGICAL,SAVE::ISFIRSTCALL1	
 	integer::i,j,k,idof,IDISQ1=0,NVO1=0
-	real(8),allocatable::NodalQ(:,:)
+	
 	REAL(8)::SUMQ1=0
 	
-	allocate(NodalQ(nnum,nvo))
+	if(.NOT.allocated(NODALQ)) allocate(NodalQ(nnum,nvo))
+    if(.NOT.allocated(VEC)) allocate(VEC(3,NNUM))
 	i=1
 	do while(i<=nvo)
 		select case(vo(i))
@@ -596,11 +598,11 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 			case(mw_spg)
 				NodalQ(:,i)=node.mw
 			case(SFR)
-				do j=1,outvar(vo(i)).nval
+				do j=1,6
 					NodalQ(:,i+j-1)=node.SFR(j)
 				enddo
 			case(NF)
-				do j=1,outvar(vo(i)).nval
+				do j=1,NDIMENSION
 					DO K=1,NNUM
 						NodalQ(K,i+j-1)=NI_NodalForce(NODE(K).DOF(J))
 					ENDDO
@@ -653,7 +655,7 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 110 FORMAT(7(I14,X),<nvo>(E14.7,X))
 120 FORMAT(7(I14,X),<NVO1>(E14.7,X),"//",<NVO1>A15)
 
-	if(allocated(NodalQ)) deallocate(NodalQ)
+	!if(allocated(NodalQ)) deallocate(NodalQ)
 	
 end subroutine
 
@@ -663,10 +665,11 @@ subroutine pointout_barfamily(file_unit,ieset)
 	integer,intent(in)::file_unit,ieset
 	integer::i,j,k,idof,n1
 	real(kind=dpn)::Vector1(3)=0.0d0,x1,y1,z1
-	real(kind=dpn),allocatable::NodalQ(:,:),DisILS(:,:),QMILS(:,:)
+	real(kind=dpn),allocatable::NODALQ1(:,:),DisILS(:,:),QMILS(:,:)
 	
 	n1=eset(ieset).noutorder
-	allocate(NodalQ(n1,nvo),DisILS(n1,6),QMILS(n1,6))
+    !IF(.NOT.ALLOCATED(NODALQ)) allocate(NodalQ(n1,nvo))
+	allocate(NodalQ1(n1,nvo),DisILS(n1,6),QMILS(n1,6))
 	
 	if(vo(3)/=locz) stop "'Z' must be output in a Barfamily element. Please add it by modifying the 'OUTDATA' command."
 	
@@ -755,7 +758,7 @@ subroutine pointout_barfamily(file_unit,ieset)
 	end do
 	
 999 format(<nvo>E15.7)
-	if(allocated(NodalQ)) deallocate(NodalQ)
+	if(allocated(NodalQ1)) deallocate(NodalQ1)
 	if(allocated(DisILS)) deallocate(DisILS)
 	if(allocated(QMILS)) deallocate(QMILS)
 	
