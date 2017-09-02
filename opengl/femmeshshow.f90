@@ -16,7 +16,8 @@ private::SET_VARIABLE_SHOW,SET_VECTOR_PLOT_GROUP
 integer,parameter:: Contour_surfsolid_toggle = 1, &
                     Contour_Line_toggle = 2, &
                     Contour_Densify=3,&
-                    Contour_Sparsify=4
+                    Contour_Sparsify=4,&
+                    Contour_In_DeformedMesh=5
 integer, parameter :: black_contour = 1, &
                       rainbow_contour = 2
 integer, parameter :: white_surface = 1, &
@@ -25,7 +26,15 @@ integer, parameter :: white_surface = 1, &
                       transparency=4
                       
 real(8),public::Scale_Contour_Num=1.0
-logical,public::istransparency=.false. 
+logical,public::istransparency=.false.,IsContour_In_DeformedMesh=.false. 
+
+type contour_bar_tydef
+    integer :: nfrac,nval
+    real(GLDOUBLE),allocatable :: val(:)
+    real(GLFLOAT),allocatable::COLOR(:,:)
+    character(128)::TITLE
+endtype
+type(contour_bar_tydef)::ContourBar
 
 !vector
 INTEGER,PARAMETER:: VECTOR_GROUP_DIS=1,&
@@ -36,12 +45,17 @@ integer,parameter::Vector_toggle= 1, &
                    Vector_lengthen=2,&
                    Vector_shorten=3                   
                    
-real(8),public::Scale_Vector_Len=1.0                    
-
+real(8),public::Scale_Vector_Len=1.0,VabsMax,VabsMin,Vscale                    
+character(128)::VectorPairName
 !model
 integer, parameter :: surfgrid_toggle = 1, &
-                      quit_selected = 4
+                      quit_selected = 4,&
+                      DeformedMesh=5,&
+                      Enlarge_Scale_DeformedMesh=6,&
+                      Minify_Scale_DeformedMesh=7
                       
+logical::IsDeformedMesh=.false.                     
+real(8)::Scale_Deformed_Grid=1.d0
 
 integer, parameter :: set_nx = 1, &
                       set_ny = 2, &
@@ -99,12 +113,13 @@ integer::CONTOUR_PLOT_VARIABLE=0,VECTOR_PLOT_GROUP=0
 
 integer,parameter,public::ContourList=1,&
                           VectorList=2,&
-                          GridList=3
+                          GridList=3,&
+						  ContourLineList=4
 
 real(GLFLOAT) :: red(4) = (/1.0,0.0,0.0,1.0/), &
                  black(4) = (/0.0,0.0,0.0,1.0/), &
                  white(4) = (/1.0,1.0,1.0,1.0/),&
-                 GRAY(4)=(/0.82745098,0.82745098,0.82745098,0.6/)                          
+                 GRAY(4)=(/0.82745098,0.82745098,0.82745098,1.0/)                          
 
 contains
 
@@ -117,10 +132,15 @@ call reset_view
 call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
 
 if(glIsList(ContourList)) call glCallList(ContourList)
+if(glIsList(ContourLineList)) call glCallList(ContourLineList)
 if(glIsList(VectorList)) call glCallList(VectorList)
 if(glIsList(GridList)) call glCallList(GridList)
-call drawAxes()
 
+call drawAxes()
+if(IsDrawVector) call drawVectorLegend2(VabsMax,VabsMin,Vscale,VectorPairName)
+if (surface_color == rainbow_surface) then
+    call Color_Bar()
+endif
 call glutSwapBuffers
 
 return
@@ -162,7 +182,9 @@ SUBROUTINE set_variable_show(VALUE)
 integer(kind=glcint), intent(in out) :: value 
 
 CONTOUR_PLOT_VARIABLE=VALUE
-CALL drawcontour()
+call initialize_contourplot()
+CALL DrawSurfaceContour()
+call DrawLineContour()
 
 RETURN
 END SUBROUTINE
@@ -184,6 +206,7 @@ case(VECTOR_GROUP_DIS)
     ELSE
         VEC(3,:)=0.D0
     ENDIF
+    VectorPairName='DIS.'
 case(VECTOR_GROUP_SEEPAGE_VEC)       
     VEC(1,:)=NODALQ(:,OUTVAR(VX).IVO)
     VEC(2,:)=NODALQ(:,OUTVAR(VY).IVO)
@@ -191,7 +214,8 @@ case(VECTOR_GROUP_SEEPAGE_VEC)
         VEC(3,:)=NODALQ(:,OUTVAR(VZ).IVO)
     ELSE
         VEC(3,:)=0.D0
-    ENDIF    
+    ENDIF
+    VectorPairName='SEEP.V'
 case(VECTOR_GROUP_SEEPAGE_GRAD)
 
     VEC(1,:)=NODALQ(:,OUTVAR(GRADX).IVO)
@@ -201,13 +225,13 @@ case(VECTOR_GROUP_SEEPAGE_GRAD)
     ELSE
         VEC(3,:)=0.D0
     ENDIF    
-
+    VectorPairName='SEEP.I'
 case(VECTOR_GROUP_SFR)
 
     VEC(1,:)=NODALQ(:,OUTVAR(SFR_SFRX).IVO)
     VEC(2,:)=NODALQ(:,OUTVAR(SFR_SFRY).IVO)
     VEC(3,:)=0.D0       
-    
+    VectorPairName='SFR'
 end select
 
 CALL drawvector()
@@ -227,12 +251,16 @@ case (Contour_Line_toggle)
 
 case(contour_densify)
     Scale_Contour_Num=Scale_Contour_Num*2
+	call initialize_contourplot()
 case(contour_sparsify)
     Scale_Contour_Num=Scale_Contour_Num/2
+	call initialize_contourplot()
+CASE(Contour_In_DeformedMesh)
+    IsContour_In_DeformedMesh=.NOT.IsContour_In_DeformedMesh
 end select
 
-call drawcontour()
-
+if(selection/=Contour_Line_toggle) call DrawSurfaceContour()
+if(selection/=Contour_surfsolid_toggle) call DrawLineContour()
 
 endsubroutine
 
@@ -260,6 +288,21 @@ select case (selection)
 
 case (surfgrid_toggle)
    draw_surface_grid = .not. draw_surface_grid
+case(DeformedMesh)
+    draw_surface_grid=.true.
+   IsDeformedMesh=.not.IsDeformedMesh
+case(Enlarge_Scale_DeformedMesh)
+    Scale_Deformed_Grid=Scale_Deformed_Grid*2.0
+    if(IsContour_In_DeformedMesh) then
+		call  DrawSurfaceContour()
+		call  DrawLineContour()  
+	endif
+case(Minify_Scale_DeformedMesh)
+    Scale_Deformed_Grid=Scale_Deformed_Grid/2.0  
+    if(IsContour_In_DeformedMesh) then
+		call  DrawSurfaceContour()
+		call  DrawLineContour()  
+	endif
 end select
 
 call drawgrid()
@@ -275,8 +318,8 @@ case (set_ncontour)
    print *,"Enter number of contour lines:"
    read *, init_num_contour   
    contour_values_given = .false.
-   call drawcontour()
-
+   call DrawSurfaceContour()
+   call DrawLineContour() 
 case (set_contour_val)
    print *,"enter number of contours:"
    read *, num_contour
@@ -285,8 +328,8 @@ case (set_contour_val)
    print *,"enter ",num_contour," contour values:"
    read *,actual_contours
    contour_values_given = .true.
-   call drawcontour()
-
+   call DrawSurfaceContour()
+   call DrawLineContour() 
 case (reset_params)
 
    !num_contour = init_num_contour
@@ -309,7 +352,7 @@ subroutine contour_color_handler(selection)
 integer(kind=glcint), intent(in out) :: selection
 
 contour_color = selection
-call drawcontour()
+call DrawSurfaceContour()
 
 end subroutine contour_color_handler
 
@@ -322,7 +365,7 @@ case(transparency)
 case default
     surface_color = selection
 end select
-call drawcontour()
+call DrawSurfaceContour()
 
 end subroutine surface_color_handler
 
@@ -424,6 +467,7 @@ call glutAddMenuEntry("toggle contour line",Contour_Line_toggle)
 call glutAddSubMenu("contour line color",contour_color_menu)
 call glutAddMenuEntry("Densify contour",contour_densify)
 call glutAddMenuEntry("Sparsify contour",contour_Sparsify)
+call glutAddMenuEntry("Plot In DeformedGrid",Contour_In_DeformedMesh)
 call glutAddMenuEntry("contour values",set_contour_val)
 call glutAddSubMenu("DISPLACE",VSHOW_DIS_ID)
 call glutAddSubMenu("FORCE",VSHOW_FORCE_ID)
@@ -456,6 +500,9 @@ call glutAddSubMenu("VectorPair",VECTOR_PAIR_ID)
 
 Model_ID=glutCreateMenu(Model_HANDLER)
 call glutAddMenuEntry("Grid Toggle",surfgrid_toggle)
+call glutAddMenuEntry("DeformedGrid Toggle",DeformedMesh)
+call glutAddMenuEntry("++DeformedGridScale",Enlarge_Scale_DeformedMesh)
+call glutAddMenuEntry("--DeformedGridScale",Minify_Scale_DeformedMesh)
 
 
 menuid = glutCreateMenu(menu_handler)
@@ -525,7 +572,7 @@ endif
 
 
 CONTOUR_PLOT_VARIABLE=MAX(HEAD,DISZ,DISY,DISX,LOCZ)
-
+call initialize_contourplot()
 
 
 ! initialize view_modifier, receiving the id for it's submenu
@@ -544,7 +591,8 @@ call glutDisplayFunc(display)
 call initGL(modelr)
 ! Create the image
 
-call drawcontour()
+call DrawSurfaceContour()
+call DrawLineContour() 
 call drawvector()
 call drawgrid()
 
@@ -579,7 +627,7 @@ implicit none
     call glEnable(GL_DEPTH_TEST);
     !call glEnable(GL_LIGHTING);
     !
-    call glEnable(GL_TEXTURE_2D);
+    !call glEnable(GL_TEXTURE_2D);
     call glEnable(GL_CULL_FACE);
     call glEnable(GL_BLEND);
     CALL glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -593,6 +641,7 @@ implicit none
     call glClearStencil(0);                          !// clear stencil buffer
     call glClearDepth(1._GLclampd);                         !// 0 is near, 1 is far
     call glDepthFunc(GL_LEQUAL);
+    
 
     call initLights(r);
 

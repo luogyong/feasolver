@@ -61,8 +61,8 @@ use opengl_glu
 use opengl_glut
 implicit none
 private
-public :: view_modifier_init, reset_view,init_lookat, init_lookfrom,&
-          minx,miny,minz,maxx,maxy,maxz,model_radius
+public :: view_modifier_init, reset_view,init_lookat, init_lookfrom,view_from,VIEW_ZP,&
+          minx,miny,minz,maxx,maxy,maxz,model_radius,GetWinXYZ
 
 integer(kind=glcint), parameter :: ZOOM = 1, PAN = 2, ROTATE = 3, SCALEX = 4, &
                       SCALEY = 5, SCALEZ = 6
@@ -577,13 +577,16 @@ subroutine myreshape(w,h)
 	R = real(w) / real(h);
     r1=((minx-maxx)**2+(miny-maxy)**2+(minz-maxz)**2)**0.5/2.0
     dis1=((init_lookat.x-init_lookfrom.x)**2+(init_lookat.y-init_lookfrom.y)**2+(init_lookat.z-init_lookfrom.z)**2)**0.5 
-    near=1.0;far=near+2*r1+dis1*10.0
+    
+    near=1.0;far=near+2*r1+dis1*10
+    !write(*,'(2G13.6)') 'NEAR=',NEAR,'FAR=',FAR 
     
 	call glMatrixMode(GL_PROJECTION);
 	call glLoadIdentity();
 
 
     !glortho and gluperspective 的参数都是相对于eye坐标的。
+    
 	if(IsPerspect) then
         call gluPerspective(30.0_gldouble, R, near, far)
     else
@@ -592,27 +595,28 @@ subroutine myreshape(w,h)
 	    !wH = maxy -miny;
 	    !if (wH <= 0) wH = 1.0;
 	    !wR = wL / wH;
-     !
+        !
 	    !if (wR > R)	then
-		   ! ! Projection clipping area
-		   ! clipAreaXLeft = minx;
-		   ! clipAreaXRight = maxx;
-		   ! clipAreaYBottom = (miny + maxy) / 2 - wL / R / 2.0;
-		   ! clipAreaYTop = (miny + maxy) / 2 + wL / R / 2.0;
+		    ! ! Projection clipping area
+		    ! clipAreaXLeft = minx;
+		    ! clipAreaXRight = maxx;
+		    ! clipAreaYBottom = (miny + maxy) / 2 - wL / R / 2.0;
+		    ! clipAreaYTop = (miny + maxy) / 2 + wL / R / 2.0;
 	    !
 	    !else 
-		   ! clipAreaXLeft =( minx + maxx) / 2.0 - wH* R / 2.0;
-		   ! clipAreaXRight = (minx + maxx) / 2.0 + wH* R / 2.0;
-		   ! clipAreaYBottom = miny;
-		   ! clipAreaYTop = maxy;
+		    ! clipAreaXLeft =( minx + maxx) / 2.0 - wH* R / 2.0;
+		    ! clipAreaXRight = (minx + maxx) / 2.0 + wH* R / 2.0;
+		    ! clipAreaYBottom = miny;
+		    ! clipAreaYTop = maxy;
 	    !endif
 	    !call glOrtho(clipAreaXLeft-init_lookfrom.x, clipAreaXRight-init_lookfrom.x, &
         !             clipAreaYBottom-init_lookfrom.y, clipAreaYTop-init_lookfrom.y,near,far)
-        
-        call glOrtho(-r1*R, r1*R, &
-                     -r1, r1,near,far)             
+        if(R>1) then
+            call glOrtho(-r1*R, r1*R, -r1, r1,near,far) 
+        else
+            call glOrtho(-r1, r1, -r1/R, r1/R,near,far) 
+        endif
     endif
-                 
     call glMatrixMode(GL_MODELVIEW);
 	call glLoadIdentity();
 
@@ -707,20 +711,45 @@ function GetOGLPos(x, y) result(object)
     integer(GLint),dimension(4):: viewport;
     real(GLdouble),dimension(16):: modelview;
     real(GLdouble),dimension(16):: projection;
-    real(gldouble) winX, winY, winZ;
-    real(GLdouble) posX, posY, posZ;
+    real(gldouble)::winX, winY, winZ=0.d0,clip_Z
+    real(GLdouble)::posX, posY, posZ,nf(2),far_z,near_z
+    integer(GLint)::i
+    REAL(GLFLOAT)::WINZ1
+ 
+    call glGetDoublev( GL_MODELVIEW_MATRIX, modelview );
+    call glGetDoublev( GL_PROJECTION_MATRIX, projection );
+    call glGetIntegerv( GL_VIEWPORT, viewport );
+    !print *, viewport
+    
+    winX = real(x);
+    winY = real(viewport(4)) - real(y);
+    
+    call f9y1glReadPixels( x, int(winY), 1, 1 , GL_DEPTH_COMPONENT, GL_FLOAT, WINZ1 );
+
+    WINZ=WINZ1 !!!NOTE THAT f9y1glReadPixels CANN'T ACCEPT GL_DOUBLE. it took me two days to find it. 
+    
+    i= gluUnProject( winX, winY, winZ, modelview, projection, viewport, posX, posY, posZ);
+    object=[posX,posY,posZ]
+    return
+    !return CVector3(posX, posY, posZ);
+end function
+
+
+function GetWinXYZ(objx,objy,objz) result(WinP)
+    implicit none
+    real(gldouble),intent(in)::objx,objy,objz
+    real(gldouble)::WinP(3),winX,winY,winZ
+    integer(GLint),dimension(4):: viewport;
+    real(GLdouble),dimension(16):: modelview;
+    real(GLdouble),dimension(16):: projection;
     integer(GLint)::i
  
     call glGetDoublev( GL_MODELVIEW_MATRIX, modelview );
     call glGetDoublev( GL_PROJECTION_MATRIX, projection );
     call glGetIntegerv( GL_VIEWPORT, viewport );
- 
-    winX = real(x);
-    winY = real(viewport(4)) - real(y);
-    call f9y1glreadpixels( x, int(winY), 1, 1 , GL_DEPTH_COMPONENT, GL_float, winZ );
- 
-    i= gluUnProject( winX, winY, winZ, modelview, projection, viewport, posX, posY, posZ);
-    object=[posX,posY,posZ]
+
+    i= gluProject( objX, objY, objZ, modelview, projection, viewport, winX, winY, winZ);
+    WinP=[winX, winY, winZ]
     return
     !return CVector3(posX, posY, posZ);
 end function

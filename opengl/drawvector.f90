@@ -4,19 +4,27 @@ use opengl_gl
 use function_plotter
 implicit none 
 INTEGER::I,J
-REAL(8)::SCALE1,MAXV1
+REAL(8)::SCALE1,MAXV1,minv1
+REAL(8),EXTERNAL::Vector_SCALE
 
-MAXV1=MAXVAL(NORM2(VEC,DIM=1))
-scale1=modelr/40./maxv1*Scale_Vector_len
+!MAXV1=MAXVAL(NORM2(VEC,DIM=1))
+!scale1=modelr/40./maxv1*Scale_Vector_len
+SCALE1=VECTOR_SCALE(VEC,NNUM,Scale_Vector_len)
 
 call glDeleteLists(VectorList, 1_glsizei)
 if(IsDrawVector) then
     call reset_view
+    
     call glNewList(VectorList, gl_compile_and_execute)
 
     DO I=1,NNUM
         call drawArrow(node(i).coord,node(i).coord+vec(:,i)*scale1)    
     ENDDO
+    
+    !drawVectorLegend.
+    VabsMax=MAXVAL(NORM2(VEC,DIM=1));VabsMin=MinVAL(NORM2(VEC,DIM=1))
+    Vscale=scale1
+    
 
 endif
 
@@ -25,7 +33,174 @@ call glEndList
 call glutPostRedisplay
 
 endsubroutine
+
+subroutine drawVectorLegend(Vtmax,Vtmin,Scale,VTITLE)
+use opengl_gl
+use opengl_glut
+use view_modifier
+implicit none
+real(8),intent(in)::Vtmax,Vtmin,Scale
+CHARACTER(128),INTENT(IN)::VTITLE
+integer(glCint),dimension(4)::viewport1
+real(gldouble),dimension(16)::model
+real(glfloat)::len1
+real(gldouble)::t1
+character(128)::str1,str2,STR3
     
+    
+    call glgetintegerv(gl_viewport,viewport1)
+	call glViewport(10,100,80,80);
+
+	call glMatrixMode(GL_PROJECTION);
+    call glpushmatrix()
+	call glLoadIdentity();
+    t1=Vtmax*Scale
+    len1=real(t1)
+	call glOrtho(-t1,t1,-t1,t1,-1.0,1.0);
+
+	!// Strip translation
+    call glMatrixMode(GL_MODELVIEW);
+    call glpushmatrix()
+    call glLoadIdentity();
+    !call glGetDoublev(GL_MODELVIEW_MATRIX, model)
+    !!Matrix4 mv = view;
+    !model(13:15)=0.0d0
+    !
+    !if(.not.isperspect) then
+    !    model(1:3)=model(1:3)/xscale_factor
+    !    model(5:7)=model(5:7)/yscale_factor
+    !    model(9:11)=model(9:11)/zscale_factor
+    !endif
+    !!call glMatrixMode(GL_MODELVIEW);
+    !call glLoadMatrixd(reshape(model,(/4,4/)));
+
+	! // Axes
+    call glPushAttrib(GL_ALL_ATTRIB_BITS)
+	!call glPushAttrib(GL_CURRENT_BIT);
+	!call glPushAttrib(GL_LINE_BIT);
+	!call glPushAttrib(GL_VIEWPORT_BIT)
+    call glDisable(GL_LIGHTING);
+    call glDisable(GL_CULL_FACE);
+	call glLineWidth(3.0_glfloat);
+    
+    call drawArrow([-0.5*len1,0.,0.],[0.5*len1,0.,0.])
+    
+
+
+	!// Axes labels
+    call glColor4d(0.,0.,0.0,1.0);
+	call glRasterPos3f(-len1,-len1/2._glfloat,0._glfloat);
+    WRITE(STR2,'(G13.5)') VTMAX
+    WRITE(STR3,'(G13.5)') VTMIN
+    STR1=TRIM(ADJUSTL(VTITLE))
+    call output(-len1,-len1/4._glfloat,str1)
+    STR1='Mag:'
+    call output(-len1,-len1/4._glfloat*2._glfloat,str1) 
+    STR1=' Max:'//TRIM(ADJUSTL(str2))
+    call output(-len1,-len1/4._glfloat*3._glfloat,str1) 
+    STR1=' Min:'//TRIM(ADJUSTL(str3))
+    call output(-len1,-len1/4._glfloat*4._glfloat,str1)     
+!	call glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12,ichar('x'));
+
+
+	call glPopAttrib();
+
+
+	!// Restore viewport, projection and modelview matrices
+	!call glViewport(viewport1(1),viewport1(2),viewport1(3),viewport1(4));
+    call glViewport(0,0,GLUTGET(GLUT_WINDOW_WIDTH),GLUTGET(GLUT_WINDOW_HEIGHT));
+	call glMatrixMode(GL_PROJECTION);
+	call glpopmatrix()
+	call glMatrixMode(GL_MODELVIEW);
+	call glpopmatrix()    
+
+endsubroutine
+
+
+subroutine drawVectorLegend2(Vtmax,Vtmin,Scale,VTITLE)
+    use opengl_gl
+    use opengl_glut
+    use view_modifier
+    implicit none
+    real(8),intent(in)::Vtmax,Vtmin,Scale
+    CHARACTER(128),INTENT(IN)::VTITLE
+    integer(glCint),dimension(4)::viewport1
+    real(gldouble),dimension(16)::model
+    real(gldouble)::len1,ppm1
+    real(gldouble)::t1,orig(3),dest(3),winp1(3)
+    character(128)::str1,str2,STR3
+
+
+    
+    !! Set up coordinate system to position color bar near bottom of window
+    
+    call glgetintegerv(gl_viewport,viewport1)
+    CALL glMatrixMode(GL_PROJECTION);
+    CALL glPushMatrix()
+    CALL glLoadIdentity();
+    CALL glOrtho(0., real(viewport1(3),gldouble), 0., real(viewport1(4),gldouble), -1._GLDOUBLE, 1._GLDOUBLE);
+    CALL glMatrixMode(GL_MODELVIEW);
+    CALL glPushMatrix()
+   
+    
+    
+    CALL glLoadIdentity();
+    
+    call glPushAttrib(GL_ALL_ATTRIB_BITS)
+	!call glPushAttrib(GL_LIGHTING_BIT .or. GL_CURRENT_BIT); ! lighting and color mask
+	call glDisable(GL_LIGHTING);     ! need to disable lighting for proper text color
+	call glDisable(GL_TEXTURE_2D);
+    call glDisable(GL_CULL_FACE);
+	call glDepthFunc(GL_ALWAYS);    
+    call glPolygonMode(gl_front_and_back, gl_line)
+    
+    orig(1)=7./8.*viewport1(3);orig(2)=9./10.*viewport1(4);orig(3)=0.
+        !find scale!************i don't know how to scale 
+    !t1=Vtmax*Scale 
+    PPM1=glutget(GLUT_SCREEN_WIDTH)/REAL(glutget(GLUT_SCREEN_WIDTH_MM))
+    t1=ppm1*10
+    !t1=viewport1(3)/16; 
+    
+    dest=orig;dest(1)=dest(1)+t1
+    call glLineWidth(3.0_glfloat);
+    call glColor4d(1.,0.,0.0,1.0);
+    !call glScaled(xscale_factor,yscale_factor,zscale_factor)
+    call drawArrow(orig,dest)
+    
+
+
+	!// Axes labels
+    call glColor4d(0.,0.,0.0,1.0);
+	!call glRasterPos3d(orig(1),orig(2)-viewport1(4)/40.0,orig(3));
+    WRITE(STR2,'(G13.5)') VTMAX
+    WRITE(STR3,'(G13.5)') VTMIN
+    STR1=TRIM(ADJUSTL(VTITLE))
+    call output(real(orig(1),glfloat),real(orig(2)-viewport1(4)/60.0,glfloat),str1)
+    STR1='Mag:'
+    call output(real(orig(1),glfloat),real(orig(2)-2.*viewport1(4)/60.0,glfloat),str1) 
+    STR1=' Max:'//TRIM(ADJUSTL(str2))
+    call output(real(orig(1),glfloat),real(orig(2)-3.*viewport1(4)/60.0,glfloat),str1) 
+    STR1=' Min:'//TRIM(ADJUSTL(str3))
+    call output(real(orig(1),glfloat),real(orig(2)-4.*viewport1(4)/60.0,glfloat),str1)     
+!	call glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12,ichar('x'));
+    
+    CALL glPopMatrix()
+    CALL glMatrixMode(GL_PROJECTION)
+    CALL glPopMatrix()
+	CALL glPopAttrib();
+    
+ 
+end subroutine
+
+REAL(8) FUNCTION VECTOR_SCALE(VEC1,NV1,SCALE1)
+    USE SOLVERDS
+    IMPLICIT NONE
+    INTEGER,INTENT(IN)::NV1
+    REAL(8),INTENT(IN)::VEC1(3,NV1),SCALE1
+    REAL(8)::MAXV1
+    MAXV1=MAXVAL(NORM2(VEC1,DIM=1))
+    VECTOR_SCALE=modelr/40./maxv1*SCALE1
+ENDFUNCTION
     
 SUBROUTINE drawAxes()
 use opengl_gl

@@ -1,21 +1,31 @@
-subroutine DrawContour()
+subroutine DrawSurfaceContour()
 use solverds
 use opengl_gl
 use function_plotter
 use MESHGEO
 use view_modifier
 implicit none
-    
-    
+REAL(GLDOUBLE)::VEC1(3,NNUM),SCALE1 
+REAL(8),EXTERNAL::VECTOR_SCALE
 real(GLFLOAT),allocatable::vcolor(:,:)
 
-integer :: i,j,k,n1,nfrac
-real(GLDOUBLE) :: frac,graphmin,graphmax,graphstep
-real(GLDOUBLE),allocatable :: contour_value(:)
-character(128)::color_bar_title,str1,str2
+
+integer :: i,j,k,n1  !,nfrac
+
 ! prepare to make a new display list
 
 
+
+
+VEC1=0;SCALE1=1.D0
+IF(IsContour_In_DeformedMesh.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
+    VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
+    VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
+    IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
+    scale1=VECTOR_SCALE(VEC1,NNUM,Scale_Deformed_Grid)
+ENDIF
+
+n1=outvar(CONTOUR_PLOT_VARIABLE).ivo
 
 call glDeleteLists(contourlist, 1_glsizei)
 
@@ -25,8 +35,6 @@ if (draw_surface_solid) then
 
 ! draw the solid surface
 
-
-
     call glPolygonMode(gl_front_and_back, gl_fill)
     call glBegin(gl_triangles)
 
@@ -34,24 +42,10 @@ if (draw_surface_solid) then
     if (surface_color == rainbow_surface) then
         if(allocated(vcolor)) deallocate(vcolor)
         allocate(vcolor(4,NNUM))
-        n1=outvar(CONTOUR_PLOT_VARIABLE).ivo
-        minv=minval(nodalq(:,n1))
-        maxv=maxval(nodalq(:,n1))
-        WRITE(STR1,'(G13.3)') MAXV;WRITE(STR2,'(G13.3)') MINV;
-        
-        color_bar_title=trim(adjustl(outvar(CONTOUR_PLOT_VARIABLE).name))//',MAX='//TRIM(ADJUSTL(STR1))//',MIN='//TRIM(ADJUSTL(STR2))
-        IF(ABS(MINV)<1E-7) MINV=SIGN(1E-7,MINV)
-        call loose_label(minv, maxv,init_num_contour,graphmin,graphmax,graphstep,nfrac)
-        graphstep=graphstep/scale_contour_num
-        num_contour=MAX(floor((graphmax-graphmin)/graphstep)+1,2)
-        if(allocated(contour_value)) deallocate(contour_value)
-        allocate(contour_value(num_contour))
-        do i=1,num_contour
-            contour_value(i)=graphmin+(i-1)*graphstep
-        enddo
+
         
         do i=1,nnum
-            call get_rainbow(nodalq(i,n1),graphmin,graphmax,vcolor(:,i))
+            call get_rainbow(nodalq(i,n1),contourbar.val(1),contourbar.val(contourbar.nval),vcolor(:,i))
             if(isTransparency) vcolor(4,i)=0.6
         enddo
  
@@ -67,7 +61,7 @@ if (draw_surface_solid) then
             ELSE
                 call glcolor4fv(vcolor(:,face(i).v(j)))
             ENDIF
-            call glvertex3dv(node(face(i).v(j)).coord)            
+            call glvertex3dv(node(face(i).v(j)).coord+VEC1(:,face(i).v(j))*SCALE1)            
         enddo    
     enddo
 
@@ -94,7 +88,7 @@ if (draw_surface_solid) then
             ELSE
                 call glcolor4fv(vcolor(:,face(i).v(j)))
             ENDIF
-            call glvertex3dv(node(face(i).v(j)).coord)            
+            call glvertex3dv(node(face(i).v(j)).coord+VEC1(:,face(i).v(j))*SCALE1)            
         enddo    
     enddo
 
@@ -102,7 +96,7 @@ if (draw_surface_solid) then
    call glEnd   
    
    
-   if (surface_color == rainbow_surface) call Color_Bar(contour_value,num_contour,NFRAC,color_bar_title)
+   !if (surface_color == rainbow_surface) call Color_Bar(contour_value,num_contour,NFRAC,color_bar_title)
 endif ! draw_surface_solid
 
 call glEndList
@@ -110,44 +104,124 @@ call glEndList
 call glutPostRedisplay
 
 if(allocated(vcolor)) deallocate(vcolor)
-if(allocated(contour_value)) deallocate(contour_value)
+!if(allocated(contour_value)) deallocate(contour_value)
 
-endsubroutine    
+endsubroutine  
+
+
+subroutine DrawLineContour()
+use solverds
+use opengl_gl
+use function_plotter
+use MESHGEO
+use view_modifier
+implicit none
+real(GLDOUBLE)::CPNT1(3,NEDGE)    
+INTEGER,allocatable::CLINE1(:,:)
+INTEGER::NCL1=0
+
+integer :: i,j,k,n1  !,nfrac
+
+! prepare to make a new display list
+
+interface
+
+	subroutine ContourLine(VA,nVA,VC,LINE,NLINE,CONTOURPOINT)
+		use MESHGEO
+		implicit none
+		integer,intent(in)::nVA
+		real(8),intent(in)::VA(nVA),VC
+		integer,intent(out)::NLINE
+		INTEGER,allocatable,intent(out)::LINE(:,:)
+		real(8),intent(out)::CONTOURPOINT(3,NEDGE)
+	end subroutine
+
+endinterface
+
+
+
+n1=outvar(CONTOUR_PLOT_VARIABLE).ivo
+
+call glDeleteLists(contourLinelist, 1_glsizei)
+
+if (draw_contour) then
+    call reset_view
+    call glNewList(contourLinelist, gl_compile_and_execute)
     
+	do i=1,contourbar.nval
+        CPNT1=0.0d0
+		call ContourLine(NODALQ(:,N1),NNUM,contourbar.VAL(I),CLINE1,NCL1,CPNT1)
+		call glcolor4fv(BLACK)		
+		CALL GLBEGIN(GL_LINES)
+			DO J=1,NCL1
+				call glvertex3dv(CPNT1(:,CLINE1(1,J))) 
+				call glvertex3dv(CPNT1(:,CLINE1(2,J))) 
+			ENDDO
+		CALL GLEND()
+		
+	enddo
+
+endif
+
+
+call glEndList
+
+call glutPostRedisplay
+
+endsubroutine 
     
+
+
+subroutine initialize_contourplot()
+    use solverds
+    use function_plotter
+    implicit none
+    integer::i,n1
+    real(GLDOUBLE) :: graphmin,graphmax,graphstep
+    !real(GLDOUBLE),allocatable :: contour_value(:)
+    character(128)::str1,str2  
+    
+    n1=outvar(CONTOUR_PLOT_VARIABLE).ivo
+    minv=minval(nodalq(:,n1))
+    maxv=maxval(nodalq(:,n1))
+    WRITE(STR1,'(G13.3)') MAXV;WRITE(STR2,'(G13.3)') MINV;
+        
+    contourbar.title=trim(adjustl(outvar(CONTOUR_PLOT_VARIABLE).name))//',MAX='//TRIM(ADJUSTL(STR1))//',MIN='//TRIM(ADJUSTL(STR2))
+    IF(ABS(MINV)<1E-7) MINV=SIGN(1E-7,MINV)
+    call loose_label(minv, maxv,init_num_contour,graphmin,graphmax,graphstep,contourbar.nfrac)
+    graphstep=graphstep/scale_contour_num
+    contourbar.nval=MAX(floor((graphmax-graphmin)/graphstep)+1,2)
+    if(allocated(contourbar.VAL)) deallocate(contourbar.VAL)
+    if(allocated(contourbar.color)) deallocate(contourbar.color)
+    allocate(contourbar.VAL(contourbar.nval),contourbar.color(4,contourbar.nval))
+    do i=1,contourbar.nval
+        contourbar.VAL(i)=graphmin+(i-1)*graphstep
+        call get_rainbow(contourbar.VAL(i),graphmin,graphmax,contourbar.color(:,i))            
+    enddo
+end subroutine
+
     
 !---+----3----+----2----+----1----+---<>---+----1----+----2----+----3----+----4
 !--------------------------------  Color_Bar  ---------------------------------
  
-subroutine Color_Bar(contour_value,num_contour,nfrac,BAR_TITLE)
-    use opengl_gl    
+subroutine Color_Bar()
+    use opengl_gl
+    use opengl_glut
+	use function_plotter
     implicit none
-    integer,intent(in)::num_contour,NFRAC
-    real(GLDOUBLE),intent(in)::contour_value(num_contour)
-    character(128),intent(in)::BAR_TITLE
     integer i;
-    real(GLFLOAT):: color(4,num_contour)
-    real(GLDOUBLE)::bot(2,num_contour),top(2,num_contour),SPACING
+    !real(GLFLOAT):: color(4,num_contour)
+    real(GLDOUBLE)::left1(2,contourbar.nval),right1(2,contourbar.nval),SPACING,orig(3),PPM1,scale1
     CHARACTER(16)::STR1    
-    
-    
-    SPACING=100/(NUM_CONTOUR-1)
-    
-    BOT(2,:)=0;TOP(2,:)=5;
-    DO I=1,NUM_CONTOUR
-        BOT(1,I)=0+(I-1)*SPACING
-        TOP(1,I)=BOT(1,I)
-        CALL get_rainbow(contour_value(I),contour_value(1),contour_value(NUM_CONTOUR),color(:,I))
-    ENDDO
-    
-    
+    integer(glCint),dimension(4)::viewport1
+
            
     !! Set up coordinate system to position color bar near bottom of window.
- 
+    call glgetintegerv(gl_viewport,viewport1)
     CALL glMatrixMode(GL_PROJECTION);
     CALL glPushMatrix()
     CALL glLoadIdentity();
-    CALL glOrtho(-40._GLDOUBLE, 140._GLDOUBLE, -20._GLDOUBLE, 200._GLDOUBLE, -1._GLDOUBLE, 1._GLDOUBLE);
+    CALL glOrtho(0., real(viewport1(3),gldouble), 0., real(viewport1(4),gldouble), -1._GLDOUBLE, 1._GLDOUBLE);
     CALL glMatrixMode(GL_MODELVIEW);
     CALL glPushMatrix()
     CALL glLoadIdentity();
@@ -157,16 +231,28 @@ subroutine Color_Bar(contour_value,num_contour,nfrac,BAR_TITLE)
 	call glDisable(GL_LIGHTING);     ! need to disable lighting for proper text color
 	call glDisable(GL_TEXTURE_2D);
     call glDisable(GL_CULL_FACE);
-	call glDepthFunc(GL_ALWAYS);    
+	call glDepthFunc(GL_ALWAYS);
+    
+    
+    
+    orig(1)=7./8.*viewport1(3);orig(2)=1./5.*viewport1(4);orig(3)=0.
+    SPACING=3./5.*viewport1(4)/(contourbar.nval-1)
+    
+    left1(1,:)=orig(1);right1(1,:)=orig(1)+1./60.*viewport1(3);
+    DO I=1,contourbar.nval
+        left1(2,I)=orig(2)+(I-1)*SPACING
+        right1(2,I)=left1(2,I)
+        !CALL get_rainbow(contour_value(I),contour_value(1),contour_value(contourbar.nval),color(:,I))
+    ENDDO    
     
     ! Use Quad strips to make color bar.
 
-    
+    call glPolygonMode(gl_front_and_back, gl_fill)
     CALL glBegin(GL_QUAD_STRIP)
-        do i = 1,NUM_CONTOUR
-            CALL glColor3fv(color(:,i));
-            CALL glVertex2Dv(bot(:,i));
-            CALL glVertex2Dv(top(:,i));
+        do i = 1,contourbar.nval
+            CALL glColor3fv(contourbar.color(:,i));
+            CALL glVertex2Dv(left1(:,i));
+            CALL glVertex2Dv(right1(:,i));
         enddo
     CALL glEnd()
  
@@ -177,23 +263,32 @@ subroutine Color_Bar(contour_value,num_contour,nfrac,BAR_TITLE)
     call glPolygonMode(gl_front_and_back, gl_line)
     
     CALL glBegin(GL_QUAD_STRIP)
-    do i = 1,NUM_CONTOUR
+    do i = 1,contourbar.nval
         !CALL glColor3fv(color(:,i));
-        CALL glVertex2Dv(bot(:,i));
-        CALL glVertex2Dv(top(:,i));
+        CALL glVertex2Dv(left1(:,i));
+        CALL glVertex2Dv(right1(:,i));
     enddo
     CALL glEnd()
     
-    call glPolygonMode(gl_front_and_back, gl_FILL)
+    
  
     !CALL bitmap_output(-5, 7, 0, "Min_H", GLUT_BITMAP_9_BY_15);
     !CALL bitmap_output(95, 7, 0, "Max_H", GLUT_BITMAP_9_BY_15);
-    DO I=1,NUM_CONTOUR
-        WRITE(STR1,10) CONTOUR_VALUE(I)
-        call output(REAL(TOP(1,I),GLFLOAT), -3._glfloat,TRIM(ADJUSTL(STR1)))
+    DO I=1,contourbar.nval
+        WRITE(STR1,10) contourbar.val(I)
+        call output(REAL(right1(1,1)+viewport1(3)/200.,GLFLOAT),REAL(right1(2,I),GLFLOAT),TRIM(ADJUSTL(STR1)))
     ENDDO
     
-    call output(0._GLFLOAT, 7._glfloat,TRIM(ADJUSTL(BAR_TITLE)))
+    !CALL GLROTATED(90.,0.,0.,1.)
+    !104.76/viewport1(3)
+    !call drawStrokeText(ORIG(1), ORIG(2),ORIG(3),TRIM(ADJUSTL(BAR_TITLE)))
+    !call output(0._GLFLOAT, 0._glfloat,TRIM(ADJUSTL(BAR_TITLE)))
+    !assume window size equals to viewport, the unit is pixel
+    PPM1=glutget(GLUT_SCREEN_WIDTH)/REAL(glutget(GLUT_SCREEN_WIDTH_MM)) !PIXELS PER MM
+    !10 pound 
+    scale1=PPM1*3.527777778/119.05*0.8
+    call glLineWidth(1.0_glfloat)
+    call drawStrokeText(90.0,ORIG(1)-viewport1(3)/250., ORIG(2),ORIG(3),scale1,TRIM(ADJUSTL(contourbar.title)))
     
     CALL glPopMatrix()
     CALL glMatrixMode(GL_PROJECTION)
@@ -203,9 +298,10 @@ subroutine Color_Bar(contour_value,num_contour,nfrac,BAR_TITLE)
 	!CALL glEnable(GL_LIGHTING);
  !   call glEnable(GL_CULL_FACE);
 	!CALL glDepthFunc(GL_LEQUAL);
+    call glPolygonMode(gl_front_and_back, gl_FILL)
 	CALL glPopAttrib();
     
-10  FORMAT(F16.<nfrac>)    
+10  FORMAT(F16.<contourbar.nfrac>)    
 end subroutine
 
 subroutine get_rainbow(val,minval,maxval,c)
@@ -316,3 +412,83 @@ integer round;
     
     NICENUM= nf*10.**expv;
 end function
+
+
+subroutine ContourLine(VA,nVA,VC,LINE,NLINE,CONTOURPOINT)
+    use solverds
+    use MESHGEO
+    use function_plotter
+    implicit none
+    integer,intent(in)::nVA
+    real(8),intent(in)::VA(nVA),VC
+    integer,intent(out)::NLINE
+    INTEGER,allocatable,intent(out)::LINE(:,:)
+    real(8),intent(out)::CONTOURPOINT(3,NEDGE)
+    real(8)::V1,V2,T1,T2,T3,T4
+    INTEGER::ISPVC1(NEDGE),E1(4)=0
+    integer::i,j,MAXNLINE1=1000,N1
+    REAL(GLDOUBLE)::VEC1(3,NNUM),SCALE1,X1(3),X2(3) 
+	REAL(8),EXTERNAL::VECTOR_SCALE
+    
+    interface
+    SUBROUTINE I2_ENLARGE_AR(AVAL,DSTEP,DIM1)
+        INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:,:)
+        INTEGER,INTENT(IN)::DSTEP,DIM1
+    end subroutine
+    endinterface
+	
+	
+    
+    IF(ALLOCATED(LINE)) DEALLOCATE(LINE)
+	ALLOCATE(LINE(2,MAXNLINE1))
+	
+	
+	VEC1=0;SCALE1=1.D0
+	IF(IsContour_In_DeformedMesh.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
+		VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
+		VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
+		IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
+		scale1=VECTOR_SCALE(VEC1,NNUM,Scale_Deformed_Grid)
+	ENDIF	
+	
+	
+    ISPVC1=0
+    do i=1,nedge
+        V1=VA(EDGE(I).V(1));V2=VA(EDGE(I).V(2))
+        T1=VC-V1;T2=VC-V2;T3=V2-V1
+        IF(ABS(T3)<1.D-14)THEN
+            !IF(ABS(T1)<1.D-14) THEN                
+            !    ISPVC1(I)=2 !两个节点都是
+            !    PVC1(:,I)=NODE(V2).COORD
+            !ENDIF        
+        ELSE
+            IF(T1*T2<=0) THEN
+                ISPVC1(I)=1
+                T4=MIN(MAX(0.D0,T1/T3),1.D0)
+				X1=NODE(EDGE(I).V(1)).COORD+VEC1(:,EDGE(I).V(1))*SCALE1
+				X2=NODE(EDGE(I).V(2)).COORD+VEC1(:,EDGE(I).V(2))*SCALE1
+                CONTOURPOINT(:,I)=X1+t4*(X2-X1)
+            ENDIF   
+        ENDIF 
+    enddo
+    NLINE=0
+    DO I=1,NFACE
+		E1=ABS(FACE(I).EDGE)
+        !!!!!!!!!!!!!!!!!!!!
+		IF(SUM(ISPVC1(E1(1:FACE(I).SHAPE)))/=2) CYCLE
+        N1=0
+        NLINE=NLINE+1
+		IF(NLINE>MAXNLINE1) THEN
+            CALL I2_ENLARGE_AR(LINE,500,2)
+            MAXNLINE1=MAXNLINE1+500
+        ENDIF        
+        DO J=1,FACE(I).SHAPE        
+            IF(ISPVC1(E1(J))==1) THEN              
+                N1=N1+1
+                LINE(N1,NLINE)=E1(J)       
+            ENDIF
+       ENDDO    
+    ENDDO
+	
+	
+end subroutine

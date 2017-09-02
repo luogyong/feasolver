@@ -20,7 +20,7 @@ TYPE(EDGE_TYDEF),ALLOCATABLE::EDGE(:)
 TYPE FACE_TYDEF
     LOGICAL::ISINI=.FALSE.
     INTEGER::SHAPE=3
-    INTEGER::V(4)=0,EDGE(4)=0
+    INTEGER::V(4)=0,EDGE(4)=0 !IF EDGE(I)<0 MEANING ITS ORDER IS REVERSE .
     INTEGER::HKEY=-1
     CHARACTER(64)::CKEY="" 		
     INTEGER::ISTRISURFACE=0 !<-1 Óëface·´Ïò
@@ -233,36 +233,6 @@ SUBROUTINE SETUP_FACE_TBL()
     
 ENDSUBROUTINE
 
-SUBROUTINE I_ENLARGE_AR(AVAL,DSTEP)
-    INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:)
-    INTEGER,INTENT(IN)::DSTEP
-    INTEGER,ALLOCATABLE::VAL1(:)
-    INTEGER::LB1=0,UB1=0
-    
-    LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-    ALLOCATE(VAL1,SOURCE=AVAL)
-    DEALLOCATE(AVAL)
-    ALLOCATE(AVAL(LB1:UB1+DSTEP))
-    AVAL(LB1:UB1)=VAL1
-    !AVAL(UB1+1:UB1+10)=0
-    DEALLOCATE(VAL1)
-END SUBROUTINE
-
-SUBROUTINE R_ENLARGE_AR(AVAL,DSTEP)
-    REAL(8),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
-    INTEGER,INTENT(IN)::DSTEP
-    REAL(8),ALLOCATABLE::VAL1(:)
-    INTEGER::LB1=0,UB1=0
-    
-    LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-    ALLOCATE(VAL1,SOURCE=AVAL)
-    DEALLOCATE(AVAL)
-    ALLOCATE(AVAL(LB1:UB1+DSTEP))
-    AVAL(LB1:UB1)=VAL1
-    !AVAL(UB1+1:UB1+10)=0
-    DEALLOCATE(VAL1)
-END SUBROUTINE
-
 SUBROUTINE FACE_TYDEF_ENLARGE_AR(AVAL,DSTEP)
     TYPE(FACE_TYDEF),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
     INTEGER,INTENT(IN)::DSTEP
@@ -380,32 +350,36 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                                                    3,28,29,30,0],&
                                                     (/5,16/))                                              
 			CASE(3) !QUADRANGLE
-				Elttype(ET).NEDGE=4;Elttype(ET).NFACE=1
+				Elttype(ET).NEDGE=5;Elttype(ET).NFACE=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE))
-				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1],(/2,4/))                
-				Elttype(ET).FACE(:,:)=RESHAPE([4,1,2,3,4],(/5,1/))
-				Elttype(ET).FACEEDGE=RESHAPE([4,1,2,3,4],(/5,1/))
+				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1,3,1],(/2,5/))                
+				Elttype(ET).FACE(:,:)=RESHAPE([3,1,2,3,0,&
+                                               3,3,4,1,0],(/5,2/))
+				Elttype(ET).FACEEDGE=RESHAPE([3,1,2,5,0,&
+                                              3,3,4,-5,0],(/5,2/))
                 
 			CASE(16) !8-noded-QUADRANGLE
-				Elttype(ET).NEDGE=12;Elttype(ET).NFACE=5
+				Elttype(ET).NEDGE=13;Elttype(ET).NFACE=6
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE))
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,5,5,2,2,6,6,3,3,7,7,4,4,8,8,1,&
-                                               5,6,6,7,7,8,8,5], &
-                                               (/2,12/))                
+                                               5,6,6,7,7,8,8,5,8,6], &
+                                               (/2,13/))                
 				Elttype(ET).FACE(:,:)=RESHAPE([3,1,5,8,0,&
                                                3,5,2,6,0,&
                                                3,6,3,7,0,&
                                                3,7,4,8,0,&
-                                               4,5,6,7,8],&
-                                               (/5,5/))
+                                               3,5,6,8,0,&
+                                               3,6,7,8,0],&
+                                               (/5,6/))
 				Elttype(ET).FACEEDGE=RESHAPE([3,1,-12,8,0,&
                                               3,2,3,-9,0,&
                                               3,4,5,-10,0,&
                                               3,6,7,-11,0,&
-                                              4,9,10,11,12],&
-                                              (/5,5/))                                             
+                                              3,9,-13,12,0,&
+                                              3,10,11,13,0],&
+                                              (/5,6/))                                             
 			CASE(4) !TETRAHEDRON
 				Elttype(ET).NEDGE=6;Elttype(ET).NFACE=4
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
@@ -473,41 +447,61 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 											       3,22,23,24,0],&
                                                    (/5,16/))                                             
 			CASE(5) !HEXAHEDRON
-				Elttype(ET).NEDGE=12;Elttype(ET).NFACE=6
+				Elttype(ET).NEDGE=18;Elttype(ET).NFACE=12
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE))				
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1,&
 											   5,6,6,7,7,8,8,5,&
-											   1,5,2,6,3,7,4,8],(/2,12/))
-				Elttype(ET).FACE(:,:)=RESHAPE([4,4,3,2,1,&
-											   4,5,6,7,8,&
-											   4,1,2,6,5,&
-											   4,2,3,7,6,&
-											   4,3,4,8,7,&
-											   4,4,1,5,8],(/5,6/))
-				Elttype(ET).FACEEDGE(:,:)=RESHAPE([4,-3,-2,-1,-4,&
-											   4,5,6,7,8,&
-											   4,1,10,-5,-9,&
-											   4,2,11,-6,-10,&
-											   4,3,12,-7,-11,&
-											   4,4,9,-8,-12],(/5,6/))			
+											   1,5,2,6,3,7,4,8,&
+											   1,3,1,6,1,8,3,6,3,8,6,8],(/2,18/))
+				Elttype(ET).FACE(:,:)=RESHAPE([3,2,1,3,0,&
+											   3,4,3,1,0,&
+											   3,5,6,8,0,&
+											   3,6,7,8,0,&
+											   3,1,2,6,0,&
+											   3,1,6,5,0,&
+											   3,2,3,6,0,&
+											   3,3,7,6,0,&
+											   3,3,4,8,0,&
+											   3,3,8,7,0,&
+											   3,4,1,8,0,&
+											   3,1,5,8,0],(/5,12/))
+				Elttype(ET).FACEEDGE(:,:)=RESHAPE([3,-1,13,-2,0,&
+												   3,-3,-13,-4,0,&
+												   3,5,18,8,0,&
+												   3,6,7,-18,0,&
+												   3,1,10,-14,0,&
+												   3,14,-5,-9,0,&
+												   3,2,16,-3,0,&
+												   3,11,-6,-16,0,&
+												   3,3,12,-17,0,&
+												   3,17,-7,-11,0,&
+												   3,4,15,-12,0,&
+												   3,9,-8,-15,0],(/5,12/))		
 			CASE(6) !6-NODE PRISM
-				Elttype(ET).NEDGE=9;Elttype(ET).NFACE=5
+				Elttype(ET).NEDGE=12;Elttype(ET).NFACE=8
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE))				
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1,&
 											   4,5,5,6,6,4,&
-											   1,4,2,5,3,6],(/2,9/))
+											   1,4,2,5,3,6,&
+											   1,5,3,5,1,6],(/2,12/))
 				Elttype(ET).FACE(:,:)=RESHAPE([3,2,1,3,0,&
 											   3,4,5,6,0,&
-											   4,1,2,5,4,&
-											   4,2,3,6,5,&
-											   4,3,1,4,6],(/5,5/))
+											   3,1,2,5,0,&
+											   3,5,4,1,0,&
+											   3,2,3,5,0,&
+											   3,3,6,5,0,&
+											   3,3,1,6,0,&
+											   3,1,4,6,0],(/5,8/))
 				Elttype(ET).FACEEDGE(:,:)=RESHAPE([3,-1,-3,-2,0,&
-											   3,4,5,6,0,&
-											   4,1,8,-4,-7,&
-											   4,2,9,-5,-8,&
-											   4,3,7,-6,-9],(/5,5/))												
+												   3,4,5,6,0,&
+												   3,1,8,-10,0,&
+												   3,-4,-7,10,0,&
+												   3,2,11,-8,0,&
+												   3,9,-5,-11,0,&
+												   3,3,12,-9,0,&
+												   3,7,-6,-12,0],(/5,8/))												
 			CASE(18) !15-NODE PRISM
 				Elttype(ET).NEDGE=39;Elttype(ET).NFACE=26
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
@@ -587,21 +581,24 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 											       3,37,39,36,0],&                                               
 											       (/5,26/))		
 			CASE(7) !5-node pyramid
-				Elttype(ET).NEDGE=8;Elttype(ET).NFACE=5
+				Elttype(ET).NEDGE=9;Elttype(ET).NFACE=6
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE))
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1,&
-											   1,5,2,5,3,5,4,5],(/2,8/))
-				Elttype(ET).FACE(:,:)=RESHAPE([4,4,3,2,1,&
+											   1,5,2,5,3,5,4,5,&
+											   1,3],(/2,9/))
+				Elttype(ET).FACE(:,:)=RESHAPE([3,2,1,3,0,&
+											   3,1,4,3,0,&
 											   3,1,2,5,0,&
 											   3,2,3,5,0,&
 											   3,3,4,5,0,&
-											   3,4,1,5,0],(/5,5/))
-				Elttype(ET).FACEEDGE(:,:)=RESHAPE([4,-3,-2,-1,-4,&
-											   3,1,6,-5,0,&
-											   3,2,7,-6,0,&
-											   3,3,8,-7,0,&
-											   3,4,5,-8,0],(/5,5/))				
+											   3,4,1,5,0],(/5,6/))
+				Elttype(ET).FACEEDGE(:,:)=RESHAPE([3,-1,9,-2,0,&
+												   3,-4,-3,-9,0,&
+												   3,1,6,-5,0,&
+												   3,2,7,-6,0,&
+												   3,3,8,-7,0,&
+												   3,4,5,-8,0],(/5,6/))			
 			CASE(15) !POINTS
 				Elttype(ET).NEDGE=0;Elttype(ET).NFACE=0
             !CASE DEFAULT
@@ -790,6 +787,37 @@ subroutine not_nodal_force_weight(et)
 		end select
 end subroutine
 
+SUBROUTINE I_ENLARGE_AR(AVAL,DSTEP)
+    IMPLICIT NONE
+    INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+    INTEGER,INTENT(IN)::DSTEP
+    INTEGER,ALLOCATABLE::VAL1(:)
+    INTEGER::LB1=0,UB1=0
+    
+    LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+    ALLOCATE(VAL1,SOURCE=AVAL)
+    DEALLOCATE(AVAL)
+    ALLOCATE(AVAL(LB1:UB1+DSTEP))
+    AVAL(LB1:UB1)=VAL1
+    !AVAL(UB1+1:UB1+10)=0
+    DEALLOCATE(VAL1)
+END SUBROUTINE
+
+SUBROUTINE R_ENLARGE_AR(AVAL,DSTEP)
+    IMPLICIT NONE
+    REAL(8),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+    INTEGER,INTENT(IN)::DSTEP
+    REAL(8),ALLOCATABLE::VAL1(:)
+    INTEGER::LB1=0,UB1=0
+    
+    LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+    ALLOCATE(VAL1,SOURCE=AVAL)
+    DEALLOCATE(AVAL)
+    ALLOCATE(AVAL(LB1:UB1+DSTEP))
+    AVAL(LB1:UB1)=VAL1
+    !AVAL(UB1+1:UB1+10)=0
+    DEALLOCATE(VAL1)
+END SUBROUTINE
 
 ENDMODULE
 
@@ -845,3 +873,38 @@ subroutine r8vec_cross_3d ( v1, v2, v3 )
 
   return
 end
+
+
+
+
+SUBROUTINE R2_ENLARGE_AR(AVAL,DSTEP,DIM1)
+    IMPLICIT NONE
+    REAL(8),ALLOCATABLE,INTENT(INOUT)::AVAL(:,:)
+    INTEGER,INTENT(IN)::DSTEP,DIM1
+    REAL(8),ALLOCATABLE::VAL1(:,:)
+    INTEGER::LB1=0,UB1=0
+    
+    LB1=LBOUND(AVAL,DIM=2);UB1=UBOUND(AVAL,DIM=2)
+    ALLOCATE(VAL1,SOURCE=AVAL)
+    DEALLOCATE(AVAL)
+    ALLOCATE(AVAL(DIM1,LB1:UB1+DSTEP))
+    AVAL(:,LB1:UB1)=VAL1
+    !AVAL(UB1+1:UB1+10)=0
+    DEALLOCATE(VAL1)
+END SUBROUTINE
+
+SUBROUTINE I2_ENLARGE_AR(AVAL,DSTEP,DIM1)
+    IMPLICIT NONE
+    INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:,:)
+    INTEGER,INTENT(IN)::DSTEP,DIM1
+    INTEGER,ALLOCATABLE::VAL1(:,:)
+    INTEGER::LB1=0,UB1=0
+    
+    LB1=LBOUND(AVAL,DIM=2);UB1=UBOUND(AVAL,DIM=2)
+    ALLOCATE(VAL1,SOURCE=AVAL)
+    DEALLOCATE(AVAL)
+    ALLOCATE(AVAL(DIM1,LB1:UB1+DSTEP))
+    AVAL(:,LB1:UB1)=VAL1
+    !AVAL(UB1+1:UB1+10)=0
+    DEALLOCATE(VAL1)
+END SUBROUTINE
