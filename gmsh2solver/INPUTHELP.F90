@@ -184,6 +184,12 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I))=  "//"//'"'//"THE NOPOPUP IS USED TO STOP INTERACTION INFO DIALOG."//'"'
     README(IPP(I)) = "//A:{1|0}    //1:YES,0:NO(DEFAULT)"  
 	README(IPP(I)) = "//$ENDNOPOPUP" 
+	
+    README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//$OUTMESHSTRUCTURE"
+	README(IPP(I))=  "//"//'"'//"WETHER TO OUT MESHSTRUCTURE."//'"'
+    README(IPP(I)) = "//A:{1|0}    //1:YES,0:NO(DEFAULT)"  
+	README(IPP(I)) = "//$OUTMESHSTRUCTURE" 	
     
 	do 	j=1,i
 		item=len_trim(readme(j))

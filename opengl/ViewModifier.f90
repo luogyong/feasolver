@@ -210,7 +210,7 @@ end subroutine reset_view
 subroutine mouse(button, state, x, y)
 !          -----
 integer(kind=glcint), intent(in out) :: button, state, x, y
-!real(gldouble),external::GetOGLPos
+integer,external::POINTlOC,PTINTRIlOC
 
 ! This gets called when a mouse button changes
  
@@ -226,8 +226,8 @@ integer(kind=glcint), intent(in out) :: button, state, x, y
             begin_left = cart2D(x,y)
             left_button_func=PAN
         ELSEIF(state == GLUT_DOWN) THEN
-            print *,GetOGLPos(x, y)
-            
+            write(*,'(3g13.6,i5)'), GetOGLPos(x, y),PTINTRIlOC(GetOGLPos(x, y))   !POINTlOC(GetOGLPos(x, y))
+           
         ENDIF
     endif
   endif

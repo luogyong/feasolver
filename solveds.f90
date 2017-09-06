@@ -27,8 +27,8 @@ module solverds
 	INTEGER::NGNODE=0
     
 	type element_tydef
-		integer::nnum,ndege=0,nface=0 !node numbers of this element
-		integer,allocatable::node(:),EDGE(:),FACE(:) !单元的节点
+		integer::nnum,NTET=0 !node numbers of this element
+		integer,allocatable::node(:),TET(:) !单元的节点,TET为单元的细分单元组的下标。
         integer,allocatable::node2(:) !为方便Bar和Beam单元的后处理，为单元集内的节点编号，将其转换成实体六面体单元后输出。
 		integer::et  !单元类型
 		integer::mat,mattype  !material id and material type.the paramters is got from material(mat)
@@ -592,50 +592,27 @@ module solverds
 		materialfun=LF1D(FID,1)*X+LF1D(FID,2)
 	end function
 
-	FUNCTION csproduct(a1,a2) RESULT(maxoa)
-	!
-	! This function returns the dyadic product of two arrays
-	! 
-		 IMPLICIT NONE    
-		 real(kind=DPN),INTENT(IN)::a1(:),a2(:)
-		 real(kind=DPN)::maxoa(size(a1),size(a2))
-		 INTEGER::nrow,i,j,ncol
-		 
-		 nrow=UBOUND(a1,1)
-		 ncol=UBOUND(a2,1)
-		 DO i=1,nrow
-			DO j=1,ncol
-				maxoa(i,j)=a1(i)*a2(j)
-			ENDDO
+
+FUNCTION csproduct(a1,a2) RESULT(maxoa)
+!
+! This function returns the dyadic product of two arrays
+! 
+	 IMPLICIT NONE
+     INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
+	 real(kind=iwp),INTENT(IN)::a1(:),a2(:)
+	 real(kind=iwp)::maxoa(size(a1),size(a2))
+	 INTEGER::nrow,i,j,ncol
+	 
+	 nrow=UBOUND(a1,1)
+	 ncol=UBOUND(a2,1)
+	 DO i=1,nrow
+		DO j=1,ncol
+			maxoa(i,j)=a1(i)*a2(j)
 		ENDDO
-		RETURN
-    END FUNCTION csproduct
-    
-FUNCTION determinant(jac)RESULT(det)
-!
-! This function returns the determinant of a 1x1, 2x2 or 3x3
-! Jacobian matrix.
-!
- IMPLICIT NONE    
- INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
- REAL(iwp),INTENT(IN)::jac(:,:)
- REAL(iwp)::det
- INTEGER::it 
- it=UBOUND(jac,1)  
- SELECT CASE(it)
- CASE(1)
-   det=1.0_iwp
- CASE(2)
-   det=jac(1,1)*jac(2,2)-jac(1,2)*jac(2,1)
- CASE(3)
-   det=jac(1,1)*(jac(2,2)*jac(3,3)-jac(3,2)*jac(2,3))
-   det=det-jac(1,2)*(jac(2,1)*jac(3,3)-jac(3,1)*jac(2,3))
-   det=det+jac(1,3)*(jac(2,1)*jac(3,2)-jac(3,1)*jac(2,2))
- CASE DEFAULT
-   WRITE(*,*)' wrong dimension for Jacobian matrix'
- END SELECT
-RETURN
-END FUNCTION determinant 
+	ENDDO
+	RETURN
+END FUNCTION csproduct    
+
 
 ! computate the elastic compliance matrix [C] so that strain=matmul([C],stress)
 !ND>=4
@@ -875,5 +852,33 @@ SUBROUTINE invert(matrix)
    END DO
  END IF
 RETURN
-END SUBROUTINE invert    
+END SUBROUTINE invert   
+
+FUNCTION determinant(jac)RESULT(det)
+!
+! This function returns the determinant of a 1x1, 2x2 or 3x3
+! Jacobian matrix.
+!
+ IMPLICIT NONE    
+ INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
+ REAL(iwp),INTENT(IN)::jac(:,:)
+ REAL(iwp)::det
+ INTEGER::it 
+ it=UBOUND(jac,1)  
+ SELECT CASE(it)
+ CASE(1)
+   det=1.0_iwp
+ CASE(2)
+   det=jac(1,1)*jac(2,2)-jac(1,2)*jac(2,1)
+ CASE(3)
+   det=jac(1,1)*(jac(2,2)*jac(3,3)-jac(3,2)*jac(2,3))
+   det=det-jac(1,2)*(jac(2,1)*jac(3,3)-jac(3,1)*jac(2,3))
+   det=det+jac(1,3)*(jac(2,1)*jac(3,2)-jac(3,1)*jac(2,2))
+ CASE DEFAULT
+   WRITE(*,*)' wrong dimension for Jacobian matrix'
+ END SELECT
+RETURN
+END FUNCTION determinant 
+
+
 

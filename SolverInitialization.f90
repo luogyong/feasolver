@@ -1053,8 +1053,10 @@ subroutine Initialization()
 	
 	!form element list
 	call FormElementList()
-    call SETUP_EDGE_TBL()
-    call SETUP_FACE_TBL()
+    call SETUP_SUB_TET4_ELEMENT()
+	call SETUP_EDGE_TBL_TET()
+    call SETUP_FACE_TBL_TET()
+	
     
 	!INITIALIZED DOFHEAD
 	CALL NDOF_HEAD()

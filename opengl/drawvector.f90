@@ -9,10 +9,12 @@ REAL(8),EXTERNAL::Vector_SCALE
 
 !MAXV1=MAXVAL(NORM2(VEC,DIM=1))
 !scale1=modelr/40./maxv1*Scale_Vector_len
-SCALE1=VECTOR_SCALE(VEC,NNUM,Scale_Vector_len)
+
 
 call glDeleteLists(VectorList, 1_glsizei)
 if(IsDrawVector) then
+
+	SCALE1=VECTOR_SCALE(VEC,NNUM,Scale_Vector_len)
     call reset_view
     
     call glNewList(VectorList, gl_compile_and_execute)

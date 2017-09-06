@@ -290,7 +290,7 @@ case (surfgrid_toggle)
    draw_surface_grid = .not. draw_surface_grid
 case(DeformedMesh)
     draw_surface_grid=.true.
-   IsDeformedMesh=.not.IsDeformedMesh
+    IsDeformedMesh=.not.IsDeformedMesh
 case(Enlarge_Scale_DeformedMesh)
     Scale_Deformed_Grid=Scale_Deformed_Grid*2.0
     if(IsContour_In_DeformedMesh) then

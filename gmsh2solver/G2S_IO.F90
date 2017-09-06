@@ -35,7 +35,7 @@ subroutine readin()
 			title=trim(name)
             FILEPATH=trim(drive)//trim(dir)//trim(name)
 			resultfile=TRIM(FILEPATH)//'.sinp'
-            
+            meshstructurefile=TRIM(FILEPATH)//'_meshstructure'//'.dat'
 		ELSE
 			open(UNIT1,file=INCLUDEFILE(I),status='old' )
 			length = SPLITPATHQQ(INCLUDEFILE(I), drive, dir, name, ext)
@@ -581,6 +581,12 @@ subroutine kwcommand(term,unit)
 			strL1=LEN('copyfile')
 			write(*, 20) "COPYFILE"
 		case('cutoffwall')
+		CASE("outmeshstructure")
+			call skipcomment(unit)
+			read(unit,*) IsoutMS
+		CASE("endoutmeshstructure")
+			strL1=10
+			write(*, 20) "endoutmeshstructure"  
 			
 		case default
 			strL1=len_trim(term)
@@ -1407,3 +1413,40 @@ INTEGER FUNCTION INCOUNT(N)
 
 END FUNCTION
 
+SUBROUTINE OUTMESHSTRUCTURE()
+    USE DS_Gmsh2Solver
+    IMPLICIT NONE
+    INTEGER::I,J
+    OPEN(10,FILE=MESHSTRUCTUREFILE)
+	WRITE(10,40)
+	WRITE(10,30) NNODE
+	DO I=1,NNODE
+		WRITE(10,31) I,NODE(I).XY
+	ENDDO
+	WRITE(10,50) NEL
+	DO I=1,NEL
+		IF(ELEMENT(I).ET/=4) CYCLE
+		WRITE(10,51) I,ELEMENT(I).NODE,ELEMENT(I).FACE,ELEMENT(I).EDGE
+	ENDDO
+	WRITE(10,10) NEDGE
+	DO I=1,NEDGE
+		WRITE(10,11) I,EDGE(I).V
+	ENDDO
+	WRITE(10,20) NFACE
+	DO I=1,NFACE
+		WRITE(10,21) I,FACE(I).V(1:FACE(I).SHAPE),FACE(I).EDGE(1:FACE(I).SHAPE)
+	ENDDO	
+
+	CLOSE(10)
+	
+10 FORMAT('EDGE,NUM=',I7,'\N//ID,V1,V2'C)
+11 FORMAT(3(I7,','))
+20 FORMAT('FACE,NUM=',I7,'\N//ID,V1,V2,V3,E1,E2,E3'C)
+21 FORMAT(<1+2*FACE(I).SHAPE>(I7,','))
+50 FORMAT('ELEMENT,NUM=',I7,'\N//ID,V1-V4,F1-F4,E1-E6'C)
+51 FORMAT(<1+ELEMENT(I).NNODE+ELEMENT(I).NFACE+ELEMENT(I).NEDGE>(I7,','))
+30 FORMAT('NODE,NUM=',I7,'\N//ID,X,Y,Z'C)
+31 FORMAT(I7,',',3(F24.14,','))
+40 FORMAT('//JUST FOR TET4.NOTE THAT THE OUTPUT IS IN ITS ORIGINAL NODAL ORDER, NO REORDER.')
+
+ENDSUBROUTINE

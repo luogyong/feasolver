@@ -392,7 +392,8 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 	REAL(8)::SUMQ1=0
 	
 	if(.NOT.allocated(NODALQ)) allocate(NodalQ(nnum,nvo))
-    if(.NOT.allocated(VEC)) allocate(VEC(3,NNUM))
+    IF(.NOT.ALLOCATED(VEC)) ALLOCATE(VEC(3,NNUM))
+    VEC=0.0D0
 	i=1
 	do while(i<=nvo)
 		select case(vo(i))
@@ -654,6 +655,7 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 100	FORMAT("IPARASYS",7X,"CaseID",9X,"DATASET",8X,"ISTEP",10X,"ISUBTS",9X,"ITER",11X,"NO",13X,<NVO>A15)
 110 FORMAT(7(I14,X),<nvo>(E14.7,X))
 120 FORMAT(7(I14,X),<NVO1>(E14.7,X),"//",<NVO1>A15)
+                                           
 
 	!if(allocated(NodalQ)) deallocate(NodalQ)
 	

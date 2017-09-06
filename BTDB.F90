@@ -13,7 +13,8 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
 	real(8)::ELB(ielb,jelb,kelb),Djacm(idjacm)
 	real(8),allocatable::GSDeriv(:,:),Jacm(:,:),xy(:,:)
 	real(8)::r1
-	
+	real(8),external::determinant
+    
 	et=element(ienum).et
 	ec=element(ienum).ec
 	ngp=ecp(et).ngp

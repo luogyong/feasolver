@@ -47,7 +47,7 @@ module DS_Gmsh2Solver
 		!the third is the number of mesh partitions to which the element belongs, 
 		!followed by the partition ids (negative partition ids indicate ghost cells). A zero tag is equivalent to no tag. 
         integer::ilayer=1
-		integer::nnode=0,ndege=0,nface=0
+		integer::nnode=0,nedge=0,nface=0
 		integer,allocatable::node(:)
         INTEGER,ALLOCATABLE::EDGE(:),FACE(:)
     !CONTAINS
@@ -149,14 +149,14 @@ module DS_Gmsh2Solver
 	integer,allocatable::modelgroup(:)
 	integer::nmodelgroup=0
 		
-	character(512)::resultfile,title,INCLUDEFILE(0:100),COPYFILE(100),FILEPATH
+	character(512)::resultfile,title,INCLUDEFILE(0:100),COPYFILE(100),FILEPATH,meshstructurefile
 	INTEGER::NINCLUDEFILE=0,NCOPYFILE=0
 		
 	integer,allocatable::adjL(:,:)
 	integer::maxadj=100
 	
 	integer::modeldimension=2
-    
+    integer::IsoutMS=0
     REAL(8),ALLOCATABLE::ELEVATION(:,:)
     
     !INTEGER::EDGE
