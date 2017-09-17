@@ -116,6 +116,8 @@ character(128)::str1,str2,STR3
 	call glMatrixMode(GL_MODELVIEW);
 	call glpopmatrix()    
 
+    call glutPostRedisplay
+    
 endsubroutine
 
 
@@ -191,6 +193,7 @@ subroutine drawVectorLegend2(Vtmax,Vtmin,Scale,VTITLE)
     CALL glPopMatrix()
 	CALL glPopAttrib();
     
+    call glutPostRedisplay
  
 end subroutine
 
@@ -279,6 +282,9 @@ real(glfloat),dimension(3)::axesOrigin=[0.0,0.0,0.0];
 	call glpopmatrix()
 	call glMatrixMode(GL_MODELVIEW);
 	call glpopmatrix()
+    
+    call glutPostRedisplay
+    
 end subroutine
 
 subroutine drawArrow(orig,dest)

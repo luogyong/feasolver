@@ -4,67 +4,125 @@ use opengl_gl
 use function_plotter
 use MESHGEO
 implicit none    
-integer::i,j
+integer::i,j,k,MAT1(10)
 real(gldouble)::VEC1(3,NNUM),maxv1,scale1
 logical::isdg1=.false.
 REAL(8),EXTERNAL::VECTOR_SCALE
 
 call glDeleteLists(gridlist, 1_glsizei)
+call reset_view 
 
-if (draw_surface_grid) then
+call glPushAttrib(GL_ALL_ATTRIB_BITS)
 
-    call reset_view 
-    call glNewList(gridlist, gl_compile_and_execute)
+VEC1=0;SCALE1=1.D0
+IF(ISDEFORMEDMESH.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
+	VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
+	VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
+	IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
+	scale1=VECTOR_SCALE(VEC1,NNUM,Scale_Deformed_Grid)
+	!MAXV1=MAXVAL(NORM2(VEC1,DIM=1))
+	!scale1=modelr/40./maxv1*Scale_Deformed_Grid
+ENDIF
 
-    call glPolygonMode(gl_front_and_back, gl_line)
-    VEC1=0;SCALE1=1.D0
-    
-    IF(ISDEFORMEDMESH.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
-        VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
-        VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
-        IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
-        scale1=VECTOR_SCALE(VEC1,NNUM,Scale_Deformed_Grid)
-        !MAXV1=MAXVAL(NORM2(VEC1,DIM=1))
-        !scale1=modelr/40./maxv1*Scale_Deformed_Grid
-    ENDIF
-	
-	
+call glNewList(gridlist, gl_compile_and_execute)
+	if (draw_surface_grid) then
 
-    call glBegin(gl_lines)
+		do k=1,2
+		    if(k==1) cycle
+			if(k==1) then
+                call glPolygonMode(gl_front_and_back, gl_fill)
 
-        call glcolor4fv(black)
-
-		do i=1,nface
-
-			!只对外边界及材料边界进行渲染。
-			IF(FACE(I).ENUM>1) THEN
-				MAT1(1:FACE(I).ENUM)=ELEMENT(TET(ABS(FACE(I).ELEMENT)).MOTHER).MAT !
-				IF(all(MAT1(1:FACE(I).ENUM)-MAT1(1)==0)) CYCLE
-			ENDIF
-			do j=1,3
-				!call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,face(i).v(j)))
-				IF(surface_color == white_surface)THEN
-					call glcolor4fv(GRAY)
-				ELSE
-					call glcolor4fv(vcolor(:,face(i).v(j)))
-				ENDIF
-				call glvertex3dv(node(face(i).v(j)).coord+VEC1(:,face(i).v(j))*SCALE1)            
-			enddo    
-		enddo		
+            endif
+			if(k==2) then
+                call glPolygonMode(gl_front_and_back, gl_line)
+                !call glenable(gl_polygon_offset_line)
+                !call glPolygonoffset(-1.0_glfloat,-1.0_glfloat)
+            endif
 		
-        !do i=1,nedge
-        !    do j=1,2
-        !        !call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,face(i).v(j)))
-        !        call glvertex3dv(node(edge(i).v(j)).coord+VEC1(:,edge(i).v(j))*scale1)            
-        !    enddo    
-        !enddo
+			call glBegin(gl_triangles)
+				
+	 
+				do i=1,nmface
+					if(mface(i).shape/=3) cycle
+					!只对外边界及材料边界进行渲染。
+					MAT1(1:MFACE(I).ENUM)=ELEMENT(ABS(MFACE(I).ELEMENT)).MAT !
+					IF(MFACE(I).ENUM>1) THEN				    
+						IF(all(MAT1(1:MFACE(I).ENUM)-MAT1(1)==0)) CYCLE
+					ENDIF
+					
+					if(k==1) then
+						call glcolor4fv(mycolor(:,max(mod(mat1(1)+2,139),3)))
+					else
+						call glcolor4fv(mycolor(:,forest_green))
+					endif			
+					do j=1,MFACE(I).SHAPE
+						!call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,MFACE(I).v(j)))
+					
+						call glvertex3dv(node(MFACE(I).v(j)).coord+VEC1(:,MFACE(I).v(j))*SCALE1)            
+					enddo
+					
+	            enddo
+			call glEnd
+		
+			call glBegin(GL_QUADS)
 
-    call glEnd
+				do i=1,nmface
+					if(mface(i).shape/=4) cycle
+					!只对外边界及材料边界进行渲染。
+					MAT1(1:MFACE(I).ENUM)=ELEMENT(TET(ABS(MFACE(I).ELEMENT)).MOTHER).MAT !
+					IF(MFACE(I).ENUM>1) THEN
+						IF(all(MAT1(1:MFACE(I).ENUM)-MAT1(1)==0)) CYCLE
+					ENDIF
+					if(k==1) then
+						call glcolor4fv(mycolor(:,max(mod(mat1(1)+2,139),3)))
+					else
+						call glcolor4fv(mycolor(:,black))
+					endif
+					do j=1,MFACE(I).SHAPE
+						!call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,MFACE(I).v(j)))
+					
+						call glvertex3dv(node(MFACE(I).v(j)).coord+VEC1(:,MFACE(I).v(j))*SCALE1)            
+					enddo    
+				enddo
+			
+			call glEnd
+        enddo
+    end if
+	
+    
+    
+	if(show_edge) then
+		call glPolygonMode(gl_front_and_back, gl_line)
+		call glcolor4fv(mycolor(:,Navy))
 
-    call glEndList
+		call glbegin(gl_lines)
+			do i=1,nmedge
+				do j=1,2
+					!call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,face(i).v(j)))
+					call glvertex3dv(node(medge(i).v(j)).coord+VEC1(:,medge(i).v(j))*scale1)            
+				enddo    
+			enddo
+		
+		call glend
 
-endif
+	endif
+	
+	if(show_node) then
+	
+		call glcolor4fv(mycolor(:,orange))
+		call glPointSize(4.0_glfloat)
+		call glbegin(gl_points)
+			do i=1,nnum
+				call glvertex3dv(node(i).coord+VEC1(:,i)*scale1)            
+			enddo
+			
+		call glend
 
+	endif
+
+call glEndList
+    
+call glPopAttrib();
 call glutPostRedisplay
 
 endsubroutine

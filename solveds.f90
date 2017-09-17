@@ -27,8 +27,8 @@ module solverds
 	INTEGER::NGNODE=0
     
 	type element_tydef
-		integer::nnum,NTET=0 !node numbers of this element
-		integer,allocatable::node(:),TET(:) !单元的节点,TET为单元的细分单元组的下标。
+		integer::nnum,NEDGE=0,NFACE=0,NTET=0 !node numbers of this element
+		integer,allocatable::node(:),EDGE(:),FACE(:),TET(:) !单元的节点,TET为单元的细分单元组的下标。
         integer,allocatable::node2(:) !为方便Bar和Beam单元的后处理，为单元集内的节点编号，将其转换成实体六面体单元后输出。
 		integer::et  !单元类型
 		integer::mat,mattype  !material id and material type.the paramters is got from material(mat)

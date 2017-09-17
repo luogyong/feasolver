@@ -60,7 +60,7 @@ MODULE hashtbl
 
   PUBLIC :: hash_tbl_sll
   
-  TYPE(hash_tbl_sll)::EDGE_TBL,FACE_TBL,Model_EDEG_TBL,MODEL_FACE_TBL
+  TYPE(hash_tbl_sll)::EDGE_TBL,FACE_TBL,MEDGE_TBL,MFACE_TBL
 
   
   

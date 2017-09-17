@@ -14,7 +14,7 @@
 !---------------------------------------------------------------------------
 
 module view_modifier
-
+    
 ! This module provides facilities to modify the view in an OpenGL window.
 ! The mouse buttons and keyboard arrow keys can be used to zoom, pan,
 ! rotate and change the scale.  A menu or submenu can be used to select which
@@ -59,10 +59,11 @@ module view_modifier
 use opengl_gl
 use opengl_glu
 use opengl_glut
+!use MESHGEO
 implicit none
 private
 public :: view_modifier_init, reset_view,init_lookat, init_lookfrom,view_from,VIEW_ZP,&
-          minx,miny,minz,maxx,maxy,maxz,model_radius,GetWinXYZ
+          minx,miny,minz,maxx,maxy,maxz,model_radius,keyboardCB,info
 
 integer(kind=glcint), parameter :: ZOOM = 1, PAN = 2, ROTATE = 3, SCALEX = 4, &
                       SCALEY = 5, SCALEZ = 6
@@ -72,6 +73,30 @@ real(kind=gldouble), parameter :: PI = 3.141592653589793_gldouble
 real(kind=gldouble)::minx,miny,minz,maxx,maxy,maxz,axis_rotate(3),phi_rotate=0.,model_radius
 real(gldouble),dimension(16)::ModelViewSaved
 LOGICAL,public::ISPERSPECT=.TRUE.
+INTEGER,PUBLIC::INPUTKEY=-1
+LOGICAL,PUBLIC::isPickforslice=.FALSE.
+
+INTEGER,PUBLIC,PARAMETER::str2realArray=1
+type string2val_tydef
+    character(64)::Name
+    integer::nval
+    real(8),allocatable::val(:)
+endtype
+type(string2val_tydef),public,allocatable::str2vals(:)
+integer,public::nstr2vals=0
+
+type infoshow_tydef
+    character(256)::str='',inputstr=''
+    LOGICAL::ISNEEDINPUT=.FALSE.
+    integer::color=1,interpreter=str2realArray,func_id=0,ninputvar=0
+    logical::qkey=.TRUE.
+    type(string2val_tydef),allocatable::inputvar(:)
+    
+endtype
+type(infoshow_tydef)::info
+integer,public,parameter::FUNC_ID_GETSLICELOCATION=1
+
+
 
 type, private :: cart2D ! 2D cartesian coordinates
    real(kind=gldouble) :: x, y
@@ -217,23 +242,28 @@ integer,external::POINTlOC,PTINTRIlOC
   if (button == GLUT_LEFT_BUTTON) then
     moving_left = .false.
     if(state == GLUT_DOWN.and.glutGetModifiers() == GLUT_ACTIVE_CTRL) then
-        moving_left = .true.
-        begin_left = cart2D(x,y)
-        left_button_func=ROTATE
+        !write(*,'(3g13.6,i5)') GetOGLPos(x, y),PTINTRIlOC(GetOGLPos(x, y))   !POINTlOC(GetOGLPos(x, y))
+
+		call ProbeatPoint(x,y)
     else
+        
         if(state == GLUT_DOWN.and.glutGetModifiers() == GLUT_ACTIVE_SHIFT) then
+            call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
             moving_left = .true.
             begin_left = cart2D(x,y)
             left_button_func=PAN
         ELSEIF(state == GLUT_DOWN) THEN
-            write(*,'(3g13.6,i5)'), GetOGLPos(x, y),PTINTRIlOC(GetOGLPos(x, y))   !POINTlOC(GetOGLPos(x, y))
-           
+            call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
+			moving_left = .true.
+			begin_left = cart2D(x,y)
+			left_button_func=ROTATE
         ENDIF
     endif
   endif
   
   if (button == GLUT_MIDDLE_BUTTON ) then
     if(state == GLUT_DOWN) then
+        call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
         moving_middle = .true.
         begin_middle = cart2D(x,y)
     else
@@ -623,6 +653,103 @@ subroutine myreshape(w,h)
 
 end subroutine
 
+subroutine keyboardCB(key,  x,  y)
+    use strings
+    integer,intent(in)::key,x,y
+    integer::nlen=0,nsubstr=0
+    character(len(info.inputstr))::substr(50)
+    
+    
+    INPUTKEY=KEY
+   
+    
+    select case(key)
+    case(ichar('q'),ichar('Q'))
+        if(INFO.QKEY) then
+            info.str=''
+            info.inputstr=''           
+            INFO.ISNEEDINPUT=.FALSE.
+        endif
+    case DEFAULT
+ 
+    end select
+    
+    if(info.isneedinput) then
+        nlen=len_trim(adjustl(info.inputstr))
+        if(nlen>=len(info.inputstr)) info.inputstr=''
+        if(key==8) then
+            info.inputstr=info.inputstr(1:nlen-1)            
+        elseif(key==13) then !enter
+            call string_interpreter(info.inputstr,str2realArray)
+            if(allocated(info.inputvar)) deallocate(info.inputvar)
+            allocate(info.inputvar,source=str2vals)
+            info.ninputvar=nstr2vals
+            select case(info.func_id)
+            case(FUNC_ID_GETSLICELOCATION)
+                call getslicelocation()
+            end select
+            
+            info.str=''
+            info.inputstr=''
+            INFO.NINPUTVAR=0
+            if(allocated(info.inputvar)) deallocate(info.inputvar)
+            INFO.ISNEEDINPUT=.false.
+        else
+            info.inputstr=trim(adjustl(info.inputstr))//char(key)
+        endif
+    ELSE
+        INFO.INPUTSTR=''
+    endif 
+    
+    call glutPostRedisplay
+    !switch(key)
+    !{
+    !case 27: // ESCAPE
+    !    exit(0);
+    !    break;
+    !
+    !case 'd': // switch rendering modes (fill -> wire -> point)
+    !case 'D':
+    !    drawMode = ++drawMode % 3;
+    !    if(drawMode == 0)        // fill mode
+    !    {
+    !        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    !        glEnable(GL_DEPTH_TEST);
+    !        glEnable(GL_CULL_FACE);
+    !    }
+    !    else if(drawMode == 1)  // wireframe mode
+    !    {
+    !        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    !        glDisable(GL_DEPTH_TEST);
+    !        glDisable(GL_CULL_FACE);
+    !    }
+    !    else                    // point mode
+    !    {
+    !        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+    !        glDisable(GL_DEPTH_TEST);
+    !        glDisable(GL_CULL_FACE);
+    !    }
+    !    break;
+    !
+    !case 'r':
+    !case 'R':
+    !    // reset rotation
+    !    quat.set(1, 0, 0, 0);
+    !    break;
+    !
+    !case ' ':
+    !    if(trackball.getMode() == Trackball::ARC)
+    !        trackball.setMode(Trackball::PROJECT);
+    !    else
+    !        trackball.setMode(Trackball::ARC);
+    !    break;
+    !
+    !default:
+    !    ;
+    !}
+endsubroutine
+
+
 !        -----------
 function sphere2cart(spoint) result(cpoint)
 !        -----------
@@ -703,55 +830,6 @@ cart3%z = cart1%z - cart2%z
 return
 end function cart3D_minus_cart3D
 
-function GetOGLPos(x, y) result(object)
 
-    implicit none
-    integer(glint),intent(in)::x,y
-    real(gldouble)::object(3)
-    integer(GLint),dimension(4):: viewport;
-    real(GLdouble),dimension(16):: modelview;
-    real(GLdouble),dimension(16):: projection;
-    real(gldouble)::winX, winY, winZ=0.d0,clip_Z
-    real(GLdouble)::posX, posY, posZ,nf(2),far_z,near_z
-    integer(GLint)::i
-    REAL(GLFLOAT)::WINZ1
- 
-    call glGetDoublev( GL_MODELVIEW_MATRIX, modelview );
-    call glGetDoublev( GL_PROJECTION_MATRIX, projection );
-    call glGetIntegerv( GL_VIEWPORT, viewport );
-    !print *, viewport
-    
-    winX = real(x);
-    winY = real(viewport(4)) - real(y);
-    
-    call f9y1glReadPixels( x, int(winY), 1, 1 , GL_DEPTH_COMPONENT, GL_FLOAT, WINZ1 );
-
-    WINZ=WINZ1 !!!NOTE THAT f9y1glReadPixels CANN'T ACCEPT GL_DOUBLE. it took me two days to find it. 
-    
-    i= gluUnProject( winX, winY, winZ, modelview, projection, viewport, posX, posY, posZ);
-    object=[posX,posY,posZ]
-    return
-    !return CVector3(posX, posY, posZ);
-end function
-
-
-function GetWinXYZ(objx,objy,objz) result(WinP)
-    implicit none
-    real(gldouble),intent(in)::objx,objy,objz
-    real(gldouble)::WinP(3),winX,winY,winZ
-    integer(GLint),dimension(4):: viewport;
-    real(GLdouble),dimension(16):: modelview;
-    real(GLdouble),dimension(16):: projection;
-    integer(GLint)::i
- 
-    call glGetDoublev( GL_MODELVIEW_MATRIX, modelview );
-    call glGetDoublev( GL_PROJECTION_MATRIX, projection );
-    call glGetIntegerv( GL_VIEWPORT, viewport );
-
-    i= gluProject( objX, objY, objZ, modelview, projection, viewport, winX, winY, winZ);
-    WinP=[winX, winY, winZ]
-    return
-    !return CVector3(posX, posY, posZ);
-end function
 
 end module view_modifier

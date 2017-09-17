@@ -16,26 +16,29 @@ integer :: i,j,k,n1,MAT1(10)  !,nfrac
 
 
 
-
-VEC1=0;SCALE1=1.D0
-IF(IsContour_In_DeformedMesh.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
-    VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
-    VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
-    IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
-    scale1=VECTOR_SCALE(VEC1,NNUM,Scale_Deformed_Grid)
-ENDIF
-
-n1=outvar(CONTOUR_PLOT_VARIABLE).ivo
-
-call glDeleteLists(contourlist, 1_glsizei)
-
 if (draw_surface_solid) then
+
+    VEC1=0;SCALE1=1.D0
+    IF(IsContour_In_DeformedMesh.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
+        VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
+        VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
+        IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
+        scale1=VECTOR_SCALE(VEC1,NNUM,Scale_Deformed_Grid)
+    ENDIF
+
+    n1=outvar(CONTOUR_PLOT_VARIABLE).ivo
+
+    call glDeleteLists(contourlist, 1_glsizei)
+
+
     call reset_view
     call glNewList(contourlist, gl_compile_and_execute)
 
 ! draw the solid surface
 
     call glPolygonMode(gl_front_and_back, gl_fill)
+    call glenable(gl_polygon_offset_fill)
+    call glPolygonoffset(0.5_glfloat,0.5_glfloat)
     call glBegin(gl_triangles)
 
    
@@ -62,7 +65,7 @@ if (draw_surface_solid) then
         do j=1,3
             !call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,face(i).v(j)))
             IF(surface_color == white_surface)THEN
-                call glcolor4fv(GRAY)
+                call glcolor4fv(mycolor(:,gray))
             ELSE
                 call glcolor4fv(vcolor(:,face(i).v(j)))
             ENDIF
@@ -102,11 +105,18 @@ if (draw_surface_solid) then
    
    
    !if (surface_color == rainbow_surface) call Color_Bar(contour_value,num_contour,NFRAC,color_bar_title)
+
+
+    call glEndList
+
+    call gldisable(gl_polygon_offset_fill)
+    
+    
+    call glutPostRedisplay
+
+    
+    
 endif ! draw_surface_solid
-
-call glEndList
-
-call glutPostRedisplay
 
 if(allocated(vcolor)) deallocate(vcolor)
 !if(allocated(contour_value)) deallocate(contour_value)
@@ -123,83 +133,286 @@ use view_modifier
 implicit none
 real(GLDOUBLE)::CPNT1(3,NEDGE)    
 INTEGER,allocatable::CLINE1(:,:),TRI1(:,:)
-INTEGER::NCL1=0,NTRI1=0
+INTEGER::NCL1=0,NTRI1=0,AT1(NEDGE)
+REAL(GLDOUBLE)::VEC1(3,NNUM),SCALE1,XYZ(3,NNUM) 
+REAL(8),EXTERNAL::VECTOR_SCALE
 
-integer :: i,j,k,n1  !,nfrac
+integer :: i,j,k,n1,N2  !,nfrac
 
 ! prepare to make a new display list
 
 interface
 
-	subroutine ContourLine(VA,nVA,VC,LINE,NLINE,CONTOURPOINT,TRI,NTRI)
+	subroutine ContourLine(EDGE_L,NEDGE_L,FACE_L,NFACE_L,TET_L,NTET_L,XYZ,&
+                            VA,nVA,VC,LINE,NLINE,CONTOURPOINT,TRI,NTRI)
 		use MESHGEO
 		implicit none
-		integer,intent(in)::nVA
-		real(8),intent(in)::VA(nVA),VC
+        integer,intent(in)::nVA,NEDGE_L,NFACE_L,NTET_L
+        real(8),intent(in)::VA(nVA),VC,XYZ(3,nVA)
+        TYPE(EDGE_TYDEF),INTENT(IN)::EDGE_L(NEDGE_L)
+        TYPE(FACE_TYDEF),INTENT(IN)::FACE_L(NFACE_L)
+        TYPE(TET_TYDEF),INTENT(IN)::TET_L(NTET_L)
 		integer,intent(out)::NLINE,NTRI
 		INTEGER,allocatable,intent(out)::LINE(:,:),TRI(:,:)
-		real(8),intent(out)::CONTOURPOINT(3,NEDGE)
+		real(8),intent(out)::CONTOURPOINT(3,NEDGE_L)
 	end subroutine
 
 endinterface
 
 
 
-n1=outvar(CONTOUR_PLOT_VARIABLE).ivo
-
-call glDeleteLists(contourLinelist, 1_glsizei)
-
 if (draw_contour) then
-    call reset_view
-    call glNewList(contourLinelist, gl_compile_and_execute)
-    call gldisable(GL_CULL_FACE);
-	do i=1,contourbar.nval
+
+    VEC1=0;SCALE1=1.D0
+    IF(IsContour_In_DeformedMesh.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
+	    VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
+	    VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
+	    IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
+	    scale1=VECTOR_SCALE(VEC1,NNUM,Scale_Deformed_Grid)
+    ENDIF
+    DO I=1,NNUM
+        XYZ(:,I)=NODE(I).COORD+VEC1(:,I)*SCALE1    
+    ENDDO
+    IF(ALLOCATED(ISOLINE)) DEALLOCATE(ISOLINE)
+    NISOLINE=CONTOURBAR.NVAL
+    ALLOCATE(ISOLINE(NISOLINE))
+
+    do i=1,contourbar.nval
         CPNT1=0.0d0
-		call ContourLine(NODALQ(:,N1),NNUM,contourbar.VAL(I),CLINE1,NCL1,CPNT1,TRI1,NTRI1)
-		call glcolor4fv(BLACK)		
+        
+	    call ContourLine(EDGE,NEDGE,FACE,NFACE,TET,NTET,XYZ,NODALQ(:,outvar(CONTOUR_PLOT_VARIABLE).ivo),NNUM, &
+                            contourbar.VAL(I),CLINE1,NCL1,CPNT1,TRI1,NTRI1)
+        AT1=0;N1=0
+        DO J=1,NCL1
+            DO K=1,2
+                N2=CLINE1(K,J)
+                IF(AT1(N2)==0) THEN
+                    N1=N1+1
+                    AT1(N2)=N1
+                ENDIF
+                CLINE1(K,J)=AT1(N2)
+            ENDDO
+        ENDDO
+        DO J=1,NTRI1
+            DO K=1,3
+                N2=TRI1(K,J)
+                IF(AT1(N2)==0) THEN
+                    N1=N1+1
+                    AT1(N2)=N1
+                ENDIF
+                TRI1(K,J)=AT1(N2)
+            ENDDO
+        ENDDO
+        ISOLINE(I).NV=N1;ISOLINE(I).NE=NCL1;ISOLINE(I).NTRI=NTRI1
+        ISOLINE(I).VAL=contourbar.val(I)
+        ALLOCATE(ISOLINE(I).V(3,N1))
+        DO J=1,NEDGE
+            IF(AT1(J)/=0) ISOLINE(I).V(:,AT1(J))=CPNT1(:,J)
+        ENDDO
+        IF(NCL1>0) ALLOCATE(ISOLINE(I).EDGE,SOURCE=CLINE1)
+        IF(NTRI1>0) ALLOCATE(ISOLINE(I).TRI,SOURCE=TRI1)    
+    ENDDO
+
+
+ 
+
+
+    call reset_view 
+    call glDeleteLists(contourLinelist, 1_glsizei)
+    call glNewList(contourLinelist, gl_compile_and_execute)
+    
+    call gldisable(GL_CULL_FACE);    
+    call glPolygonMode(gl_front_and_back, gl_fill)  
+  
+    
+	do i=1,NISOLINE
+  !      CPNT1=0.0d0
+		!call ContourLine(EDGE,NEDGE,FACE,NFACE,TET,NTET,XYZ,NODALQ(:,N1),NNUM,contourbar.VAL(I),CLINE1,NCL1,CPNT1,TRI1,NTRI1)
+		call glcolor4fv(mycolor(:,black))		
 		CALL GLBEGIN(GL_LINES)
-			DO J=1,NCL1
-				call glvertex3dv(CPNT1(:,CLINE1(1,J))) 
-				call glvertex3dv(CPNT1(:,CLINE1(2,J))) 
+			DO J=1,ISOLINE(I).NE
+                DO K=1,2
+				call glvertex3dv(ISOLINE(I).V(:,ISOLINE(I).EDGE(K,J))) 
+				ENDDO  
 			ENDDO
 		CALL GLEND()
-        call glcolor4fv(contourbar.Color(:,i))
+        
+        call glcolor4fv(contourbar.Color(:,i))       
+        
         CALL GLBEGIN(GL_TRIANGLES)
-			DO J=1,NTRI1
-				call glvertex3dv(CPNT1(:,tri1(1,J))) 
-				call glvertex3dv(CPNT1(:,TRI1(2,J)))
-                call glvertex3dv(CPNT1(:,TRI1(3,J))) 
+			DO J=1,ISOLINE(I).NTRI
+                DO K=1,3
+				    call glvertex3dv(ISOLINE(I).V(:,ISOLINE(I).TRI(K,J)))
+                ENDDO
 			ENDDO		
         
         CALL GLEND()
 	enddo
-
+    
+    call glEndList
+    
+    call glutPostRedisplay
 endif
 
 
-call glEndList
 
-call glutPostRedisplay
+
+
 
 endsubroutine 
     
+subroutine ContourLine(EDGE_L,NEDGE_L,FACE_L,NFACE_L,TET_L,NTET_L,XYZ,&
+                    VA,nVA,VC,LINE,NLINE,CONTOURPOINT,TRI,NTRI)
 
+    use MESHGEO
+    use function_plotter
+    implicit none
+    integer,intent(in)::nVA,NEDGE_L,NFACE_L,NTET_L
+    real(8),intent(in)::VA(nVA),VC,XYZ(3,nVA)
+    TYPE(EDGE_TYDEF),INTENT(IN)::EDGE_L(NEDGE_L)
+    TYPE(FACE_TYDEF),INTENT(IN)::FACE_L(NFACE_L)
+    TYPE(TET_TYDEF),INTENT(IN)::TET_L(NTET_L)
+    integer,intent(out)::NLINE,NTRI
+    INTEGER,allocatable,intent(out)::LINE(:,:),TRI(:,:)
+    real(8),intent(out)::CONTOURPOINT(3,NEDGE_L)
+    real(8)::V1,V2,T1,T2,T3,T4,X1(3),X2(3),PT1(3,6) 
+    INTEGER::ISPVC1(NEDGE_L),E1(4)=0,E2(6)=0,E3(6)=0,IPT1(6),IPT2(6),IPT3(6)
+    integer::i,j,MAXNLINE1=1000,N1,MAXNTRI1=1000,N2,N3,K
+    
+	
+    
+    interface
+    SUBROUTINE I2_ENLARGE_AR(AVAL,DSTEP,DIM1)
+        INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:,:)
+        INTEGER,INTENT(IN)::DSTEP,DIM1
+    end subroutine
+    endinterface
+	
+	
+    
+    IF(ALLOCATED(LINE)) DEALLOCATE(LINE)
+	ALLOCATE(LINE(2,MAXNLINE1))
+    IF(ALLOCATED(TRI)) DEALLOCATE(TRI)
+	ALLOCATE(TRI(3,MAXNTRI1))	
+	
+	
+	
+	
+    ISPVC1=0
+    do i=1,NEDGE_L
+        V1=VA(EDGE_L(I).V(1));V2=VA(EDGE_L(I).V(2))
+        T1=VC-V1;T2=VC-V2;T3=V2-V1
+        IF(ABS(T3)<1.D-7)THEN
+            !IF(ABS(T1)<1.D-14) THEN                
+            !    ISPVC1(I)=2 !两个节点都是
+            !    PVC1(:,I)=NODE(V2).COORD
+            !ENDIF        
+        ELSE
+            IF(T1*T2<=0) THEN
+                ISPVC1(I)=1
+                T4=MIN(MAX(0.D0,T1/T3),1.D0)
+				X1=XYZ(:,EDGE_L(I).V(1))
+				X2=XYZ(:,EDGE_L(I).V(2))
+                CONTOURPOINT(:,I)=X1+t4*(X2-X1)
+            ENDIF   
+        ENDIF 
+    enddo
+    NLINE=0	
+    DO I=1,NFACE_L
+		!IF(ANY(TET(ABS(FACE_L(I).ELEMENT(1:FACE_L(I).ENUM))).MOTHER>0)) CYCLE !NOT PLANE ELEMENT
+		IF(FACE_L(I).ENUM>1) CYCLE
+		E1=ABS(FACE_L(I).EDGE)		
+        !!!!!!!!!!!!!!!!!!!!
+		IF(SUM(ISPVC1(E1(1:FACE_L(I).SHAPE)))/=2) CYCLE
+        N1=0
+        NLINE=NLINE+1
+		IF(NLINE>MAXNLINE1) THEN
+            CALL I2_ENLARGE_AR(LINE,500,2)
+            MAXNLINE1=MAXNLINE1+500
+        ENDIF        
+        DO J=1,FACE_L(I).SHAPE        
+            IF(ISPVC1(E1(J))==1) THEN              
+                N1=N1+1
+                LINE(N1,NLINE)=E1(J)       
+            ENDIF
+       ENDDO    
+    ENDDO
+    
+	NTRI=0
+	DO I=1,NTET_L
+        IF(TET_L(I).DIM/=3) CYCLE
+        
+		E2=TET_L(I).E
+		IF(SUM(ISPVC1(E2))<3) CYCLE
+        N1=0        
+        IPT1=0
+        DO J=1,TET_L(J).NE
+            IF(ISPVC1(E2(J))==1) THEN
+                N1=N1+1
+                PT1(:,N1)=CONTOURPOINT(:,E2(J))
+                IPT1(N1)=J
+            ENDIF
+        ENDDO
+        IPT2=0
+        CALL removeduplicatedpoint(Pt1(:,1:N1),IPT2(1:N1),n1)
+        IF(SUM(IPT2)<3) CYCLE        
+        
+        IPT3=0
+        DO J=1,N1
+            IF(IPT2(J)==1) IPT3(IPT1(J))=1
+        ENDDO        
+        
+        NTRI=NTRI+1
+		IF(NTRI+1>MAXNTRI1) THEN !至少有两个空间
+            CALL I2_ENLARGE_AR(TRI,500,3)
+            MAXNTRI1=MAXNTRI1+500
+        ENDIF
+        
+        
+        E3=0;N1=0
+        DO J=1,6      
+            IF(IPT3(J)==1) THEN              
+                N1=N1+1
+                IF(N1<4) THEN
+					TRI(N1,NTRI)=E2(J)
+					E3(N1)=J					
+				ELSEIF(N1==4) THEN
+					NTRI=NTRI+1
+					TRI(1,NTRI)=E2(J)
+					IF(J==5) N2=3
+					IF(J==4) N2=2
+					IF(J==6) N2=1
+					N3=1
+					DO K=1,3
+						IF(E3(K)/=N2) THEN
+							N3=N3+1
+							TRI(N3,NTRI)=E2(E3(K))							
+						ENDIF
+					ENDDO
+					
+				ENDIF
+            ENDIF
+       ENDDO 		
+	ENDDO
+	
+end subroutine
 
-subroutine initialize_contourplot()
+subroutine initialize_contourplot(IVARPLOT)
     use solverds
     use function_plotter
     implicit none
-    integer::i,n1
+	INTEGER,INTENT(IN)::IVARPLOT
+    integer::i
     real(GLDOUBLE) :: graphmin,graphmax,graphstep
     !real(GLDOUBLE),allocatable :: contour_value(:)
     character(128)::str1,str2  
     
-    n1=outvar(CONTOUR_PLOT_VARIABLE).ivo
-    minv=minval(nodalq(:,n1))
-    maxv=maxval(nodalq(:,n1))
+    CONTOURBAR.IVARPLOT=IVARPLOT
+    minv=minval(nodalq(:,IVARPLOT))
+    maxv=maxval(nodalq(:,IVARPLOT))
     WRITE(STR1,'(G13.3)') MAXV;WRITE(STR2,'(G13.3)') MINV;
         
-    contourbar.title=trim(adjustl(outvar(CONTOUR_PLOT_VARIABLE).name))//',MAX='//TRIM(ADJUSTL(STR1))//',MIN='//TRIM(ADJUSTL(STR2))
+    contourbar.title=trim(adjustl(outvar(VO(IVARPLOT)).name))//',MAX='//TRIM(ADJUSTL(STR1))//',MIN='//TRIM(ADJUSTL(STR2))
     IF(ABS(MINV)<1E-7) MINV=SIGN(1E-7,MINV)
     call loose_label(minv, maxv,init_num_contour,graphmin,graphmax,graphstep,contourbar.nfrac)
     graphstep=graphstep/scale_contour_num
@@ -299,7 +512,7 @@ subroutine Color_Bar()
     !assume window size equals to viewport, the unit is pixel
     PPM1=glutget(GLUT_SCREEN_WIDTH)/REAL(glutget(GLUT_SCREEN_WIDTH_MM)) !PIXELS PER MM
     !10 pound 
-    scale1=PPM1*3.527777778/119.05*0.8
+    scale1=PPM1*3.527777778/119.05*0.75
     call glLineWidth(1.0_glfloat)
     call drawStrokeText(90.0,ORIG(1)-viewport1(3)/250., ORIG(2),ORIG(3),scale1,TRIM(ADJUSTL(contourbar.title)))
     
@@ -313,6 +526,8 @@ subroutine Color_Bar()
 	!CALL glDepthFunc(GL_LEQUAL);
     call glPolygonMode(gl_front_and_back, gl_FILL)
 	CALL glPopAttrib();
+    
+    call glutPostRedisplay
     
 10  FORMAT(F16.<contourbar.nfrac>)    
 end subroutine
@@ -427,122 +642,4 @@ integer round;
 end function
 
 
-subroutine ContourLine(VA,nVA,VC,LINE,NLINE,CONTOURPOINT,TRI,NTRI)
-    use solverds
-    use MESHGEO
-    use function_plotter
-    implicit none
-    integer,intent(in)::nVA
-    real(8),intent(in)::VA(nVA),VC
-    integer,intent(out)::NLINE,NTRI
-    INTEGER,allocatable,intent(out)::LINE(:,:),TRI(:,:)
-    real(8),intent(out)::CONTOURPOINT(3,NEDGE)
-    real(8)::V1,V2,T1,T2,T3,T4
-    INTEGER::ISPVC1(NEDGE),E1(4)=0,E2(6)=0,E3(6)=0
-    integer::i,j,MAXNLINE1=1000,N1,MAXNTRI1=1000,N2,N3,K
-    REAL(GLDOUBLE)::VEC1(3,NNUM),SCALE1,X1(3),X2(3) 
-	REAL(8),EXTERNAL::VECTOR_SCALE
-    
-    interface
-    SUBROUTINE I2_ENLARGE_AR(AVAL,DSTEP,DIM1)
-        INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:,:)
-        INTEGER,INTENT(IN)::DSTEP,DIM1
-    end subroutine
-    endinterface
-	
-	
-    
-    IF(ALLOCATED(LINE)) DEALLOCATE(LINE)
-	ALLOCATE(LINE(2,MAXNLINE1))
-    IF(ALLOCATED(TRI)) DEALLOCATE(TRI)
-	ALLOCATE(TRI(3,MAXNTRI1))	
-	
-	VEC1=0;SCALE1=1.D0
-	IF(IsContour_In_DeformedMesh.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
-		VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
-		VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
-		IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
-		scale1=VECTOR_SCALE(VEC1,NNUM,Scale_Deformed_Grid)
-	ENDIF	
-	
-	
-    ISPVC1=0
-    do i=1,nedge
-        V1=VA(EDGE(I).V(1));V2=VA(EDGE(I).V(2))
-        T1=VC-V1;T2=VC-V2;T3=V2-V1
-        IF(ABS(T3)<1.D-7)THEN
-            !IF(ABS(T1)<1.D-14) THEN                
-            !    ISPVC1(I)=2 !两个节点都是
-            !    PVC1(:,I)=NODE(V2).COORD
-            !ENDIF        
-        ELSE
-            IF(T1*T2<=0) THEN
-                ISPVC1(I)=1
-                T4=MIN(MAX(0.D0,T1/T3),1.D0)
-				X1=NODE(EDGE(I).V(1)).COORD+VEC1(:,EDGE(I).V(1))*SCALE1
-				X2=NODE(EDGE(I).V(2)).COORD+VEC1(:,EDGE(I).V(2))*SCALE1
-                CONTOURPOINT(:,I)=X1+t4*(X2-X1)
-            ENDIF   
-        ENDIF 
-    enddo
-    NLINE=0
-	
-    DO I=1,NFACE
-		!IF(ANY(TET(ABS(FACE(I).ELEMENT(1:FACE(I).ENUM))).MOTHER>0)) CYCLE !NOT PLANE ELEMENT
-		IF(FACE(I).ENUM>1) CYCLE
-		E1=ABS(FACE(I).EDGE)		
-        !!!!!!!!!!!!!!!!!!!!
-		IF(SUM(ISPVC1(E1(1:FACE(I).SHAPE)))/=2) CYCLE
-        N1=0
-        NLINE=NLINE+1
-		IF(NLINE>MAXNLINE1) THEN
-            CALL I2_ENLARGE_AR(LINE,500,2)
-            MAXNLINE1=MAXNLINE1+500
-        ENDIF        
-        DO J=1,FACE(I).SHAPE        
-            IF(ISPVC1(E1(J))==1) THEN              
-                N1=N1+1
-                LINE(N1,NLINE)=E1(J)       
-            ENDIF
-       ENDDO    
-    ENDDO
-    
-	NTRI=0
-	DO I=1,NTET
-        IF(TET(I).DIM/=3) CYCLE
-        
-		E2=TET(I).E
-		IF(SUM(ISPVC1(E2))<3) CYCLE
-        N1=0
-        NTRI=NTRI+1
-		IF(NTRI+1>MAXNTRI1) THEN !至少有两个空间
-            CALL I2_ENLARGE_AR(TRI,500,3)
-            MAXNTRI1=MAXNTRI1+500
-        ENDIF
-        E3=0
-        DO J=1,6      
-            IF(ISPVC1(E2(J))==1) THEN              
-                N1=N1+1
-                IF(N1<4) THEN
-					TRI(N1,NTRI)=E2(J)
-					E3(N1)=J					
-				ELSEIF(N1==4) THEN
-					NTRI=NTRI+1
-					TRI(1,NTRI)=E2(J)
-					IF(J==5) N2=3
-					IF(J==4) N2=2
-					IF(J==6) N2=1
-					N3=1
-					DO K=1,3
-						IF(E3(K)/=N2) THEN
-							N3=N3+1
-							TRI(N3,NTRI)=E2(E3(K))							
-						ENDIF
-					ENDDO
-					
-				ENDIF
-            ENDIF
-       ENDDO 		
-	ENDDO
-	
-end subroutine
+

@@ -49,3 +49,5 @@ function GetWinXYZ2(objx,objy,objz) result(WinP)
     return
     !return CVector3(posX, posY, posZ);
 end function
+
+
