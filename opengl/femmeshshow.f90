@@ -467,7 +467,7 @@ if(draw_contour.AND.glIsList(ContourLineList)) call glCallList(ContourLineList)
 if(glIsList(VectorList)) call glCallList(VectorList)
 if(glIsList(GridList)) call glCallList(GridList)
 if(isProbeState.AND.glIsList(ProbeValuelist)) call glCallList(ProbeValuelist)
-if(glIsList(slicelist)) call sliceplot()
+if(glIsList(slicelist)) call glcalllist(slicelist)
 call drawAxes()
 if(IsDrawVector) call drawVectorLegend2(VabsMax,VabsMin,Vscale,VectorPairName)
 if ((surface_color==rainbow_surface.and.(draw_surface_solid.or.draw_Contour)).OR.ISPLOTSLICESURFACE) then
@@ -565,7 +565,6 @@ SUBROUTINE SET_SLICE_VARIABLE_SHOW(VALUE)
 integer(kind=glcint), intent(in out) :: value 
 
 SLICE_PLOT_VARIABLE=VALUE
-IF(CONTOURBAR.IVARPLOT/=outvar(SLICE_PLOT_VARIABLE).ivo) call initialize_contourplot(outvar(SLICE_PLOT_VARIABLE).ivo)
 IF(NSLICE<1) CALL INPUTSLICELOCATION()
 
 CALL SLICEPLOT()

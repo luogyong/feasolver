@@ -202,6 +202,7 @@ SUBROUTINE INPUTSLICELOCATION()
     INFO.INTERPRETER=STR2REALARRAY
     info.func_id=FUNC_ID_GETSLICELOCATION
     info.inputstr=''
+    
 	ISPLOTSLICESURFACE=.TRUE.
 
 ENDSUBROUTINE
@@ -265,6 +266,7 @@ SUBROUTINE GETSLICELOCATION()
 	
 	CALL GEN_SLICE_SURFACE_DATA()
     CALL GEN_SLICE_ISOLINE_DATA()
+    CALL SLICEPLOT()
 	
 10 FORMAT('INPUT FORMAT:NSLICES,LOC1,LOC2,....(NSLICES<=10)')
 20 FORMAT('SET SLICES PARALLEL TO ', A, ' PLANE:')
@@ -288,12 +290,14 @@ SUBROUTINE SLICEPLOT()
 
 
     n1=outvar(SLICE_PLOT_VARIABLE).ivo
+    IF(CONTOURBAR.IVARPLOT/=n1) call initialize_contourplot(n1)
 
     call glDeleteLists(SLICELIST, 1_glsizei)
-
+    call reset_view
+    
     call glNewList(SLICELIST, gl_compile_and_execute)
 
-    call reset_view
+    
 
 
     call glPolygonMode(gl_front_and_back, gl_fill)
@@ -301,6 +305,7 @@ SUBROUTINE SLICEPLOT()
     call glPolygonoffset(1._glfloat,1._glfloat)
 	
 	
+    
     call glBegin(gl_triangles)
 	
 	DO ISLICE=1,NSLICE
@@ -375,7 +380,7 @@ SUBROUTINE SLICEPLOT()
     call gldisable(gl_polygon_offset_fill)
 
 
-call glutPostRedisplay
+    call glutPostRedisplay
 
 if(allocated(vcolor)) deallocate(vcolor)
 !if(allocated(contour_value)) deallocate(contour_value)

@@ -221,7 +221,7 @@ subroutine string_interpreter(str,interpreter)
         nstr2vals=nsubstr1
         do i=1,nsubstr1            
             if(len_trim(substr1(i))>0) then
-                call parse(substr1(i),'=, ',substr2,nsubstr2)
+                call parse(substr1(i),'= ,',substr2,nsubstr2)
                 if(nsubstr2>1) then
                     str2vals(i).name=trim(adjustl(substr2(1)))
                     str2vals(i).nval=nsubstr2-1
