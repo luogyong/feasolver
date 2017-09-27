@@ -1,0 +1,286 @@
+module IndexColor
+
+    !COLOR CONSTANT				 
+INTEGER,PARAMETER::Black=1
+INTEGER,PARAMETER::White=2
+INTEGER,PARAMETER::Red=3
+INTEGER,PARAMETER::Lime=4
+INTEGER,PARAMETER::Blue=5
+INTEGER,PARAMETER::Yellow=6
+INTEGER,PARAMETER::Cyan=7
+INTEGER,PARAMETER::Magenta=8
+INTEGER,PARAMETER::Silver=9
+INTEGER,PARAMETER::Gray=10
+INTEGER,PARAMETER::Maroon=11
+INTEGER,PARAMETER::Olive=12
+INTEGER,PARAMETER::Green=13
+INTEGER,PARAMETER::Purple=14
+INTEGER,PARAMETER::Teal=15
+INTEGER,PARAMETER::Navy=16
+INTEGER,PARAMETER::dark_red=17
+INTEGER,PARAMETER::brown=18
+INTEGER,PARAMETER::firebrick=19
+INTEGER,PARAMETER::crimson=20
+INTEGER,PARAMETER::tomato=21
+INTEGER,PARAMETER::coral=22
+INTEGER,PARAMETER::indian_red=23
+INTEGER,PARAMETER::light_coral=24
+INTEGER,PARAMETER::dark_salmon=25
+INTEGER,PARAMETER::salmon=26
+INTEGER,PARAMETER::light_salmon=27
+INTEGER,PARAMETER::orange_red=28
+INTEGER,PARAMETER::dark_orange=29
+INTEGER,PARAMETER::orange=30
+INTEGER,PARAMETER::gold=31
+INTEGER,PARAMETER::dark_golden_rod=32
+INTEGER,PARAMETER::golden_rod=33
+INTEGER,PARAMETER::pale_golden_rod=34
+INTEGER,PARAMETER::dark_khaki=35
+INTEGER,PARAMETER::khaki=36
+INTEGER,PARAMETER::yellow_green=37
+INTEGER,PARAMETER::dark_olive_green=38
+INTEGER,PARAMETER::olive_drab=39
+INTEGER,PARAMETER::lawn_green=40
+INTEGER,PARAMETER::chart_reuse=41
+INTEGER,PARAMETER::green_yellow=42
+INTEGER,PARAMETER::dark_green=43
+INTEGER,PARAMETER::forest_green=44
+INTEGER,PARAMETER::lime_green=45
+INTEGER,PARAMETER::light_green=46
+INTEGER,PARAMETER::pale_green=47
+INTEGER,PARAMETER::dark_sea_green=48
+INTEGER,PARAMETER::medium_spring_green=49
+INTEGER,PARAMETER::spring_green=50
+INTEGER,PARAMETER::sea_green=51
+INTEGER,PARAMETER::medium_aqua_marine=52
+INTEGER,PARAMETER::medium_sea_green=53
+INTEGER,PARAMETER::light_sea_green=54
+INTEGER,PARAMETER::dark_slate_gray=55
+INTEGER,PARAMETER::dark_cyan=56
+INTEGER,PARAMETER::aqua=57
+INTEGER,PARAMETER::light_cyan=58
+INTEGER,PARAMETER::dark_turquoise=59
+INTEGER,PARAMETER::turquoise=60
+INTEGER,PARAMETER::medium_turquoise=61
+INTEGER,PARAMETER::pale_turquoise=62
+INTEGER,PARAMETER::aqua_marine=63
+INTEGER,PARAMETER::powder_blue=64
+INTEGER,PARAMETER::cadet_blue=65
+INTEGER,PARAMETER::steel_blue=66
+INTEGER,PARAMETER::corn_flower_blue=67
+INTEGER,PARAMETER::deep_sky_blue=68
+INTEGER,PARAMETER::dodger_blue=69
+INTEGER,PARAMETER::light_blue=70
+INTEGER,PARAMETER::sky_blue=71
+INTEGER,PARAMETER::light_sky_blue=72
+INTEGER,PARAMETER::midnight_blue=73
+INTEGER,PARAMETER::dark_blue=74
+INTEGER,PARAMETER::medium_blue=75
+INTEGER,PARAMETER::royal_blue=76
+INTEGER,PARAMETER::blue_violet=77
+INTEGER,PARAMETER::indigo=78
+INTEGER,PARAMETER::dark_slate_blue=79
+INTEGER,PARAMETER::slate_blue=80
+INTEGER,PARAMETER::medium_slate_blue=81
+INTEGER,PARAMETER::medium_purple=82
+INTEGER,PARAMETER::dark_magenta=83
+INTEGER,PARAMETER::dark_violet=84
+INTEGER,PARAMETER::dark_orchid=85
+INTEGER,PARAMETER::medium_orchid=86
+INTEGER,PARAMETER::thistle=87
+INTEGER,PARAMETER::plum=88
+INTEGER,PARAMETER::violet=89
+INTEGER,PARAMETER::orchid=90
+INTEGER,PARAMETER::medium_violet_red=91
+INTEGER,PARAMETER::pale_violet_red=92
+INTEGER,PARAMETER::deep_pink=93
+INTEGER,PARAMETER::hot_pink=94
+INTEGER,PARAMETER::light_pink=95
+INTEGER,PARAMETER::pink=96
+INTEGER,PARAMETER::antique_white=97
+INTEGER,PARAMETER::beige=98
+INTEGER,PARAMETER::bisque=99
+INTEGER,PARAMETER::blanched_almond=100
+INTEGER,PARAMETER::wheat=101
+INTEGER,PARAMETER::corn_silk=102
+INTEGER,PARAMETER::lemon_chiffon=103
+INTEGER,PARAMETER::light_golden_rod_yellow=104
+INTEGER,PARAMETER::light_yellow=105
+INTEGER,PARAMETER::saddle_brown=106
+INTEGER,PARAMETER::sienna=107
+INTEGER,PARAMETER::chocolate=108
+INTEGER,PARAMETER::peru=109
+INTEGER,PARAMETER::sandy_brown=110
+INTEGER,PARAMETER::burly_wood=111
+INTEGER,PARAMETER::tan=112
+INTEGER,PARAMETER::rosy_brown=113
+INTEGER,PARAMETER::moccasin=114
+INTEGER,PARAMETER::navajo_white=115
+INTEGER,PARAMETER::peach_puff=116
+INTEGER,PARAMETER::misty_rose=117
+INTEGER,PARAMETER::lavender_blush=118
+INTEGER,PARAMETER::linen=119
+INTEGER,PARAMETER::old_lace=120
+INTEGER,PARAMETER::papaya_whip=121
+INTEGER,PARAMETER::sea_shell=122
+INTEGER,PARAMETER::mint_cream=123
+INTEGER,PARAMETER::slate_gray=124
+INTEGER,PARAMETER::light_slate_gray=125
+INTEGER,PARAMETER::light_steel_blue=126
+INTEGER,PARAMETER::lavender=127
+INTEGER,PARAMETER::floral_white=128
+INTEGER,PARAMETER::alice_blue=129
+INTEGER,PARAMETER::ghost_white=130
+INTEGER,PARAMETER::honeydew=131
+INTEGER,PARAMETER::ivory=132
+INTEGER,PARAMETER::azure=133
+INTEGER,PARAMETER::snow=134
+INTEGER,PARAMETER::dim_gray=135
+INTEGER,PARAMETER::dark_gray=136
+INTEGER,PARAMETER::light_gray=137
+INTEGER,PARAMETER::gainsboro=138
+INTEGER,PARAMETER::white_smoke=139
+				 
+				 
+REAL(4),PARAMETER::MYCOLOR(4,139)=RESHAPE([&
+                    0.0000,0.0000,0.0000,1.0000,&
+                    1.0000,1.0000,1.0000,1.0000,&
+                    1.0000,0.0000,0.0000,1.0000,&
+                    0.0000,1.0000,0.0000,1.0000,&
+                    0.0000,0.0000,1.0000,1.0000,&
+                    1.0000,1.0000,0.0000,1.0000,&
+                    0.0000,1.0000,1.0000,1.0000,&
+                    1.0000,0.0000,1.0000,1.0000,&
+                    0.7529,0.7529,0.7529,1.0000,&
+                    0.5020,0.5020,0.5020,1.0000,&
+                    0.5020,0.0000,0.0000,1.0000,&
+                    0.5020,0.5020,0.0000,1.0000,&
+                    0.0000,0.5020,0.0000,1.0000,&
+                    0.5020,0.0000,0.5020,1.0000,&
+                    0.0000,0.5020,0.5020,1.0000,&
+                    0.0000,0.0000,0.5020,1.0000,&
+                    0.5451,0.0000,0.0000,1.0000,&
+                    0.6471,0.1647,0.1647,1.0000,&
+                    0.6980,0.1333,0.1333,1.0000,&
+                    0.8627,0.0784,0.2353,1.0000,&
+                    1.0000,0.3882,0.2784,1.0000,&
+                    1.0000,0.4980,0.3137,1.0000,&
+                    0.8039,0.3608,0.3608,1.0000,&
+                    0.9412,0.5020,0.5020,1.0000,&
+                    0.9137,0.5882,0.4784,1.0000,&
+                    0.9804,0.5020,0.4471,1.0000,&
+                    1.0000,0.6275,0.4784,1.0000,&
+                    1.0000,0.2706,0.0000,1.0000,&
+                    1.0000,0.5490,0.0000,1.0000,&
+                    1.0000,0.6471,0.0000,1.0000,&
+                    1.0000,0.8431,0.0000,1.0000,&
+                    0.7216,0.5255,0.0431,1.0000,&
+                    0.8549,0.6471,0.1255,1.0000,&
+                    0.9333,0.9098,0.6667,1.0000,&
+                    0.7412,0.7176,0.4196,1.0000,&
+                    0.9412,0.9020,0.5490,1.0000,&
+                    0.6039,0.8039,0.1961,1.0000,&
+                    0.3333,0.4196,0.1843,1.0000,&
+                    0.4196,0.5569,0.1373,1.0000,&
+                    0.4863,0.9882,0.0000,1.0000,&
+                    0.4980,1.0000,0.0000,1.0000,&
+                    0.6784,1.0000,0.1843,1.0000,&
+                    0.0000,0.3922,0.0000,1.0000,&
+                    0.1333,0.5451,0.1333,1.0000,&
+                    0.1961,0.8039,0.1961,1.0000,&
+                    0.5647,0.9333,0.5647,1.0000,&
+                    0.5961,0.9843,0.5961,1.0000,&
+                    0.5608,0.7373,0.5608,1.0000,&
+                    0.0000,0.9804,0.6039,1.0000,&
+                    0.0000,1.0000,0.4980,1.0000,&
+                    0.1804,0.5451,0.3412,1.0000,&
+                    0.4000,0.8039,0.6667,1.0000,&
+                    0.2353,0.7020,0.4431,1.0000,&
+                    0.1255,0.6980,0.6667,1.0000,&
+                    0.1843,0.3098,0.3098,1.0000,&
+                    0.0000,0.5451,0.5451,1.0000,&
+                    0.0000,1.0000,1.0000,1.0000,&
+                    0.8784,1.0000,1.0000,1.0000,&
+                    0.0000,0.8078,0.8196,1.0000,&
+                    0.2510,0.8784,0.8157,1.0000,&
+                    0.2824,0.8196,0.8000,1.0000,&
+                    0.6863,0.9333,0.9333,1.0000,&
+                    0.4980,1.0000,0.8314,1.0000,&
+                    0.6902,0.8784,0.9020,1.0000,&
+                    0.3725,0.6196,0.6275,1.0000,&
+                    0.2745,0.5098,0.7059,1.0000,&
+                    0.3922,0.5843,0.9294,1.0000,&
+                    0.0000,0.7490,1.0000,1.0000,&
+                    0.1176,0.5647,1.0000,1.0000,&
+                    0.6784,0.8471,0.9020,1.0000,&
+                    0.5294,0.8078,0.9216,1.0000,&
+                    0.5294,0.8078,0.9804,1.0000,&
+                    0.0980,0.0980,0.4392,1.0000,&
+                    0.0000,0.0000,0.5451,1.0000,&
+                    0.0000,0.0000,0.8039,1.0000,&
+                    0.2549,0.4118,0.8824,1.0000,&
+                    0.5412,0.1686,0.8863,1.0000,&
+                    0.2941,0.0000,0.5098,1.0000,&
+                    0.2824,0.2392,0.5451,1.0000,&
+                    0.4157,0.3529,0.8039,1.0000,&
+                    0.4824,0.4078,0.9333,1.0000,&
+                    0.5765,0.4392,0.8588,1.0000,&
+                    0.5451,0.0000,0.5451,1.0000,&
+                    0.5804,0.0000,0.8275,1.0000,&
+                    0.6000,0.1961,0.8000,1.0000,&
+                    0.7294,0.3333,0.8275,1.0000,&
+                    0.8471,0.7490,0.8471,1.0000,&
+                    0.8667,0.6275,0.8667,1.0000,&
+                    0.9333,0.5098,0.9333,1.0000,&
+                    0.8549,0.4392,0.8392,1.0000,&
+                    0.7804,0.0824,0.5216,1.0000,&
+                    0.8588,0.4392,0.5765,1.0000,&
+                    1.0000,0.0784,0.5765,1.0000,&
+                    1.0000,0.4118,0.7059,1.0000,&
+                    1.0000,0.7137,0.7569,1.0000,&
+                    1.0000,0.7529,0.7961,1.0000,&
+                    0.9804,0.9216,0.8431,1.0000,&
+                    0.9608,0.9608,0.8627,1.0000,&
+                    1.0000,0.8941,0.7686,1.0000,&
+                    1.0000,0.9216,0.8039,1.0000,&
+                    0.9608,0.8706,0.7020,1.0000,&
+                    1.0000,0.9725,0.8627,1.0000,&
+                    1.0000,0.9804,0.8039,1.0000,&
+                    0.9804,0.9804,0.8235,1.0000,&
+                    1.0000,1.0000,0.8784,1.0000,&
+                    0.5451,0.2706,0.0745,1.0000,&
+                    0.6275,0.3216,0.1765,1.0000,&
+                    0.8235,0.4118,0.1176,1.0000,&
+                    0.8039,0.5216,0.2471,1.0000,&
+                    0.9569,0.6431,0.3765,1.0000,&
+                    0.8706,0.7216,0.5294,1.0000,&
+                    0.8235,0.7059,0.5490,1.0000,&
+                    0.7373,0.5608,0.5608,1.0000,&
+                    1.0000,0.8941,0.7098,1.0000,&
+                    1.0000,0.8706,0.6784,1.0000,&
+                    1.0000,0.8549,0.7255,1.0000,&
+                    1.0000,0.8941,0.8824,1.0000,&
+                    1.0000,0.9412,0.9608,1.0000,&
+                    0.9804,0.9412,0.9020,1.0000,&
+                    0.9922,0.9608,0.9020,1.0000,&
+                    1.0000,0.9373,0.8353,1.0000,&
+                    1.0000,0.9608,0.9333,1.0000,&
+                    0.9608,1.0000,0.9804,1.0000,&
+                    0.4392,0.5020,0.5647,1.0000,&
+                    0.4667,0.5333,0.6000,1.0000,&
+                    0.6902,0.7686,0.8706,1.0000,&
+                    0.9020,0.9020,0.9804,1.0000,&
+                    1.0000,0.9804,0.9412,1.0000,&
+                    0.9412,0.9725,1.0000,1.0000,&
+                    0.9725,0.9725,1.0000,1.0000,&
+                    0.9412,1.0000,0.9412,1.0000,&
+                    1.0000,1.0000,0.9412,1.0000,&
+                    0.9412,1.0000,1.0000,1.0000,&
+                    1.0000,0.9804,0.9804,1.0000,&
+                    0.4118,0.4118,0.4118,1.0000,&
+                    0.6627,0.6627,0.6627,1.0000,&
+                    0.8275,0.8275,0.8275,1.0000,&
+                    0.8627,0.8627,0.8627,1.0000,&
+                    0.9608,0.9608,0.9608,1.0000],([4,139]))    
+    
+end module

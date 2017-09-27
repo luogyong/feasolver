@@ -306,6 +306,7 @@ call glbegin(gl_lines)
 call glvertex3dv(orig)
 call glvertex3dv(dest)
 call glend()
+
 !cone
 height=length/4.0
 radius=height*tan(30/180.*PI)

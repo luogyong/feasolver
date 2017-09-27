@@ -59,6 +59,7 @@ module view_modifier
 use opengl_gl
 use opengl_glu
 use opengl_glut
+use IndexColor
 !use MESHGEO
 implicit none
 private
@@ -66,7 +67,7 @@ public :: view_modifier_init, reset_view,init_lookat, init_lookfrom,view_from,VI
           minx,miny,minz,maxx,maxy,maxz,model_radius,keyboardCB,info
 
 integer(kind=glcint), parameter :: ZOOM = 1, PAN = 2, ROTATE = 3, SCALEX = 4, &
-                      SCALEY = 5, SCALEZ = 6
+                      SCALEY = 5, SCALEZ = 6,POINTPICKUP=7
 integer(kind=glcint), parameter :: RESET = 10,QUIT = 11,PRO_SYS=12
 integer(kind=glcint), parameter:: VIEW_ZP =13,VIEW_ZN=14,VIEW_XP=15,VIEW_XN=16,VIEW_YP=17,    VIEW_YN=18,View_Save=19,View_CAST=20
 real(kind=gldouble), parameter :: PI = 3.141592653589793_gldouble
@@ -74,7 +75,7 @@ real(kind=gldouble)::minx,miny,minz,maxx,maxy,maxz,axis_rotate(3),phi_rotate=0.,
 real(gldouble),dimension(16)::ModelViewSaved
 LOGICAL,public::ISPERSPECT=.TRUE.
 INTEGER,PUBLIC::INPUTKEY=-1
-LOGICAL,PUBLIC::isPickforslice=.FALSE.
+LOGICAL,PUBLIC::isPickforslice=.FALSE.,isPickforstreamline=.false.
 
 INTEGER,PUBLIC,PARAMETER::str2realArray=1
 type string2val_tydef
@@ -235,15 +236,15 @@ end subroutine reset_view
 subroutine mouse(button, state, x, y)
 !          -----
 integer(kind=glcint), intent(in out) :: button, state, x, y
-integer,external::POINTlOC,PTINTRIlOC
+!integer,external::POINTlOC,PTINTRIlOC
+integer::iel
+real(8)::Pt1(3)
 
 ! This gets called when a mouse button changes
  
   if (button == GLUT_LEFT_BUTTON) then
     moving_left = .false.
     if(state == GLUT_DOWN.and.glutGetModifiers() == GLUT_ACTIVE_CTRL) then
-        !write(*,'(3g13.6,i5)') GetOGLPos(x, y),PTINTRIlOC(GetOGLPos(x, y))   !POINTlOC(GetOGLPos(x, y))
-
 		call ProbeatPoint(x,y)
     else
         
@@ -253,11 +254,35 @@ integer,external::POINTlOC,PTINTRIlOC
             begin_left = cart2D(x,y)
             left_button_func=PAN
         ELSEIF(state == GLUT_DOWN) THEN
-            call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
-			moving_left = .true.
-			begin_left = cart2D(x,y)
-			left_button_func=ROTATE
+            if(isPickforstreamline) then
+                
+                call PickPoint(x,y,Pt1,IEL)
+                IF(iel==0) then
+                    info.str='the picked location is out of zone.Please pick again.'C
+                    info.color=red;info.qkey=.true.
+                ELSE
+                          
+                    info.str='Pick one more or Press q to exit.'C
+                    if(info.qkey==.false.) then
+                        isPickforstreamline=.false. 
+                        info.str=''
+                        call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
+                        return
+                    endif
+                    call streamline_integration(Pt1)
+                    info.color=green;info.qkey=.true.                                        
+                                      
+                endif
+                
+                
+            else
+                call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
+			    moving_left = .true.
+			    begin_left = cart2D(x,y)
+			    left_button_func=ROTATE
+            endif
         ENDIF
+        
     endif
   endif
   
@@ -669,6 +694,7 @@ subroutine keyboardCB(key,  x,  y)
             info.str=''
             info.inputstr=''           
             INFO.ISNEEDINPUT=.FALSE.
+            info.qkey=.false.
         endif
     case DEFAULT
  

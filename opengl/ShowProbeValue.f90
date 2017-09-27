@@ -47,6 +47,8 @@ endsubroutine
 
 
 
+
+
 subroutine tetshapefun(Pt,itet,shpfun) 
     use solverds
     use MESHGEO
@@ -78,7 +80,7 @@ subroutine tetshapefun(Pt,itet,shpfun)
         enddo
         
     elseif(tet(itet).dim==3) then
-		vi1=reshape([1,2,3,1,2,4,2,3,4,3,1,4],([3,4]))
+		vi1=reshape([2,4,3,1,3,4,1,4,2,1,2,3],([3,4]))
 	
         v1=va1(:,2)-va1(:,1)
         v2=va1(:,3)-va1(:,1) 
@@ -182,6 +184,8 @@ INTEGER FUNCTION POINTlOC(PT)
 	LOGICAL,EXTERNAL::PtInTri,PtInTET
 	
 	!I=INT(1+(RANDOM(1))(NFACE-1))
+    
+    
 
 	do i=1,NTET
 		
@@ -312,11 +316,14 @@ integer function Isfront(V)
 	do i=1,3
 		v1(:,i)=v(:,i+1)-v(:,1)
 	enddo
-
-	if(determinant(v1)>0.d0) Isfront=1
+    
+    t1=determinant(v1)
+    
+	if(t1>0.d0) Isfront=1
     
     if(abs(t1)<1e-10) then
-        if(PtInTri (v(:,4), v(:,1), v(:,2), v(:,3))) Isfront=2 !on the surface        
+        ISFRONT=3 !4点共面
+        if(PtInTri (v(:,4), v(:,1), v(:,2), v(:,3))) Isfront=2 !on the TRIsurface        
     endif
     
 
@@ -325,7 +332,7 @@ end function
 integer function isacw(x1,y1,z1,x2,y2,z2,x3,y3,z3)
 	implicit none
 	real(8),intent(in)::x1,y1,z1,x2,y2,z2,x3,y3,z3
-    real(8)::t1,yn2,xn2,zn2,yn3,xn3,zn3
+    real(8)::t1,yn2,xn2,zn2,yn3,xn3,zn3,norm1(3),t2
 	
 	isacw=0
     
@@ -333,19 +340,34 @@ integer function isacw(x1,y1,z1,x2,y2,z2,x3,y3,z3)
 	xn2=x2-x1
     zn2=z2-z1
 	yn3=y3-y1
-	xn3=x3-x1
+	xn3=x3-x1    
     zn3=z3-z1
-	t1=(xn2*yn3-yn2*xn3)+(yn2*zn3-zn2*yn3)-(xn2*zn3-zn2*xn3)
-    if(t1>0.d0) isacw=1
-    
-    if(abs(t1)<1e-10) then
-        if(t1<min(x1,x2,x3)) return
-        if(t1>max(x1,x2,x3)) return
-        if(t1<min(y1,y2,y3)) return
-        if(t1>max(y1,y2,y3)) return 
-        if(t1<min(z1,z2,z3)) return
-        if(t1>max(z1,z2,z3)) return 
+    norm1=[yn2*zn3-zn2*yn3,-(xn2*zn3-zn2*xn3),xn2*yn3-yn2*xn3]
+    t2=norm2(norm1)
+    if(t2<1e-10) then !共线
+        ISACW=3
+        if(X3<min(x1,x2)) return
+        if(X3>max(x1,x2)) return
+        if(Y3<min(y1,y2)) return
+        if(Y3>max(y1,y2)) return 
+        if(Z3<min(z1,z2)) return
+        if(Z3>max(z1,z2)) return 
         isacw=2 !on the edge
+    else
+        t1=(xn2*yn3-yn2*xn3)+(yn2*zn3-zn2*yn3)-(xn2*zn3-zn2*xn3)
+        if(abs(t1)<1.d-10) then 
+            !与(1,1,1)垂直            
+            if(abs(norm1(3))>1e-10) then
+                isacw=sign(1.,norm1(3)) !从+z看
+            elseif(abs(norm1(1))>1e-10) then
+                isacw=sign(1.,norm1(1)) !从+x看
+            elseif(abs(norm1(2))>1e-10) then
+                isacw=sign(1.,norm1(2)) !从+y看
+            endif
+        else
+            !从(1,1,1)方向看
+            isacw=sign(1.,t1)
+        endif
     endif
 	
 
