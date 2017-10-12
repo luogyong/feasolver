@@ -5,25 +5,28 @@ use function_plotter
 use MESHGEO
 use view_modifier
 implicit none
-REAL(GLDOUBLE)::VEC1(3,NNUM),SCALE1 
+REAL(GLDOUBLE)::SCALE1
+REAL(8),ALLOCATABLE::VEC1(:,:)
 REAL(8),EXTERNAL::VECTOR_SCALE
 real(GLFLOAT),allocatable::vcolor(:,:)
 
 
-integer :: i,j,k,n1,MAT1(10)  !,nfrac
+integer :: i,j,k,n1,MAT1(10),ie1  !,nfrac
 
 ! prepare to make a new display list
 
-
-
+ALLOCATE(VEC1(3,NNUM))
+VEC1=0.D0
 if (draw_surface_solid) then
 
-    VEC1=0;SCALE1=1.D0
+    SCALE1=1.D0
     IF(IsContour_In_DeformedMesh.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
-        VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
-        VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
-        IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
-        scale1=VECTOR_SCALE(VEC1,NNUM,Scale_Deformed_Grid)
+
+		VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO,STEPPLOT.ISTEP)
+		VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO,STEPPLOT.ISTEP)
+		IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO,STEPPLOT.ISTEP)
+
+        scale1=STEPPLOT.VSCALE(1)*Scale_Deformed_Grid
     ENDIF
 
     n1=outvar(CONTOUR_PLOT_VARIABLE).ivo
@@ -48,7 +51,7 @@ if (draw_surface_solid) then
 
         
         do i=1,nnum
-            call get_rainbow(nodalq(i,n1),contourbar.val(1),contourbar.val(contourbar.nval),vcolor(:,i))
+            call get_rainbow(nodalq(i,n1,STEPPLOT.ISTEP),contourbar.val(1),contourbar.val(contourbar.nval),vcolor(:,i))
             if(isTransparency) vcolor(4,i)=0.6
         enddo
  
@@ -58,9 +61,11 @@ if (draw_surface_solid) then
     do i=1,nface
         !if(face(i).shape/=3) cycle
 		!只对外边界及材料边界进行渲染。
+		IF(FACE(I).ISDEAD==1) CYCLE
+		
         IF(FACE(I).ENUM>1) THEN
 			MAT1(1:FACE(I).ENUM)=ELEMENT(TET(ABS(FACE(I).ELEMENT)).MOTHER).MAT !
-			IF(all(MAT1(1:FACE(I).ENUM)-MAT1(1)==0)) CYCLE
+			IF(all(MAT1(1:FACE(I).ENUM)-MAT1(1)==0)) CYCLE		
 		ENDIF
         do j=1,3
             !call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,face(i).v(j)))
@@ -119,6 +124,8 @@ if (draw_surface_solid) then
 endif ! draw_surface_solid
 
 if(allocated(vcolor)) deallocate(vcolor)
+
+DEALLOCATE(VEC1)
 !if(allocated(contour_value)) deallocate(contour_value)
 
 endsubroutine  
@@ -131,11 +138,12 @@ use function_plotter
 use MESHGEO
 use view_modifier
 implicit none
-real(GLDOUBLE)::CPNT1(3,NEDGE)    
+real(GLDOUBLE),ALLOCATABLE::CPNT1(:,:)    
 INTEGER,allocatable::CLINE1(:,:),TRI1(:,:)
 INTEGER::NCL1=0,NTRI1=0,AT1(NEDGE)
-REAL(GLDOUBLE)::VEC1(3,NNUM),SCALE1,XYZ(3,NNUM) 
-REAL(8),EXTERNAL::VECTOR_SCALE
+REAL(GLDOUBLE),ALLOCATABLE::VEC1(:,:),XYZ(:,:) 
+REAL(GLDOUBLE)::SCALE1
+
 
 integer :: i,j,k,n1,N2  !,nfrac
 
@@ -160,15 +168,16 @@ interface
 endinterface
 
 
+ALLOCATE(CPNT1(3,NEDGE),VEC1(3,NNUM),XYZ(3,NNUM))    
 
 if (draw_contour) then
 
-    VEC1=0;SCALE1=1.D0
+    SCALE1=1.D0;VEC1=0.D0
     IF(IsContour_In_DeformedMesh.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
-	    VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
-	    VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
-	    IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
-	    scale1=VECTOR_SCALE(VEC1,NNUM,Scale_Deformed_Grid)
+	    VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO,STEPPLOT.ISTEP)
+	    VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO,I)
+	    IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO,STEPPLOT.ISTEP)
+	    scale1=Scale_Deformed_Grid*STEPPLOT.VSCALE(1)
     ENDIF
     DO I=1,NNUM
         XYZ(:,I)=NODE(I).COORD+VEC1(:,I)*SCALE1    
@@ -180,7 +189,7 @@ if (draw_contour) then
     do i=1,contourbar.nval
         CPNT1=0.0d0
         
-	    call ContourLine(EDGE,NEDGE,FACE,NFACE,TET,NTET,XYZ,NODALQ(:,outvar(CONTOUR_PLOT_VARIABLE).ivo),NNUM, &
+	    call ContourLine(EDGE,NEDGE,FACE,NFACE,TET,NTET,XYZ,NODALQ(:,outvar(CONTOUR_PLOT_VARIABLE).ivo,STEPPLOT.ISTEP),NNUM, &
                             contourbar.VAL(I),CLINE1,NCL1,CPNT1,TRI1,NTRI1)
         AT1=0;N1=0
         DO J=1,NCL1
@@ -254,13 +263,10 @@ if (draw_contour) then
     call glutPostRedisplay
 endif
 
+DEALLOCATE(CPNT1,VEC1,XYZ) 
 
+endsubroutine     
 
-
-
-
-endsubroutine 
-    
 subroutine ContourLine(EDGE_L,NEDGE_L,FACE_L,NFACE_L,TET_L,NTET_L,XYZ,&
                     VA,nVA,VC,LINE,NLINE,CONTOURPOINT,TRI,NTRI)
 
@@ -300,6 +306,7 @@ subroutine ContourLine(EDGE_L,NEDGE_L,FACE_L,NFACE_L,TET_L,NTET_L,XYZ,&
 	
     ISPVC1=0
     do i=1,NEDGE_L
+		IF(EDGE_L(I).ISDEAD==1) CYCLE
         V1=VA(EDGE_L(I).V(1));V2=VA(EDGE_L(I).V(2))
         T1=VC-V1;T2=VC-V2;T3=V2-V1
         IF(ABS(T3)<1.D-7)THEN
@@ -320,6 +327,7 @@ subroutine ContourLine(EDGE_L,NEDGE_L,FACE_L,NFACE_L,TET_L,NTET_L,XYZ,&
     NLINE=0	
     DO I=1,NFACE_L
 		!IF(ANY(TET(ABS(FACE_L(I).ELEMENT(1:FACE_L(I).ENUM))).MOTHER>0)) CYCLE !NOT PLANE ELEMENT
+		IF(FACE_L(I).ISDEAD==1) CYCLE
 		IF(FACE_L(I).ENUM>1) CYCLE
 		E1=ABS(FACE_L(I).EDGE)		
         !!!!!!!!!!!!!!!!!!!!
@@ -340,6 +348,7 @@ subroutine ContourLine(EDGE_L,NEDGE_L,FACE_L,NFACE_L,TET_L,NTET_L,XYZ,&
     
 	NTRI=0
 	DO I=1,NTET_L
+		IF(TET_L(I).ISDEAD==1) CYCLE
         IF(TET_L(I).DIM/=3) CYCLE
         
 		E2=TET_L(I).E
@@ -408,8 +417,8 @@ subroutine initialize_contourplot(IVARPLOT)
     character(128)::str1,str2  
     
     CONTOURBAR.IVARPLOT=IVARPLOT
-    minv=minval(nodalq(:,IVARPLOT))
-    maxv=maxval(nodalq(:,IVARPLOT))
+    minv=minval(nodalq(:,IVARPLOT,:))
+    maxv=maxval(nodalq(:,IVARPLOT,:))
     WRITE(STR1,'(G13.3)') MAXV;WRITE(STR2,'(G13.3)') MINV;
         
     contourbar.title=trim(adjustl(outvar(VO(IVARPLOT)).name))//',MAX='//TRIM(ADJUSTL(STR1))//',MIN='//TRIM(ADJUSTL(STR2))

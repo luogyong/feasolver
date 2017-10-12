@@ -86,7 +86,9 @@ subroutine assemble_km(istep)
 				
 		!assemble the total matrix
 		do j=1,element(i).ndof !row
+			
 			rdof=element(i).g(j)
+
 			do k=1,element(i).ndof  !colume
 				cdof=element(i).g(k)
 				if(solver_control.issym) then
@@ -109,7 +111,10 @@ subroutine assemble_km(istep)
 					if(element(i).ec==spg.or.element(i).ec==spg2d.or.element(i).ec==cax_spg) then
 						
 						km(loc)=km(loc)+element(i).cmm(j,k)
+					else
+						pause 'TO BE IMPROVED.SUB=assemble_km(istep)'
 					end if
+					
                 end if
                 
 				IF(RDOF==CDOF) DIAGLKM(RDOF)=KM(LOC)
@@ -118,10 +123,29 @@ subroutine assemble_km(istep)
 		end do
 	end do
 	
+	!为避免对角线元素为零，保持正定，令没激活的自由度的对角线元素等于1，应该不会影响计算结果。
+	do i=1,ndof
+		if(adof(i)==0) then
+			km(diaglkmloc(i))=1.d0
+		endif	
+	enddo
 	
 
 end subroutine
 
+subroutine dof_activate(istep)
+	use solverds
+	implicit none
+	integer,intent(in)::istep
+    integer::i
+	
+	adof=0
+	do i=1,enum
+		if(element(i).isactive==0) cycle 
+		adof(element(i).g)=1
+	enddo
+
+endsubroutine
 
 !转换成坐标格式及mkl格式进行总刚的存储
 subroutine irowjcol()
@@ -214,8 +238,10 @@ subroutine incremental_load(iincs,iiter,method,isubts)
 		load=0.0D0
 		if(iincs>0)	then		
 			do i=1,bl_num
+                dof1=node(bc_load(i).node).dof(bc_load(i).dof)
+                if(adof(dof1)==0) cycle
 				if(sf(bc_load(i).sf).factor(iincs)==-999.D0) cycle
-				dof1=node(bc_load(i).node).dof(bc_load(i).dof)
+				
 				t2=0
 				if(bc_load(i).dof/=4) t2=sf(bc_load(i).sf).factor(max(iincs-1,0))
 				if(t2==-999.d0 .OR. bc_load(i).ISINCREMENT==1) t2=0
@@ -319,6 +345,12 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 	end if
 	
 	do i=1,bd_num
+        dof1=node(bc_disp(i).node).dof(bc_disp(i).dof)	
+        if(adof(dof1)==0)  then
+            bc_disp(i).isdead=1
+            cycle
+        endif
+        
 		t2=0
 		if(bc_disp(i).dof/=4) t2=sf(bc_disp(i).sf).factor(max(iincs-1,0))
 		if(t2==-999.d0 .OR. bc_disp(i).ISINCREMENT==1 ) t2=0.d0
@@ -346,7 +378,7 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 		end if
 		
         
-		dof1=node(bc_disp(i).node).dof(bc_disp(i).dof)		
+			
 		!when Newton Raphson is used, the none zero displacement is applied at the first
 		!iteration,a zero displacement is applied at the left iterations.
 		if(solver_control.solver==N_R.OR.solver_control.solver==INISTIFF) then
@@ -359,6 +391,12 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 	end do
 
 	do i=1,numNseep
+        dof1=node(Nseep(i).node).dof(Nseep(i).dof)	
+         if(adof(dof1)==0)  then
+            Nseep(i).isdead=1
+            cycle
+        endif
+        
 		if(sf(Nseep(i).sf).factor(iincs)==-999.D0) cycle
 		
 		if(Nseep(i).isdual>0) then
@@ -739,7 +777,7 @@ subroutine ko_initialstress()
 	
 end subroutine
 
-subroutine bf_initialstress()
+subroutine bf_initialstress() !for cal_geo
 	use solverds
 	implicit none
 	integer::i,j,k,nnum1

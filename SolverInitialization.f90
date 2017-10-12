@@ -1000,7 +1000,8 @@ subroutine Initialization()
 	!if(.not.solver_control.issym) then
 	bw=lmre-bw+1 !BAND WIDTH 
 	!end if
-	allocate(load(ndof),tdisp(ndof),diaglkmloc(ndof))
+	allocate(load(ndof),tdisp(ndof),diaglkmloc(ndof),adof(ndof))
+	adof=0
 	load=0.0D0
 	tdisp=0.0D0
 	if(.not.allocated(Tstepdis)) then
@@ -1024,7 +1025,7 @@ subroutine Initialization()
 	diaglkmloc(1)=1
 	do i=2,ndof
 		bw(i)=bw(i)+bw(i-1) !bw(i) is NOW the location of the most right entry in the i row in the total matrix.
-		diaglkmloc(i)=bw(i) !对角元素的在总刚中位置
+		if(.not.solver_control.ismkl) diaglkmloc(i)=bw(i) !!!1!对角元素的在总刚中位置,这时以总刚以下三角的形式存储
 	end do
 
 	! allocate space for load() and km
@@ -1053,9 +1054,7 @@ subroutine Initialization()
 	
 	!form element list
 	call FormElementList()
-    call SETUP_SUB_TET4_ELEMENT()
-	call SETUP_EDGE_TBL_TET()
-    call SETUP_FACE_TBL_TET()
+
 	call SETUP_EDGE_TBL()
     call SETUP_FACE_TBL()	
     

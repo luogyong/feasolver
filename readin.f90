@@ -163,12 +163,14 @@
 	end if
 	
 	if(.not.allocated(timestep)) then
-		allocate(timestep(0:nstep))
-		timestep(0:nstep).nsubts=1
+		allocate(timestep(0:nstep))		
 		do i=0,nstep
+			timestep(I).nsubts=1
 			allocate(timestep(i).subts(1)) 
 			timestep(i).subts(1)=1.d0  !如为稳态分析，则此时间步长为虚步长。
-		end do        
+		end do  
+		timestep(0).nsubts=0
+		Timestep(0).subts(1)=0.d0 
     end if
     
 	if(.not.allocated(stepinfo)) then
@@ -837,7 +839,8 @@ subroutine solvercommand(term,unit)
 			eset(set1).ec=ec1
             eset(set1).system=system1
 			eset(set1).enums=enum+1
-            eset(set1).coupleset=n2            
+            eset(set1).coupleset=n2
+            eset(set1).sf=sf1
 			allocate(element2(enum+enum1))
 			element2(1:enum)=element(1:enum)
 			element2(enum+1:enum+enum1)=element1(1:enum1)
@@ -1527,26 +1530,29 @@ subroutine solvercommand(term,unit)
 			end do
 		case('sf','step_function','step function')
 			print *, 'Reading STEP FUNCTION data...'
+            n2=1
 			do i=1,pro_num
 				select case(property(i).name)
 					case('num')
 						nsf=int(property(i).value)
 					case('step','nstep')
 						nstep=int(property(i).value)
-
+                    case('base')
+                        n2=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select
 			end do		
 			allocate(sf(0:nsf))
+            sf(1:nsf).base=n2
 			do i=1,nsf
 				allocate(sf(i).factor(0:nstep))
 				sf(i).factor=0.0
 				call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
 				if(excelformat==0) then
-					sf(i).factor(1:nstep)=ar(1:n1)
+					sf(i).factor(n2:nstep)=ar(1:n1)                    
 				else
-					sf(int(ar(1))).factor(1:nstep)=ar(2:n1)
+					sf(int(ar(1))).factor(n2:nstep)=ar(2:n1)
 				endif
                 IF(NSET==1) SF(I).TITLE=SET(1)
 			end do
@@ -1574,7 +1580,7 @@ subroutine solvercommand(term,unit)
 				timestep(j).subts(1:timestep(j).nsubts)=ar(3:n1)
 			end do
 			if(.not.allocated(timestep(0).subts)) then
-				timestep(0).nsubts=1
+				timestep(0).nsubts=0
 				allocate(timestep(0).subts(1))
 				timestep(0).subts(1)=0.d0
 			end if

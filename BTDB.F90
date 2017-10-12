@@ -5,15 +5,15 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
 	!INCLUDE 'link_fnl_shared.h' 
 	
 	use SOLVERLIB
-	
+	use SolverMath
 	!use operation_i
 	!use det_int
 	implicit none
-	integer::i,j,k,i1,ienum,et,ec,ngp,nshape,ndim,nnode,ielb,jelb,kelb,idjacm
+	integer::i,j,k,i1,ienum,et,ec,ngp,nshape,ndim,nnode,ielb,jelb,kelb,idjacm,ERR
 	real(8)::ELB(ielb,jelb,kelb),Djacm(idjacm)
 	real(8),allocatable::GSDeriv(:,:),Jacm(:,:),xy(:,:)
 	real(8)::r1
-	real(8),external::determinant
+	!real(8),external::determinant
     
 	et=element(ienum).et
 	ec=element(ienum).ec
@@ -21,8 +21,9 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
 	nshape=ecp(et).nshape
 	ndim=ecp(et).ndim
 	nnode=element(ienum).nnum
-	allocate(gsderiv(nshape,ndim),Jacm(ndim,ndim),xy(ndim,nnode))
-
+    
+	allocate(gsderiv(nshape,ndim),Jacm(ndim,ndim),xy(ndim,nnode),STAT=ERR)
+    !PRINT *, ERR
 	xy=0.0D0
 	Djacm(1:ngp)=0.0D0
 	
@@ -45,6 +46,8 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
         end do
 		! store the determinant of Jacobian matrix in gaussian points
 		!if(i<=ngp) Djacm(i)=det(jacm)
+        !print *,'ndim=',ecp(et).ndim,ndim,ubound(jacm,1),jacm
+!        pause
         if(i<=ngp) Djacm(i)=determinant(jacm)
 		!jacm=.i.(jacm)
         call invert(jacm)

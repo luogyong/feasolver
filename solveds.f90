@@ -104,10 +104,11 @@ module solverds
 	!step function
 	type stepfun_tydef
 		real(kind=DPN),allocatable::factor(:)
-        character(64)::title=""
+        character(64)::title=""  
+        integer::base=1 !当base=1时，factor(0)=0，当base=0,factor(0)=input by user.
 		!注意,输入的是各步荷载或位移边界的增量.
 		!当FACTOR(ISTEP)=-999时,此边界或荷载在此步中失效（无作用）.	
-        !表单元生死时，0为死1为生。
+        !表单元生死时，1为生,其他未死。
 	endtype
 	type(stepfun_tydef),allocatable::sf(:)
 	integer::nsf=0
@@ -118,7 +119,7 @@ module solverds
 	!sf(0).factor(1:nstep)=1.0
 	
 	type subtimestep_tydef
-		integer::nsubts
+		integer::nsubts=0
 		real(kind=DPN),allocatable::subts(:)
 		!real(kind=DPN),allocatable::subfactor(:)
 	end type
@@ -258,6 +259,9 @@ module solverds
 		character(64)::grouptitle=""
         integer::coupleset=-1
         integer::isini=0 !>0
+        integer::sf=0 !stepfun
+		integer::mesh_share_id=0,out_mesh=.true. !for output tecplot.
+		
 		!for bar ane beam element only.
 		real(kind=DPN),allocatable::xyz_section(:,:) !单元集的统一的截面的四个角点的坐标，现假定一个单元集内的所有杆单元或梁单元的局部坐标一样。
 		integer,allocatable::outorder(:) !输出后处理时，同一局部坐标下节点的输出顺序，与element.node2节点号对应。
@@ -323,6 +327,8 @@ module solverds
 											!horizontal soil layer
 		integer::nsoil=1 !the number of soil layers
 		real(kind=DPN),allocatable::KO(:),weight(:),height(:)
+        integer,allocatable::eset(:) !计算地应力时，激活的单元集,默认全部单元集都激活。
+        integer::neset=0
 	end type
 	type(geostatic_tydef)::geostatic
 
@@ -392,7 +398,7 @@ module solverds
 							
 	integer::ndof=0 !total dof number
 	integer,allocatable::bw(:) 	!bw(i): firstly, it is the column number of the most left entry in the i row. and later, it is the bandwidth of the total matrix
-														!!for default solver, finally it stores the diagonal address in the total stiffness matrix
+	integer,allocatable::adof(:)	!adof=1,active or deactive												!!for default solver, finally it stores the diagonal address in the total stiffness matrix
 	
 	integer::bwmax=0 !the maximum value of the band width. 
 	real(kind=DPN),allocatable::load(:),Tload(:),km(:),tdisp(:),bfload(:),stepload(:)	!km(:):Lower  trianglar part of total stiffness matrix(including diagonal elements)
@@ -441,8 +447,9 @@ module solverds
     INTEGER::ISEXCA2D=0,ISHBEAM=0,ISSLOPE=0,NYITER(2)=0
 	
 	INTEGER::NDOFHEAD=0,NDOFMEC=0 !!每步的渗流自由度数及利息自由度数，
-	INTEGER,ALLOCATABLE::DOFHEAD(:),DOFMEC(:) !head dofs in the model.
-	real(kind=DPN),allocatable::NodalQ(:,:),VEC(:,:)
+	INTEGER,ALLOCATABLE::DOFHEAD(:),DOFMEC(:),CalStep(:) !head dofs in the model.
+	real(kind=DPN),allocatable::NodalQ(:,:,:),VEC(:,:),RTime(:) !NODALQ(INODE,IVO,NNODALQ) !NNODALQ=SUM(TEIMSTEP.nsubts)
+	INTEGER::NNODALQ=0
 	real(dpn)::modelr !模型外接圆半径
     
     INTERFACE
@@ -685,15 +692,15 @@ MODULE SOLVERLIB
 	        integer,intent(out)::iel        
         ENDSUBROUTINE		
 		
-        SUBROUTINE invert(matrix)
-            !
-            ! This subroutine inverts a small square matrix onto itself.
-            !
-             IMPLICIT NONE
-             INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
-             REAL(iwp),INTENT(IN OUT)::matrix(:,:)
-
-        ENDSUBROUTINE  
+        !SUBROUTINE invert(matrix)
+        !    !
+        !    ! This subroutine inverts a small square matrix onto itself.
+        !    !
+        !     IMPLICIT NONE
+        !     INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
+        !     REAL(iwp),INTENT(IN OUT)::matrix(:,:)
+        !
+        !ENDSUBROUTINE  
     ENDINTERFACE
     
     CONTAINS
@@ -796,89 +803,7 @@ subroutine enlarge_Gnode(ENEL)
 endsubroutine
 
     
-SUBROUTINE invert(matrix)
-!
-! This subroutine inverts a small square matrix onto itself.
-!
- IMPLICIT NONE
- INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
- REAL(iwp),INTENT(IN OUT)::matrix(:,:)
- REAL(iwp)::det,j11,j12,j13,j21,j22,j23,j31,j32,j33,con
- INTEGER::ndim,i,k
- ndim=UBOUND(matrix,1)
- IF(ndim==2)THEN
-   det=matrix(1,1)*matrix(2,2)-matrix(1,2)*matrix(2,1)
-   j11=matrix(1,1)
-   matrix(1,1)=matrix(2,2)
-   matrix(2,2)=j11
-   matrix(1,2)=-matrix(1,2)
-   matrix(2,1)=-matrix(2,1)
-   matrix=matrix/det
- ELSE IF(ndim==3)THEN
-   det=matrix(1,1)*(matrix(2,2)*matrix(3,3)-matrix(3,2)*matrix(2,3))
-   det=det-matrix(1,2)*(matrix(2,1)*matrix(3,3)-matrix(3,1)*matrix(2,3))
-   det=det+matrix(1,3)*(matrix(2,1)*matrix(3,2)-matrix(3,1)*matrix(2,2))
-   j11=matrix(2,2)*matrix(3,3)-matrix(3,2)*matrix(2,3)
-   j21=-matrix(2,1)*matrix(3,3)+matrix(3,1)*matrix(2,3)
-   j31=matrix(2,1)*matrix(3,2)-matrix(3,1)*matrix(2,2)
-   j12=-matrix(1,2)*matrix(3,3)+matrix(3,2)*matrix(1,3)
-   j22=matrix(1,1)*matrix(3,3)-matrix(3,1)*matrix(1,3)
-   j32=-matrix(1,1)*matrix(3,2)+matrix(3,1)*matrix(1,2)
-   j13=matrix(1,2)*matrix(2,3)-matrix(2,2)*matrix(1,3)
-   j23=-matrix(1,1)*matrix(2,3)+matrix(2,1)*matrix(1,3)
-   j33=matrix(1,1)*matrix(2,2)-matrix(2,1)*matrix(1,2)
-   matrix(1,1)=j11
-   matrix(1,2)=j12
-   matrix(1,3)=j13
-   matrix(2,1)=j21
-   matrix(2,2)=j22
-   matrix(2,3)=j23
-   matrix(3,1)=j31
-   matrix(3,2)=j32
-   matrix(3,3)=j33
-   matrix=matrix/det
- ELSE
-   DO k=1,ndim
-     con=matrix(k,k)
-     matrix(k,k)=1.0_iwp
-     matrix(k,:)=matrix(k,:)/con
-     DO i=1,ndim
-       IF(i/=k)THEN
-         con=matrix(i,k)
-         matrix(i,k)=0.0_iwp
-         matrix(i,:)=matrix(i,:)-matrix(k,:)*con
-       END IF
-     END DO
-   END DO
- END IF
-RETURN
-END SUBROUTINE invert   
 
-FUNCTION determinant(jac)RESULT(det)
-!
-! This function returns the determinant of a 1x1, 2x2 or 3x3
-! Jacobian matrix.
-!
- IMPLICIT NONE    
- INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
- REAL(iwp),INTENT(IN)::jac(:,:)
- REAL(iwp)::det
- INTEGER::it 
- it=UBOUND(jac,1)  
- SELECT CASE(it)
- CASE(1)
-   det=1.0_iwp
- CASE(2)
-   det=jac(1,1)*jac(2,2)-jac(1,2)*jac(2,1)
- CASE(3)
-   det=jac(1,1)*(jac(2,2)*jac(3,3)-jac(3,2)*jac(2,3))
-   det=det-jac(1,2)*(jac(2,1)*jac(3,3)-jac(3,1)*jac(2,3))
-   det=det+jac(1,3)*(jac(2,1)*jac(3,2)-jac(3,1)*jac(2,2))
- CASE DEFAULT
-   WRITE(*,*)' wrong dimension for Jacobian matrix'
- END SELECT
-RETURN
-END FUNCTION determinant 
 
 
 

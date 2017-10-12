@@ -77,14 +77,15 @@ subroutine solve_SLD()
 	ttime1=0.0D0
 	
 	if(geostatic.isgeo) then
-		istep=0		
+		istep=0
+		timestep(istep).nsubts=1
 	endif
 	do iincs=istep,nstep
         !active element
         call element_activate(iincs)
-        
         if(isexca2d/=0) call excavation(iincs)
-        
+        call dof_activate(iincs)
+		
 		if(solver_control.solver==LPSOLVER.OR.solver_control.solver==MOSEK) then
 			call lpsolvefile()
 			exit 
@@ -343,7 +344,8 @@ subroutine solve_SLD()
 			
 			
 			Tdisp=Tstepdis(:,iincs) !!for outdata
-			if(isexca2d/=0) call Beam_Result_EXCA(iincs)			
+			if(isexca2d/=0) call Beam_Result_EXCA(iincs)
+			
 			call outdata(iincs,iiter,iscon,isfirstcall,isubts)
 		
 
@@ -1973,7 +1975,10 @@ subroutine element_activate(istep)
     
     do concurrent (i=1:enum)
         if(element(i).ec/=soilspring) then
-			if(geostatic.isgeo) sf(element(i).sf).factor(0)=1.d0
+			if(geostatic.isgeo.and.istep==0) then
+                !默认(base==1)单元都参与地应力计算。
+                if(sf(element(i).sf).base==1) sf(element(i).sf).factor(0)=1.d0
+            endif
             if(abs(sf(element(i).sf).factor(istep))>1e-7) then
                 element(i).isactive=1
             else

@@ -15,10 +15,8 @@ SUBROUTINE STREAMLINE_INI()
     case(VECTOR_GROUP_SFR)
         IVO(1:2)=OUTVAR(SFR_SFRX:SFR_SFRY).IVO
     end select
+ 
     
-    call STREAMLINE_STEP_SIZE()
-    
-    isstreamlineinitialized=.true.
     
 END SUBROUTINE    
 
@@ -65,38 +63,71 @@ SUBROUTINE STREAMLINE_PLOT()
 
 ENDSUBROUTINE
 
-subroutine streamline_integration(PTstart)
+
+subroutine gen_new_streamline(PTstart)
+	use function_plotter
+	implicit none
+	
+	real(8),intent(in)::PTstart(3)
+	
+	CALL STREAMLINE_INI()
+	call STREAMLINE_STEP_SIZE()
+    NSTREAMLINE=NSTREAMLINE+1
+    IF(NSTREAMLINE>100) THEN
+        PAUSE 'NSTREAMLINE>100.'
+        RETURN
+    ENDIF
+	
+    STREAMLINE(nstreamline).PTstart=PTstart
+	
+	call streamline_integration(nstreamline)
+	
+	CALL STREAMLINE_PLOT()
+	
+end subroutine
+
+subroutine streamline_update()
+	use function_plotter
+	implicit none
+	integer::i
+	
+	CALL STREAMLINE_INI()
+	call STREAMLINE_STEP_SIZE()
+	
+	do i=1,nstreamline
+		call streamline_integration(i)		
+	enddo
+	
+	CALL STREAMLINE_PLOT()
+	
+end subroutine
+
+subroutine streamline_integration(istreamline)
     USE solverds
     use MESHGEO
     use function_plotter
     use ODE_SOLVER
     implicit none
-    real(8),intent(in)::PTstart(3)    
+    integer,intent(in)::istreamline  
     INTEGER::N1=3,IEL,I,J,NUP1
-    INTEGER,PARAMETER::MAXSTEP1=1000
+    INTEGER,PARAMETER::MAXSTEP1=5000
     REAL(8)::V1(3),V2(3),Y(3),EPS,YSCAL(3),Hdid,Hnext,T,Htry,direction1,IPT1(3)=0.D0,IPT2(3)=0.D0
     REAL(8)::YSAV(1:NDIMENSION,MAXSTEP1),YSAV_UP(1:NDIMENSION,MAXSTEP1)
     REAL(8)::P1(3),P2(3)
     EXTERNAL::DERIVS
     INTEGER::ISINTERCEPT1
     
-    if(.not.isstreamlineinitialized) CALL STREAMLINE_INI()
-    NSTREAMLINE=NSTREAMLINE+1
-    IF(NSTREAMLINE>100) THEN
-        PAUSE 'NSTREAMLINE>100.'
-        RETURN
-    ENDIF
-    STREAMLINE(nstreamline).PTstart=PTstart
+ 
     DO J=1,2
         I=0
-        y=PTstart(1:NDIMENSION);t=0.d0;YSAV=0.D0
+        y=STREAMLINE(ISTREAMLINE).PTstart(1:NDIMENSION);t=0.d0;YSAV=0.D0
         IF(J==1) THEN
             DIRECTION1=-1.d0
         ELSE
             DIRECTION1=1.d0
         ENDIF
         DO WHILE(I<MAXSTEP1)        
-            CALL derivs(T,y,V1) 
+           CALL derivs(T,y,V1) 
            IF(RKINFO.ISOUTOFRANGE.AND.I>1) then
                 ISINTERCEPT1=0
                 P1(1:NDIMENSION)=YSAV(1:NDIMENSION,I-1)
@@ -133,19 +164,19 @@ subroutine streamline_integration(PTstart)
                 NUP1=I
                 YSAV_UP(:,1:NUP1)=YSAV(:,NUP1:1:-1)                
             ELSE
-                STREAMLINE(nstreamline).NV=I+NUP1+1
-                IF(ALLOCATED(STREAMLINE(NSTREAMLINE).V)) DEALLOCATE(STREAMLINE(NSTREAMLINE).V)                
-                ALLOCATE(STREAMLINE(NSTREAMLINE).V(3,STREAMLINE(nstreamline).NV))
-                STREAMLINE(NSTREAMLINE).V(3,:)=0.d0
-                STREAMLINE(NSTREAMLINE).V(1:NDIMENSION,1:NUP1)=YSAV_UP(:,1:NUP1)
-                STREAMLINE(NSTREAMLINE).V(1:NDIMENSION,NUP1+1)=PTstart(1:NDIMENSION)
-                STREAMLINE(NSTREAMLINE).V(1:NDIMENSION,2+NUP1:I+1+NUP1)=YSAV(:,1:I)
+                STREAMLINE(istreamline).NV=I+NUP1+1
+                IF(ALLOCATED(STREAMLINE(istreamline).V)) DEALLOCATE(STREAMLINE(istreamline).V)                
+                ALLOCATE(STREAMLINE(istreamline).V(3,STREAMLINE(istreamline).NV))
+                STREAMLINE(istreamline).V(3,:)=0.d0
+                STREAMLINE(istreamline).V(1:NDIMENSION,1:NUP1)=YSAV_UP(:,1:NUP1)
+                STREAMLINE(istreamline).V(1:NDIMENSION,NUP1+1)=STREAMLINE(ISTREAMLINE).PTstart(1:NDIMENSION)
+                STREAMLINE(istreamline).V(1:NDIMENSION,2+NUP1:I+1+NUP1)=YSAV(:,1:I)
                 
             ENDIF
         ENDIF
     ENDDO
   
-    CALL STREAMLINE_PLOT()
+    
     
 end subroutine
     
@@ -161,7 +192,7 @@ SUBROUTINE STREAMLINE_STEP_SIZE()
     DO I=1,NTET
         STEP1=1E10
         DO J=1,NDIMENSION
-            T1=MAXVAL(ABS(NODALQ(TET(I).V(1:TET(I).NV),IVO(J))))
+            T1=MAXVAL(ABS(NODALQ(TET(I).V(1:TET(I).NV),IVO(J),STEPPLOT.ISTEP)))
             IF(T1>1.E-14)  STEP1=MIN(STEP1,0.5D0*(TET(I).BBOX(2,J)-TET(I).BBOX(1,J))/T1)
         ENDDO
         TET(I).STEPSIZE=MAX(STEP1,0.01)
@@ -205,11 +236,19 @@ SUBROUTINE GET_BC_INTERSECTION(PT1,PT2,IPT1,IPT2,ISINTERCEPT)
     REAL(8),INTENT(OUT)::IPT1(3),IPT2(3)
     INTEGER,INTENT(OUT)::ISINTERCEPT
     INTEGER::I,J
+    LOGICAL::TOF1
     
     
     IF(NDIMENSION==2) THEN
         DO I=1,NEDGE
+			IF(EDGE(I).ISDEAD==1) CYCLE
+            TOF1=.FALSE.
             IF(EDGE(I).ENUM==1) THEN
+                TOF1=.TRUE.
+            ELSEIF(FACE(I).ENUM==2) THEN
+                TOF1=TET(EDGE(I).ELEMENT(1)).ISDEAD==1.OR.TET(EDGE(I).ELEMENT(2)).ISDEAD==1 
+            ENDIF            
+            IF(TOF1) THEN
                 CALL GET_SEGINTERCECTION(NODE(EDGE(I).V(1)).COORD,NODE(EDGE(I).V(2)).COORD,&
                                            PT1,PT2,IPT1,IPT2,ISINTERCEPT,NDIMENSION)
                 IF(ISINTERCEPT==1) EXIT
@@ -217,7 +256,14 @@ SUBROUTINE GET_BC_INTERSECTION(PT1,PT2,IPT1,IPT2,ISINTERCEPT)
         ENDDO
     ELSEIF(NDIMENSION==3) THEN
          DO I=1,NFACE
+			IF(FACE(I).ISDEAD==1) CYCLE
+            TOF1=.FALSE.
             IF(FACE(I).ENUM==1) THEN
+                TOF1=.TRUE.
+            ELSEIF(FACE(I).ENUM==2) THEN
+                TOF1=TET(FACE(I).ELEMENT(1)).ISDEAD==1.OR.TET(FACE(I).ELEMENT(2)).ISDEAD==1 
+            ENDIF
+            IF(TOF1) THEN
                 CALL intersect3D_SegmentPlane([PT1,PT2],[NODE(FACE(I).V(1)).COORD,&
                     NODE(FACE(I).V(2)).COORD,NODE(FACE(I).V(3)).COORD],&
                     IPT1,ISINTERCEPT)

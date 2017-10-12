@@ -62,12 +62,12 @@ use opengl_glut
 use IndexColor
 !use MESHGEO
 implicit none
-private
-public :: view_modifier_init, reset_view,init_lookat, init_lookfrom,view_from,VIEW_ZP,&
-          minx,miny,minz,maxx,maxy,maxz,model_radius,keyboardCB,info
+!private
+!public :: view_modifier_init, reset_view,init_lookat, init_lookfrom,view_from,VIEW_ZP,&
+!          minx,miny,minz,maxx,maxy,maxz,model_radius,keyboardCB,info
 
 integer(kind=glcint), parameter :: ZOOM = 1, PAN = 2, ROTATE = 3, SCALEX = 4, &
-                      SCALEY = 5, SCALEZ = 6,POINTPICKUP=7
+                      SCALEY = 5, SCALEZ = 6,POINTPICKUP=7,LB_DRAWLINE=8,STEP_KEY=9
 integer(kind=glcint), parameter :: RESET = 10,QUIT = 11,PRO_SYS=12
 integer(kind=glcint), parameter:: VIEW_ZP =13,VIEW_ZN=14,VIEW_XP=15,VIEW_XN=16,VIEW_YP=17,    VIEW_YN=18,View_Save=19,View_CAST=20
 real(kind=gldouble), parameter :: PI = 3.141592653589793_gldouble
@@ -99,15 +99,15 @@ integer,public,parameter::FUNC_ID_GETSLICELOCATION=1
 
 
 
-type, private :: cart2D ! 2D cartesian coordinates
+type :: cart2D ! 2D cartesian coordinates
    real(kind=gldouble) :: x, y
 end type cart2D
 
-type, private :: cart3D ! 3D cartesian coordinates
+type :: cart3D ! 3D cartesian coordinates
    real(kind=gldouble) :: x, y, z
 end type cart3D
 
-type, private :: sphere3D ! 3D spherical coordinates
+type :: sphere3D ! 3D spherical coordinates
    real(kind=gldouble) :: theta, phi, rho
 end type sphere3D
 
@@ -131,7 +131,7 @@ end interface
 
 integer, save ::   left_button_func = ROTATE, &
                  middle_button_func = ZOOM, &
-                     arrow_key_func = PAN
+                     arrow_key_func = STEP_KEY
 
 ! Set the initial view as the point you are looking at, the point you are
 ! looking from, and the scale factors
@@ -148,8 +148,37 @@ real(kind=gldouble), parameter :: &
    init_zscale_factor = 1.0_gldouble
 
 ! -------- end of Initial configuration ------
+TYPE LINE_TEMP_TYDEF   
+    REAL(8)::V1(3)=0.D0,V2(3)=0.D0
+    LOGICAL::SHOW=.FALSE.
+    INTEGER::ICOLOR=RED
+    REAL(GLFLOAT)::LW=1.5
+    CONTAINS
+    PROCEDURE::DRAW=>DRAW_LINE
+ENDTYPE
+TYPE(LINE_TEMP_TYDEF),PUBLIC::LINE_TEMP
+
+
 
 contains
+
+
+
+SUBROUTINE DRAW_LINE(LINE)
+    IMPLICIT NONE
+    CLASS(LINE_TEMP_TYDEF),INTENT(in):: LINE
+    
+    call glPushAttrib(GL_ALL_ATTRIB_BITS)
+    
+    CALL GLLINEWIDTH(LINE.LW)
+    call glcolor4fv(mycolor(:,LINE.ICOLOR))		
+	CALL GLBEGIN(GL_LINES)
+        call glvertex3dv(LINE.V1)
+        call glvertex3dv(LINE.V2)
+    CALL GLEND()
+    CALL GLPOPATTRIB()
+    
+END SUBROUTINE
 
 !          -------------
 subroutine reset_to_init
@@ -232,251 +261,7 @@ call glScaled(xscale_factor,yscale_factor,zscale_factor)
 return
 end subroutine reset_view
 
-!          -----
-subroutine mouse(button, state, x, y)
-!          -----
-integer(kind=glcint), intent(in out) :: button, state, x, y
-!integer,external::POINTlOC,PTINTRIlOC
-integer::iel
-real(8)::Pt1(3)
-
-! This gets called when a mouse button changes
- 
-  if (button == GLUT_LEFT_BUTTON) then
-    moving_left = .false.
-    if(state == GLUT_DOWN.and.glutGetModifiers() == GLUT_ACTIVE_CTRL) then
-		call ProbeatPoint(x,y)
-    else
-        
-        if(state == GLUT_DOWN.and.glutGetModifiers() == GLUT_ACTIVE_SHIFT) then
-            call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
-            moving_left = .true.
-            begin_left = cart2D(x,y)
-            left_button_func=PAN
-        ELSEIF(state == GLUT_DOWN) THEN
-            if(isPickforstreamline) then
-                
-                call PickPoint(x,y,Pt1,IEL)
-                IF(iel==0) then
-                    info.str='the picked location is out of zone.Please pick again.'C
-                    info.color=red;info.qkey=.true.
-                ELSE
-                          
-                    info.str='Pick one more or Press q to exit.'C
-                    if(info.qkey==.false.) then
-                        isPickforstreamline=.false. 
-                        info.str=''
-                        call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
-                        return
-                    endif
-                    call streamline_integration(Pt1)
-                    info.color=green;info.qkey=.true.                                        
-                                      
-                endif
-                
-                
-            else
-                call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
-			    moving_left = .true.
-			    begin_left = cart2D(x,y)
-			    left_button_func=ROTATE
-            endif
-        ENDIF
-        
-    endif
-  endif
-  
-  if (button == GLUT_MIDDLE_BUTTON ) then
-    if(state == GLUT_DOWN) then
-        call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
-        moving_middle = .true.
-        begin_middle = cart2D(x,y)
-    else
-        moving_middle = .false.
-    endif
-    
-  endif
-  
-
-end subroutine mouse
-
-!          ------
-subroutine motion(x, y)
-!          ------
-integer(kind=glcint), intent(in out) :: x, y
-
-! This gets called when the mouse moves
-
-integer :: button_function
-type(cart2D) :: begin
-real(kind=gldouble) :: factor
-
-! Determine and apply the button function
-
-if (moving_left) then
-   button_function = left_button_func
-   begin = begin_left
-else if(moving_middle) then
-   button_function = middle_button_func
-   begin = begin_middle
-end if
-
-select case(button_function)
-case (ZOOM)
-   if (y < begin%y) then
-      factor = 1.0_gldouble/(1.0_gldouble + .002_gldouble*(begin%y-y))
-   else if (y > begin%y) then
-      factor = 1.0_gldouble + .002_gldouble*(y-begin%y)
-   else
-      factor = 1.0_gldouble
-   end if
-   IF(ISPERSPECT) THEN
-        shift%z = shift%z/factor
-   ELSE
-        xscale_factor = xscale_factor * factor
-        yscale_factor = yscale_factor * factor
-        zscale_factor = zscale_factor * factor
-   ENDIF
-   
-   
-case (PAN)
-   shift%x = shift%x + .01*(x - begin%x)
-   shift%y = shift%y - .01*(y - begin%y)
-case (ROTATE)
-   angle%x = angle%x + (x - begin%x)
-   angle%y = angle%y + (y - begin%y)
-
-   !call trackball(begin.x, begin.y, real(x,8), real(y,8),axis_rotate,phi_rotate)
-   !print *, begin.x, begin.y,x,y
-case (SCALEX)
-   if (y < begin%y) then
-      factor = 1.0_gldouble + .002_gldouble*(begin%y-y)
-   else if (y > begin%y) then
-      factor = 1.0_gldouble/(1.0_gldouble + .002_gldouble*(y-begin%y))
-   else
-      factor = 1.0_gldouble
-   end if
-   xscale_factor = xscale_factor * factor
-case (SCALEY)
-   if (y < begin%y) then
-      factor = 1.0_gldouble + .002_gldouble*(begin%y-y)
-   else if (y > begin%y) then
-      factor = 1.0_gldouble/(1.0_gldouble + .002_gldouble*(y-begin%y))
-   else
-      factor = 1.0_gldouble
-   end if
-   yscale_factor = yscale_factor * factor
-case (SCALEZ)
-   if (y < begin%y) then
-      factor = 1.0_gldouble + .002_gldouble*(begin%y-y)
-   else if (y > begin%y) then
-      factor = 1.0_gldouble/(1.0_gldouble + .002_gldouble*(y-begin%y))
-   else
-      factor = 1.0_gldouble
-   end if
-   zscale_factor = zscale_factor * factor
-end select
-
-! update private variables and redisplay
-
-if (moving_left) then
-   begin_left = cart2D(x,y)
-else if(moving_middle) then
-   begin_middle = cart2D(x,y)
-endif
-
-if (moving_left .or. moving_middle) then
-   call glutPostRedisplay
-endif
-
-return
-end subroutine motion
-
-!          ------
-subroutine arrows(key, x, y)
-!          ------
-integer(glcint), intent(in out) :: key, x, y
-
-! This routine handles the arrow key operations
-
-real(kind=gldouble) :: factor
-
-!select case(arrow_key_func)
-!case(ZOOM)
-!   select case(key)
-!   case(GLUT_KEY_DOWN)
-!      factor = 1.0_gldouble + .02_gldouble
-!   case(GLUT_KEY_UP)
-!      factor = 1.0_gldouble/(1.0_gldouble + .02_gldouble)
-!   case default
-!      factor = 1.0_gldouble
-!   end select
-!   shift%z = factor*shift%z
-!case(PAN)
-!   select case(key)
-!   case(GLUT_KEY_LEFT)
-!      shift%x = shift%x - .02
-!   case(GLUT_KEY_RIGHT)
-!      shift%x = shift%x + .02
-!   case(GLUT_KEY_DOWN)
-!      shift%y = shift%y - .02
-!   case(GLUT_KEY_UP)
-!      shift%y = shift%y + .02
-!   end select
-!case(ROTATE)
-!   select case(key)
-!   case(GLUT_KEY_LEFT)
-!      angle%x = angle%x - 1.0_gldouble
-!   case(GLUT_KEY_RIGHT)
-!      angle%x = angle%x + 1.0_gldouble
-!   case(GLUT_KEY_DOWN)
-!      angle%y = angle%y + 1.0_gldouble
-!   case(GLUT_KEY_UP)
-!      angle%y = angle%y - 1.0_gldouble
-!   end select
-!case(SCALEX)
-!   select case(key)
-!   case(GLUT_KEY_DOWN)
-!      factor = 1.0_gldouble/(1.0_gldouble + .02_gldouble)
-!   case(GLUT_KEY_UP)
-!      factor = 1.0_gldouble + .02_gldouble
-!   case default
-!      factor = 1.0_gldouble
-!   end select
-!   xscale_factor = xscale_factor * factor
-!case(SCALEY)
-!   select case(key)
-!   case(GLUT_KEY_DOWN)
-!      factor = 1.0_gldouble/(1.0_gldouble + .02_gldouble)
-!   case(GLUT_KEY_UP)
-!      factor = 1.0_gldouble + .02_gldouble
-!   case default
-!      factor = 1.0_gldouble
-!   end select
-!   yscale_factor = yscale_factor * factor
-!case(SCALEZ)
-!   select case(key)
-!   case(GLUT_KEY_DOWN)
-!      factor = 1.0_gldouble/(1.0_gldouble + .02_gldouble)
-!   case(GLUT_KEY_UP)
-!      factor = 1.0_gldouble + .02_gldouble
-!   case default
-!      factor = 1.0_gldouble
-!   end select
-!   zscale_factor = zscale_factor * factor
-!
-!end select
-   
-call glutPostRedisplay
-
-return
-end subroutine arrows
-
-
-
-
-!          ------------
-subroutine menu_handler(value)
+subroutine menu_handler1(value)
 !          ------------
 integer(kind=glcint), intent(in out) :: value
 
@@ -506,7 +291,7 @@ end select
 
 
 return
-end subroutine menu_handler
+end subroutine menu_handler1
 
 !          ---------------
 subroutine set_left_button(value)
@@ -555,10 +340,7 @@ integer(kind=glcint) :: menuid
 integer(kind=glcint) :: button_left, button_middle, arrow_keys
 
 ! set the callback functions
-call glutreshapefunc(myreshape)
-call glutMouseFunc(mouse)
-call glutMotionFunc(motion)
-call glutSpecialFunc(arrows)
+
 
 ! create the menu
 
@@ -584,7 +366,7 @@ call glutSpecialFunc(arrows)
 !call glutAddMenuEntry("scale x",SCALEX)
 !call glutAddMenuEntry("scale y",SCALEY)
 !call glutAddMenuEntry("scale z", SCALEZ)
-menuid = glutCreateMenu(menu_handler)
+menuid = glutCreateMenu(menu_handler1)
 !call glutAddSubMenu("left mouse button",button_left)
 !call glutAddSubMenu("middle mouse button",button_middle)
 !call glutAddSubMenu("arrow keys",arrow_keys)
@@ -613,168 +395,6 @@ call reset_to_init
 
 return
 end function view_modifier_init
-
-subroutine myreshape(w,h)
-
-    implicit none
-    integer(glcint)::w,h
-    
-
-
-	real(gldouble):: wL,wH,R,wR,clipAreaXLeft,clipAreaXRight,clipAreaYBottom,clipAreaYTop, &
-                    R1,dis1,near,far,xc,yc
-
-    !call reset_view
-    
-	if (h == 0) h = 1;
-	call glViewport(0, 0, w, h);
-
-	R = real(w) / real(h);
-    r1=((minx-maxx)**2+(miny-maxy)**2+(minz-maxz)**2)**0.5/2.0
-    dis1=((init_lookat.x-init_lookfrom.x)**2+(init_lookat.y-init_lookfrom.y)**2+(init_lookat.z-init_lookfrom.z)**2)**0.5 
-    
-    near=1.0;far=near+2*r1+dis1*10
-    !write(*,'(2G13.6)') 'NEAR=',NEAR,'FAR=',FAR 
-    
-	call glMatrixMode(GL_PROJECTION);
-	call glLoadIdentity();
-
-
-    !glortho and gluperspective 的参数都是相对于eye坐标的。
-    
-	if(IsPerspect) then
-        call gluPerspective(30.0_gldouble, R, near, far)
-    else
-        
-	    !wL = maxx -minx;	
-	    !wH = maxy -miny;
-	    !if (wH <= 0) wH = 1.0;
-	    !wR = wL / wH;
-        !
-	    !if (wR > R)	then
-		    ! ! Projection clipping area
-		    ! clipAreaXLeft = minx;
-		    ! clipAreaXRight = maxx;
-		    ! clipAreaYBottom = (miny + maxy) / 2 - wL / R / 2.0;
-		    ! clipAreaYTop = (miny + maxy) / 2 + wL / R / 2.0;
-	    !
-	    !else 
-		    ! clipAreaXLeft =( minx + maxx) / 2.0 - wH* R / 2.0;
-		    ! clipAreaXRight = (minx + maxx) / 2.0 + wH* R / 2.0;
-		    ! clipAreaYBottom = miny;
-		    ! clipAreaYTop = maxy;
-	    !endif
-	    !call glOrtho(clipAreaXLeft-init_lookfrom.x, clipAreaXRight-init_lookfrom.x, &
-        !             clipAreaYBottom-init_lookfrom.y, clipAreaYTop-init_lookfrom.y,near,far)
-        if(R>1) then
-            call glOrtho(-r1*R, r1*R, -r1, r1,near,far) 
-        else
-            call glOrtho(-r1, r1, -r1/R, r1/R,near,far) 
-        endif
-    endif
-    call glMatrixMode(GL_MODELVIEW);
-	call glLoadIdentity();
-
-
-end subroutine
-
-subroutine keyboardCB(key,  x,  y)
-    use strings
-    integer,intent(in)::key,x,y
-    integer::nlen=0,nsubstr=0
-    character(len(info.inputstr))::substr(50)
-    
-    
-    INPUTKEY=KEY
-   
-    
-    select case(key)
-    case(ichar('q'),ichar('Q'))
-        if(INFO.QKEY) then
-            info.str=''
-            info.inputstr=''           
-            INFO.ISNEEDINPUT=.FALSE.
-            info.qkey=.false.
-        endif
-    case DEFAULT
- 
-    end select
-    
-    if(info.isneedinput) then
-        nlen=len_trim(adjustl(info.inputstr))
-        if(nlen>=len(info.inputstr)) info.inputstr=''
-        if(key==8) then
-            info.inputstr=info.inputstr(1:nlen-1)            
-        elseif(key==13) then !enter
-            call string_interpreter(info.inputstr,str2realArray)
-            if(allocated(info.inputvar)) deallocate(info.inputvar)
-            allocate(info.inputvar,source=str2vals)
-            info.ninputvar=nstr2vals
-            select case(info.func_id)
-            case(FUNC_ID_GETSLICELOCATION)
-                call getslicelocation()
-            end select
-            
-            info.str=''
-            info.inputstr=''
-            INFO.NINPUTVAR=0
-            if(allocated(info.inputvar)) deallocate(info.inputvar)
-            INFO.ISNEEDINPUT=.false.
-        else
-            info.inputstr=trim(adjustl(info.inputstr))//char(key)
-        endif
-    ELSE
-        INFO.INPUTSTR=''
-    endif 
-    
-    call glutPostRedisplay
-    !switch(key)
-    !{
-    !case 27: // ESCAPE
-    !    exit(0);
-    !    break;
-    !
-    !case 'd': // switch rendering modes (fill -> wire -> point)
-    !case 'D':
-    !    drawMode = ++drawMode % 3;
-    !    if(drawMode == 0)        // fill mode
-    !    {
-    !        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    !        glEnable(GL_DEPTH_TEST);
-    !        glEnable(GL_CULL_FACE);
-    !    }
-    !    else if(drawMode == 1)  // wireframe mode
-    !    {
-    !        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    !        glDisable(GL_DEPTH_TEST);
-    !        glDisable(GL_CULL_FACE);
-    !    }
-    !    else                    // point mode
-    !    {
-    !        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-    !        glDisable(GL_DEPTH_TEST);
-    !        glDisable(GL_CULL_FACE);
-    !    }
-    !    break;
-    !
-    !case 'r':
-    !case 'R':
-    !    // reset rotation
-    !    quat.set(1, 0, 0, 0);
-    !    break;
-    !
-    !case ' ':
-    !    if(trackball.getMode() == Trackball::ARC)
-    !        trackball.setMode(Trackball::PROJECT);
-    !    else
-    !        trackball.setMode(Trackball::ARC);
-    !    break;
-    !
-    !default:
-    !    ;
-    !}
-endsubroutine
-
 
 !        -----------
 function sphere2cart(spoint) result(cpoint)
@@ -859,3 +479,5 @@ end function cart3D_minus_cart3D
 
 
 end module view_modifier
+
+

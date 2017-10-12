@@ -3,7 +3,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	use solverds
 	implicit none
 	integer::iincs,iiter,isubts,file_unit,ieset,file_diagram
-	logical::iscon,isfirstcall,isbarfamily,anybarfamily
+	logical::iscon,isfirstcall,isbarfamily,anybarfamily,isset1
 	integer::i,j,nc,n1,k,k1,iset1
 	character(1024)::cstring=''
 	real(8)::rar(MNDOF),t1
@@ -63,6 +63,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	
 	file_unit=10
 	file_diagram=20
+	NNODALQ=NNODALQ+1
 	if(isfirstcall) then 
 		open(unit=file_unit,file=resultfile2,status='replace')
 		!if(anybarfamily) open(unit=file_diagram,file=resultfile21,status='replace')		
@@ -70,156 +71,137 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 		write(file_unit,'(a1024)') cstring
 		call tecplot_variables(cstring)
 		write(file_unit,'(a1024)') cstring
-		
-		
-		call tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
-		
-		do i=1,neset
-            iset1=esetid(i)
-			write(file_unit,'(a1024)') eset(iset1).zonetitle
-			!if(anybarfamily) write(file_diagram,'(a1024)') eset(iset1).zonetitle
-			
-			isbarfamily=eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam.or.eset(iset1).et==beam2d.or.eset(iset1).et==ssp2d
-			
-			if(isbarfamily) then
-				if(solver_control.datapaking)then
-					call pointout_barfamily(file_unit,iset1)
-					!call pointout_barfamily_diagram(file_diagram,i,iincs,isubts)
-                else
-                    print *, "To be improved. SUB=outdata"    
-					!call blockout_barfamily(file_unit,ieset)
-				end if				
-			else
-				if(i==1) then
-					if(solver_control.datapaking)then
-						call pointout(file_unit,IINCS,ISUBTS,IITER)					  
-					else
-						call blockout(file_unit)
-					end if
-				end if
-			end if
-			do j=eset(iset1).enums,eset(iset1).enume				
-				select case(eset(iset1).et)
-					case(cpe8,cps8,CAX8,cpe8r,cps8r,CAX8R, &
-							 cpe8_spg,cps8_spg,CAX8_spg,cpe8r_spg,cps8r_spg,CAX8R_spg, &
-							 cpe8_cpl,cps8_cpl,CAX8_cpl,cpe8r_cpl,cps8r_cpl,CAX8R_cpl) 
-						nc=4
-						write(file_unit,9999) element(j).node(8),element(j).node(1),&
-											element(j).node(5),element(j).node(5)
-						write(file_unit,9999) element(j).node(5),element(j).node(2),&
-											element(j).node(6),element(j).node(6)
-						write(file_unit,9999) element(j).node(6),element(j).node(3),&
-											element(j).node(7),element(j).node(7)
-						write(file_unit,9999) element(j).node(7),element(j).node(4),&
-											element(j).node(8),element(j).node(8)
-						write(file_unit,9999) element(j).node(5),element(j).node(6),&
-											element(j).node(7),element(j).node(8)								
-						case(cpe6,cps6,CAX6,&
-								 cpe6_spg,cps6_spg,CAX6_spg, &
-								 cpe6_cpl,cps6_cpl,cax6_cpl)
-							nc=3
-							write(file_unit,9999) element(j).node(1),element(j).node(4),&
-												element(j).node(6)
-							write(file_unit,9999) element(j).node(2),element(j).node(5),&
-												element(j).node(4)
-							write(file_unit,9999) element(j).node(3),element(j).node(6),&
-												element(j).node(5)
-							write(file_unit,9999) element(j).node(4),element(j).node(5),&
-												element(j).node(6)
-						case(cpe15,cps15,CAX15, &
-								 cpe15_spg,cps15_spg,CAX15_spg, &
-								 cpe15_cpl,cps15_cpl,CAX15_cpl)
-							nc=3
-							write(file_unit,9999) element(j).node(3),element(j).node(11),element(j).node(10)
-							write(file_unit,9999) element(j).node(11),element(j).node(6),element(j).node(14)
-							write(file_unit,9999) element(j).node(11),element(j).node(14),element(j).node(10)
-							write(file_unit,9999) element(j).node(10),element(j).node(14),element(j).node(5)
-							write(file_unit,9999) element(j).node(6),element(j).node(12),element(j).node(15)
-							write(file_unit,9999) element(j).node(6),element(j).node(15),element(j).node(14)
-							write(file_unit,9999) element(j).node(14),element(j).node(15),element(j).node(13)
-							write(file_unit,9999) element(j).node(14),element(j).node(13),element(j).node(5)
-							write(file_unit,9999) element(j).node(5),element(j).node(13),element(j).node(9)
-							write(file_unit,9999) element(j).node(12),element(j).node(1),element(j).node(7)
-							write(file_unit,9999) element(j).node(12),element(j).node(7),element(j).node(15)
-							write(file_unit,9999) element(j).node(15),element(j).node(7),element(j).node(4)
-							write(file_unit,9999) element(j).node(15),element(j).node(4),element(j).node(13)
-							write(file_unit,9999) element(j).node(13),element(j).node(4),element(j).node(8)
-							write(file_unit,9999) element(j).node(13),element(j).node(8),element(j).node(9)
-							write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(2)
-					case(prm6,prm6_spg,prm6_cpl)
-							nc=8	
-							write(file_unit,9999) element(j).node(1:3),element(j).node(3), &
-																		element(j).node(4:6),element(j).node(6)
-					case(prm15,prm15_spg,prm15_cpl) !desolve into 14 tetrahedral element 
-							nc=4
-							write(file_unit,9999) element(j).node(1),element(j).node(7),element(j).node(9),element(j).node(13)
-							write(file_unit,9999) element(j).node(7),element(j).node(2),element(j).node(8),element(j).node(14)
-							write(file_unit,9999) element(j).node(8),element(j).node(3),element(j).node(9),element(j).node(15)
-							write(file_unit,9999) element(j).node(8),element(j).node(9),element(j).node(13),element(j).node(15)
-							write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(13),element(j).node(7)
-							write(file_unit,9999) element(j).node(8),element(j).node(14),element(j).node(13),element(j).node(7)
-							write(file_unit,9999) element(j).node(8),element(j).node(13),element(j).node(14),element(j).node(15)
-							write(file_unit,9999) element(j).node(4),element(j).node(10),element(j).node(12),element(j).node(13)
-							write(file_unit,9999) element(j).node(10),element(j).node(5),element(j).node(11),element(j).node(14)
-							write(file_unit,9999) element(j).node(11),element(j).node(6),element(j).node(12),element(j).node(15)
-							write(file_unit,9999) element(j).node(12),element(j).node(11),element(j).node(13),element(j).node(15)
-							write(file_unit,9999) element(j).node(11),element(j).node(12),element(j).node(13),element(j).node(10)
-							write(file_unit,9999) element(j).node(11),element(j).node(13),element(j).node(14),element(j).node(10)
-							write(file_unit,9999) element(j).node(11),element(j).node(14),element(j).node(13),element(j).node(15)
-						case(tet10,tet10_spg,tet10_cpl)
-							nc=4
-							write(file_unit,9999) element(j).node(8),element(j).node(7),element(j).node(5),element(j).node(1)
-							write(file_unit,9999) element(j).node(5),element(j).node(6),element(j).node(9),element(j).node(2)
-							write(file_unit,9999) element(j).node(6),element(j).node(7),element(j).node(10),element(j).node(3)
-							write(file_unit,9999) element(j).node(8),element(j).node(9),element(j).node(10),element(j).node(4)
-							write(file_unit,9999) element(j).node(6),element(j).node(7),element(j).node(8),element(j).node(10)
-							write(file_unit,9999) element(j).node(6),element(j).node(8),element(j).node(9),element(j).node(10)
-							write(file_unit,9999) element(j).node(8),element(j).node(7),element(j).node(6),element(j).node(5)
-							write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(6),element(j).node(5)
-						case(bar,bar2d,beam,beam2d,ssp2d)
-							nc=8
-							write(file_unit,9999) (((element(j).node2(k)-1)*4+k1,k1=1,4),k=1,element(j).nnum)
-						case default
-							nc=element(j).nnum
-							write(file_unit,9999) element(j).node(1:nc)
-				end select
-				
-			end do			
-			
-		end do
-			
-		close(file_unit)
-
-!		open(unit=1,file=resultfile,status='replace')
 		isfirstcall=.false.
-
 	else
 		open(unit=file_unit,file=resultfile2,status='old',access='append')
-		call tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
-		do i=1,neset
-            iset1=esetid(i)
-			write(file_unit,'(a1024)') eset(iset1).zonetitle
-			isbarfamily=eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam.or.eset(iset1).et==beam2d.or.eset(iset1).et==ssp2d
-			if(isbarfamily) then
-				if(solver_control.datapaking)then
-					call pointout_barfamily(file_unit,iset1)					  
-                else
-                    print *, "To be improved. SUB=outdata"    
-					!call blockout_barfamily(file_unit,ieset)
-				end if
+	endif	
+		
+	call tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
+	isset1=.false.
+	
+	do i=1,neset
+		iset1=esetid(i)
+		if(sf(eset(iset1).sf).factor(iincs)==0) cycle
+		write(file_unit,'(a1024)') eset(iset1).zonetitle
+		!if(anybarfamily) write(file_diagram,'(a1024)') eset(iset1).zonetitle
+		
+		isbarfamily=eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam.or.eset(iset1).et==beam2d.or.eset(iset1).et==ssp2d
+		
+		if(isbarfamily) then
+			if(solver_control.datapaking)then
+				call pointout_barfamily(file_unit,iset1)
+				!call pointout_barfamily_diagram(file_diagram,i,iincs,isubts)
 			else
-				if(i==1) then
-					if(solver_control.datapaking)then
-						call  pointout(file_unit,IINCS,ISUBTS,IITER)				  
-					else
-						call blockout(file_unit)
-					end if
+				print *, "To be improved. SUB=outdata"    
+				!call blockout_barfamily(file_unit,ieset)
+			end if				
+		else
+			if(.not.isset1) then
+				if(solver_control.datapaking)then
+					call pointout(file_unit,IINCS,ISUBTS,IITER)					  
+				else
+					call blockout(file_unit)
 				end if
+				isset1=.true.
 			end if
+		end if
+		
+		if(.not.eset(iset1).out_mesh) cycle
+		
+		do j=eset(iset1).enums,eset(iset1).enume
 			
-		end do
-	end if 
-    close(file_unit)
+			select case(eset(iset1).et)
+				case(cpe8,cps8,CAX8,cpe8r,cps8r,CAX8R, &
+						 cpe8_spg,cps8_spg,CAX8_spg,cpe8r_spg,cps8r_spg,CAX8R_spg, &
+						 cpe8_cpl,cps8_cpl,CAX8_cpl,cpe8r_cpl,cps8r_cpl,CAX8R_cpl) 
+					nc=4
+					write(file_unit,9999) element(j).node(8),element(j).node(1),&
+										element(j).node(5),element(j).node(5)
+					write(file_unit,9999) element(j).node(5),element(j).node(2),&
+										element(j).node(6),element(j).node(6)
+					write(file_unit,9999) element(j).node(6),element(j).node(3),&
+										element(j).node(7),element(j).node(7)
+					write(file_unit,9999) element(j).node(7),element(j).node(4),&
+										element(j).node(8),element(j).node(8)
+					write(file_unit,9999) element(j).node(5),element(j).node(6),&
+										element(j).node(7),element(j).node(8)								
+					case(cpe6,cps6,CAX6,&
+							 cpe6_spg,cps6_spg,CAX6_spg, &
+							 cpe6_cpl,cps6_cpl,cax6_cpl)
+						nc=3
+						write(file_unit,9999) element(j).node(1),element(j).node(4),&
+											element(j).node(6)
+						write(file_unit,9999) element(j).node(2),element(j).node(5),&
+											element(j).node(4)
+						write(file_unit,9999) element(j).node(3),element(j).node(6),&
+											element(j).node(5)
+						write(file_unit,9999) element(j).node(4),element(j).node(5),&
+											element(j).node(6)
+					case(cpe15,cps15,CAX15, &
+							 cpe15_spg,cps15_spg,CAX15_spg, &
+							 cpe15_cpl,cps15_cpl,CAX15_cpl)
+						nc=3
+						write(file_unit,9999) element(j).node(3),element(j).node(11),element(j).node(10)
+						write(file_unit,9999) element(j).node(11),element(j).node(6),element(j).node(14)
+						write(file_unit,9999) element(j).node(11),element(j).node(14),element(j).node(10)
+						write(file_unit,9999) element(j).node(10),element(j).node(14),element(j).node(5)
+						write(file_unit,9999) element(j).node(6),element(j).node(12),element(j).node(15)
+						write(file_unit,9999) element(j).node(6),element(j).node(15),element(j).node(14)
+						write(file_unit,9999) element(j).node(14),element(j).node(15),element(j).node(13)
+						write(file_unit,9999) element(j).node(14),element(j).node(13),element(j).node(5)
+						write(file_unit,9999) element(j).node(5),element(j).node(13),element(j).node(9)
+						write(file_unit,9999) element(j).node(12),element(j).node(1),element(j).node(7)
+						write(file_unit,9999) element(j).node(12),element(j).node(7),element(j).node(15)
+						write(file_unit,9999) element(j).node(15),element(j).node(7),element(j).node(4)
+						write(file_unit,9999) element(j).node(15),element(j).node(4),element(j).node(13)
+						write(file_unit,9999) element(j).node(13),element(j).node(4),element(j).node(8)
+						write(file_unit,9999) element(j).node(13),element(j).node(8),element(j).node(9)
+						write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(2)
+				case(prm6,prm6_spg,prm6_cpl)
+						nc=8	
+						write(file_unit,9999) element(j).node(1:3),element(j).node(3), &
+																	element(j).node(4:6),element(j).node(6)
+				case(prm15,prm15_spg,prm15_cpl) !desolve into 14 tetrahedral element 
+						nc=4
+						write(file_unit,9999) element(j).node(1),element(j).node(7),element(j).node(9),element(j).node(13)
+						write(file_unit,9999) element(j).node(7),element(j).node(2),element(j).node(8),element(j).node(14)
+						write(file_unit,9999) element(j).node(8),element(j).node(3),element(j).node(9),element(j).node(15)
+						write(file_unit,9999) element(j).node(8),element(j).node(9),element(j).node(13),element(j).node(15)
+						write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(13),element(j).node(7)
+						write(file_unit,9999) element(j).node(8),element(j).node(14),element(j).node(13),element(j).node(7)
+						write(file_unit,9999) element(j).node(8),element(j).node(13),element(j).node(14),element(j).node(15)
+						write(file_unit,9999) element(j).node(4),element(j).node(10),element(j).node(12),element(j).node(13)
+						write(file_unit,9999) element(j).node(10),element(j).node(5),element(j).node(11),element(j).node(14)
+						write(file_unit,9999) element(j).node(11),element(j).node(6),element(j).node(12),element(j).node(15)
+						write(file_unit,9999) element(j).node(12),element(j).node(11),element(j).node(13),element(j).node(15)
+						write(file_unit,9999) element(j).node(11),element(j).node(12),element(j).node(13),element(j).node(10)
+						write(file_unit,9999) element(j).node(11),element(j).node(13),element(j).node(14),element(j).node(10)
+						write(file_unit,9999) element(j).node(11),element(j).node(14),element(j).node(13),element(j).node(15)
+					case(tet10,tet10_spg,tet10_cpl)
+						nc=4
+						write(file_unit,9999) element(j).node(8),element(j).node(7),element(j).node(5),element(j).node(1)
+						write(file_unit,9999) element(j).node(5),element(j).node(6),element(j).node(9),element(j).node(2)
+						write(file_unit,9999) element(j).node(6),element(j).node(7),element(j).node(10),element(j).node(3)
+						write(file_unit,9999) element(j).node(8),element(j).node(9),element(j).node(10),element(j).node(4)
+						write(file_unit,9999) element(j).node(6),element(j).node(7),element(j).node(8),element(j).node(10)
+						write(file_unit,9999) element(j).node(6),element(j).node(8),element(j).node(9),element(j).node(10)
+						write(file_unit,9999) element(j).node(8),element(j).node(7),element(j).node(6),element(j).node(5)
+						write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(6),element(j).node(5)
+					case(bar,bar2d,beam,beam2d,ssp2d)
+						nc=8
+						write(file_unit,9999) (((element(j).node2(k)-1)*4+k1,k1=1,4),k=1,element(j).nnum)
+					case default
+						nc=element(j).nnum
+						write(file_unit,9999) element(j).node(1:nc)
+			end select
+			
+		end do			
+		
+	end do
+		
+	close(file_unit)
+
+
 	999 format(<nc>E15.7)
 	9999 format(<nc>I7)
 end subroutine
@@ -387,225 +369,225 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 	implicit none
 	INTEGER,INTENT(IN)::FILE_UNIT,ISTEP,ISUBTS,ITER
 	LOGICAL,SAVE::ISFIRSTCALL1	
-	integer::i,j,k,idof,IDISQ1=0,NVO1=0
+	integer::i,j,k,idof,IDISQ1=0,NVO1=0,NQ1=0
 	
 	REAL(8)::SUMQ1=0
-	
-	if(.NOT.allocated(NODALQ)) allocate(NodalQ(nnum,nvo))
+	NQ1=SUM(timestep.nsubts)
+	if(.NOT.allocated(NODALQ)) allocate(NodalQ(nnum,nvo,NQ1))
     IF(.NOT.ALLOCATED(VEC)) ALLOCATE(VEC(3,NNUM))
     VEC=0.0D0
 	i=1
 	do while(i<=nvo)
 		select case(vo(i))
 			case(locx)
-				NodalQ(:,i)=node.coord(1)
+				NodalQ(:,i,NnodalQ)=node.coord(1)
 			case(locy)
-				NodalQ(:,i)=node.coord(2)
+				NodalQ(:,i,NnodalQ)=node.coord(2)
 			case(locz)
-				NodalQ(:,i)=node.coord(3)
+				NodalQ(:,i,NnodalQ)=node.coord(3)
 			case(disx)
 				idof=1
 				if(outvar(disx).system/=0) then
-					call GS2LS_Displacement(outvar(disx).system,idof,nodalQ(:,i),nnum)
-					!NodalQ(:,i)=tdispINLS(node.dof(idof))
+					call GS2LS_Displacement(outvar(disx).system,idof,NodalQ(:,i,NnodalQ),nnum)
+					!NodalQ(:,i,NnodalQ)=tdispINLS(node.dof(idof))
 				else
-					NodalQ(:,i)=tdisp(node.dof(idof))
+					NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 				end if
 			case(disy)
 				idof=2
 				if(outvar(disy).system/=0) then					
-					call GS2LS_Displacement(outvar(disy).system,idof,nodalQ(:,i),nnum)
+					call GS2LS_Displacement(outvar(disy).system,idof,NodalQ(:,i,NnodalQ),nnum)
 				else
-					NodalQ(:,i)=tdisp(node.dof(idof))
+					NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 				end if
 			case(disz)
 				idof=3
 				if(outvar(disz).system/=0) then					
-					call GS2LS_Displacement(outvar(disz).system,idof,nodalQ(:,i),nnum)
+					call GS2LS_Displacement(outvar(disz).system,idof,NodalQ(:,i,NnodalQ),nnum)
 				else
-					NodalQ(:,i)=tdisp(node.dof(idof))
+					NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 				end if
 			case(head)
 				idof=4
-				NodalQ(:,i)=tdisp(node.dof(idof))
+				NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 			case(Phead)
 				idof=4
-				if(ndimension==2) NodalQ(:,i)=tdisp(node.dof(idof))-node.coord(2)
-				if(ndimension==3) NodalQ(:,i)=tdisp(node.dof(idof))-node.coord(3)												
+				if(ndimension==2) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))-node.coord(2)
+				if(ndimension==3) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))-node.coord(3)												
 			case(Rx)
 				idof=5
 				if(outvar(Rx).system/=0) then					
-					call GS2LS_Displacement(outvar(rx).system,idof,nodalQ(:,i),nnum)
+					call GS2LS_Displacement(outvar(rx).system,idof,NodalQ(:,i,NnodalQ),nnum)
 				else
-					NodalQ(:,i)=tdisp(node.dof(idof))
+					NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 				end if
 			case(Ry)
 				idof=6
 				if(outvar(Ry).system/=0) then					
-					call GS2LS_Displacement(outvar(ry).system,idof,nodalQ(:,i),nnum)
+					call GS2LS_Displacement(outvar(ry).system,idof,NodalQ(:,i,NnodalQ),nnum)
 				else
-					NodalQ(:,i)=tdisp(node.dof(idof))
+					NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 				end if
 			case(Rz)
 				idof=7
 				if(outvar(Rz).system/=0) then					
-					call GS2LS_Displacement(outvar(rz).system,idof,nodalQ(:,i),nnum)
+					call GS2LS_Displacement(outvar(rz).system,idof,NodalQ(:,i,NnodalQ),nnum)
 				else
-					NodalQ(:,i)=tdisp(node.dof(idof))
+					NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 				end if
 								
 			case(sxx)
 				do j=1,nnum
-					NodalQ(j,i)=node(j).stress(1)
+					NodalQ(j,i,NnodalQ)=node(j).stress(1)
 				end do
 			case(syy)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).stress(2)
+					NodalQ(j,i,NnodalQ)=node(j).stress(2)
 				end do  
 			case(szz)
 				do j=1,nnum
-					NodalQ(:,i)=node(j).stress(3)
+					NodalQ(:,i,NnodalQ)=node(j).stress(3)
 				end do
 			case(sxy)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).stress(4)	
+					NodalQ(j,i,NnodalQ)=node(j).stress(4)	
 				end do
 			case(syz)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).stress(5)
+					NodalQ(j,i,NnodalQ)=node(j).stress(5)
 				end do
 			case(szx)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).stress(6)
+					NodalQ(j,i,NnodalQ)=node(j).stress(6)
 				end do
 			case(exx)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).strain(1)
+					NodalQ(j,i,NnodalQ)=node(j).strain(1)
 				end do
 			case(eyy)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).strain(2)
+					NodalQ(j,i,NnodalQ)=node(j).strain(2)
 				end do
 			case(ezz)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).strain(3)
+					NodalQ(j,i,NnodalQ)=node(j).strain(3)
 				end do
 			case(exy)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).strain(4)
+					NodalQ(j,i,NnodalQ)=node(j).strain(4)
 				end do
 			case(eyz)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).strain(5)
+					NodalQ(j,i,NnodalQ)=node(j).strain(5)
 				end do
 			case(ezx)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).strain(6)
+					NodalQ(j,i,NnodalQ)=node(j).strain(6)
 				end do
 			case(pexx)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).pstrain(1)
+					NodalQ(j,i,NnodalQ)=node(j).pstrain(1)
 				end do
 			case(peyy)
 				do j=1,nnum	
-					nodalQ(j,i)=node(j).pstrain(2)
+					NodalQ(j,i,NnodalQ)=node(j).pstrain(2)
 				end do
 			case(pezz)
 				do j=1,nnum	
-					nodalQ(j,i)=node(j).pstrain(3)
+					NodalQ(j,i,NnodalQ)=node(j).pstrain(3)
 				end do	
 			case(pexy)
 				do j=1,nnum	
-					nodalQ(j,i)=node(j).pstrain(4)
+					NodalQ(j,i,NnodalQ)=node(j).pstrain(4)
 				end do
 			case(peyz)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).pstrain(5)
+					NodalQ(j,i,NnodalQ)=node(j).pstrain(5)
 				end do
 			case(pezx)
 				do j=1,nnum
-					nodalQ(j,i)=node(j).pstrain(6)
+					NodalQ(j,i,NnodalQ)=node(j).pstrain(6)
 				end do
 			case(sigma_mises)
-				NodalQ(:,i)=node.mises
+				NodalQ(:,i,NnodalQ)=node.mises
 			case(eeq)
-				NodalQ(:,i)=node.eeq
+				NodalQ(:,i,NnodalQ)=node.eeq
 			case(peeq)
-				NodalQ(:,i)=node.peeq
+				NodalQ(:,i,NnodalQ)=node.peeq
 			case(xf_out)
-				NodalQ(:,i)=node.coord(1)+tdisp(node.dof(1))
+				NodalQ(:,i,NnodalQ)=node.coord(1)+tdisp(node.dof(1))
 			case(yf_out)
-				NodalQ(:,i)=node.coord(2)+tdisp(node.dof(2))
+				NodalQ(:,i,NnodalQ)=node.coord(2)+tdisp(node.dof(2))
 			case(zf_out)
-				NodalQ(:,i)=node.coord(3)+tdisp(node.dof(3))
+				NodalQ(:,i,NnodalQ)=node.coord(3)+tdisp(node.dof(3))
 			case(gradx)
 				do j=1,nnum
                     if(allocated(node(j).igrad)) then
-					    NodalQ(j,i)=node(j).igrad(1)
+					    NodalQ(j,i,NnodalQ)=node(j).igrad(1)
                     else
-                        NodalQ(j,i)=0.0d0
+                        NodalQ(j,i,NnodalQ)=0.0d0
                     endif
 				end do
 			case(grady)
 				do j=1,nnum
                      if(allocated(node(j).igrad)) then
-					    NodalQ(j,i)=node(j).igrad(2)
+					    NodalQ(j,i,NnodalQ)=node(j).igrad(2)
                     else
-                        NodalQ(j,i)=0.0d0
+                        NodalQ(j,i,NnodalQ)=0.0d0
                     endif
-					!NodalQ(j,i)=node(j).igrad(2)
+					!NodalQ(j,i,NnodalQ)=node(j).igrad(2)
 				end do
 			case(gradz)
 				do j=1,nnum
                      if(allocated(node(j).igrad)) then
-					    NodalQ(j,i)=node(j).igrad(3)
+					    NodalQ(j,i,NnodalQ)=node(j).igrad(3)
                     else
-                        NodalQ(j,i)=0.0d0
+                        NodalQ(j,i,NnodalQ)=0.0d0
                     endif
-					!NodalQ(j,i)=node(j).igrad(3)
+					!NodalQ(j,i,NnodalQ)=node(j).igrad(3)
 				end do
 			case(vx)
 				do j=1,nnum
                     if(allocated(node(j).velocity)) then
-					    NodalQ(j,i)=node(j).velocity(1)
+					    NodalQ(j,i,NnodalQ)=node(j).velocity(1)
                     else
-                        NodalQ(j,i)=0.0d0
+                        NodalQ(j,i,NnodalQ)=0.0d0
                     endif
-					!NodalQ(j,i)=node(j).velocity(1)
+					!NodalQ(j,i,NnodalQ)=node(j).velocity(1)
 				end do
 			case(vy)
 				do j=1,nnum
                     if(allocated(node(j).velocity)) then
-					    NodalQ(j,i)=node(j).velocity(2)
+					    NodalQ(j,i,NnodalQ)=node(j).velocity(2)
                     else
-                        NodalQ(j,i)=0.0d0
+                        NodalQ(j,i,NnodalQ)=0.0d0
                     endif
-					!NodalQ(j,i)=node(j).velocity(2)
+					!NodalQ(j,i,NnodalQ)=node(j).velocity(2)
 				end do
 			case(vz)
 				do j=1,nnum
                     if(allocated(node(j).velocity)) then
-					    NodalQ(j,i)=node(j).velocity(3)
+					    NodalQ(j,i,NnodalQ)=node(j).velocity(3)
                     else
-                        NodalQ(j,i)=0.0d0
+                        NodalQ(j,i,NnodalQ)=0.0d0
                     endif                    
-					!NodalQ(j,i)=node(j).velocity(3)
+					!NodalQ(j,i,NnodalQ)=node(j).velocity(3)
 				end do
 			case(discharge)
 				IDISQ1=I
-				NodalQ(:,i)=node.q
+				NodalQ(:,i,NnodalQ)=node.q
 			case(kr_spg)
-				NodalQ(:,i)=node.kr
+				NodalQ(:,i,NnodalQ)=node.kr
 			case(mw_spg)
-				NodalQ(:,i)=node.mw
+				NodalQ(:,i,NnodalQ)=node.mw
 			case(SFR)
 				do j=1,6
-					NodalQ(:,i+j-1)=node.SFR(j)
+					NodalQ(:,i+j-1,nnodalq)=node.SFR(j)
 				enddo
 			case(NF)
 				do j=1,NDIMENSION
 					DO K=1,NNUM
-						NodalQ(K,i+j-1)=NI_NodalForce(NODE(K).DOF(J))
+						NodalQ(K,i+j-1,nnodalq)=NI_NodalForce(NODE(K).DOF(J))
 					ENDDO
 				enddo
 		end select
@@ -615,7 +597,7 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 	end do
 	
 	do i=1,nnum
-		write(file_unit,999) (NodalQ(i,j),j=1,nvo)
+		write(file_unit,999) (NodalQ(i,j,nnodalq),j=1,nvo)
 	end do
 	
 	IF(NDATAPOINT>0) THEN
@@ -631,12 +613,12 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 		DO I=1,NDATAPOINT		
 			IF (DATAPOINT(I).ISSUMQ==0) THEN
 				DO J=1,DATAPOINT(I).NNODE
-					write(DATAPOINT_UNIT,110) SOLVER_CONTROL.ISPARASYS,SOLVER_CONTROL.CaseID,I,ISTEP,ISUBTS,ITER,J,(NodalQ(DATAPOINT(I).NODE(J),K),K=1,nvo)
+					write(DATAPOINT_UNIT,110) SOLVER_CONTROL.ISPARASYS,SOLVER_CONTROL.CaseID,I,ISTEP,ISUBTS,ITER,J,(NodalQ(DATAPOINT(I).NODE(J),K,nnodalq),K=1,nvo)
 				END DO
 			ELSE
 				SUMQ1=0.0				
 				DO J=1,DATAPOINT(I).NNODE					
-					SUMQ1=SUMQ1+NodalQ(DATAPOINT(I).NODE(J),IDISQ1)
+					SUMQ1=SUMQ1+NodalQ(DATAPOINT(I).NODE(J),IDISQ1,nnodalq)
 				END DO
 				NVO1=1
 				WRITE(DATAPOINT_UNIT,120) SOLVER_CONTROL.ISPARASYS,SOLVER_CONTROL.CaseID,I,ISTEP,ISUBTS,ITER,J,SUMQ1,'SUMQ'
@@ -667,11 +649,11 @@ subroutine pointout_barfamily(file_unit,ieset)
 	integer,intent(in)::file_unit,ieset
 	integer::i,j,k,idof,n1
 	real(kind=dpn)::Vector1(3)=0.0d0,x1,y1,z1
-	real(kind=dpn),allocatable::NODALQ1(:,:),DisILS(:,:),QMILS(:,:)
+	real(kind=dpn),allocatable::DisILS(:,:),QMILS(:,:)
 	
 	n1=eset(ieset).noutorder
     !IF(.NOT.ALLOCATED(NODALQ)) allocate(NodalQ(n1,nvo))
-	allocate(NodalQ1(n1,nvo),DisILS(n1,6),QMILS(n1,6))
+	allocate(DisILS(n1,6),QMILS(n1,6))
 	
 	if(vo(3)/=locz) stop "'Z' must be output in a Barfamily element. Please add it by modifying the 'OUTDATA' command."
 	
@@ -684,24 +666,24 @@ subroutine pointout_barfamily(file_unit,ieset)
 		select case(vo(i))
 			case(locx)
 				do j=1,n1
-					NodalQ(j,i)=node(eset(ieset).outorder(j)).coord(1)
+					NodalQ(j,i,NnodalQ)=node(eset(ieset).outorder(j)).coord(1)
 				end do
 			case(locy)
 				do j=1,n1
-					NodalQ(j,i)=node(eset(ieset).outorder(j)).coord(2)
+					NodalQ(j,i,NnodalQ)=node(eset(ieset).outorder(j)).coord(2)
 				end do
 			case(locz)
 				do j=1,n1
-					NodalQ(j,i)=node(eset(ieset).outorder(j)).coord(3)
+					NodalQ(j,i,NnodalQ)=node(eset(ieset).outorder(j)).coord(3)
 				end do
 				
 			case(disx,disy,disz)
 				idof=vo(i)-3
 				do j=1,n1					
 					if(outvar(vo(i)).system/=0) then
-						NodalQ(j,i)=DisILS(j,idof)
+						NodalQ(j,i,NnodalQ)=DisILS(j,idof)
 					else
-						NodalQ(j,i)=tdisp(node(eset(ieset).outorder(j)).dof(idof))
+						NodalQ(j,i,NnodalQ)=tdisp(node(eset(ieset).outorder(j)).dof(idof))
 					end if
 				end do
 											
@@ -710,9 +692,9 @@ subroutine pointout_barfamily(file_unit,ieset)
 				do j=1,n1
 					
 					if((outvar(vo(i)).system/=0).and.(ndimension==3)) then
-						NodalQ(j,i)=DisILS(j,idof)
+						NodalQ(j,i,NnodalQ)=DisILS(j,idof)
 					else
-						NodalQ(j,i)=tdisp(node(eset(ieset).outorder(j)).dof(idof))
+						NodalQ(j,i,NnodalQ)=tdisp(node(eset(ieset).outorder(j)).dof(idof))
 					end if
 				end do
 
@@ -722,25 +704,25 @@ subroutine pointout_barfamily(file_unit,ieset)
 				idof=vo(i)-55
 !				if(vo(i)==Qz) idof=vo(i)-54
 				
-				NodalQ(:,i)=QMILS(:,idof)
+				NodalQ(:,i,NnodalQ)=QMILS(:,idof)
 								
 			case(Mx,My,Mz) !53,54,55
 				idof=vo(i)-49
 !				if(vo(i)==Mz) idof=vo(i)-52
 				
-				NodalQ(:,i)=QMILS(:,idof)				
+				NodalQ(:,i,NnodalQ)=QMILS(:,idof)				
 			
 			case(xf_out)
 				do j=1,n1
-					NodalQ(j,i)=node(eset(ieset).outorder(j)).coord(1)+tdisp(node(eset(ieset).outorder(j)).dof(1))
+					NodalQ(j,i,NnodalQ)=node(eset(ieset).outorder(j)).coord(1)+tdisp(node(eset(ieset).outorder(j)).dof(1))
 				end do
 			case(yf_out)
 				do j=1,n1
-					NodalQ(j,i)=node(eset(ieset).outorder(j)).coord(2)+tdisp(node(eset(ieset).outorder(j)).dof(2))
+					NodalQ(j,i,NnodalQ)=node(eset(ieset).outorder(j)).coord(2)+tdisp(node(eset(ieset).outorder(j)).dof(2))
 				end do
 			case(zf_out)
 				do j=1,n1
-					NodalQ(j,i)=node(eset(ieset).outorder(j)).coord(3)+tdisp(node(eset(ieset).outorder(j)).dof(3))
+					NodalQ(j,i,NnodalQ)=node(eset(ieset).outorder(j)).coord(3)+tdisp(node(eset(ieset).outorder(j)).dof(3))
 				end do
 			
 				
@@ -751,16 +733,16 @@ subroutine pointout_barfamily(file_unit,ieset)
 		!1个节点对应4个节点，这4个节点只是x,y,z不同，其它节点量相同。
 		do k=1,4
 		
-			x1=nodalQ(i,1)+eset(ieset).xyz_section(1,k)
-			y1=nodalQ(i,2)+eset(ieset).xyz_section(2,k)
-			z1=nodalQ(i,3)+eset(ieset).xyz_section(3,k) !对于杆系单元，在命令outdata中，必须含有Z.
-			write(file_unit,999) x1,y1,z1,(NodalQ(i,j),j=4,nvo)
+			x1=nodalQ(i,1,nnodalq)+eset(ieset).xyz_section(1,k)
+			y1=nodalQ(i,2,nnodalq)+eset(ieset).xyz_section(2,k)
+			z1=nodalQ(i,3,nnodalq)+eset(ieset).xyz_section(3,k) !对于杆系单元，在命令outdata中，必须含有Z.
+			write(file_unit,999) x1,y1,z1,(NodalQ(i,j,nnodalq),j=4,nvo)
 		
 		end do
 	end do
 	
 999 format(<nvo>E15.7)
-	if(allocated(NodalQ1)) deallocate(NodalQ1)
+!	if(allocated(NodalQ1)) deallocate(NodalQ1)
 	if(allocated(DisILS)) deallocate(DisILS)
 	if(allocated(QMILS)) deallocate(QMILS)
 	
@@ -1006,15 +988,18 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 	implicit none
 	integer::i,j,k,nc,n1,iincs,iiter,isubts,iset1
     real(kind=dpn)::t1=0.d0
-	logical::isfirstcall,isbarfamily
+	logical::isfirstcall,isbarfamily,isset1=.false.
 	character(1024)::cstring='',cstring2='',cstring3=''
 	character(48)::cword1='',cword2='',cword3='',cword4='',cword5='',cword6=''
 	character(48)::cword7='',cword8='',cword9=''
 	
-	
+	isset1=.false.
 	do i=1,neset
-		nzone_tec=nzone_tec+1
+        
+		
         iset1=esetid(i)
+        if(sf(eset(iset1).sf).factor(iincs)==0) cycle
+		nzone_tec=nzone_tec+1
 		write(cword1,*) i
 		
 		
@@ -1075,6 +1060,9 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 					//trim(adjustL(cword3))//',ZONETYPE=' &
 					//trim(adjustL(eset(iset1).stype))//',DATAPACKING='//trim(cword4) 		
 		endif
+
+		if(.NOT.allocated(RTIME)) allocate(rtime(SUM(timestep.nsubts)))
+		if(.NOT.allocated(CALSTEP)) allocate(CALSTEP(SUM(timestep.nsubts)))
         t1=0.d0
         do j=1,iincs
             if(j<iincs) then
@@ -1084,17 +1072,26 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
             end if
             do k=1,n1
                 t1=t1+timestep(j).subts(k)
-            end do
+            end do			
         end do
+		RTIME(NNODALQ)=T1
+		CalStep(NNODALQ)=IINCS
 		write(cword7,'(E15.7)') t1
 !		write(cword8,'(i8)') iiter
 		eset(iset1).zonetitle=trim(eset(iset1).zonetitle)//',StrandID='//trim(adjustL(cword1))//',Solutiontime='//trim(adjustL(cword7))
-		if(.not.isfirstcall) then
+		if(eset(iset1).mesh_share_id<1) then
+			eset(iset1).mesh_share_id=nzone_tec
+			eset(iset1).out_mesh=.true.
+		else
+			write(cword1,*) eset(iset1).mesh_share_id
 			eset(iset1).zonetitle=trim(eset(iset1).zonetitle)//',connectivitysharezone='//trim(adjustL(cword1))
+			eset(iset1).out_mesh=.false.
 		end if
 		
-		if(i==1) varsharezone_tec=nzone_tec
-		if((i>1).and.(.not.isbarfamily)) then
+		if(.not.isset1) then
+			varsharezone_tec=nzone_tec
+			isset1=.true.
+		elseif(.not.isbarfamily)then
 			write(cword1,*) nvo
 			write(cword2,*) varsharezone_tec
 			eset(iset1).zonetitle=trim(eset(iset1).zonetitle)//',VARSHARELIST=([1-'//trim(adjustL(cword1))//']=' &

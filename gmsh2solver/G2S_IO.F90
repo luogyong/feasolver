@@ -1012,7 +1012,7 @@ subroutine Tosolver()
 		ITEM1=len_trim(adjustL(CH1))
         IF(physicalgroup(N1).nel==0) CYCLE
         nset=nset+1
-		write(unit,120) physicalgroup(N1).nel,nset,physicalgroup(N1).et, &
+		write(unit,120) physicalgroup(N1).nel,n1,physicalgroup(N1).et, &
 						physicalgroup(N1).mat(1),physicalgroup(N1).COUPLESET,CH1
 		!IF(physicalgroup(N1).ISMASTER) THEN
 		item=len_trim(elttype(physicalgroup(N1).et_gmsh).description)

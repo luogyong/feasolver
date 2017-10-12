@@ -34,6 +34,7 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) = "//{X1(R),...,XNUM(R),Y1(R),...,YNUM(R)[,Z1(R),...,ZNUM(R),])} //DATAPAKING=2 "
 	README(IPP(I)) =  "//{......}   //当DATAPAKING=1,共NUM行; 当DATAPAKING=2,共DEMENSION*NUM个数 "
 
+    
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//ELEMENT,NUM=...(I),ET=...(A),MATID=...(I)[,SET=...(I),SYSTEM=1]  // NUM=单元个数,ET=单元类型,MATID=材料号,SET=单元集号,单元局部坐标。此关键词可重复出现。"
@@ -100,14 +101,14 @@ subroutine write_readme_feasolver()
     README(IPP(I)) = "//{...}  //共NUM行"	
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//STEP FUNCTION,NUM=...(I),STEP=...(I)   //NUM=步方程的个数,STEP=步数."  
+	README(IPP(I)) = "//STEP FUNCTION,NUM=...(I),STEP=...(I)[,BASE=1]   //NUM=步方程的个数,STEP=步数.,BASE=0，请同是输入地应力步(第0步)的FACTOR，这是要输入STEP+1个factors"  
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD STEP FUNCTION IS USED TO STEP FUNCTION DATA."//'"'
-	README(IPP(I)) = "//{FACTOR(1)(R),FACTOR(2)(R),...,FACTOR(STEP)(R),TITLE(A)& 
+	README(IPP(I)) = "//{[FACTOR(0)(R)],FACTOR(1)(R),FACTOR(2)(R),...,FACTOR(STEP)(R),TITLE(A)& 
                          \N// FACTOR(ISTEP)=第ISTEP步边界或荷载的系数. &
                          \N//当FACTOR(ISTEP)=-999时,此边界或荷载在此步中失效（无作用）. &
                          \N//!表单元生死时，0为死1为生。"C  
 	README(IPP(I)) = "//{...}  //共NUM行"
-	README(IPP(I)) = "//注意,对于力学模型（SOLVER_CONTROL.TYPE=SLD），输入的是各步荷载或位移边界的增量;而对渗流模型（SOLVER_CONTROL.TYPE=SPG）,输入的是各步水头或流量边界的总量."
+	!README(IPP(I)) = "//注意,对于力学模型（SOLVER_CONTROL.TYPE=SLD），输入的是各步荷载或位移边界的增量;而对渗流模型（SOLVER_CONTROL.TYPE=SPG）,输入的是各步水头或流量边界的总量."
 
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//SLAVE_MASTER_NODE_PAIR,NUM=...(I)   //NUM=约束节点对的个数."  

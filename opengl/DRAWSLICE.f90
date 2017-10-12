@@ -203,7 +203,7 @@ SUBROUTINE INPUTSLICELOCATION()
     INFO.INTERPRETER=STR2REALARRAY
     info.func_id=FUNC_ID_GETSLICELOCATION
     info.inputstr=''
-    
+    ISPLOTSLICE=.TRUE.
 	ISPLOTSLICESURFACE=.TRUE.
 
 ENDSUBROUTINE
@@ -318,8 +318,6 @@ SUBROUTINE SLICEPLOT()
 			    call get_rainbow(SLICE(ISLICE).VAL(I,N1),contourbar.val(1),contourbar.val(contourbar.nval),vcolor(:,i))
 			    if(isTransparency) vcolor(4,i)=0.6
 		    enddo
-        ELSE
-            
         ENDIF
         
 		do i=1,SLICE(ISLICE).NTRI
@@ -424,15 +422,16 @@ subroutine GENSLICE(AXIS,X,VAL,CONTOURPOINT,TRI,NTRI)
 	
 	VEC1=0;SCALE1=1.D0
 	IF(IsContour_In_DeformedMesh.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
-		VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
-		VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
-		IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
-		scale1=VECTOR_SCALE(VEC1,NNUM,Scale_Deformed_Grid)
+		VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO,STEPPLOT.ISTEP)
+		VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO,STEPPLOT.ISTEP)
+		IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO,STEPPLOT.ISTEP)
+		scale1=Scale_Deformed_Grid*STEPPLOT.VSCALE(1)
 	ENDIF	
 	
 	!VAR1=outvar(CONTOUR_PLOT_VARIABLE).ivo
     ISPVC1=0
     do i=1,nedge
+		IF(EDGE(I).ISDEAD==1) CYCLE
         X1=NODE(EDGE(I).V(1)).COORD+VEC1(:,EDGE(I).V(1))*SCALE1
 		X2=NODE(EDGE(I).V(2)).COORD+VEC1(:,EDGE(I).V(2))*SCALE1
         
@@ -448,7 +447,7 @@ subroutine GENSLICE(AXIS,X,VAL,CONTOURPOINT,TRI,NTRI)
                 T4=MIN(MAX(0.D0,T1/T3),1.D0)
                 CONTOURPOINT(:,I)=X1+t4*(X2-X1)
                 DO J=1,NVO
-					V1=NODALQ(EDGE(I).V(1),J);V2=NODALQ(EDGE(I).V(2),J);
+					V1=NODALQ(EDGE(I).V(1),J,STEPPLOT.ISTEP);V2=NODALQ(EDGE(I).V(2),J,STEPPLOT.ISTEP);
 					VAL(I,J)=V1+t4*(V2-V1)
                 ENDDO
             ENDIF   
@@ -458,6 +457,7 @@ subroutine GENSLICE(AXIS,X,VAL,CONTOURPOINT,TRI,NTRI)
     
 	NTRI=0
 	DO I=1,NTET
+		if(tet(i).isdead==1) cycle
         IF(TET(I).DIM/=3) CYCLE
         
 		E2=TET(I).E

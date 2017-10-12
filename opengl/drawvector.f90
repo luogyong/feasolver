@@ -4,27 +4,42 @@ use opengl_gl
 use function_plotter
 implicit none 
 INTEGER::I,J
-REAL(8)::SCALE1,MAXV1,minv1
+REAL(8)::GRIDSCALE1,SCALE1,MAXV1,minv1,V1(3)
 REAL(8),EXTERNAL::Vector_SCALE
+REAL(8),ALLOCATABLE::VEC1(:,:)
 
 !MAXV1=MAXVAL(NORM2(VEC,DIM=1))
 !scale1=modelr/40./maxv1*Scale_Vector_len
 
 
 call glDeleteLists(VectorList, 1_glsizei)
-if(IsDrawVector) then
 
-	SCALE1=VECTOR_SCALE(VEC,NNUM,Scale_Vector_len)
+if(IsDrawVector) then
+	ALLOCATE(VEC1(3,NNUM))
+    GRIDSCALE1=1.D0;VEC1=0.D0
+    IF(IsContour_In_DeformedMesh.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
+
+		VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO,STEPPLOT.ISTEP)
+		VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO,STEPPLOT.ISTEP)
+		IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO,STEPPLOT.ISTEP)
+
+        GRIDSCALE1=STEPPLOT.VSCALE(1)*Scale_Deformed_Grid
+    ENDIF
+
+
+	SCALE1=Scale_Vector_len*STEPPLOT.VSCALE(VECTOR_PLOT_GROUP)
     call reset_view
     
     call glNewList(VectorList, gl_compile_and_execute)
 
     DO I=1,NNUM
-        call drawArrow(node(i).coord,node(i).coord+vec(:,i)*scale1)    
+        IF(VISDEAD(I)==1) CYCLE
+		V1=node(i).coord+VEC1(:,I)*GRIDSCALE1
+        call drawArrow(V1,V1+vec(:,i)*scale1)    
     ENDDO
     
     !drawVectorLegend.
-    VabsMax=MAXVAL(NORM2(VEC,DIM=1));VabsMin=MinVAL(NORM2(VEC,DIM=1))
+    VabsMax=STEPPLOT.VMAX(VECTOR_PLOT_GROUP);VabsMin=STEPPLOT.VMIN(VECTOR_PLOT_GROUP)
     Vscale=scale1
     
 
@@ -32,9 +47,56 @@ endif
 
 call glEndList
 
+IF(ALLOCATED(VEC1)) DEALLOCATE(VEC1)
+
 call glutPostRedisplay
 
 endsubroutine
+
+SUBROUTINE VEC_PLOT_DATA()
+	USE SOLVERDS
+	USE function_plotter
+	IMPLICIT NONE
+	
+	select case(VECTOR_PLOT_GROUP)
+
+	case(VECTOR_GROUP_DIS)
+		VEC(1,:)=NODALQ(:,OUTVAR(DISX).IVO,STEPPLOT.ISTEP)
+		VEC(2,:)=NODALQ(:,OUTVAR(DISY).IVO,STEPPLOT.ISTEP)
+		IF(NDIMENSION>2) THEN
+			VEC(3,:)=NODALQ(:,OUTVAR(DISZ).IVO,STEPPLOT.ISTEP)
+		ELSE
+			VEC(3,:)=0.D0
+		ENDIF	
+		VectorPairName='DIS.'
+	case(VECTOR_GROUP_SEEPAGE_VEC)       
+		VEC(1,:)=NODALQ(:,OUTVAR(VX).IVO,STEPPLOT.ISTEP)
+		VEC(2,:)=NODALQ(:,OUTVAR(VY).IVO,STEPPLOT.ISTEP)
+		IF(NDIMENSION>2) THEN
+			VEC(3,:)=NODALQ(:,OUTVAR(VZ).IVO,STEPPLOT.ISTEP)
+		ELSE
+			VEC(3,:)=0.D0
+		ENDIF
+		VectorPairName='SEEP.V'
+	case(VECTOR_GROUP_SEEPAGE_GRAD)
+
+		VEC(1,:)=NODALQ(:,OUTVAR(GRADX).IVO,STEPPLOT.ISTEP)
+		VEC(2,:)=NODALQ(:,OUTVAR(GRADY).IVO,STEPPLOT.ISTEP)
+		IF(NDIMENSION>2) THEN
+			VEC(3,:)=NODALQ(:,OUTVAR(GRADZ).IVO,STEPPLOT.ISTEP)
+		ELSE
+			VEC(3,:)=0.D0
+		ENDIF    
+		VectorPairName='SEEP.I'
+	case(VECTOR_GROUP_SFR)
+
+		VEC(1,:)=NODALQ(:,OUTVAR(SFR_SFRX).IVO,STEPPLOT.ISTEP)
+		VEC(2,:)=NODALQ(:,OUTVAR(SFR_SFRY).IVO,STEPPLOT.ISTEP)
+		VEC(3,:)=0.D0       
+		VectorPairName='SFR'
+	end select
+
+ENDSUBROUTINE
 
 subroutine drawVectorLegend(Vtmax,Vtmin,Scale,VTITLE)
 use opengl_gl
@@ -197,15 +259,18 @@ subroutine drawVectorLegend2(Vtmax,Vtmin,Scale,VTITLE)
  
 end subroutine
 
-REAL(8) FUNCTION VECTOR_SCALE(VEC1,NV1,SCALE1)
+REAL(8) FUNCTION VECTOR_SCALE(VEC1,NV1,NSTEP1,SCALE1)
     USE SOLVERDS
     IMPLICIT NONE
-    INTEGER,INTENT(IN)::NV1
-    REAL(8),INTENT(IN)::VEC1(3,NV1),SCALE1
+    INTEGER,INTENT(IN)::NV1,NSTEP1
+    REAL(8),INTENT(IN)::VEC1(3,NV1,NSTEP1),SCALE1
     REAL(8)::MAXV1
     MAXV1=MAXVAL(NORM2(VEC1,DIM=1))
     VECTOR_SCALE=modelr/40./maxv1*SCALE1
 ENDFUNCTION
+
+
+
     
 SUBROUTINE drawAxes()
 use opengl_gl

@@ -11,7 +11,8 @@
     real(8)::pt1(3)
     integer::iel,I,NTI1
     real(8)::val1(NVO),POS1(2)
-    CHARACTER(128)::TITLE1(NVO+10),STR1
+    CHARACTER(128)::TITLE1(NVO+20),STR1
+	CHARACTER(32)::CWORD1,CWORD2
     INTEGER,EXTERNAL::PTINTRIlOC,POINTlOC
     
     
@@ -22,13 +23,23 @@
     call GetOGLPos(x, y,Pt1)
 
     iel=POINTlOC(pt1)
+	NTI1=0
     IF(iel>0) then
         call getval(Pt1,iel,val1)
+		NTI1=NTI1+1
+		WRITE(CWORD1,*) STEPPLOT.ISTEP
+		WRITE(CWORD2,*) STEPPLOT.NSTEP
+		TITLE1(NTI1)="ISTEP/NSTEP:"//TRIM(ADJUSTL(CWORD1))//TRIM(ADJUSTL(CWORD2))																
+		WRITE(CWORD1,'(F10.5)') STEPPLOT.TIME(STEPPLOT.ISTEP)
+		WRITE(CWORD2,'(F10.5)') STEPPLOT.TIME(STEPPLOT.NSTEP)
+		NTI1=NTI1+1
+		TITLE1(NTI1)="ITIME/NTIME:"//TRIM(ADJUSTL(CWORD1))//TRIM(ADJUSTL(CWORD2))
         DO I=1,NVO
 			WRITE(STR1,10) VAL1(I)
-            TITLE1(I)=TRIM(ADJUSTL(OUTVAR(VO(I)).NAME))//':'//TRIM(ADJUSTL(STR1))
+			NTI1=NTI1+1
+            TITLE1(NTI1)=TRIM(ADJUSTL(OUTVAR(VO(I)).NAME))//':'//TRIM(ADJUSTL(STR1))
         ENDDO
-        NTI1=NVO+1
+        NTI1=NTI1+1
         WRITE(STR1,20) TET(IEL).MOTHER
         TITLE1(NTI1)="ELEMENT ID:"//':'//TRIM(ADJUSTL(STR1))
         NTI1=NTI1+1
@@ -36,7 +47,7 @@
         TITLE1(NTI1)="ELEMENT MAT:"//':'//TRIM(ADJUSTL(STR1))
         
 		POS1(1)=0.01;POS1(2)=0.95
-        CALL SHOW_MTEXT(TITLE1,NTI1,POS1,BLACK)
+        CALL SHOW_MTEXT(TITLE1,NTI1,POS1,BLACK,ProbeValuelist)
     else
         info.str='the picked location is out of zone.\nPrss q to exit'C
         info.color=red;info.qkey=.true.
@@ -52,13 +63,14 @@ endsubroutine
 subroutine tetshapefun(Pt,itet,shpfun) 
     use solverds
     use MESHGEO
+    use SolverMath
     implicit none
     integer,intent(in)::itet
     real(8),intent(in)::Pt(3)
     real(8),dimension(4)::shpfun
     real(8)::Va1(3,4),v1(3),v2(3),v3(3),vol1
     integer::i,vi1(3,4)
-    real(8),EXTERNAL::determinant
+    !real(8),EXTERNAL::determinant
      
     do i=1,tet(itet).nv
         Va1(:,i)=node(tet(itet).v(i)).coord
@@ -101,6 +113,7 @@ endsubroutine
  subroutine getval(Pt,itet,val)
     use solverds
     use MESHGEO
+    USE function_plotter
     implicit none
     integer,intent(in)::itet
     real(8),intent(in)::Pt(3)
@@ -111,7 +124,7 @@ endsubroutine
     call tetshapefun(Pt,itet,shpfun)
     n1=tet(itet).nv    
     do i=1,size(nodalq,dim=2)
-        val1(1:n1)=nodalq(tet(itet).v(1:n1),i)
+        val1(1:n1)=nodalq(tet(itet).v(1:n1),i,stepplot.istep)
         val(i)=dot_product(val1(1:n1),shpfun(1:n1))
     enddo
     
@@ -188,7 +201,7 @@ INTEGER FUNCTION POINTlOC(PT)
     
 
 	do i=1,NTET
-		
+		IF(TET(I).ISDEAD==1) CYCLE
 		IF(TET(I).BBOX(2,1)>=PT(1).and.TET(I).BBOX(1,1)<=PT(1)) then
 			IF(TET(I).BBOX(2,2)>=PT(2).and.TET(I).BBOX(1,2)<=PT(2)) then
 				IF(NDIMENSION>2) THEN
@@ -220,7 +233,7 @@ INTEGER FUNCTION PTINTRIlOC(PT)
 	!I=INT(1+(RANDOM(1))(NFACE-1))
     
 	do i=1,NFACE
-		
+		IF(FACE(I).ISDEAD==1) CYCLE
 		IF(FACE(I).BBOX(2,1)>=PT(1).and.FACE(I).BBOX(1,1)<=PT(1)) then
 			IF(FACE(I).BBOX(2,2)>=PT(2).and.FACE(I).BBOX(1,2)<=PT(2)) then
 				IF(NDIMENSION>2) THEN
@@ -303,14 +316,14 @@ end function
 
 integer function Isfront(V)
 !v(:,1-3) are face, and v(:,4) is point to be tested
-    
+    use SolverMath
 	implicit none
 	real(8),intent(in)::V(3,4)
 	real(8)::V1(3,3)
 	integer::I
     real(8)::T1
     logical,external::PtInTri
-    real(8),EXTERNAL::determinant
+    !real(8),EXTERNAL::determinant
     
     Isfront=0
 	do i=1,3

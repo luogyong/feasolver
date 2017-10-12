@@ -28,9 +28,8 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 	end if
 	
 	do i=1,enum
-	
 		if(element(i).isactive==0) cycle
-		
+
 		n1=element(i).ngp
 		nd1=element(i).nd
 		bload=0.0
@@ -50,67 +49,7 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 				un(1:element(i).ndof)=stepdis(element(i).g)
                 if(.not.stepinfo(istep).issteady) inihead(1:element(i).ndof)=inivaluedof(element(i).g)
                 call SPG_Q_UPDATE(bload,un,INIHEAD,DT1,element(i).ndof,i,iiter,istep,iscon)
-    !            
-				!do j=1,n1
-				!	!head in integration point
-				!	!for seepage elements, element.ndof=element.nnum
-				!	hj=dot_product(ecp(element(i).et).Lshape(1:element(i).nnum,j),un(1:element(i).nnum))
-				!	
-				!	call lamda_spg(i,hj,element(i).xygp(ndimension,j),lamda,iiter,j,ISTEP)                   						
-    !                
-    !                if(iiter>1) lamda=(element(i).kr(j)+lamda)/2.0D0
-    !                
-    !                element(i).kr(j)=lamda
-    !                
-				!	
-				!	!if(iiter>solver_control.niteration-10) write(99,40) iiter,i,j,element(i).xygp(1,j),element(i).xygp(2,j),hj,lamda,element(i).property(3),element(i).property(2)
-				!	R1=1.D0
-				!	if(element(i).ec==cax_spg) R1=ABS(element(i).xygp(1,j))
-				!	
-				!	!gradient
-				!	element(i).igrad(1:nd1,j)=matmul(element(i).B(:,:,j),un(1:element(i).ndof))
-				!	!velocity
-				!	
-				!	element(i).velocity(1:nd1,j)=-Lamda*matmul(element(i).d, &
-				!												element(i).igrad(1:nd1,j))
-				!	!flux
-				!	if(.not.stepinfo(istep).issteady) then
-				!		hj_ini=dot_product(ecp(element(i).et).Lshape(1:element(i).nnum,j),inivaluedof(element(i).g))
-				!		call slope_SWWC_spg(i,hj,element(i).xygp(ndimension,j),slope1,sita1,element(i).sita_ini(j),hj_ini,ISTEP)
-    !                    
-    !                    element(i).mw(j)=slope1
-    !                    element(i).sita_fin(j)=sita1
-				!		
-				!		Qstored=Qstored+sita1*ecp(element(i).et).weight(j)*element(i).detjac(j)
-				!		
-				!		
-				!		if(j==1) element(i).cmm=0.d0  !clear 
-    !                    if(slope1/=0.0d0) then
-				!		    element(i).cmm=element(i).cmm+csproduct(ecp(element(i).et).Lshape(:,j),ecp(element(i).et).Lshape(:,j))* &
-				!							(R1*slope1*ecp(element(i).et).weight(j)*element(i).detjac(j)*MATERIAL(ELEMENT(I).MAT).GET(13,ISTEP)/dt1)
-    !                    end if
-    !                    if((j==n1).and.any(element(i).cmm/=0.d0)) then
-				!			bload(1:element(i).nnum)=bload(1:element(i).nnum)+matmul(element(i).cmm,(stepdis(element(i).g)-inivaluedof(element(i).g)))
-				!		end if
-				!	end if
-				!						
-				!		
-				!	if(solver_control.bfgm==continuum.or.solver_control.bfgm==consistent) then
-    !                    if(j==1) element(i).km=0.0D0
-				!		element(i).km=element(i).km+ &
-				!			matmul(MATMUL(TRANSPOSE(element(i).b(:,:,j)),lamda*element(i).d),element(i).b(:,:,j))* &
-				!			(element(i).detjac(j)*ecp(element(i).et).weight(j)*R1)
-    !                    if(j==n1) then
-				!			bload(1:element(i).nnum)=bload(1:element(i).nnum)+matmul(element(i).km,un(1:element(i).ndof))
-				!		end if							
-				!	else !iniflux
-				!		bload(1:element(i).nnum)=bload(1:element(i).nnum)+ &
-				!		matmul(-element(i).velocity(1:nd1,j),element(i).b(:,:,j))* &
-				!		element(i).detjac(j)*ecp(element(i).et).weight(j)*R1					
-				!	end if
-				!	
-				!end do
-				!element(i).flux(1:element(i).nnum)=bload(1:element(i).nnum)
+
 			case(STRU)
 				un(1:element(i).ndof)=stepdis(element(i).g)  
 				element(i).Dgforce(1:element(i).ndof)=matmul(element(i).km,un)
@@ -156,52 +95,23 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 	!for that pload(i)=0 at the case.
 	!it will speed the convergence but not affect the result.
 	!if (solver_control.bfgm/=inistress) then
-		NI_NodalForce=bdylds
+	NI_NodalForce=bdylds
 		
-		Qinput=sum(NI_NodalForce(DOFHEAD))*dt1
+	Qinput=sum(NI_NodalForce(DOFHEAD))*dt1
 		
 		
-		call residual_bc_clear(isBCdis,istep)
+	call residual_bc_clear(isBCdis,istep)
 
-		CALL SPG_Signorini_BC_UPDATE(bdylds,STEPDIS,ISTEP)
+	CALL SPG_Signorini_BC_UPDATE(bdylds,STEPDIS,ISTEP)
 		
-	!	!update Signorini boundary condition
-	!	isref_spg=0
-	!	do i=1,numNseep
-	!		if(sf(NSeep(i).sf).factor(istep)==-999.D0) cycle
-	!		
-	!		if(Nseep(i).isdual>0) then
-	!			if(bc_disp(Nseep(i).isdual).isdead==0) cycle            
-	!		end if
-	!		
-	!		n1=node(Nseep(i).node).dof(Nseep(i).dof)
-	!		t1=bdylds(n1)
-	!		
-	!		if(stepinfo(istep).issteady) then
-	!			t2=stepdis(n1)-node(Nseep(i).node).coord(ndimension)
-	!		else
-	!			t2=stepdis(n1)-node(Nseep(i).node).coord(ndimension) !for a transient problem, tdisp is passed to stepdisp in the form of an initial value. 
-	!		end if		
-	!		
-	!				
-	!		if(Nseep(i).isdead==0) then
-	!			if(t1>1E-7) then
-	!				Nseep(i).isdead=1
-	!				isref_spg=1
-	!			end if
-	!		else
-	!			if(t2>1E-3) then
-	!				Nseep(i).isdead=0
-	!				isref_spg=1
-	!			end if
-	!		end if
-	!!		write(99,20) iiter,i,Nseep(i).isdead,n1,t1,t2
-	!	end do
-	!	if(isref_spg==0) print *, 'No necessary to refac.'
-		do i=1,ndof
-			bdylds(i)=Tload(i)-bdylds(i)
-			if(isBCdis(i))  bdylds(i)=0.D0
-		end do
+	do i=1,ndof
+        if(adof(i)==0) then
+            Tload(i)=0.D0
+            bdylds(i)=0.D0
+        endif
+		bdylds(i)=Tload(i)-bdylds(i)
+		if(isBCdis(i))  bdylds(i)=0.D0  
+	end do
 	!	call residual_bc_clear(bdylds)
     !else
     !    NI_NodalForce=0.d0

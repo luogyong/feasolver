@@ -132,13 +132,13 @@ SUBROUTINE showinfo(scolor)
 
 END SUBROUTINE
 
-SUBROUTINE SHOW_MTEXT(STR,NSTR,POS,STRCOLOR)
+SUBROUTINE SHOW_MTEXT(STR,NSTR,POS,STRCOLOR,SHOWLIST)
 !POS(widthfraction,heightfaction)
     use opengl_gl
     use opengl_glut
 	use function_plotter
     implicit none
-    INTEGER,INTENT(IN)::NSTR,STRCOLOR
+    INTEGER,INTENT(IN)::NSTR,STRCOLOR,SHOWLIST
 	REAL(8),INTENT(IN)::POS(2)
     CHARACTER(*),INTENT(IN)::STR(NSTR)
     integer i;
@@ -147,9 +147,9 @@ SUBROUTINE SHOW_MTEXT(STR,NSTR,POS,STRCOLOR)
     CHARACTER(32)::STR1,STR2    
     integer(glCint),dimension(4)::viewport1
 
-    call glDeleteLists(ProbeValuelist, 1_glsizei)
+    call glDeleteLists(SHOWLIST, 1_glsizei)
     
-    call glNewList(ProbeValuelist, gl_compile_and_execute)   
+    call glNewList(SHOWLIST, gl_compile_and_execute)   
     
     !! Set up coordinate system to position color bar near bottom of window.
     call glgetintegerv(gl_viewport,viewport1)

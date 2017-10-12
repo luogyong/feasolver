@@ -16,10 +16,10 @@ call glPushAttrib(GL_ALL_ATTRIB_BITS)
 
 VEC1=0;SCALE1=1.D0
 IF(ISDEFORMEDMESH.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
-	VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
-	VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
-	IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
-	scale1=VECTOR_SCALE(VEC1,NNUM,Scale_Deformed_Grid)
+	VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO,STEPPLOT.ISTEP)
+	VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO,STEPPLOT.ISTEP)
+	IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO,STEPPLOT.ISTEP)
+	scale1=Scale_Deformed_Grid*STEPPLOT.VSCALE(1)
 	!MAXV1=MAXVAL(NORM2(VEC1,DIM=1))
 	!scale1=modelr/40./maxv1*Scale_Deformed_Grid
 ENDIF
@@ -43,6 +43,7 @@ call glNewList(gridlist, gl_compile_and_execute)
 				
 	 
 				do i=1,nmface
+					if(mface(i).isdead==1) cycle
 					if(mface(i).shape/=3) cycle
 					!只对外边界及材料边界进行渲染。
 					MAT1(1:MFACE(I).ENUM)=ELEMENT(ABS(MFACE(I).ELEMENT)).MAT !
@@ -67,9 +68,10 @@ call glNewList(gridlist, gl_compile_and_execute)
 			call glBegin(GL_QUADS)
 
 				do i=1,nmface
+					if(mface(i).isdead==1) cycle
 					if(mface(i).shape/=4) cycle
 					!只对外边界及材料边界进行渲染。
-					MAT1(1:MFACE(I).ENUM)=ELEMENT(TET(ABS(MFACE(I).ELEMENT)).MOTHER).MAT !
+					MAT1(1:MFACE(I).ENUM)=ELEMENT(ABS(MFACE(I).ELEMENT)).MAT !
 					IF(MFACE(I).ENUM>1) THEN
 						IF(all(MAT1(1:MFACE(I).ENUM)-MAT1(1)==0)) CYCLE
 					ENDIF
@@ -97,6 +99,7 @@ call glNewList(gridlist, gl_compile_and_execute)
 
 		call glbegin(gl_lines)
 			do i=1,nmedge
+				if(medge(I).isdead==1) cycle
 				do j=1,2
 					!call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,face(i).v(j)))
 					call glvertex3dv(node(medge(i).v(j)).coord+VEC1(:,medge(i).v(j))*scale1)            
@@ -112,9 +115,10 @@ call glNewList(gridlist, gl_compile_and_execute)
 		call glcolor4fv(mycolor(:,orange))
 		call glPointSize(4.0_glfloat)
 		call glbegin(gl_points)
-			do i=1,nnum
-				call glvertex3dv(node(i).coord+VEC1(:,i)*scale1)            
-			enddo
+		do i=1,nnum
+			if(visdead(i)==1) cycle
+			call glvertex3dv(node(i).coord+VEC1(:,i)*scale1)            
+		enddo
 			
 		call glend
 

@@ -4,9 +4,9 @@ module function_plotter
 use opengl_gl
 use opengl_glut
 use view_modifier
-use solverds
-use IndexColor
-!use MESHGEO
+!use solverds
+!use IndexColor
+use MESHGEO
 implicit none
 !private
 !public :: display,menu_handler,make_menu,CONTOUR_PLOT_VARIABLE,VECTOR_PLOT_GROUP
@@ -72,6 +72,12 @@ TYPE(STREAMLINE_TYDEF)::STREAMLINE(100)
 INTEGER::NSTREAMLINE=0
 
 !vector
+TYPE VECTOR_PLOT_TYDEF
+	INTEGER::GROUP
+	REAL(8)::SCALE=1.0D0
+	REAL(8),POINTER::VEC(:,:)=>NULL()
+ENDTYPE
+
 INTEGER,PARAMETER:: VECTOR_GROUP_DIS=1,&
                     VECTOR_GROUP_SEEPAGE_VEC=2,&
                     VECTOR_GROUP_SEEPAGE_GRAD=3,&
@@ -103,8 +109,9 @@ real(8)::Scale_Deformed_Grid=1.d0
 
 
 !SLICE
-INTEGER,PARAMETER::SLICE_LOCATION_CLICK=1,PLOTSLICESURFACE_CLICK=2,PLOTSLICEISOLINE_CLICK=3
-
+INTEGER,PARAMETER::SLICE_LOCATION_CLICK=1,PLOTSLICESURFACE_CLICK=2,PLOTSLICEISOLINE_CLICK=3,&
+				PLOTSLICE_CLICK=4
+	
 
 !TYPE SLICE_TYDEF
 !    
@@ -161,7 +168,8 @@ logical :: draw_surface_grid = init_draw_surface_grid, &
            IsDrawVector=.false.,&
 		   IsPlotSliceSurface=.false.,&
 		   isPLotSliceIsoLIne=.false.,&
-           isPlotStreamLine=.false.
+           isPlotStreamLine=.false.,&
+		   ISPLOTSLICE=.FALSE.
 
 real(GLDOUBLE), allocatable :: actual_contours(:)
 real(GLDOUBLE) :: minv,maxv
@@ -174,7 +182,8 @@ integer,parameter,public::ContourList=1,&
 						  ContourLineList=4,&
                           ProbeValueList=5,&
 						  SLICELIST=6,&
-                          StreamLineList=7
+                          StreamLineList=7,&
+						  STEPSTATUSLIST=8
                           
                        
 
@@ -184,9 +193,170 @@ integer,parameter,public::ContourList=1,&
 !                 GRAY(4)=(/0.82745098,0.82745098,0.82745098,1.0/) 
 
 
-				 
+TYPE TIMESTEPINFO_TYDEF
+    INTEGER::ISTEP=1,NSTEP=1
+    REAL(8),ALLOCATABLE::TIME(:)
+	INTEGER,ALLOCATABLE::CALSTEP(:) !当前步对应的计算步，注意，计算步与绘图步往往不一致。
+    LOGICAL::ISSHOWN=.TRUE.
+	REAL(8)::VSCALE(4)=1.0D0,VMIN(4),VMAX(4)
+    CHARACTER(256)::INFO=''
+    CONTAINS
+    PROCEDURE::INITIALIZE=>STEP_INITIALIZE
+    PROCEDURE::UPDATE=>STEP_UPDATE
+	
+ENDTYPE
+TYPE(TIMESTEPINFO_TYDEF),PUBLIC::STEPPLOT				 
 
 contains
+
+SUBROUTINE STEP_INITIALIZE(STEPINFO,ISTEP,NSTEP,TIME,CALSTEP)
+    IMPLICIT NONE
+    CLASS(TIMESTEPINFO_TYDEF),INTENT(in out):: STEPINFO
+    INTEGER,INTENT(IN)::ISTEP,NSTEP,CALSTEP(NSTEP)
+    REAL(8),INTENT(IN)::TIME(NSTEP)
+	REAL(8),ALLOCATABLE::VEC1(:,:,:)
+	INTEGER::I
+    
+	
+	
+	
+    STEPINFO.ISTEP=ISTEP
+    STEPINFO.NSTEP=NSTEP
+    ALLOCATE(STEPINFO.TIME,SOURCE=TIME)
+	ALLOCATE(STEPINFO.CALSTEP,SOURCE=CALSTEP)
+	ALLOCATE(VEC1(3,NNUM,NSTEP))
+	
+
+	
+	!SET UP VECSCALE
+	IF(OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
+		DO I=1,STEPPLOT.NSTEP
+			VEC1(1,:,I)=NODALQ(:,OUTVAR(DISX).IVO,I)
+			VEC1(2,:,I)=NODALQ(:,OUTVAR(DISY).IVO,I)
+			IF(NDIMENSION>2) THEN
+				VEC1(3,:,I)=NODALQ(:,OUTVAR(DISZ).IVO,I)
+			ELSE
+				VEC1(3,:,I)=0
+			ENDIF
+		ENDDO
+		STEPINFO.VMAX(1)=MAX(MAXVAL(NORM2(VEC1,DIM=1)),1.0E-8)
+		STEPINFO.VMIN(1)=MINVAL(NORM2(VEC1,DIM=1))
+		STEPINFO.VSCALE(1)=modelr/40./STEPINFO.VMAX(1)
+        
+    ENDIF
+	
+	IF(OUTVAR(VX).VALUE>0.AND.OUTVAR(VY).VALUE>0) THEN
+		DO I=1,STEPPLOT.NSTEP
+			VEC1(1,:,I)=NODALQ(:,OUTVAR(VX).IVO,I)
+			VEC1(2,:,I)=NODALQ(:,OUTVAR(VY).IVO,I)
+			IF(NDIMENSION>2) THEN
+				VEC1(3,:,I)=NODALQ(:,OUTVAR(VZ).IVO,I)
+			ELSE
+				VEC1(3,:,I)=0
+			ENDIF
+		ENDDO
+		STEPINFO.VMAX(2)=MAX(MAXVAL(NORM2(VEC1,DIM=1)),1.0E-8)
+		STEPINFO.VMIN(2)=MINVAL(NORM2(VEC1,DIM=1))
+		STEPINFO.VSCALE(2)=modelr/40./STEPINFO.VMAX(2)
+        
+    ENDIF
+    
+	IF(OUTVAR(GRADX).VALUE>0.AND.OUTVAR(GRADY).VALUE>0) THEN
+		DO I=1,STEPPLOT.NSTEP
+			VEC1(1,:,I)=NODALQ(:,OUTVAR(GRADX).IVO,I)
+			VEC1(2,:,I)=NODALQ(:,OUTVAR(GRADY).IVO,I)
+			IF(NDIMENSION>2) THEN
+				VEC1(3,:,I)=NODALQ(:,OUTVAR(GRADZ).IVO,I)
+			ELSE
+				VEC1(3,:,I)=0
+			ENDIF
+		ENDDO
+		
+		STEPINFO.VMAX(3)=MAX(MAXVAL(NORM2(VEC1,DIM=1)),1.0E-8)
+		STEPINFO.VMIN(3)=MINVAL(NORM2(VEC1,DIM=1))
+		STEPINFO.VSCALE(3)=modelr/40./STEPINFO.VMAX(3)
+        
+    ENDIF
+	
+	IF(OUTVAR(SFR_SFRX).VALUE>0.AND.OUTVAR(SFR_SFRY).VALUE>0) THEN
+		DO I=1,STEPPLOT.NSTEP
+			VEC1(1,:,I)=NODALQ(:,OUTVAR(SFR_SFRX).IVO,I)
+			VEC1(2,:,I)=NODALQ(:,OUTVAR(SFR_SFRY).IVO,I)
+			VEC1(3,:,I)=0
+		ENDDO
+
+		STEPINFO.VMAX(4)=MAX(MAXVAL(NORM2(VEC1,DIM=1)),1.0E-8)
+		STEPINFO.VMIN(4)=MINVAL(NORM2(VEC1,DIM=1))
+		STEPINFO.VSCALE(4)=modelr/40./STEPINFO.VMAX(4)
+        
+    ENDIF
+	
+
+	
+	
+	DEALLOCATE(VEC1)
+    
+ENDSUBROUTINE
+
+SUBROUTINE STEP_UPDATE(STEPINFO)
+    IMPLICIT NONE
+    CLASS(TIMESTEPINFO_TYDEF),INTENT(in out):: STEPINFO
+    CHARACTER(16)::CWORD1,CWORD2,CWORD3,CWORD4
+    REAL(8)::POS1(2)
+    INTEGER::I
+	
+    WRITE(CWORD1,*) STEPINFO.ISTEP
+    WRITE(CWORD2,*) STEPINFO.NSTEP
+    WRITE(CWORD3,'(F10.5)') STEPINFO.TIME(STEPINFO.ISTEP)
+    WRITE(CWORD4,'(F10.5)') STEPINFO.TIME(STEPINFO.NSTEP)
+    
+    STEPINFO.info='ISTEP/NSTEP='//TRIM(ADJUSTL(CWORD1))//'/'//TRIM(ADJUSTL(CWORD2))//',ITIME/NTIME=' &    
+              //TRIM(ADJUSTL(CWORD3))//'/'//TRIM(ADJUSTL(CWORD4))
+	POS1(1)=0.25;POS1(2)=0.05
+	CALL SHOW_MTEXT(STEPINFO.info,1,POS1,BLACK,STEPSTATUSLIST)		  
+    !INFO.QKEY=.TRUE.;INFO.ISNEEDINPUT=.FALSE.;INFO.COLOR=GREEN
+    
+	!ACTIVATE FACE AND EDGE
+	IF(.NOT.ALLOCATED(VISDEAD)) ALLOCATE(VISDEAD(NNUM))
+	FACE.ISDEAD=1;EDGE.ISDEAD=1;TET.ISDEAD=1;VISDEAD=1	
+	DO I=1,NTET
+		IF(SF(TET(I).SF).FACTOR(STEPINFO.CALSTEP(STEPINFO.ISTEP))==1) THEN
+			TET(I).ISDEAD=0
+			FACE(TET(I).F(1:TET(I).NF)).ISDEAD=0
+			EDGE(TET(I).E(1:TET(I).NE)).ISDEAD=0
+			VISDEAD(TET(I).V(1:TET(I).NV))=0
+		ENDIF	
+	ENDDO
+
+	DO I=1,ENUM
+		IF(SF(ELEMENT(I).SF).FACTOR(STEPINFO.CALSTEP(STEPINFO.ISTEP))==1) THEN			
+			MFACE(ELEMENT(I).FACE(1:ELEMENT(I).NFACE)).ISDEAD=0
+			MEDGE(ELEMENT(I).EDGE(1:ELEMENT(I).NEDGE)).ISDEAD=0			
+		ENDIF	
+	ENDDO
+	
+    IF(IsDrawVector) THEN
+		CALL VEC_PLOT_DATA()
+		CALL DrawVector()
+	ENDIF
+	
+    IF(draw_surface_solid) CALL DrawSurfaceContour()
+	IF(draw_contour) CALL DrawLineContour()
+	
+	IF(ISPLOTSLICE) THEN
+		CALL GEN_SLICE_SURFACE_DATA()
+		CALL GEN_SLICE_ISOLINE_DATA()
+		CALL SLICEPLOT()
+	ENDIF
+    
+	IF(isPlotStreamLine) THEN
+		
+		CALL streamline_update()
+	
+	ENDIF
+    
+ENDSUBROUTINE
+
 
 subroutine display
 
@@ -195,13 +365,13 @@ subroutine display
 call reset_view
 
 call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-
+if(glIsList(StepStatusList)) call glCallList(StepStatusList)
 if(draw_surface_solid.AND.glIsList(ContourList)) call glCallList(ContourList)
 if(draw_contour.AND.glIsList(ContourLineList)) call glCallList(ContourLineList)
 if(glIsList(VectorList)) call glCallList(VectorList)
 if(glIsList(GridList)) call glCallList(GridList)
 if(isProbeState.AND.glIsList(ProbeValuelist)) call glCallList(ProbeValuelist)
-if(glIsList(slicelist)) call glcalllist(slicelist)
+if(glIsList(slicelist).AND.ISPLOTSLICE) call glcalllist(slicelist)
 if(ISPLOTSTREAMLINE.AND.glIsList(STREAMLINElist)) call glcalllist(STREAMLINElist)
 call drawAxes()
 if(IsDrawVector) call drawVectorLegend2(VabsMax,VabsMin,Vscale,VectorPairName)
@@ -210,6 +380,7 @@ if ((surface_color==rainbow_surface.and.(draw_surface_solid.or.draw_Contour)).OR
 endif
 IF(ISSHOWNODALVALUE) CALL DRAW_NADAL_VALUE()
 IF(LEN_TRIM(ADJUSTL(INFO.STR))>0) CALL SHOWINFO(INFO.COLOR)
+IF(LINE_TEMP.SHOW) CALL LINE_TEMP.DRAW()
 
 call glutSwapBuffers
 
@@ -236,6 +407,7 @@ if (norm /= 0._glfloat) normcrossprod = normcrossprod/norm
 end function normcrossprod
 
 subroutine menu_handler(selection)
+
 integer(kind=glcint), intent(in out) :: selection
 
 select case (selection)
@@ -266,6 +438,8 @@ subroutine SLICE_handler(selection)
 		ISPLOTSLICESURFACE=.NOT.ISPLOTSLICESURFACE
     CASE(PLOTSLICEISOLINE_CLICK)
 		ISPLOTSLICEISOLINE=.NOT.ISPLOTSLICEISOLINE
+	CASE(PLOTSLICE_CLICK)
+		ISPLOTSLICE=.NOT.ISPLOTSLICE
         
 		
     end select
@@ -351,45 +525,15 @@ VECTOR_PLOT_GROUP=VALUE
 
 IsDrawVector=.true.
 
-select case(VECTOR_PLOT_GROUP)
-
-case(VECTOR_GROUP_DIS)
-    VEC(1,:)=NODALQ(:,OUTVAR(DISX).IVO)
-    VEC(2,:)=NODALQ(:,OUTVAR(DISY).IVO)
-    IF(NDIMENSION>2) THEN
-        VEC(3,:)=NODALQ(:,OUTVAR(DISZ).IVO)
-    ELSE
-        VEC(3,:)=0.D0
-    ENDIF
-    VectorPairName='DIS.'
-case(VECTOR_GROUP_SEEPAGE_VEC)       
-    VEC(1,:)=NODALQ(:,OUTVAR(VX).IVO)
-    VEC(2,:)=NODALQ(:,OUTVAR(VY).IVO)
-    IF(NDIMENSION>2) THEN
-        VEC(3,:)=NODALQ(:,OUTVAR(VZ).IVO)
-    ELSE
-        VEC(3,:)=0.D0
-    ENDIF
-    VectorPairName='SEEP.V'
-case(VECTOR_GROUP_SEEPAGE_GRAD)
-
-    VEC(1,:)=NODALQ(:,OUTVAR(GRADX).IVO)
-    VEC(2,:)=NODALQ(:,OUTVAR(GRADY).IVO)
-    IF(NDIMENSION>2) THEN
-        VEC(3,:)=NODALQ(:,OUTVAR(GRADZ).IVO)
-    ELSE
-        VEC(3,:)=0.D0
-    ENDIF    
-    VectorPairName='SEEP.I'
-case(VECTOR_GROUP_SFR)
-
-    VEC(1,:)=NODALQ(:,OUTVAR(SFR_SFRX).IVO)
-    VEC(2,:)=NODALQ(:,OUTVAR(SFR_SFRY).IVO)
-    VEC(3,:)=0.D0       
-    VectorPairName='SFR'
-end select
+CALL VEC_PLOT_DATA()
 
 CALL drawvector()
+
+IF(isPlotStreamLine) THEN
+	
+	CALL streamline_update()
+
+ENDIF
 
 RETURN
 END SUBROUTINE
@@ -834,6 +978,7 @@ IF(OUTVAR(DISCHARGE).VALUE>0)  CALL GLUTADDMENUENTRY ("Q",DISCHARGE)
 
 SLICE_PLOT_ID=glutCreateMenu(SLICE_handler)
 call glutAddMenuEntry("SET LOCTIONS",SLICE_LOCATION_CLICK)
+call glutAddMenuEntry("PlotSlice toggle",PLOTSLICE_CLICK)
 call glutAddMenuEntry("SliceSurfacePlot toggle",PLOTSLICESURFACE_CLICK)
 call glutAddMenuEntry("SliceIsoLinePlot toggle",PLOTSLICEISOLINE_CLICK)
 call glutAddSubMenu("DISPLACE",SLICESHOW_DIS_ID)
@@ -847,6 +992,8 @@ call glutAddSubMenu("SFR",SLICESHOW_SFR_ID)
 STREAMLINE_PLOT_ID=glutCreateMenu(STREAMLINE_handler)
 call glutAddMenuEntry("PICK START POINT",STREAMLINE_LOCATION_CLICK)
 call glutAddMenuEntry("PlotStreamLine toggle",Plot_streamline_CLICK)
+
+
 
 menuid = glutCreateMenu(menu_handler)
 call glutAddSubMenu("Contour",CONTOUR_PLOT_ID)
@@ -874,7 +1021,7 @@ subroutine plot_func
 
 use opengl_gl
 use opengl_glut
-use view_modifier
+!use view_modifier
 use function_plotter
 use solverds
 implicit none
@@ -884,10 +1031,26 @@ integer :: winid, menuid, submenuid
 interface
     subroutine myreshape(w,h)
         integer::w,h
-    end subroutine    
+    end subroutine
+    subroutine keyboardCB(key,  x,  y)
+        integer,intent(in)::key,x,y
+    end subroutine
+    subroutine arrows(key, x, y)
+       integer,intent(in out) :: key, x, y
+    endsubroutine
+    subroutine motion(x, y)
+        integer, intent(in out) :: x, y
+    endsubroutine
+    subroutine mouse(button, state, x, y)
+        integer, intent(in out) :: button, state, x, y
+    endsubroutine
 endinterface
 
 ! Initializations
+
+call SETUP_SUB_TET4_ELEMENT()
+call SETUP_EDGE_TBL_TET()
+call SETUP_FACE_TBL_TET()
 
 call glutInit
 call glutInitDisplayMode(ior(GLUT_DOUBLE,ior(GLUT_RGB,GLUT_DEPTH)))
@@ -918,12 +1081,27 @@ init_lookfrom.y=modelr*3.0
 init_lookfrom.z=modelr*3.0
 endif
 
+IF(OUTVAR(HEAD).VALUE>0) THEN
+    CONTOUR_PLOT_VARIABLE=HEAD
+ELSEIF(OUTVAR(DISZ).VALUE>0) THEN
+    CONTOUR_PLOT_VARIABLE=DISZ
+ELSEIF(OUTVAR(DISY).VALUE>0) THEN
+    CONTOUR_PLOT_VARIABLE=DISY
+ELSEIF(OUTVAR(DISX).VALUE>0) THEN
+    CONTOUR_PLOT_VARIABLE=DISX
+ELSEIF(OUTVAR(LOCX).VALUE>0) THEN
+    CONTOUR_PLOT_VARIABLE=LOCX
+ENDIF
 
-CONTOUR_PLOT_VARIABLE=MAX(HEAD,DISZ,DISY,DISX,LOCZ)
+!CONTOUR_PLOT_VARIABLE=MAX(HEAD,DISZ,DISY,DISX,LOCX)
+
 SLICE_PLOT_VARIABLE=CONTOUR_PLOT_VARIABLE !INITIALIZATION
 
 call initialize_contourplot(outvar(CONTOUR_PLOT_VARIABLE).ivo)
 
+
+
+CALL STEPPLOT.INITIALIZE(1,NNODALQ,RTIME,CALSTEP)
 
 ! initialize view_modifier, receiving the id for it's submenu
 
@@ -934,23 +1112,26 @@ submenuid = view_modifier_init()
 call make_menu(submenuid)
 
 ! Set the display callback
-
+call glutreshapefunc(myreshape)
+call glutMouseFunc(mouse)
+call glutMotionFunc(motion)
+call glutSpecialFunc(arrows)
 call glutDisplayFunc(display)
 !glutTimerFunc(33, timerCB, 33);             // redraw only every given millisec
 !//glutIdleFunc(idleCB);                       // redraw whenever system is idle
 !glutReshapeFunc(reshapeCB);
 call glutKeyboardFunc(keyboardCB);
-!glutMouseFunc(mouseCB);
-!glutMotionFunc(mouseMotionCB);
 !glutPassiveMotionFunc(mousePassiveMotionCB);
 
 call initGL(modelr)
 ! Create the image
 
-call DrawSurfaceContour()
-call DrawLineContour() 
-call drawvector()
-call drawgrid()
+CALL STEPPLOT.UPDATE()
+
+!call DrawSurfaceContour()
+!call DrawLineContour() 
+!call drawvector()
+!call drawgrid()
 
 ! Let glut take over
 
@@ -1055,4 +1236,459 @@ subroutine PickPoint(x,y,Pt1,IEL)
 
     
     
+endsubroutine
+
+
+
+subroutine mouse(button, state, x, y)
+use function_plotter
+implicit none
+!          -----
+integer(kind=glcint), intent(in out) :: button, state, x, y
+!integer,external::POINTlOC,PTINTRIlOC
+integer::iel,I
+real(8)::Pt1(3)
+
+! This gets called when a mouse button changes
+  moving_left = .FALSE.
+  moving_MIDDLE= .FALSE.
+  if (button == GLUT_LEFT_BUTTON) then
+    moving_left = .TRUE.
+    select case(state)
+    
+    case(GLUT_DOWN)
+        SELECT CASE(glutGetModifiers())
+        CASE(GLUT_ACTIVE_CTRL)
+            call ProbeatPoint(x,y)
+        CASE(GLUT_ACTIVE_SHIFT)
+            call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
+            begin_left = cart2D(x,y)
+            left_button_func=PAN
+        CASE DEFAULT
+            
+        
+            if(isPickforstreamline) then
+                
+                call PickPoint(x,y,Pt1,IEL)
+                IF(iel==0) then
+                    info.str='the picked location is out of zone.Please pick again.'C
+                    info.color=red;info.qkey=.true.
+                ELSE
+                    left_button_func=LB_DRAWLINE
+                    LINE_TEMP.V1=PT1
+                    LINE_TEMP.V2=PT1
+                    LINE_TEMP.SHOW=.TRUE.
+                                     
+                ENDIF
+                
+                
+            else
+                call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
+			    begin_left = cart2D(x,y)
+			    left_button_func=ROTATE
+            endif
+        END SELECT
+        
+    
+    
+    case(GLUT_UP)
+        if(isPickforstreamline) then
+            info.str='Click to Pick more or Press q to exit.'C
+            if(info.qkey==.false.) then
+                isPickforstreamline=.false.
+                LINE_TEMP.SHOW=.FALSE.
+                LINE_TEMP.V1=LINE_TEMP.V2
+                left_button_func=ROTATE
+                info.str=''
+                call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
+                return
+            endif
+			
+            IF(NORM2(LINE_TEMP.V1-LINE_TEMP.V2)<1E-3) THEN
+                call gen_new_streamline(LINE_TEMP.V1)
+            ELSE
+                DO I=1,10
+                    PT1=LINE_TEMP.V1+(I-1)/9.0*(LINE_TEMP.V2-LINE_TEMP.V1)
+                    call gen_new_streamline(PT1)
+                ENDDO
+            ENDIF
+            LINE_TEMP.SHOW=.FALSE.
+            LINE_TEMP.V1=LINE_TEMP.V2
+            info.color=green;info.qkey=.true. 
+        
+        ENDIF
+        
+    
+    end select
+    
+    
+  endif
+  
+  if (button == GLUT_MIDDLE_BUTTON ) then
+    if(state == GLUT_DOWN) then
+        call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
+        moving_middle = .true.
+        begin_middle = cart2D(x,y)
+        middle_button_func=ZOOM
+    else
+        moving_middle = .false.
+    endif
+    
+  endif
+  
+
+end subroutine mouse
+
+!          ------
+subroutine motion(x, y)
+use function_plotter
+implicit none
+!          ------
+integer(kind=glcint), intent(in out) :: x, y
+integer::iel
+real(8)::Pt1(3)
+! This gets called when the mouse moves
+
+integer :: button_function
+type(cart2D) :: begin
+real(kind=gldouble) :: factor
+
+! Determine and apply the button function
+
+if (moving_left) then
+   button_function = left_button_func
+   begin = begin_left
+else if(moving_middle) then
+   button_function = middle_button_func
+   begin = begin_middle
+end if
+
+select case(button_function)
+CASE(LB_DRAWLINE)
+    call PickPoint(x,y,Pt1,IEL)
+    LINE_TEMP.V2=PT1
+case (ZOOM)
+   if (y < begin%y) then
+      factor = 1.0_gldouble/(1.0_gldouble + .002_gldouble*(begin%y-y))
+   else if (y > begin%y) then
+      factor = 1.0_gldouble + .002_gldouble*(y-begin%y)
+   else
+      factor = 1.0_gldouble
+   end if
+   IF(ISPERSPECT) THEN
+        shift%z = shift%z/factor
+   ELSE
+        xscale_factor = xscale_factor * factor
+        yscale_factor = yscale_factor * factor
+        zscale_factor = zscale_factor * factor
+   ENDIF
+   
+   
+case (PAN)
+   shift%x = shift%x + .01*(x - begin%x)
+   shift%y = shift%y - .01*(y - begin%y)
+case (ROTATE)
+   angle%x = angle%x + (x - begin%x)
+   angle%y = angle%y + (y - begin%y)
+
+   !call trackball(begin.x, begin.y, real(x,8), real(y,8),axis_rotate,phi_rotate)
+   !print *, begin.x, begin.y,x,y
+case (SCALEX)
+   if (y < begin%y) then
+      factor = 1.0_gldouble + .002_gldouble*(begin%y-y)
+   else if (y > begin%y) then
+      factor = 1.0_gldouble/(1.0_gldouble + .002_gldouble*(y-begin%y))
+   else
+      factor = 1.0_gldouble
+   end if
+   xscale_factor = xscale_factor * factor
+case (SCALEY)
+   if (y < begin%y) then
+      factor = 1.0_gldouble + .002_gldouble*(begin%y-y)
+   else if (y > begin%y) then
+      factor = 1.0_gldouble/(1.0_gldouble + .002_gldouble*(y-begin%y))
+   else
+      factor = 1.0_gldouble
+   end if
+   yscale_factor = yscale_factor * factor
+case (SCALEZ)
+   if (y < begin%y) then
+      factor = 1.0_gldouble + .002_gldouble*(begin%y-y)
+   else if (y > begin%y) then
+      factor = 1.0_gldouble/(1.0_gldouble + .002_gldouble*(y-begin%y))
+   else
+      factor = 1.0_gldouble
+   end if
+   zscale_factor = zscale_factor * factor
+end select
+
+! update private variables and redisplay
+
+if (moving_left) then
+   begin_left = cart2D(x,y)
+else if(moving_middle) then
+   begin_middle = cart2D(x,y)
+endif
+
+if (moving_left .or. moving_middle) then
+   call glutPostRedisplay
+endif
+
+return
+end subroutine motion
+
+!          ------
+subroutine arrows(key, x, y)
+
+use function_plotter
+implicit none
+integer(glcint), intent(in out) :: key, x, y
+
+! This routine handles the arrow key operations
+
+real(kind=gldouble) :: factor
+
+select case(arrow_key_func)
+
+CASE(STEP_KEY)
+    select case(key)
+    CASE(GLUT_KEY_DOWN,GLUT_KEY_RIGHT)
+        STEPPLOT.ISTEP=MOD(STEPPLOT.ISTEP,STEPPLOT.NSTEP)+1        
+    CASE(GLUT_KEY_UP,GLUT_KEY_LEFT)
+        STEPPLOT.ISTEP=STEPPLOT.ISTEP-1
+        IF(STEPPLOT.ISTEP<1) STEPPLOT.ISTEP=STEPPLOT.NSTEP
+    ENDSELECT
+    
+    CALL STEPPLOT.UPDATE()
+!case(ZOOM)
+!   select case(key)
+!   case(GLUT_KEY_DOWN)
+!      factor = 1.0_gldouble + .02_gldouble
+!   case(GLUT_KEY_UP)
+!      factor = 1.0_gldouble/(1.0_gldouble + .02_gldouble)
+!   case default
+!      factor = 1.0_gldouble
+!   end select
+!   shift%z = factor*shift%z
+!case(PAN)
+!   select case(key)
+!   case(GLUT_KEY_LEFT)
+!      shift%x = shift%x - .02
+!   case(GLUT_KEY_RIGHT)
+!      shift%x = shift%x + .02
+!   case(GLUT_KEY_DOWN)
+!      shift%y = shift%y - .02
+!   case(GLUT_KEY_UP)
+!      shift%y = shift%y + .02
+!   end select
+!case(ROTATE)
+!   select case(key)
+!   case(GLUT_KEY_LEFT)
+!      angle%x = angle%x - 1.0_gldouble
+!   case(GLUT_KEY_RIGHT)
+!      angle%x = angle%x + 1.0_gldouble
+!   case(GLUT_KEY_DOWN)
+!      angle%y = angle%y + 1.0_gldouble
+!   case(GLUT_KEY_UP)
+!      angle%y = angle%y - 1.0_gldouble
+!   end select
+!case(SCALEX)
+!   select case(key)
+!   case(GLUT_KEY_DOWN)
+!      factor = 1.0_gldouble/(1.0_gldouble + .02_gldouble)
+!   case(GLUT_KEY_UP)
+!      factor = 1.0_gldouble + .02_gldouble
+!   case default
+!      factor = 1.0_gldouble
+!   end select
+!   xscale_factor = xscale_factor * factor
+!case(SCALEY)
+!   select case(key)
+!   case(GLUT_KEY_DOWN)
+!      factor = 1.0_gldouble/(1.0_gldouble + .02_gldouble)
+!   case(GLUT_KEY_UP)
+!      factor = 1.0_gldouble + .02_gldouble
+!   case default
+!      factor = 1.0_gldouble
+!   end select
+!   yscale_factor = yscale_factor * factor
+!case(SCALEZ)
+!   select case(key)
+!   case(GLUT_KEY_DOWN)
+!      factor = 1.0_gldouble/(1.0_gldouble + .02_gldouble)
+!   case(GLUT_KEY_UP)
+!      factor = 1.0_gldouble + .02_gldouble
+!   case default
+!      factor = 1.0_gldouble
+!   end select
+!   zscale_factor = zscale_factor * factor
+!
+end select
+   
+call glutPostRedisplay
+
+return
+end subroutine arrows
+
+subroutine myreshape(w,h)
+    use function_plotter    
+    implicit none
+    integer(glcint)::w,h
+    
+
+
+	real(gldouble):: wL,wH,R,wR,clipAreaXLeft,clipAreaXRight,clipAreaYBottom,clipAreaYTop, &
+                    R1,dis1,near,far,xc,yc
+
+    !call reset_view
+    
+	if (h == 0) h = 1;
+	call glViewport(0, 0, w, h);
+
+	R = real(w) / real(h);
+    r1=((minx-maxx)**2+(miny-maxy)**2+(minz-maxz)**2)**0.5/2.0
+    dis1=((init_lookat.x-init_lookfrom.x)**2+(init_lookat.y-init_lookfrom.y)**2+(init_lookat.z-init_lookfrom.z)**2)**0.5 
+    
+    near=1.0;far=near+2*r1+dis1*10
+    !write(*,'(2G13.6)') 'NEAR=',NEAR,'FAR=',FAR 
+    
+	call glMatrixMode(GL_PROJECTION);
+	call glLoadIdentity();
+
+
+    !glortho and gluperspective 的参数都是相对于eye坐标的。
+    
+	if(IsPerspect) then
+        call gluPerspective(30.0_gldouble, R, near, far)
+    else
+        
+	    !wL = maxx -minx;	
+	    !wH = maxy -miny;
+	    !if (wH <= 0) wH = 1.0;
+	    !wR = wL / wH;
+        !
+	    !if (wR > R)	then
+		    ! ! Projection clipping area
+		    ! clipAreaXLeft = minx;
+		    ! clipAreaXRight = maxx;
+		    ! clipAreaYBottom = (miny + maxy) / 2 - wL / R / 2.0;
+		    ! clipAreaYTop = (miny + maxy) / 2 + wL / R / 2.0;
+	    !
+	    !else 
+		    ! clipAreaXLeft =( minx + maxx) / 2.0 - wH* R / 2.0;
+		    ! clipAreaXRight = (minx + maxx) / 2.0 + wH* R / 2.0;
+		    ! clipAreaYBottom = miny;
+		    ! clipAreaYTop = maxy;
+	    !endif
+	    !call glOrtho(clipAreaXLeft-init_lookfrom.x, clipAreaXRight-init_lookfrom.x, &
+        !             clipAreaYBottom-init_lookfrom.y, clipAreaYTop-init_lookfrom.y,near,far)
+        if(R>1) then
+            call glOrtho(-r1*R, r1*R, -r1, r1,near,far) 
+        else
+            call glOrtho(-r1, r1, -r1/R, r1/R,near,far) 
+        endif
+    endif
+    call glMatrixMode(GL_MODELVIEW);
+	call glLoadIdentity();
+
+
+end subroutine
+
+subroutine keyboardCB(key,  x,  y)
+    use function_plotter    
+    use strings
+    implicit none
+    integer,intent(in)::key,x,y
+    integer::nlen=0,nsubstr=0
+    character(len(info.inputstr))::substr(50)
+    
+    
+    INPUTKEY=KEY
+   
+    
+    select case(key)
+    case(ichar('q'),ichar('Q'))
+        if(INFO.QKEY) then
+            info.str=''
+            info.inputstr=''           
+            INFO.ISNEEDINPUT=.FALSE.
+            info.qkey=.false.
+        endif
+    case DEFAULT
+ 
+    end select
+    
+    if(info.isneedinput) then
+        nlen=len_trim(adjustl(info.inputstr))
+        if(nlen>=len(info.inputstr)) info.inputstr=''
+        if(key==8) then
+            info.inputstr=info.inputstr(1:nlen-1)            
+        elseif(key==13) then !enter
+            call string_interpreter(info.inputstr,str2realArray)
+            if(allocated(info.inputvar)) deallocate(info.inputvar)
+            allocate(info.inputvar,source=str2vals)
+            info.ninputvar=nstr2vals
+            select case(info.func_id)
+            case(FUNC_ID_GETSLICELOCATION)
+                call getslicelocation()
+            end select
+            
+            info.str=''
+            info.inputstr=''
+            INFO.NINPUTVAR=0
+            if(allocated(info.inputvar)) deallocate(info.inputvar)
+            INFO.ISNEEDINPUT=.false.
+        else
+            info.inputstr=trim(adjustl(info.inputstr))//char(key)
+        endif
+    ELSE
+        INFO.INPUTSTR=''
+    endif 
+    
+    call glutPostRedisplay
+    !switch(key)
+    !{
+    !case 27: // ESCAPE
+    !    exit(0);
+    !    break;
+    !
+    !case 'd': // switch rendering modes (fill -> wire -> point)
+    !case 'D':
+    !    drawMode = ++drawMode % 3;
+    !    if(drawMode == 0)        // fill mode
+    !    {
+    !        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    !        glEnable(GL_DEPTH_TEST);
+    !        glEnable(GL_CULL_FACE);
+    !    }
+    !    else if(drawMode == 1)  // wireframe mode
+    !    {
+    !        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    !        glDisable(GL_DEPTH_TEST);
+    !        glDisable(GL_CULL_FACE);
+    !    }
+    !    else                    // point mode
+    !    {
+    !        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+    !        glDisable(GL_DEPTH_TEST);
+    !        glDisable(GL_CULL_FACE);
+    !    }
+    !    break;
+    !
+    !case 'r':
+    !case 'R':
+    !    // reset rotation
+    !    quat.set(1, 0, 0, 0);
+    !    break;
+    !
+    !case ' ':
+    !    if(trackball.getMode() == Trackball::ARC)
+    !        trackball.setMode(Trackball::PROJECT);
+    !    else
+    !        trackball.setMode(Trackball::ARC);
+    !    break;
+    !
+    !default:
+    !    ;
+    !}
 endsubroutine
