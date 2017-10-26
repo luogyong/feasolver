@@ -129,6 +129,7 @@ call glNewList(gridlist, gl_compile_and_execute)
 call glEndList
     
 call glPopAttrib();
+
 call glutPostRedisplay
 
 DEALLOCATE(VEC1)

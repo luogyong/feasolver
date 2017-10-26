@@ -630,11 +630,11 @@ CONTAINS
             POSDATA.IVY=IVAL
         CASE('vz')
             POSDATA.IVZ=IVAL 
-        CASE('gradx')
+        CASE('ix')
             POSDATA.IGRADX=IVAL
-        CASE('grady')
+        CASE('iy')
             POSDATA.IGRADY=IVAL
-        CASE('gradz')
+        CASE('iz')
             POSDATA.IGRADZ=IVAL
         CASE('disx')
             POSDATA.IDISX=IVAL
@@ -642,9 +642,9 @@ CONTAINS
             POSDATA.IDISY=IVAL
         CASE('disz')
             POSDATA.IDISZ=IVAL 
-        CASE('sfr_sfrx')
+        CASE('sfrx')
             POSDATA.ISFR_SFRX=IVAL
-        CASE('sfr_sfry')
+        CASE('sfry')
             POSDATA.ISFR_SFRY=IVAL
         CASE('head')
             POSDATA.IHEAD=IVAL

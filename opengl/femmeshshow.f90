@@ -368,12 +368,13 @@ SUBROUTINE STEP_UPDATE(STEPINFO)
 		CALL SLICEPLOT()
 	ENDIF
     
-	IF(isPlotStreamLine) THEN
-		
-		CALL streamline_update()
-	
+	IF(isPlotStreamLine) THEN		
+		CALL streamline_update()	
 	ENDIF
-    
+        
+    if(draw_surface_grid.or.show_edge.or.show_node) then
+        call drawGrid()
+    endif
 ENDSUBROUTINE
 
 
