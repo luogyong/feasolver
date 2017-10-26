@@ -241,9 +241,9 @@ module solverds
 	type(solver_tydef)::solver_control
 	
 	type property_tydef
-		character(64)::name=''
+		character(128)::name=''
 		real(kind=DPN)::value=0.0
-		character(64)::cvalue=''	 !character value	
+		character(128)::cvalue=''	 !character value	
 	end type
 	type(property_tydef)::property(maxset) !one control line has MAXSET property value at most.
 	integer::pro_num 
@@ -448,9 +448,9 @@ module solverds
 	
 	INTEGER::NDOFHEAD=0,NDOFMEC=0 !!每步的渗流自由度数及利息自由度数，
 	INTEGER,ALLOCATABLE::DOFHEAD(:),DOFMEC(:),CalStep(:) !head dofs in the model.
-	real(kind=DPN),allocatable::NodalQ(:,:,:),VEC(:,:),RTime(:) !NODALQ(INODE,IVO,NNODALQ) !NNODALQ=SUM(TEIMSTEP.nsubts)
+	real(kind=DPN),allocatable::NodalQ(:,:,:),RTime(:) !NODALQ(INODE,IVO,NNODALQ) !NNODALQ=SUM(TEIMSTEP.nsubts)
 	INTEGER::NNODALQ=0
-	real(dpn)::modelr !模型外接圆半径
+	
     
     INTERFACE
          PURE subroutine INVARIANT(stress,inv)

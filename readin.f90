@@ -16,9 +16,10 @@
 	integer(4)::length,msg
     real(DPN)::AR1(100)
 	type(bc_tydef),allocatable::bf1(:),bf2(:)
-    EXTERNAL::SetLineColor,Marker,LineStyle,SETBGCOLOR
+    EXTERNAL::SetLineColor,Marker,LineStyle,SETBGCOLOR,solvercommand
     
-	term="Text Files(*.sinp),*.sinp; &
+	term="Solver Files(*.sinp),*.sinp; &
+          Plot File(*.plot),*.plot; &  
 			  Data Files(*.dat),*.dat; &
 			  Prof.Cao Program files(*.z7),*.z7; &
 			  All Files(*.*),*.*;"
@@ -29,12 +30,20 @@
 	title=''
 	open(1,file=' ',status='old' )
 	unit=1
-	print *, 'Begin to read in data...'
-	call read_execute(unit,itype,keyword)
+	
+    inquire(1,name=nme)
+    length = SPLITPATHQQ(nme, drive, dir, name, ext)
+    CALL LOWCASE(EXT)
+    IF(TRIM(ADJUSTL(EXT))=='.plot') THEN
+        CALL plot_func(nme)
+        STOP
+    ENDIF
+    
+    print *, 'Begin to read in data...'
+	call read_execute(unit,itype,keyword,solvercommand)
 
 	if(itype==0) then
-		inquire(1,name=nme)
-		length = SPLITPATHQQ(nme, drive, dir, name, ext)
+		
 		resultfile=trim(drive)//trim(dir)//trim(name)//'_datapoint.dat'
 		IF(solver_control.solver==LPSOLVER) THEN
 			resultfile1=trim(drive)//trim(dir)//trim(name)//'_lpsolve.lp'
@@ -42,6 +51,7 @@
 		IF(solver_control.solver==MOSEK) THEN
 			resultfile1=trim(drive)//trim(dir)//trim(name)//'_mosek.lp'
 		END IF
+
 		resultfile2=trim(drive)//trim(dir)//trim(name)//'_tec.plot'
 		resultfile21=trim(drive)//trim(dir)//trim(name)//'_barfamilydiagram_tec.plot'
 		resultfile22=trim(drive)//trim(dir)//trim(name)//'_barfamilydiagram_res.dat'
@@ -54,6 +64,7 @@
         Slope_file=trim(drive)//trim(dir)//trim(name)//'_slope_res.dat'
         helpfile=trim(drive)//trim(dir)//'IFSOLVER_HELP.TXT'
 	end if
+    
 	open(99,file=resultfile3,status='replace')
 	!the default value of Title=resultfile2.
 	msg=len_trim(title)
@@ -316,7 +327,7 @@
 
 
 
-subroutine read_execute(unit,itype,keyword)
+subroutine read_execute(unit,itype,keyword,COMMAND_PARSER)
 
 !**************************************************************************************************************
 !IF ITYPE=0, READ IN DATAS  from THE UNIT FILE TO ITS END.
@@ -325,6 +336,7 @@ subroutine read_execute(unit,itype,keyword)
 !UNIT: FILE NUMBER, 
 !ITYPE: DEFAULT VALUE=0, IF VALUE>0, IT WILL WORK WITH THE KEYWORD.  
 !KEYWORD: DATA BLOCK KEYWORD
+!COMMAND_PARSER: SUBROUTINE TO HANDLE COMMANDS FROM READING
 !A LINE STARTED WITH '/' IS A COMMENT LINE, IT WILL BE SKIPPED DURING READING
 !OUPUT VARIABLES:
 !NO EXPLICIT OUTPUT VARIABLES. ALL THE READ IN DATA STORED IN THE VARIABLES DEFINED IN THE MODULE SOLVERDS
@@ -333,12 +345,15 @@ subroutine read_execute(unit,itype,keyword)
 !Programer: LUO Guanyong
 !Last update: 2008.03.16
 !**************************************************************************************************************
-	use solverds
+	!use solverds
 	implicit none
-	integer::unit,ef,ITYPE,iterm,i,strL,N1
+    INTEGER,INTENT(IN)::UNIT,ITYPE    
+	integer::ef,iterm,i,strL,N1
 	parameter(iterm=1024)
-	character(iterm)::term,keyword,term2
+    character(*),INTENT(IN)::keyword
+	character(iterm)::term,term2
 	character(1)::ch
+    EXTERNAL::COMMAND_PARSER
 	
 	ef=0
 	
@@ -383,10 +398,10 @@ subroutine read_execute(unit,itype,keyword)
 		if(ch/='/'.and.ch/='#') then
 			!backspace(unit)
 			!read(unit,999) term
-			call lowcase(term,iterm)
+			call lowcase(term)
 			call translatetoproperty(term)			
 			term=adjustl(trim(term))
-			call solvercommand(term,unit)			 	
+			call COMMAND_PARSER(term,unit)			 	
 		end if
 	end do
 
@@ -2061,7 +2076,7 @@ subroutine solvercommand(term,unit)
 					case('sfr')
 						outvar(SFR).name='SFR'
 						outvar(SFR).value=SFR
-						outvar(sfr_sita).name='sfr_sita(deg,CCW+)'
+						outvar(sfr_sita).name='sfr_sita(deg(CCW+))'
 						outvar(sfr_sita).value=sfr_sita
 						outvar(SFR_SN).name='Sn(Tension+)'
 						outvar(SFR_SN).value=SFR_SN
@@ -2379,7 +2394,7 @@ subroutine translatetoproperty(term)
 	integer::i,strL
 	character(1024)::term,keyword
 	integer::ns,ne,nc
-	character(32)::str(50)
+	character(128)::str(50)
 	
 	if(index(term,'/')/=0) then !每一行‘/’后面的内容是无效的。
 		strL=index(term,'/')-1
@@ -2413,7 +2428,19 @@ subroutine translatetoproperty(term)
 		term=adjustL(term)		
 	end do
 
-	term=str(1)
+	
+    term=str(1)    
+   
+    
+    !TRANSLATE "A=1" TO"A,A=1" 
+    ne=index(str(1),'=')
+    IF(NE>1) THEN
+        TERM=STR(1)(1:NE-1)        
+        STR(NC+1:3:-1)=STR(NC:2:-1)
+        STR(2)=STR(1)(NE+1:LEN_TRIM(ADJUSTL(STR(1))))
+        NC=NC+1
+    ENDIF
+    
 	pro_num=nc-1
 	do i=2,nc
 		ne=index(str(i),'=')

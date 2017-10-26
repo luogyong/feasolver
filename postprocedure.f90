@@ -82,6 +82,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	do i=1,neset
 		iset1=esetid(i)
 		if(sf(eset(iset1).sf).factor(iincs)==0) cycle
+        IF(ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
 		write(file_unit,'(a1024)') eset(iset1).zonetitle
 		!if(anybarfamily) write(file_diagram,'(a1024)') eset(iset1).zonetitle
 		
@@ -374,8 +375,8 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 	REAL(8)::SUMQ1=0
 	NQ1=SUM(timestep.nsubts)
 	if(.NOT.allocated(NODALQ)) allocate(NodalQ(nnum,nvo,NQ1))
-    IF(.NOT.ALLOCATED(VEC)) ALLOCATE(VEC(3,NNUM))
-    VEC=0.0D0
+    !IF(.NOT.ALLOCATED(VEC)) ALLOCATE(VEC(3,NNUM))
+    !VEC=0.0D0
 	i=1
 	do while(i<=nvo)
 		select case(vo(i))
@@ -1077,8 +1078,8 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 		RTIME(NNODALQ)=T1
 		CalStep(NNODALQ)=IINCS
 		write(cword7,'(E15.7)') t1
-!		write(cword8,'(i8)') iiter
-		eset(iset1).zonetitle=trim(eset(iset1).zonetitle)//',StrandID='//trim(adjustL(cword1))//',Solutiontime='//trim(adjustL(cword7))
+		write(cword8,'(i7)') ISET1
+		eset(iset1).zonetitle=trim(eset(iset1).zonetitle)//',StrandID='//trim(adjustL(cword8))//',Solutiontime='//trim(adjustL(cword7))
 		if(eset(iset1).mesh_share_id<1) then
 			eset(iset1).mesh_share_id=nzone_tec
 			eset(iset1).out_mesh=.true.
@@ -1355,7 +1356,7 @@ subroutine pointout_barfamily_diagram()
 			CALL SKIPCOMMENT(BARFAMILY_RES,EF)
             IF(EF<0) EXIT
 			READ(BARFAMILY_RES,'(A<LSTR>)') CSTRING
-			CALL LOWCASE(CSTRING,LSTR)
+			CALL LOWCASE(CSTRING)
 			CALL TRANSLATETOPROPERTY(CSTRING)	
 			DO J=1,PRO_NUM
 				IF(TRIM(ADJUSTL(PROPERTY(J).NAME))=='solutiontime') THEN
@@ -1379,9 +1380,9 @@ subroutine pointout_barfamily_diagram()
 				ZC1=ZC1+1
 				!TECPLOT ZONETITLE
 				if(zc1==1) then
-					write(file_diagram,20) trim(adjustL(outvar(OUTV(J)).name)),nnum1,enum1,J,t1
+					write(file_diagram,20) trim(adjustL(outvar(OUTV(J)).name)),nnum1,enum1,ISET1,t1
 				else
-					write(file_diagram,21) trim(adjustL(outvar(OUTV(J)).name)),nnum1,enum1,J,t1,zonenum+1
+					write(file_diagram,21) trim(adjustL(outvar(OUTV(J)).name)),nnum1,enum1,ISET1,t1,zonenum+1
 				end if
 				
 				DO K=eset(iset1).ENUMS,eset(iset1).ENUME

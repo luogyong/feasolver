@@ -1,6 +1,7 @@
-MODULE MESHGEO
+ï»¿MODULE MESHGEO
 
-USE solverds
+!USE solverds
+USE POS_IO
 USE hashtbl
 
 !PRIVATE
@@ -18,7 +19,7 @@ TYPE SEGMENT
     TYPE(POINT_TYDEF)::V1,V2
 ENDTYPE
 
-INTEGER,ALLOCATABLE::VISDEAD(:)
+!INTEGER,ALLOCATABLE::VISDEAD(:)
 
 TYPE EDGE_TYDEF
     LOGICAL::ISINI=.FALSE.
@@ -37,7 +38,7 @@ TYPE FACE_TYDEF
     INTEGER::V(4)=0,EDGE(4)=0 !IF EDGE(I)<0 MEANING ITS ORDER IS REVERSE .
     INTEGER::HKEY=-1
     CHARACTER(64)::CKEY="" 		
-    INTEGER::ISTRISURFACE=0 !<-1 Óëface·´Ïò
+    INTEGER::ISTRISURFACE=0 !<-1 ï¿½ï¿½faceï¿½ï¿½ï¿½ï¿½
     REAL(8)::UNORMAL(3)=0.D0,BBOX(2,3)=0.D0		
     INTEGER::ENUM=0
 	INTEGER::ISDEAD=0
@@ -49,8 +50,8 @@ INTEGER::NMEDGE=0,NMFACE=0,MAXNMEDGE=10000,MAXNMFACE=10000 !M FOR MODEL
 
 !split all element into simple 3-noded-triangle , 4-noded-tetrahedron,point and 2-noded-line element
 TYPE TET_TYDEF
-	INTEGER::MOTHER=0,GMET=0,DIM=-1,NV=0,NE=0,NF=0,SF=0,ISDEAD=0 
-	INTEGER::V(4)=0,E(6)=0,F(4)=0	!FµÄÕý·´Ã»ÓÐÎ¬»¤£¬¿ÉÒÔÍ¨¹ýelttype(4).faceÀ´È·¶¨¡£
+	INTEGER::MOTHER=0,GMET=0,DIM=-1,NV=0,NE=0,NF=0,SF=0,ISDEAD=0,ISET=0 
+	INTEGER::V(4)=0,E(6)=0,F(4)=0	!Fï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½ï¿½Î¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½elttype(4).faceï¿½ï¿½È·ï¿½ï¿½ï¿½ï¿½
 	REAL(8)::BBOX(2,3)=0.D0 !MIN,MAX OF X,Y AND Z
     REAL(8)::STEPSIZE=0.1D0
 ENDTYPE
@@ -70,8 +71,8 @@ type et_type
 	!edge(2,nedge),
 	!face: use node index to represent face. face(0:4,nface),face(0,:)==3,triangular face,==4, quadrilateral face
 	!FaceEdge: use edge index to represent face. FaceEdge(0:4,nface),FaceEdge(0,:)==3,triangular face, ==4, quadrilateral face
-	real(8),allocatable::weight(:,:) !·Ö²¼µ¥ÔªºÉÔØ¸÷½Úµã·Ö²¼ÏµÊý, weight(:,1) Æ½Ãæ¾ù²¼ºÉÔØ£»weight(:,2) Æ½ÃæÈý½ÇÐÎºÉÔØ;weight(:,3) Öá¶Ô³Æ¾ù²¼ºÉÔØ£»weight(:,4) Öá¶Ô³ÆÈý½ÇÐÎºÉÔØ£¬
-												!Ä¿Ç°Ö»ÄÜ´¦ÀíÆ½ÃæÓ¦±äµÄÁ½ÖÖÇé¿ö¡£
+	real(8),allocatable::weight(:,:) !ï¿½Ö²ï¿½ï¿½ï¿½Ôªï¿½ï¿½ï¿½Ø¸ï¿½ï¿½Úµï¿½Ö²ï¿½Ïµï¿½ï¿½, weight(:,1) Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø£ï¿½weight(:,2) Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îºï¿½ï¿½ï¿½;weight(:,3) ï¿½ï¿½Ô³Æ¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø£ï¿½weight(:,4) ï¿½ï¿½Ô³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îºï¿½ï¿½Ø£ï¿½
+												!Ä¿Ç°Ö»ï¿½Ü´ï¿½ï¿½ï¿½Æ½ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 end type
 type(et_type)::elttype(100)
 
@@ -80,22 +81,27 @@ REAL(8)::VTOL=1.D-3
 
 CONTAINS 
 
-SUBROUTINE SETUP_SUB_TET4_ELEMENT()
+SUBROUTINE SETUP_SUB_TET4_ELEMENT(ELEMENT,NEL,ESET,NESET,NODE,NNODE)
 	IMPLICIT NONE
-	INTEGER::i,J,K,GMET1
-	
-    IF(.NOT.ISINI_GMSHET) THEN
-        IF(.NOT.ALLOCATED(EDGE)) ALLOCATE(EDGE(MAXNEDGE),FACE(MAXNFACE))
-        CALL Initialize_et2numNodes()
-        CALL ET_GMSH_EDGE_FACE()
-        ISINI_GMSHET=.TRUE.
-    ENDIF
+    
+	INTEGER,INTENT(IN)::NEL,NESET,NNODE
+	TYPE(ELEMENT_TYDEF)::ELEMENT(NEL)    
+    TYPE(ESET_TYDEF)::ESET(NESET)
+    TYPE(NODE_TYDEF)::NODE(NNODE)
+    
+    INTEGER::i,J,K,GMET1
+    !IF(.NOT.ISINI_GMSHET) THEN
+    !    IF(.NOT.ALLOCATED(EDGE)) ALLOCATE(EDGE(MAXNEDGE),FACE(MAXNFACE))
+    !    CALL Initialize_et2numNodes()
+    !    CALL ET_GMSH_EDGE_FACE()
+    !    ISINI_GMSHET=.TRUE.
+    !ENDIF
 	
 	NTET=0
-	DO I=1,ENUM
-        IF(ESET(ELEMENT(I).SET).COUPLESET<ELEMENT(I).SET) CYCLE !Ó°×Óµ¥Ôª²»¼ÓÈë
+	DO I=1,NEL
+        IF(ESET(ELEMENT(I).ISET).COUPLESET<ELEMENT(I).ISET) CYCLE !Ó°ï¿½Óµï¿½Ôªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         
-		GMET1=GETGMSHET(ELEMENT(I).ET)
+		GMET1=GETGMSHET(ESET(ELEMENT(I).ISET).ET)
 		SELECT CASE(ELTTYPE(GMET1).DIM)
 		CASE(0,1)
 			NTET=NTET+1	
@@ -112,12 +118,12 @@ SUBROUTINE SETUP_SUB_TET4_ELEMENT()
 	IF(ALLOCATED(TET)) DEALLOCATE(TET)
 	ALLOCATE(TET(NTET))
 	NTET=0
-	DO I=1,ENUM
-        IF(ESET(ELEMENT(I).SET).COUPLESET<ELEMENT(I).SET) CYCLE !Ó°×Óµ¥Ôª²»¼ÓÈë
+	DO I=1,NEL
+        IF(ESET(ELEMENT(I).ISET).COUPLESET<ELEMENT(I).ISET) CYCLE !Ó°ï¿½Óµï¿½Ôªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         
-		GMET1=GETGMSHET(ELEMENT(I).ET)
+		GMET1=GETGMSHET(ESET(ELEMENT(I).ISET).ET)
 		ELEMENT(I).TET=[NTET+1:NTET+ELEMENT(I).NTET]
-		TET(ELEMENT(I).TET).SF=ELEMENT(I).SF
+		TET(ELEMENT(I).TET).ISET=ELEMENT(I).ISET
 		SELECT CASE(ELTTYPE(GMET1).DIM)		
 		CASE(0,1)
 			NTET=NTET+1
@@ -163,51 +169,54 @@ SUBROUTINE SETUP_SUB_TET4_ELEMENT()
 	
 END SUBROUTINE
 
-INTEGER FUNCTION GETGMSHET(ET)
-    IMPLICIT NONE
-    INTEGER,INTENT(IN)::ET
+    INTEGER FUNCTION GETGMSHET(ET)
+        USE solverds
+        IMPLICIT NONE
+        INTEGER,INTENT(IN)::ET
     
-    SELECT CASE(ET)
-    !LINE,2-NODE LINE
-    CASE(BAR,BEAM,BAR2D,BEAM2D)    
-        GETGMSHET=1
-    CASE(CPE3,CPE3_SPG,CPE3_CPL,CPS3,SHELL3,DKT3,&
-         CAX3,CAX3_SPG,CAX3_CPL)
-         GETGMSHET=2
-    CASE(CPE4,CPE4_SPG,CPE4_CPL,CPS4,&
-         CAX4,CAX4_SPG,CAX4_CPL,&
-         CPE4R,CPE4R_SPG,CPE4R_CPL,CPS4R,&
-         CAX4R,CAX4R_SPG,CAX4R_CPL)
-         GETGMSHET=3 
-    CASE(TET4,TET4_SPG,TET4_CPL)         
-        GETGMSHET=4         
-    CASE(PRM6,PRM6_SPG,PRM6_CPL)
-        GETGMSHET=6
-    CASE(CPE6,CPE6_SPG,CPE6_CPL,CPS6,&
-         CAX6,CAX6_SPG,CAX6_CPL)
-        GETGMSHET=9       
-    CASE(TET10,TET10_SPG,TET10_CPL)         
-        GETGMSHET=11
-    CASE(SPRINGX,SPRINGY,SPRINGZ,&
-         SPRINGMX,SPRINGMY,SPRINGMZ,&
-         SOILSPRINGX,SOILSPRINGY,SOILSPRINGZ)
-         GETGMSHET=15
-    CASE(CPE8,CPE8_SPG,CPE8_CPL,CPS8,&
-         CAX8,CAX8_SPG,CAX8_CPL,&
-         CPE8R,CPE8R_SPG,CPE8R_CPL,CPS8R,&
-         CAX8R,CAX8R_SPG,CAX8R_CPL)
-         GETGMSHET=16
-    CASE(CPE15,CPE15_SPG,CPE15_CPL,CPS15)
-         GETGMSHET=23
-    CASE(PRM15,PRM15_SPG,PRM15_CPL)
-         GETGMSHET=18        
-    CASE DEFAULT
-        PRINT *, 'NO SUCH ELEMENT TYPE. FUNC=GETGMSHET.'
-        PAUSE
-    ENDSELECT
+        SELECT CASE(ET)
+        !LINE,2-NODE LINE
+        CASE(BAR,BEAM,BAR2D,BEAM2D,FELINESEG)    
+            GETGMSHET=1
+        CASE(FETRIANGLE,CPE3,CPE3_SPG,CPE3_CPL,CPS3,SHELL3,DKT3,&
+             CAX3,CAX3_SPG,CAX3_CPL)
+             GETGMSHET=2
+        CASE(FEQUADRILATERAL,CPE4,CPE4_SPG,CPE4_CPL,CPS4,&
+             CAX4,CAX4_SPG,CAX4_CPL,&
+             CPE4R,CPE4R_SPG,CPE4R_CPL,CPS4R,&
+             CAX4R,CAX4R_SPG,CAX4R_CPL)
+             GETGMSHET=3 
+        CASE(FETETRAHEDRON,TET4,TET4_SPG,TET4_CPL)         
+            GETGMSHET=4
+        CASE(FEBRICK)
+            GETGMSHET=5
+        CASE(PRM6,PRM6_SPG,PRM6_CPL)
+            GETGMSHET=6
+        CASE(CPE6,CPE6_SPG,CPE6_CPL,CPS6,&
+             CAX6,CAX6_SPG,CAX6_CPL)
+            GETGMSHET=9       
+        CASE(TET10,TET10_SPG,TET10_CPL)         
+            GETGMSHET=11
+        CASE(SPRINGX,SPRINGY,SPRINGZ,&
+             SPRINGMX,SPRINGMY,SPRINGMZ,&
+             SOILSPRINGX,SOILSPRINGY,SOILSPRINGZ)
+             GETGMSHET=15
+        CASE(CPE8,CPE8_SPG,CPE8_CPL,CPS8,&
+             CAX8,CAX8_SPG,CAX8_CPL,&
+             CPE8R,CPE8R_SPG,CPE8R_CPL,CPS8R,&
+             CAX8R,CAX8R_SPG,CAX8R_CPL)
+             GETGMSHET=16
+        CASE(CPE15,CPE15_SPG,CPE15_CPL,CPS15)
+             GETGMSHET=23
+        CASE(PRM15,PRM15_SPG,PRM15_CPL)
+             GETGMSHET=18        
+        CASE DEFAULT
+            PRINT *, 'NO SUCH ELEMENT TYPE. FUNC=GETGMSHET.'
+            PAUSE
+        ENDSELECT
     
     
-ENDFUNCTION
+    ENDFUNCTION  
 
     
 SUBROUTINE SETUP_EDGE_TBL_TET()
@@ -219,16 +228,16 @@ SUBROUTINE SETUP_EDGE_TBL_TET()
     CHARACTER(64)::CKEY1
     INTEGER::HKEY1
     
-    IF(.NOT.ISINI_GMSHET) THEN
-        
-        CALL Initialize_et2numNodes()
-        CALL ET_GMSH_EDGE_FACE()
-        ISINI_GMSHET=.TRUE.
-    ENDIF
+    !IF(.NOT.ISINI_GMSHET) THEN
+    !    
+    !    CALL Initialize_et2numNodes()
+    !    CALL ET_GMSH_EDGE_FACE()
+    !    ISINI_GMSHET=.TRUE.
+    !ENDIF
 	
     IF(.NOT.ALLOCATED(EDGE)) ALLOCATE(EDGE(MAXNEDGE))
 	
-	TBL_LEN=2*NNUM	
+	TBL_LEN=2*POSDATA.NNODE	
     CALL EDGE_TBL.INIT(TBL_LEN)
 	DO I=1,NTET
 		ET1=TET(I).GMET
@@ -251,7 +260,7 @@ SUBROUTINE SETUP_EDGE_TBL_TET()
                 EDGE(VAL1.IITEM).CKEY=CKEY1
                 EDGE(VAL1.IITEM).HKEY=HKEY1
                 EDGE(VAL1.IITEM).V=TET(I).V(ELTTYPE(ET1).EDGE(:,J))
-                EDGE(VAL1.IITEM).DIS=NORM2(NODE(EDGE(VAL1.IITEM).V(1)).COORD-NODE(EDGE(VAL1.IITEM).V(2)).COORD)
+                EDGE(VAL1.IITEM).DIS=NORM2(POSDATA.NODE(EDGE(VAL1.IITEM).V(1)).COORD-POSDATA.NODE(EDGE(VAL1.IITEM).V(2)).COORD)
                 EDGE(VAL1.IITEM).ISINI=.TRUE.
                 NEDGE=VAL1.IITEM
             ENDIF
@@ -270,6 +279,7 @@ ENDSUBROUTINE
 
 SUBROUTINE SETUP_FACE_TBL_TET()
     IMPLICIT NONE
+   
     INTEGER::I,J,N1(4),ET1,NFACE1,TBL_LEN,N2,K
     REAL(8)::V1(3),V2(3),NORMAL1(3),T1
 	CHARACTER(LEN=:),ALLOCATABLE::KEY1
@@ -277,16 +287,16 @@ SUBROUTINE SETUP_FACE_TBL_TET()
     CHARACTER(64)::CKEY1
     INTEGER::HKEY1
     
-    IF(.NOT.ISINI_GMSHET) THEN
-        
-        CALL Initialize_et2numNodes()
-        CALL ET_GMSH_EDGE_FACE()
-        ISINI_GMSHET=.TRUE.
-    ENDIF 	
+    !IF(.NOT.ISINI_GMSHET) THEN
+    !    
+    !    CALL Initialize_et2numNodes()
+    !    CALL ET_GMSH_EDGE_FACE()
+    !    ISINI_GMSHET=.TRUE.
+    !ENDIF 	
 
 	IF(.NOT.ALLOCATED(FACE)) ALLOCATE(FACE(MAXNFACE))
 	
-	TBL_LEN=2*NNUM	
+	TBL_LEN=2*POSDATA.NNODE	
     CALL FACE_TBL.INIT(TBL_LEN)
 	DO I=1,NTET
 		ET1=TET(I).GMET
@@ -317,8 +327,8 @@ SUBROUTINE SETUP_FACE_TBL_TET()
 				DO K=1,FACE(VAL1.IITEM).SHAPE
 					IF(EDGE(FACE(VAL1.IITEM).EDGE(K)).V(1)/=FACE(VAL1.IITEM).V(K)) FACE(VAL1.IITEM).EDGE(K)=-FACE(VAL1.IITEM).EDGE(K)
 				ENDDO
-                V1=NODE(FACE(VAL1.IITEM).V(2)).COORD-NODE(FACE(VAL1.IITEM).V(1)).COORD
-                V2=NODE(FACE(VAL1.IITEM).V(3)).COORD-NODE(FACE(VAL1.IITEM).V(1)).COORD
+                V1=POSDATA.NODE(FACE(VAL1.IITEM).V(2)).COORD-POSDATA.NODE(FACE(VAL1.IITEM).V(1)).COORD
+                V2=POSDATA.NODE(FACE(VAL1.IITEM).V(3)).COORD-POSDATA.NODE(FACE(VAL1.IITEM).V(1)).COORD
                 call r8vec_cross_3d ( v1, v2, NORMAL1(1:3) )
                 T1 = sqrt ( sum ( ( NORMAL1 )**2 ) )
                 if ( T1 /= 0.0D+00 ) then
@@ -328,8 +338,8 @@ SUBROUTINE SETUP_FACE_TBL_TET()
                 FACE(VAL1.IITEM).ISINI=.TRUE.
                 NFACE=VAL1.IITEM
 				DO K=1,3
-					FACE(NFACE).BBOX(1,K)=MINVAL(NODE(FACE(NFACE).V(1:FACE(NFACE).SHAPE)).COORD(K))-VTOL
-					FACE(NFACE).BBOX(2,K)=MAXVAL(NODE(FACE(NFACE).V(1:FACE(NFACE).SHAPE)).COORD(K))+VTOL
+					FACE(NFACE).BBOX(1,K)=MINVAL(POSDATA.NODE(FACE(NFACE).V(1:FACE(NFACE).SHAPE)).COORD(K))-VTOL
+					FACE(NFACE).BBOX(2,K)=MAXVAL(POSDATA.NODE(FACE(NFACE).V(1:FACE(NFACE).SHAPE)).COORD(K))+VTOL
 				ENDDO
             ENDIF
             IF(FACE(VAL1.IITEM).ENUM==0) ALLOCATE(FACE(VAL1.IITEM).ELEMENT(2))
@@ -341,7 +351,7 @@ SUBROUTINE SETUP_FACE_TBL_TET()
                     IF(FACE(VAL1.IITEM).V(K)==TET(I).V(ELTTYPE(TET(I).GMET).FACE(1,J))) THEN
                         IF(FACE(VAL1.IITEM).V(MOD(K,FACE(VAL1.IITEM).SHAPE)+1)/= &
                             TET(I).V(ELTTYPE(TET(I).GMET).FACE(2,J))) THEN
-                            FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).ENUM)=-I !Iµ¥Ôª´ËÃæµÄ·½ÏòÓëfaceµÄ·½Ïò·´Ïò,Îª-1
+                            FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).ENUM)=-I !Iï¿½ï¿½Ôªï¿½ï¿½ï¿½ï¿½Ä·ï¿½ï¿½ï¿½ï¿½ï¿½faceï¿½Ä·ï¿½ï¿½ï¿½ï¿½ï¿½,Îª-1
                         ELSE
                             FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).ENUM)=I
                         ENDIF                  
@@ -349,7 +359,7 @@ SUBROUTINE SETUP_FACE_TBL_TET()
                     ENDIF
                 ENDDO
             ELSE
-                FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).ENUM)=I !Í¬Ïò =1
+                FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).ENUM)=I !Í¬ï¿½ï¿½ =1
             ENDIF
             
                 
@@ -360,27 +370,32 @@ SUBROUTINE SETUP_FACE_TBL_TET()
     
 ENDSUBROUTINE
 
-SUBROUTINE SETUP_EDGE_TBL()
+SUBROUTINE SETUP_EDGE_TBL(ELEMENT,NEL,ESET,NESET,NODE,NNODE)
     
     IMPLICIT NONE
+	INTEGER,INTENT(IN)::NEL,NESET,NNODE
+	TYPE(ELEMENT_TYDEF)::ELEMENT(NEL)    
+    TYPE(ESET_TYDEF)::ESET(NESET)
+    TYPE(NODE_TYDEF)::NODE(NNODE)
+    
     INTEGER::I,J,N1(2),ET1,NEDGE1,TBL_LEN
 	CHARACTER(LEN=:),ALLOCATABLE::KEY1
     TYPE(DICT_DATA)::VAL1
     CHARACTER(64)::CKEY1
     INTEGER::HKEY1
     
-    IF(.NOT.ISINI_GMSHET) THEN        
-        CALL Initialize_et2numNodes()
-        CALL ET_GMSH_EDGE_FACE()
-        ISINI_GMSHET=.TRUE.
-    ENDIF
+    !IF(.NOT.ISINI_GMSHET) THEN        
+    !    CALL Initialize_et2numNodes()
+    !    CALL ET_GMSH_EDGE_FACE()
+    !    ISINI_GMSHET=.TRUE.
+    !ENDIF
 	
     IF(.NOT.ALLOCATED(MEDGE)) ALLOCATE(MEDGE(MAXNMEDGE))
 	
-	TBL_LEN=NNUM	
+	TBL_LEN=NNODE	
     CALL MEDGE_TBL.INIT(TBL_LEN)
-	DO I=1,ENUM
-		ET1=GETGMSHET(ELEMENT(I).ET)
+	DO I=1,NEL
+		ET1=GETGMSHET(ESET(ELEMENT(I).ISET).ET)
 		NEDGE1=ELTTYPE(ET1).NEDGE
 		ELEMENT(I).NEDGE=NEDGE1
         ALLOCATE(ELEMENT(I).EDGE(NEDGE1))
@@ -417,8 +432,12 @@ SUBROUTINE SETUP_EDGE_TBL()
     RETURN
 ENDSUBROUTINE
 
-SUBROUTINE SETUP_FACE_TBL()
+SUBROUTINE SETUP_FACE_TBL(ELEMENT,NEL,ESET,NESET,NODE,NNODE)
     IMPLICIT NONE
+    INTEGER,INTENT(IN)::NEL,NESET,NNODE
+	TYPE(ELEMENT_TYDEF)::ELEMENT(NEL)    
+    TYPE(ESET_TYDEF)::ESET(NESET)
+    TYPE(NODE_TYDEF)::NODE(NNODE)
     INTEGER::I,J,N1(4),ET1,NFACE1,TBL_LEN,N2,K
     REAL(8)::V1(3),V2(3),NORMAL1(3),T1
 	CHARACTER(LEN=:),ALLOCATABLE::KEY1
@@ -426,18 +445,18 @@ SUBROUTINE SETUP_FACE_TBL()
     CHARACTER(64)::CKEY1
     INTEGER::HKEY1
     
-    IF(.NOT.ISINI_GMSHET) THEN
-        CALL Initialize_et2numNodes()
-        CALL ET_GMSH_EDGE_FACE()
-        ISINI_GMSHET=.TRUE.
-    ENDIF    
+    !IF(.NOT.ISINI_GMSHET) THEN
+    !    CALL Initialize_et2numNodes()
+    !    CALL ET_GMSH_EDGE_FACE()
+    !    ISINI_GMSHET=.TRUE.
+    !ENDIF    
 	
     IF(.NOT.ALLOCATED(MFACE)) ALLOCATE(MFACE(MAXNMFACE))
 	
-	TBL_LEN=NNUM	
+	TBL_LEN=NNODE	
     CALL MFACE_TBL.INIT(TBL_LEN)
-	DO I=1,ENUM
-		ET1=GETGMSHET(ELEMENT(I).ET)
+	DO I=1,NEL
+		ET1=GETGMSHET(ESET(ELEMENT(I).ISET).ET)
 		NFACE1=ELTTYPE(ET1).NFACE
 		ELEMENT(I).NFACE=NFACE1
         ALLOCATE(ELEMENT(I).FACE(NFACE1))
@@ -482,9 +501,9 @@ SUBROUTINE SETUP_FACE_TBL()
             
             IF(MFACE(VAL1.IITEM).ENUM>1) THEN
                 DO K=1,MFACE(VAL1.IITEM).SHAPE
-                    IF(MFACE(VAL1.IITEM).V(K)==ELEMENT(I).NODE(ELTTYPE(GETGMSHET(ELEMENT(I).ET)).FACE(1,J))) THEN
+                    IF(MFACE(VAL1.IITEM).V(K)==ELEMENT(I).NODE(ELTTYPE(GETGMSHET(ESET(ELEMENT(I).ISET).ET)).FACE(1,J))) THEN
                         IF(MFACE(VAL1.IITEM).V(MOD(K,MFACE(VAL1.IITEM).SHAPE)+1)/= &
-                            ELEMENT(I).NODE(ELTTYPE(GETGMSHET(ELEMENT(I).ET)).FACE(2,J))) THEN
+                            ELEMENT(I).NODE(ELTTYPE(GETGMSHET(ESET(ELEMENT(I).ISET).ET)).FACE(2,J))) THEN
                             MFACE(VAL1.IITEM).ELEMENT(MFACE(VAL1.IITEM).ENUM)=-I !I?????????????face???????,?-1
                         ELSE
                             MFACE(VAL1.IITEM).ELEMENT(MFACE(VAL1.IITEM).ENUM)=I
@@ -1103,12 +1122,7 @@ SUBROUTINE SETUP_EDGE_TBLi(EDGE_TBL_L,TBL_SIZE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,
     CHARACTER(64)::CKEY1
     INTEGER::HKEY1
     
-    IF(.NOT.ISINI_GMSHET) THEN
-        
-        CALL Initialize_et2numNodes()
-        CALL ET_GMSH_EDGE_FACE()
-        ISINI_GMSHET=.TRUE.
-    ENDIF     
+     
     
 	IF(.NOT.ALLOCATED(EDGE_L)) ALLOCATE(EDGE_L(TBL_SIZE_L))
 	CALL EDGE_TBL_L.FREE
@@ -1234,7 +1248,7 @@ SUBROUTINE SETUP_FACE_TBLi(FACE_TBL_L,TBL_SIZE_L,FACE_L,NFACE_L,EDGE_L,NEDGE_L,E
                     IF(FACE_L(VAL1.IITEM).V(K)==ELEMENT_L(I).V(ELTTYPE(ELEMENT_L(I).GMET).FACE(1,J))) THEN
                         IF(FACE_L(VAL1.IITEM).V(MOD(K,FACE_L(VAL1.IITEM).SHAPE)+1)/= &
                             ELEMENT_L(I).V(ELTTYPE(ELEMENT_L(I).GMET).FACE(2,J))) THEN
-                            FACE_L(VAL1.IITEM).ELEMENT(FACE_L(VAL1.IITEM).ENUM)=-I !Iµ¥Ôª´ËÃæµÄ·½ÏòÓëfaceµÄ·½Ïò·´Ïò,Îª-1
+                            FACE_L(VAL1.IITEM).ELEMENT(FACE_L(VAL1.IITEM).ENUM)=-I !Iï¿½ï¿½Ôªï¿½ï¿½ï¿½ï¿½Ä·ï¿½ï¿½ï¿½ï¿½ï¿½faceï¿½Ä·ï¿½ï¿½ï¿½ï¿½ï¿½,Îª-1
                         ELSE
                             FACE_L(VAL1.IITEM).ELEMENT(FACE_L(VAL1.IITEM).ENUM)=I
                         ENDIF                  
@@ -1242,7 +1256,7 @@ SUBROUTINE SETUP_FACE_TBLi(FACE_TBL_L,TBL_SIZE_L,FACE_L,NFACE_L,EDGE_L,NEDGE_L,E
                     ENDIF
                 ENDDO
             ELSE
-                FACE_L(VAL1.IITEM).ELEMENT(FACE_L(VAL1.IITEM).ENUM)=I !Í¬Ïò =1
+                FACE_L(VAL1.IITEM).ELEMENT(FACE_L(VAL1.IITEM).ENUM)=I !Í¬ï¿½ï¿½ =1
             ENDIF
             
                 

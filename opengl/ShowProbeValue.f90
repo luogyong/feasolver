@@ -2,7 +2,7 @@
 
     use opengl_gl
     use opengl_glut
-    use solverds
+    !use solverds
     !use view_modifier
     use function_plotter
     USE MESHGEO
@@ -10,8 +10,8 @@
     integer(kind=glcint),intent(in) ::  x, y
     real(8)::pt1(3)
     integer::iel,I,NTI1
-    real(8)::val1(NVO),POS1(2)
-    CHARACTER(128)::TITLE1(NVO+20),STR1
+    real(8)::val1(POSDATA.NVAR),POS1(2)
+    CHARACTER(128)::TITLE1(POSDATA.NVAR+20),STR1
 	CHARACTER(32)::CWORD1,CWORD2
     INTEGER,EXTERNAL::PTINTRIlOC,POINTlOC
     
@@ -34,17 +34,17 @@
 		WRITE(CWORD2,'(F10.5)') STEPPLOT.TIME(STEPPLOT.NSTEP)
 		NTI1=NTI1+1
 		TITLE1(NTI1)="ITIME/NTIME:"//TRIM(ADJUSTL(CWORD1))//TRIM(ADJUSTL(CWORD2))
-        DO I=1,NVO
+        DO I=1,POSDATA.NVAR
 			WRITE(STR1,10) VAL1(I)
 			NTI1=NTI1+1
-            TITLE1(NTI1)=TRIM(ADJUSTL(OUTVAR(VO(I)).NAME))//':'//TRIM(ADJUSTL(STR1))
+            TITLE1(NTI1)=TRIM(ADJUSTL(POSDATA.OUTVAR(I).NAME))//':'//TRIM(ADJUSTL(STR1))
         ENDDO
         NTI1=NTI1+1
         WRITE(STR1,20) TET(IEL).MOTHER
         TITLE1(NTI1)="ELEMENT ID:"//':'//TRIM(ADJUSTL(STR1))
         NTI1=NTI1+1
-        WRITE(STR1,20) ELEMENT(TET(IEL).MOTHER).MAT
-        TITLE1(NTI1)="ELEMENT MAT:"//':'//TRIM(ADJUSTL(STR1))
+        WRITE(STR1,20) POSDATA.ELEMENT(TET(IEL).MOTHER).ISET
+        TITLE1(NTI1)="ELEMENT SET:"//':'//TRIM(ADJUSTL(STR1))
         
 		POS1(1)=0.01;POS1(2)=0.95
         CALL SHOW_MTEXT(TITLE1,NTI1,POS1,BLACK,ProbeValuelist)
@@ -61,7 +61,7 @@ endsubroutine
 
 
 subroutine tetshapefun(Pt,itet,shpfun) 
-    use solverds
+    !use solverds
     use MESHGEO
     use SolverMath
     implicit none
@@ -73,7 +73,7 @@ subroutine tetshapefun(Pt,itet,shpfun)
     !real(8),EXTERNAL::determinant
      
     do i=1,tet(itet).nv
-        Va1(:,i)=node(tet(itet).v(i)).coord
+        Va1(:,i)=POSDATA.NODE(tet(itet).v(i)).coord
     enddo
     if(tet(itet).dim==2) then
         v1=va1(:,2)-va1(:,1)
@@ -111,20 +111,20 @@ subroutine tetshapefun(Pt,itet,shpfun)
 endsubroutine
 
  subroutine getval(Pt,itet,val)
-    use solverds
+    !use solverds
     use MESHGEO
     USE function_plotter
     implicit none
     integer,intent(in)::itet
     real(8),intent(in)::Pt(3)
-    real(8)::val(nvo)
+    real(8)::val(POSDATA.NVAR)
     real(8)::shpfun(4),val1(4)
     integer::i,n1
     
     call tetshapefun(Pt,itet,shpfun)
     n1=tet(itet).nv    
-    do i=1,size(nodalq,dim=2)
-        val1(1:n1)=nodalq(tet(itet).v(1:n1),i,stepplot.istep)
+    do i=1,size(POSDATA.nodalq,dim=2)
+        val1(1:n1)=POSDATA.nodalq(tet(itet).v(1:n1),i,stepplot.istep)
         val(i)=dot_product(val1(1:n1),shpfun(1:n1))
     enddo
     
@@ -189,7 +189,7 @@ end subroutine
 
 
 INTEGER FUNCTION POINTlOC(PT)
-    USE solverds
+    !USE solverds
 	USE MESHGEO
 	IMPLICIT NONE
 	REAL(8),INTENT(IN)::PT(3)
@@ -204,13 +204,13 @@ INTEGER FUNCTION POINTlOC(PT)
 		IF(TET(I).ISDEAD==1) CYCLE
 		IF(TET(I).BBOX(2,1)>=PT(1).and.TET(I).BBOX(1,1)<=PT(1)) then
 			IF(TET(I).BBOX(2,2)>=PT(2).and.TET(I).BBOX(1,2)<=PT(2)) then
-				IF(NDIMENSION>2) THEN
+				IF(POSDATA.NDIM>2) THEN
 					IF(TET(I).BBOX(2,3)<PT(3).and.TET(I).BBOX(1,3)>PT(3)) CYCLE
 				ENDIF
 				IF(TET(I).DIM==2) THEN
-					IF(PtInTri(PT, NODE(TET(I).V(1)).COORD, NODE(TET(I).V(2)).COORD, NODE(TET(I).V(3)).COORD)) EXIT
+					IF(PtInTri(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD)) EXIT
 				ELSEIF(TET(I).DIM==3) THEN
-					IF(PtInTET(PT, NODE(TET(I).V(1)).COORD, NODE(TET(I).V(2)).COORD, NODE(TET(I).V(3)).COORD,NODE(TET(I).V(4)).COORD)) EXIT
+					IF(PtInTET(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD,POSDATA.NODE(TET(I).V(4)).COORD)) EXIT
 				ENDIF
 			ENDIF
 		endif
@@ -222,7 +222,7 @@ INTEGER FUNCTION POINTlOC(PT)
 ENDFUNCTION
 
 INTEGER FUNCTION PTINTRIlOC(PT)
-    USE solverds
+    !USE solverds
 	USE MESHGEO
 	IMPLICIT NONE
 	REAL(8),INTENT(IN)::PT(3)
@@ -236,10 +236,10 @@ INTEGER FUNCTION PTINTRIlOC(PT)
 		IF(FACE(I).ISDEAD==1) CYCLE
 		IF(FACE(I).BBOX(2,1)>=PT(1).and.FACE(I).BBOX(1,1)<=PT(1)) then
 			IF(FACE(I).BBOX(2,2)>=PT(2).and.FACE(I).BBOX(1,2)<=PT(2)) then
-				IF(NDIMENSION>2) THEN
+				IF(POSDATA.NDIM>2) THEN
 					IF(FACE(I).BBOX(2,3)<PT(3).and.FACE(I).BBOX(1,3)>PT(3)) CYCLE
 				ENDIF
-				IF(PtInTri(PT, NODE(FACE(I).V(1)).COORD, NODE(FACE(I).V(2)).COORD, NODE(FACE(I).V(3)).COORD)) EXIT
+				IF(PtInTri(PT, POSDATA.NODE(FACE(I).V(1)).COORD, POSDATA.NODE(FACE(I).V(2)).COORD, POSDATA.NODE(FACE(I).V(3)).COORD)) EXIT
 				
 			ENDIF
 		endif

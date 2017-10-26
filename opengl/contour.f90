@@ -1,5 +1,5 @@
 subroutine DrawSurfaceContour()
-use solverds
+!use solverds
 use opengl_gl
 use function_plotter
 use MESHGEO
@@ -15,21 +15,21 @@ integer :: i,j,k,n1,MAT1(10),ie1  !,nfrac
 
 ! prepare to make a new display list
 
-ALLOCATE(VEC1(3,NNUM))
+ALLOCATE(VEC1(3,POSDATA.NNODE))
 VEC1=0.D0
 if (draw_surface_solid) then
 
     SCALE1=1.D0
-    IF(IsContour_In_DeformedMesh.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
+    IF(IsContour_In_DeformedMesh.AND.POSDATA.IDISX>0.AND.POSDATA.IDISY>0) THEN
 
-		VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO,STEPPLOT.ISTEP)
-		VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO,STEPPLOT.ISTEP)
-		IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO,STEPPLOT.ISTEP)
+		VEC1(1,:)=POSDATA.NODALQ(:,POSDATA.IDISX,STEPPLOT.ISTEP)
+		VEC1(2,:)=POSDATA.NODALQ(:,POSDATA.IDISY,STEPPLOT.ISTEP)
+		IF(POSDATA.NDIM>2) VEC1(3,:)=POSDATA.NODALQ(:,POSDATA.IDISZ,STEPPLOT.ISTEP)
 
         scale1=STEPPLOT.VSCALE(1)*Scale_Deformed_Grid
     ENDIF
 
-    n1=outvar(CONTOUR_PLOT_VARIABLE).ivo
+    n1=CONTOUR_PLOT_VARIABLE
 
     call glDeleteLists(contourlist, 1_glsizei)
 
@@ -47,11 +47,11 @@ if (draw_surface_solid) then
    
     if (surface_color == rainbow_surface) then
         if(allocated(vcolor)) deallocate(vcolor)
-        allocate(vcolor(4,NNUM))
+        allocate(vcolor(4,POSDATA.NNODE))
 
         
-        do i=1,nnum
-            call get_rainbow(nodalq(i,n1,STEPPLOT.ISTEP),contourbar.val(1),contourbar.val(contourbar.nval),vcolor(:,i))
+        do i=1,POSDATA.NNODE
+            call get_rainbow(POSDATA.NODALQ(i,n1,STEPPLOT.ISTEP),contourbar.val(1),contourbar.val(contourbar.nval),vcolor(:,i))
             if(isTransparency) vcolor(4,i)=0.6
         enddo
  
@@ -64,7 +64,7 @@ if (draw_surface_solid) then
 		IF(FACE(I).ISDEAD==1) CYCLE
 		
         IF(FACE(I).ENUM>1) THEN
-			MAT1(1:FACE(I).ENUM)=ELEMENT(TET(ABS(FACE(I).ELEMENT)).MOTHER).MAT !
+			MAT1(1:FACE(I).ENUM)=POSDATA.ELEMENT(TET(ABS(FACE(I).ELEMENT)).MOTHER).ISET !
 			IF(all(MAT1(1:FACE(I).ENUM)-MAT1(1)==0)) CYCLE		
 		ENDIF
         do j=1,3
@@ -74,7 +74,7 @@ if (draw_surface_solid) then
             ELSE
                 call glcolor4fv(vcolor(:,face(i).v(j)))
             ENDIF
-            call glvertex3dv(node(face(i).v(j)).coord+VEC1(:,face(i).v(j))*SCALE1)            
+            call glvertex3dv(POSDATA.node(face(i).v(j)).coord+VEC1(:,face(i).v(j))*SCALE1)            
         enddo    
     enddo
 
@@ -132,7 +132,7 @@ endsubroutine
 
 
 subroutine DrawLineContour()
-use solverds
+!use solverds
 use opengl_gl
 use function_plotter
 use MESHGEO
@@ -168,19 +168,19 @@ interface
 endinterface
 
 
-ALLOCATE(CPNT1(3,NEDGE),VEC1(3,NNUM),XYZ(3,NNUM))    
+ALLOCATE(CPNT1(3,NEDGE),VEC1(3,POSDATA.NNODE),XYZ(3,POSDATA.NNODE))    
 
 if (draw_contour) then
 
     SCALE1=1.D0;VEC1=0.D0
-    IF(IsContour_In_DeformedMesh.AND.OUTVAR(DISX).VALUE>0.AND.OUTVAR(DISY).VALUE>0) THEN
-	    VEC1(1,:)=NODALQ(:,OUTVAR(DISX).IVO,STEPPLOT.ISTEP)
-	    VEC1(2,:)=NODALQ(:,OUTVAR(DISY).IVO,I)
-	    IF(NDIMENSION>2) VEC1(3,:)=NODALQ(:,OUTVAR(DISZ).IVO,STEPPLOT.ISTEP)
+    IF(IsContour_In_DeformedMesh.AND.POSDATA.IDISX>0.AND.POSDATA.IDISY>0) THEN
+	    VEC1(1,:)=POSDATA.NODALQ(:,POSDATA.IDISX,STEPPLOT.ISTEP)
+	    VEC1(2,:)=POSDATA.NODALQ(:,POSDATA.IDISY,I)
+	    IF(POSDATA.NDIM>2) VEC1(3,:)=POSDATA.NODALQ(:,POSDATA.IDISZ,STEPPLOT.ISTEP)
 	    scale1=Scale_Deformed_Grid*STEPPLOT.VSCALE(1)
     ENDIF
-    DO I=1,NNUM
-        XYZ(:,I)=NODE(I).COORD+VEC1(:,I)*SCALE1    
+    DO I=1,POSDATA.NNODE
+        XYZ(:,I)=POSDATA.NODE(I).COORD+VEC1(:,I)*SCALE1    
     ENDDO
     IF(ALLOCATED(ISOLINE)) DEALLOCATE(ISOLINE)
     NISOLINE=CONTOURBAR.NVAL
@@ -189,7 +189,7 @@ if (draw_contour) then
     do i=1,contourbar.nval
         CPNT1=0.0d0
         
-	    call ContourLine(EDGE,NEDGE,FACE,NFACE,TET,NTET,XYZ,NODALQ(:,outvar(CONTOUR_PLOT_VARIABLE).ivo,STEPPLOT.ISTEP),NNUM, &
+	    call ContourLine(EDGE,NEDGE,FACE,NFACE,TET,NTET,XYZ,POSDATA.NODALQ(:,CONTOUR_PLOT_VARIABLE,STEPPLOT.ISTEP),POSDATA.NNODE, &
                             contourbar.VAL(I),CLINE1,NCL1,CPNT1,TRI1,NTRI1)
         AT1=0;N1=0
         DO J=1,NCL1
@@ -236,7 +236,7 @@ if (draw_contour) then
     
 	do i=1,NISOLINE
   !      CPNT1=0.0d0
-		!call ContourLine(EDGE,NEDGE,FACE,NFACE,TET,NTET,XYZ,NODALQ(:,N1),NNUM,contourbar.VAL(I),CLINE1,NCL1,CPNT1,TRI1,NTRI1)
+		!call ContourLine(EDGE,NEDGE,FACE,NFACE,TET,NTET,XYZ,NODALQ(:,N1),POSDATA.NNODE,contourbar.VAL(I),CLINE1,NCL1,CPNT1,TRI1,NTRI1)
 		call glcolor4fv(mycolor(:,black))		
 		CALL GLBEGIN(GL_LINES)
 			DO J=1,ISOLINE(I).NE
@@ -407,7 +407,7 @@ subroutine ContourLine(EDGE_L,NEDGE_L,FACE_L,NFACE_L,TET_L,NTET_L,XYZ,&
 end subroutine
 
 subroutine initialize_contourplot(IVARPLOT)
-    use solverds
+    !use solverds
     use function_plotter
     implicit none
 	INTEGER,INTENT(IN)::IVARPLOT
@@ -417,11 +417,11 @@ subroutine initialize_contourplot(IVARPLOT)
     character(128)::str1,str2  
     
     CONTOURBAR.IVARPLOT=IVARPLOT
-    minv=minval(nodalq(:,IVARPLOT,:))
-    maxv=maxval(nodalq(:,IVARPLOT,:))
+    minv=minval(POSDATA.NODALQ(:,IVARPLOT,:))
+    maxv=maxval(POSDATA.NODALQ(:,IVARPLOT,:))
     WRITE(STR1,'(G13.3)') MAXV;WRITE(STR2,'(G13.3)') MINV;
         
-    contourbar.title=trim(adjustl(outvar(VO(IVARPLOT)).name))//',MAX='//TRIM(ADJUSTL(STR1))//',MIN='//TRIM(ADJUSTL(STR2))
+    contourbar.title=trim(adjustl(POSDATA.OUTVAR(IVARPLOT).name))//',MAX='//TRIM(ADJUSTL(STR1))//',MIN='//TRIM(ADJUSTL(STR2))
     IF(ABS(MINV)<1E-7) MINV=SIGN(1E-7,MINV)
     call loose_label(minv, maxv,init_num_contour,graphmin,graphmax,graphstep,contourbar.nfrac)
     graphstep=graphstep/scale_contour_num

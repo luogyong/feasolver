@@ -369,7 +369,7 @@ subroutine solve_SLD()
 		nc1 = setexitqq(QWIN$EXITNOPERSIST)
     endif
     
-    call plot_func
+    call plot_func('')
     
 	if(allocated(solution)) deallocate(solution)
 	if(allocated(bdylds)) deallocate(bdylds)
@@ -393,7 +393,7 @@ subroutine solve_SLD()
     if(allocated(inivaluedof)) deallocate(inivaluedof)
     if(allocated(Tstepdis)) deallocate(Tstepdis)
 	IF(ALLOCATED(NODALQ)) DEALLOCATE(NODALQ)
-    IF(ALLOCATED(VEC)) DEALLOCATE(VEC)
+    !IF(ALLOCATED(VEC)) DEALLOCATE(VEC)
 
 10 format('ISFC=',L1,',SICR=',F6.3,',MYFVAL=',F6.4 ',ConvCoff.=',f6.3,',SumForce.=', E10.3,',SumRes=',E10.3 ',MaxDiff.=',f7.3,'(N=',I7,'),R.F.=',f8.5, &
 				',NIter=',I4,',NSubTS(E.Time)=',I4,'(',F8.3,'),NIncr=',I2,'.')

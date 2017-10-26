@@ -262,35 +262,38 @@ return
 end subroutine reset_view
 
 subroutine menu_handler1(value)
-!          ------------
-integer(kind=glcint), intent(in out) :: value
+    USE POS_IO
+    IMPLICIT NONE
 
-! This routine handles the first level entries in the menu
+    integer(kind=glcint), intent(in out) :: value
 
-select case(value)
+    ! This routine handles the first level entries in the menu
 
-case(RESET)
-   call reset_to_init
+    select case(value)
+
+    case(RESET)
+       call reset_to_init
    
-case(VIEW_ZP,VIEW_ZN,VIEW_XP,VIEW_XN,VIEW_YP,VIEW_YN)
-   call view_from(VALUE)
+    case(VIEW_ZP,VIEW_ZN,VIEW_XP,VIEW_XN,VIEW_YP,VIEW_YN)
+       call view_from(VALUE)
    
-!CASE(VIEW_SAVE)
-!    call glGetDoublev(GL_MODELVIEW_MATRIX, ModelViewSaved)
-!CASE(VIEW_CAST)
-!    CALL GLMATRIXMODE(GL_MODELVIEW_MATRIX) 
-!    call glLoadMatrixd(reshape(ModelViewSaved,(/4,4/)));
-!    call glutPostRedisplay
-case(QUIT)
-   stop
-case(PRO_SYS)
-    ISPERSPECT=.NOT.ISPERSPECT
-    CALL myreshape(GLUTGET(GLUT_WINDOW_WIDTH),GLUTGET(GLUT_WINDOW_HEIGHT))
-    call glutPostRedisplay
-end select
+    !CASE(VIEW_SAVE)
+    !    call glGetDoublev(GL_MODELVIEW_MATRIX, ModelViewSaved)
+    !CASE(VIEW_CAST)
+    !    CALL GLMATRIXMODE(GL_MODELVIEW_MATRIX) 
+    !    call glLoadMatrixd(reshape(ModelViewSaved,(/4,4/)));
+    !    call glutPostRedisplay
+    case(QUIT)
+       call POSDATA.FREE()
+       stop
+    case(PRO_SYS)
+        ISPERSPECT=.NOT.ISPERSPECT
+        CALL myreshape(GLUTGET(GLUT_WINDOW_WIDTH),GLUTGET(GLUT_WINDOW_HEIGHT))
+        call glutPostRedisplay
+    end select
 
 
-return
+    return
 end subroutine menu_handler1
 
 !          ---------------

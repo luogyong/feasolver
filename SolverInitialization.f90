@@ -1055,8 +1055,7 @@ subroutine Initialization()
 	!form element list
 	call FormElementList()
 
-	call SETUP_EDGE_TBL()
-    call SETUP_FACE_TBL()	
+	
     
 	!INITIALIZED DOFHEAD
 	CALL NDOF_HEAD()

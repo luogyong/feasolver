@@ -7,7 +7,7 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 	implicit none
 	integer::istr
 	character(istr)::str
-	character(32)::cvalue
+	character(*)::cvalue
 	real(8)::value
 	integer(4)::msg
 	
@@ -20,9 +20,20 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 		read(str,*) value
 		return
 	end if
-
-	call lowcase(str,istr)
+ 
+	call lowcase(str)
+    cvalue=str
 	select case(trim(str))
+        CASE('felineseg') 
+            VALUE=FELINESEG
+        CASE('fetriangle') 
+            VALUE=FETRIANGLE
+        CASE('fequadrilateral') 
+            VALUE=FEQUADRILATERAL
+        CASE('fetetrahedron')
+            VALUE=FETETRAHEDRON
+        CASE('febrick') 
+            VALUE=FEBRICK
 		!material type constants
 		case('elastic')
 			value=ELASTIC
@@ -371,8 +382,7 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 			value=sloan
 		CASE('dang')
 			value=dang			
-		case default
-			cvalue=str
+		case default			
 			print *, 'No such Constant:'//trim(str)//',It will be returned as a character variable.'
 			!call Err_msg(str)																																
 	end select
@@ -380,12 +390,12 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 end subroutine
 
 !translate all the characters in term into lowcase character string
-subroutine lowcase(term,iterm)
+subroutine lowcase(term)
 	use dflib
 	implicit none
-	integer i,in,nA,nZ,nc,nd,iterm
+	integer i,in,nA,nZ,nc,nd
 	character(1)::ch
-	character(iterm)::term
+	character(*)::term
 	
 	term=adjustl(trim(term))
 	nA=ichar('A')
