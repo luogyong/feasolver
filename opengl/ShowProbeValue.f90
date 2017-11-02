@@ -305,78 +305,7 @@ INTEGER FUNCTION POINTlOC(PT)
 ENDFUNCTION
 
 
-!INTEGER FUNCTION POINTlOC_SEC(PT,TRYIEL)
-!    !USE solverds
-!!TRYIEL<1£¬START search from iel=1 to ntet
-!!TRYIEL>=1, START SEARCH FROM THE THECENTER OF IEL=TRYIEL TO ITS NEIghborhood.
-!	USE MESHGEO
-!	IMPLICIT NONE
-!	REAL(8),INTENT(IN)::PT(3)
-!    INTEGER,INTENT(IN)::TRYIEL
-!	INTEGER::I,J,K,NEXTTRI
-!	LOGICAL,EXTERNAL::PtInTri,PtInTET
-!	
-!    LOGICAL::ISNOTFOUND=.TRUE.,ISIN=.FALSE.
-!	!I=INT(1+(RANDOM(1))(NFACE-1))
-!    
-!    
-!    
-!    
-!    IF(.NOT.ALLOCATED(ISSEARCH)) THEN
-!        ALLOCATE(ISSEARCH(NTET))        
-!    ENDIF
-!    
-!    IF(TRYIEL<1) THEN
-!        
-!	    DO I=1,NTET       
-!		    IF(TET(I).ISDEAD==1) CYCLE
-!		    IF(TET(I).BBOX(2,1)>=PT(1).and.TET(I).BBOX(1,1)<=PT(1)) then
-!			    IF(TET(I).BBOX(2,2)>=PT(2).and.TET(I).BBOX(1,2)<=PT(2)) then
-!				    IF(POSDATA.NDIM>2) THEN
-!					    IF(TET(I).BBOX(2,3)<PT(3).and.TET(I).BBOX(1,3)>PT(3)) CYCLE
-!				    ENDIF
-!				    IF(TET(I).DIM==2) THEN
-!					    IF(PtInTri(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD)) EXIT
-!				    ELSEIF(TET(I).DIM==3) THEN
-!					    IF(PtInTET(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD,POSDATA.NODE(TET(I).V(4)).COORD)) EXIT
-!				    ENDIF
-!			    ENDIF
-!		    endif
-!	    ENDDO
-!    
-!    ELSE
-!        
-!        ISSEARCH=0
-!        NEXTTRI=TRYIEL
-!
-!        DO WHILE(NEXTTRI>0)
-!            I=NEXTTRI            
-!            IF(ISSEARCH(I)==1) THEN
-!            
-!            ENDIF
-!
-!
-!		    IF(TET(I).DIM==2) THEN
-!                CALL PtInTri2(PT,I,ISIN,NEXTTRI) 
-!                IF(ISIN.OR.NEXTTRI==0) THEN
-!                    I=NEXTTRI
-!                    EXIT
-!                
-!                ENDIF
-!			    
-!		    ELSEIF(TET(I).DIM==3) THEN
-!			    IF(PtInTET(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD,POSDATA.NODE(TET(I).V(4)).COORD)) EXIT
-!		    ENDIF
-!			    
-!	    ENDDO
-!        
-!    ENDIF
-!	
-!	IF(I>NTET) I=0
-!    LASTLOC=I
-!    POINTlOC_SEC=I
-!	RETURN
-!ENDFUNCTION
+
 
 INTEGER FUNCTION PTINTRIlOC(PT)
     !USE solverds
@@ -407,6 +336,9 @@ INTEGER FUNCTION PTINTRIlOC(PT)
 	RETURN
 ENDFUNCTION
 
+! 
+! Barycentric coordinates search method.
+!if fail, recheck by searching one-by-one method (POINTlOC)
 integer function POINTlOC_BC(Pt,TRYiel)
     use MESHGEO
     USE IFPORT
@@ -416,12 +348,8 @@ integer function POINTlOC_BC(Pt,TRYiel)
     real(8)::shpfun(4)
     integer::IEL,n1,N2,I
     INTEGER,EXTERNAL::POINTlOC
-
-    !IF(.NOT.ALLOCATED(ISSEARCH)) THEN
-    !    ALLOCATE(ISSEARCH(NTET))        
-    !ENDIF
-    !
-    !ISSEARCH=0
+    integer::N2E1(1:4,3:4)=reshape([2,3,1,0,3,4,2,1],[4,2])
+  
     N2=0
     POINTlOC_BC=0
     IEL=0
@@ -455,11 +383,14 @@ integer function POINTlOC_BC(Pt,TRYiel)
     ENDIF
     
     do while(.true.)
-        N2=N2+1
+        !N2=N2+1
         call tetshapefun(Pt,iel,shpfun)
-        n1=minloc(shpfun(1:tet(iel).nv),dim=1)
+        n2=tet(iel).nv
+        
+        n1=minloc(shpfun(1:n2),dim=1)
         if(shpfun(n1)<0.d0) then            
-            iel=tet(iel).adjelt(mod(n1,3)+1)
+            !iel=tet(iel).adjelt(mod(n1,3)+1)
+            iel=tet(iel).adjelt(N2E1(n1,n2))
             !PRINT *, IEL,N2
             if(iel==0) then
                 !RECHECK BY THE FINAL METHOD.
@@ -479,51 +410,6 @@ integer function POINTlOC_BC(Pt,TRYiel)
 end function
 
 
-!subroutine PtInTri2 (pt,iel,isIn)
-!
-!    use MESHGEO
-!	implicit none
-!	real(8),intent(in)::pt(3)
-!    integer,intent(inout)::iel
-!    integer,intent(inout)::isIn
-!    
-!    integer,EXTERNAL::isacw
-!    real(8)::T1(3,3)
-!    integer::i,j,b1,n1,n2,n3
-!    
-!    
-!    
-!    isIn=.false.;nextTri=0,E1=2
-!    issearch=0
-!    if(iel<1) iel=1
-!    do while(.true)
-!    
-!        do i=1,3
-!            t1(:,i)=posdata.node(tet(iel).v(i)).coord
-!        enddo
-!        !v1,v2,v3 assume to be in ccw order.   
-!        n1=
-!        do i=1,3
-!            if(i==crossedge1) cycle            
-!            j=mod(i,3)+1
-!            b1 = isacw(pt(1),pt(2),pt(3),t1(1,i),t1(2,i),t1(3,i),t1(1,j),t1(2,j),t1(3,j)) ;
-!            if(b1==2) then
-!                isIn=.true.
-!                return
-!            endif
-!            n1=tet(iel).adjelt(i)   
-!            if(b1==-1.and.n1>0) then
-!                iel=n1           
-!                crossedge1=i
-!            endif
-!        enddo
-!    
-!        isIn=.true.	
-!        
-!    enddo
-!    
-! 
-!end subroutine
 
 logical function PtInTri (pt, v1, v2, v3)
 	implicit none
