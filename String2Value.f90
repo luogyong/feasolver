@@ -24,6 +24,10 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 	call lowcase(str)
     cvalue=str
 	select case(trim(str))
+        CASE('mc_c')
+            value=mc_c
+        CASE('mc_phi')
+            value=mc_phi            
         CASE('felineseg') 
             VALUE=FELINESEG
         CASE('fetriangle') 

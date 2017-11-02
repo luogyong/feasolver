@@ -71,7 +71,7 @@ integer(kind=glcint), parameter :: ZOOM = 1, PAN = 2, ROTATE = 3, SCALEX = 4, &
 integer(kind=glcint), parameter :: RESET = 10,QUIT = 11,PRO_SYS=12
 integer(kind=glcint), parameter:: VIEW_ZP =13,VIEW_ZN=14,VIEW_XP=15,VIEW_XN=16,VIEW_YP=17,    VIEW_YN=18,View_Save=19,View_CAST=20
 real(kind=gldouble), parameter :: PI = 3.141592653589793_gldouble
-real(kind=gldouble)::minx,miny,minz,maxx,maxy,maxz,axis_rotate(3),phi_rotate=0.,model_radius
+real(kind=gldouble)::axis_rotate(3),phi_rotate=0.,model_radius
 real(gldouble),dimension(16)::ModelViewSaved
 LOGICAL,public::ISPERSPECT=.TRUE.
 INTEGER,PUBLIC::INPUTKEY=-1

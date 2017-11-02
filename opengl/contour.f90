@@ -2,8 +2,8 @@ subroutine DrawSurfaceContour()
 !use solverds
 use opengl_gl
 use function_plotter
-use MESHGEO
-use view_modifier
+!use MESHGEO
+!use view_modifier
 implicit none
 REAL(GLDOUBLE)::SCALE1
 REAL(8),ALLOCATABLE::VEC1(:,:)
@@ -135,8 +135,8 @@ subroutine DrawLineContour()
 !use solverds
 use opengl_gl
 use function_plotter
-use MESHGEO
-use view_modifier
+!use MESHGEO
+!use view_modifier
 implicit none
 real(GLDOUBLE),ALLOCATABLE::CPNT1(:,:)    
 INTEGER,allocatable::CLINE1(:,:),TRI1(:,:)
@@ -270,7 +270,7 @@ endsubroutine
 subroutine ContourLine(EDGE_L,NEDGE_L,FACE_L,NFACE_L,TET_L,NTET_L,XYZ,&
                     VA,nVA,VC,LINE,NLINE,CONTOURPOINT,TRI,NTRI)
 
-    use MESHGEO
+    !use MESHGEO
     use function_plotter
     implicit none
     integer,intent(in)::nVA,NEDGE_L,NFACE_L,NTET_L

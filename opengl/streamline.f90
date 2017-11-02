@@ -1,7 +1,5 @@
 SUBROUTINE STREAMLINE_INI()
     use function_plotter
-    !use solverds
-    USE POS_IO
     IMPLICIT NONE
     
     !INITIALIZE IVO
@@ -23,13 +21,10 @@ END SUBROUTINE
 
 
 SUBROUTINE STREAMLINE_PLOT()
-    !use solverds
-    use opengl_gl
     use function_plotter
-    use MESHGEO
-    use view_modifier
+
     implicit none
-   integer :: i,j,k,n1
+    integer :: i,j,k,n1
 
     call glDeleteLists(STREAMLINELIST, 1_glsizei)
     call reset_view    
@@ -103,9 +98,24 @@ subroutine streamline_update()
 	
 end subroutine
 
+subroutine slopestability_streamline()
+    use function_plotter
+    implicit none
+    real(8)::pt1(3)
+    integer::iel1,i,j
+    
+    
+    do i=1,nstreamline
+        do j=1,streamline(i).nv       
+		
+        ENDDO
+	enddo
+    
+    
+
+endsubroutine
+
 subroutine streamline_integration(istreamline)
-    !USE solverds
-    use MESHGEO
     use function_plotter
     use ODE_SOLVER
     implicit none
@@ -113,15 +123,16 @@ subroutine streamline_integration(istreamline)
     INTEGER::N1=3,IEL,I,J,NUP1
     INTEGER,PARAMETER::MAXSTEP1=5000
     REAL(8)::V1(3),V2(3),Y(3),EPS,YSCAL(3),Hdid,Hnext,T,Htry,direction1,IPT1(3)=0.D0,IPT2(3)=0.D0
-    REAL(8)::YSAV(1:POSDATA.NDIM,MAXSTEP1),YSAV_UP(1:POSDATA.NDIM,MAXSTEP1)
+    REAL(8)::YSAV(1:POSDATA.NDIM,MAXSTEP1),YSAV_UP(1:POSDATA.NDIM,MAXSTEP1),&
+            VAL1(1:POSDATA.NVAR,0:MAXSTEP1), VAL2(1:POSDATA.NVAR,0:MAXSTEP1)
     REAL(8)::P1(3),P2(3)
     EXTERNAL::DERIVS
     INTEGER::ISINTERCEPT1
     
  
     DO J=1,2
-        I=0
-        y=STREAMLINE(ISTREAMLINE).PTstart(1:POSDATA.NDIM);t=0.d0;YSAV=0.D0
+        I=0;Y=0.D0
+        y=STREAMLINE(ISTREAMLINE).PTstart(1:POSDATA.NDIM);t=0.d0;YSAV=0.D0;VAL1=0.D0
         IF(J==1) THEN
             DIRECTION1=-1.d0
         ELSE
@@ -129,6 +140,7 @@ subroutine streamline_integration(istreamline)
         ENDIF
         DO WHILE(I<MAXSTEP1)        
            CALL derivs(T,y,V1) 
+           VAL1(1:POSDATA.NVAR,I)=RKINFO.VAL(1:POSDATA.NVAR)
            IF(RKINFO.ISOUTOFRANGE.AND.I>1) then
                 ISINTERCEPT1=0
                 P1(1:POSDATA.NDIM)=YSAV(1:POSDATA.NDIM,I-1)
@@ -138,7 +150,11 @@ subroutine streamline_integration(istreamline)
                 ENDIF
                 CALL GET_BC_INTERSECTION(P1,P2,IPT1,IPT2,ISINTERCEPT1)
                 IF(ISINTERCEPT1==1) THEN
-                    YSAV(:,I)=IPT1(1:POSDATA.NDIM)                
+                    YSAV(:,I)=IPT1(1:POSDATA.NDIM)
+                    call ProbeatPhyscialspace(IPT1,VAL1(1:POSDATA.NVAR,I),iel) 
+                    !if(iel<=0) then
+                    !    pause 'point out of mesh.sub=streamline_integration'
+                    !endif
                 ENDIF
                 EXIT 
             ENDIF    
@@ -163,16 +179,21 @@ subroutine streamline_integration(istreamline)
         else
             IF(J==1) THEN
                 NUP1=I
-                YSAV_UP(:,1:NUP1)=YSAV(:,NUP1:1:-1)                
+                YSAV_UP(:,1:NUP1)=YSAV(:,NUP1:1:-1)
+                VAL2(1:POSDATA.NVAR,1:NUP1)=VAL1(1:POSDATA.NVAR,NUP1:1:-1)
             ELSE
                 STREAMLINE(istreamline).NV=I+NUP1+1
                 IF(ALLOCATED(STREAMLINE(istreamline).V)) DEALLOCATE(STREAMLINE(istreamline).V)                
                 ALLOCATE(STREAMLINE(istreamline).V(3,STREAMLINE(istreamline).NV))
+                IF(ALLOCATED(STREAMLINE(ISTREAMLINE).VAL)) DEALLOCATE(STREAMLINE(ISTREAMLINE).VAL)
+                ALLOCATE(STREAMLINE(ISTREAMLINE).VAL(1:POSDATA.NVAR,STREAMLINE(istreamline).NV))
+                STREAMLINE(ISTREAMLINE).VAL=0.D0
                 STREAMLINE(istreamline).V(3,:)=0.d0
-                STREAMLINE(istreamline).V(1:POSDATA.NDIM,1:NUP1)=YSAV_UP(:,1:NUP1)
+                STREAMLINE(istreamline).V(1:POSDATA.NDIM,1:NUP1)=YSAV_UP(:,1:NUP1)                
                 STREAMLINE(istreamline).V(1:POSDATA.NDIM,NUP1+1)=STREAMLINE(ISTREAMLINE).PTstart(1:POSDATA.NDIM)
                 STREAMLINE(istreamline).V(1:POSDATA.NDIM,2+NUP1:I+1+NUP1)=YSAV(:,1:I)
-                
+                STREAMLINE(ISTREAMLINE).VAL(:,1:NUP1)=VAL2(1:POSDATA.NVAR,1:NUP1)
+                STREAMLINE(ISTREAMLINE).VAL(:,NUP1+1:NUP1+I+1)=VAL1(1:POSDATA.NVAR,0:I)                
             ENDIF
         ENDIF
     ENDDO
@@ -182,8 +203,6 @@ subroutine streamline_integration(istreamline)
 end subroutine
     
 SUBROUTINE STREAMLINE_STEP_SIZE()
-    !USE solverds
-    USE MESHGEO
     USE function_plotter
     IMPLICIT NONE
 
@@ -208,19 +227,25 @@ SUBROUTINE derivs(T,PT,V)
     REAL(8),INTENT(OUT)::V(3)
     INTEGER::IEL
     REAL(8)::VAL1(100)    
-    INTEGER,EXTERNAL::POINTlOC
+    INTEGER,EXTERNAL::POINTlOC,POINTlOC_BC
+    INTEGER,SAVE::TRYIEL=0
     
     VAL1=0.D0
-    iel=POINTlOC(PT)
+    !iel=POINTlOC(PT)
+    
+    IEL=POINTlOC_BC(Pt,TRYIEL)
+    TRYIEL=IEL
     V=0.D0
     RKINFO.ISOUTOFRANGE=.FALSE.
     RKINFO.IEL=IEL
     IF(iel>0) then        
         call getval(PT,iel,val1)
+        RKINFO.VAL(1:POSDATA.NVAR)=val1(1:POSDATA.NVAR)
         V(1:2)=VAL1(IVO(1:2))
         IF(IVO(3)>0) V(3)=VAL1(IVO(3))
         RKINFO.LASTIEL=IEL
-    ELSE        
+    ELSE
+        RKINFO.VAL(1:POSDATA.NVAR)=0.D0
         RKINFO.ISOUTOFRANGE=.TRUE.
     endif    
 

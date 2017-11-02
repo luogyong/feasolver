@@ -14,7 +14,7 @@ subroutine Initialization()
 !Last update: 2009,10,04 
 !**************************************************************************************************************
 	use solverds
-    USE MESHGEO
+    !USE MESHGEO
 	implicit none
 	integer::i,j,k,nj,p,j1,j2,iset1
 	integer::n1,n2,n3,n4
@@ -1204,7 +1204,7 @@ subroutine el_alloc_room(ienum)
 					allocate(node(element(ienum).node(i)).stress(6))
 					allocate(node(element(ienum).node(i)).strain(6))
 					allocate(node(element(ienum).node(i)).pstrain(6))
-					allocate(node(element(ienum).node(i)).sfr(6))
+					IF(OUTVAR(SFR).VALUE>0) allocate(node(element(ienum).node(i)).sfr(8))
 				end if				
 			end do			
 	end select

@@ -225,8 +225,8 @@ MODULE POS_IO
         INTEGER,PUBLIC::IX=0,IY=0,IZ=0,IDISX=0,IDISY=0,IDISZ=0, &  !SPECIALL VARIABLE FOR VECTOR PAIR
                 IVX=0,IVY=0,IVZ=0,IHEAD=0,&
                 IGRADX=0,IGRADY=0,IGRADZ=0,&
-                ISFR_SFRX=0,ISFR_SFRY=0
-        real(8)::modelr !模型外接圆半径
+                ISFR_SFRX=0,ISFR_SFRY=0,IMC_C=0,IMC_PHI=0
+        real(8)::modelr,minx,miny,minz,maxx,maxy,maxz !模型外接圆半径
         type(outvar_tydef),ALLOCATABLE::OUTVAR(:)
         TYPE(NODE_TYDEF),ALLOCATABLE::NODE(:)        
         REAL(8),ALLOCATABLE::STEPTIME(:)
@@ -648,6 +648,10 @@ CONTAINS
             POSDATA.ISFR_SFRY=IVAL
         CASE('head')
             POSDATA.IHEAD=IVAL
+        CASE('mc_c')
+            POSDATA.IMC_C=IVAL
+        CASE('mc_phi')
+            POSDATA.IMC_PHI=IVAL
         END SELECT
         
     ENDSUBROUTINE

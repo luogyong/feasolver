@@ -3,7 +3,7 @@ MODULE ODE_SOLVER
         LOGICAL::ISOUTOFRANGE=.FALSE.
         REAL(8)::HF_SUC=0.0D0,HF_FAIL=0.0D0
         INTEGER::IEL=0,LASTIEL=0 !LASTIEL=在积分路径离开积分区域前时所在的单元
-        
+        REAL(8)::VAL(100)=0.D0
     ENDTYPE
     TYPE(RK_DERIVS_TYPDEF)::RKINFO
     

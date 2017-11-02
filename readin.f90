@@ -2085,7 +2085,11 @@ subroutine solvercommand(term,unit)
 						outvar(SFR_SFRX).name='SFRX'
 						outvar(SFR_SFRX).value=SFR_SFRX
 						outvar(SFR_SFRY).name='SFRY'
-						outvar(SFR_SFRY).value=SFR_SFRY						
+						outvar(SFR_SFRY).value=SFR_SFRY
+                        outvar(MC_C).name='MC_C'
+                        outvar(MC_C).VALUE=MC_C
+                        OUTVAR(MC_PHI).NAME='MC_PHI'
+                        OUTVAR(MC_PHI).VALUE=MC_PHI
 						!outvar(SFR).nval=6
 					case('spg')
 						outvar(Gradx).name='Ix'

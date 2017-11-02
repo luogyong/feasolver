@@ -1,18 +1,12 @@
  subroutine ProbeatPoint(x,y)
 
-    use opengl_gl
-    use opengl_glut
-    !use solverds
-    !use view_modifier
-    use function_plotter
-    USE MESHGEO
+     use function_plotter
+    
 	implicit none    
     integer(kind=glcint),intent(in) ::  x, y
     real(8)::pt1(3)
-    integer::iel,I,NTI1
-    real(8)::val1(POSDATA.NVAR),POS1(2)
-    CHARACTER(128)::TITLE1(POSDATA.NVAR+20),STR1
-	CHARACTER(32)::CWORD1,CWORD2
+    integer::iel
+
     INTEGER,EXTERNAL::PTINTRIlOC,POINTlOC
     
     
@@ -23,41 +17,95 @@
     call GetOGLPos(x, y,Pt1)
 
     iel=POINTlOC(pt1)
-	NTI1=0
+	
     IF(iel>0) then
-        call getval(Pt1,iel,val1)
-		NTI1=NTI1+1
-		WRITE(CWORD1,*) STEPPLOT.ISTEP
-		WRITE(CWORD2,*) STEPPLOT.NSTEP
-		TITLE1(NTI1)="ISTEP/NSTEP:"//TRIM(ADJUSTL(CWORD1))//TRIM(ADJUSTL(CWORD2))																
-		WRITE(CWORD1,'(F10.5)') STEPPLOT.TIME(STEPPLOT.ISTEP)
-		WRITE(CWORD2,'(F10.5)') STEPPLOT.TIME(STEPPLOT.NSTEP)
-		NTI1=NTI1+1
-		TITLE1(NTI1)="ITIME/NTIME:"//TRIM(ADJUSTL(CWORD1))//TRIM(ADJUSTL(CWORD2))
-        DO I=1,POSDATA.NVAR
-			WRITE(STR1,10) VAL1(I)
-			NTI1=NTI1+1
-            TITLE1(NTI1)=TRIM(ADJUSTL(POSDATA.OUTVAR(I).NAME))//':'//TRIM(ADJUSTL(STR1))
-        ENDDO
-        NTI1=NTI1+1
-        WRITE(STR1,20) TET(IEL).MOTHER
-        TITLE1(NTI1)="ELEMENT ID:"//':'//TRIM(ADJUSTL(STR1))
-        NTI1=NTI1+1
-        WRITE(STR1,20) POSDATA.ELEMENT(TET(IEL).MOTHER).ISET
-        TITLE1(NTI1)="ELEMENT SET:"//':'//TRIM(ADJUSTL(STR1))
-        
-		POS1(1)=0.01;POS1(2)=0.95
-        CALL SHOW_MTEXT(TITLE1,NTI1,POS1,BLACK,ProbeValuelist)
+        call ProbeShow(Pt1,iel)
+        PT_PROBE=PT1;IEL_PROBE=IEL
     else
         info.str='the picked location is out of zone.\nPrss q to exit'C
         info.color=red;info.qkey=.true.
     endif
-10 FORMAT(G16.3)
-20 FORMAT(I7)
+
+
+endsubroutine
+
+subroutine ProbeatPhyscialspace(pt,val,iel)
+
+     use function_plotter
+    
+	implicit none    
+    real(8),intent(in)::pt(3)
+    integer,intent(in out)::iel
+    real(8),intent(in out)::val(POSDATA.NVAR)    
+    INTEGER,EXTERNAL::PTINTRIlOC,POINTlOC
+   
+    iel=0
+    iel=POINTlOC(pt)
+	val=0.d0
+    IF(iel>0) then
+        call getval(Pt,iel,val)
+    else        
+        info.str='the Point is out of zone.\nPrss q to exit'C
+        info.color=red;info.qkey=.true.
+    endif
+
+
 endsubroutine
 
 
-
+SUBROUTINE ProbeShow(Pt1,iel)
+    
+    use function_plotter
+    implicit none
+    real(8),intent(in)::pt1(3)
+    integer,intent(in)::iel
+    integer::I,NTI1
+    real(8)::val1(POSDATA.NVAR),POS1(2)
+    CHARACTER(128)::TITLE1(POSDATA.NVAR+20),STR1
+	CHARACTER(32)::CWORD1,CWORD2
+    
+    NTI1=0
+    call getval(Pt1,iel,val1)
+	NTI1=NTI1+1
+	WRITE(CWORD1,*) STEPPLOT.ISTEP
+	WRITE(CWORD2,*) STEPPLOT.NSTEP
+	TITLE1(NTI1)="ISTEP/NSTEP:"//TRIM(ADJUSTL(CWORD1))//'/'//TRIM(ADJUSTL(CWORD2))																
+	WRITE(CWORD1,'(F10.5)') STEPPLOT.TIME(STEPPLOT.ISTEP)
+	WRITE(CWORD2,'(F10.5)') STEPPLOT.TIME(STEPPLOT.NSTEP)
+	NTI1=NTI1+1
+	TITLE1(NTI1)="ITIME/NTIME:"//TRIM(ADJUSTL(CWORD1))//'/'//TRIM(ADJUSTL(CWORD2))
+    NTI1=NTI1+1
+    TITLE1(NTI1)="PROBE AT POINT(X,Y):"
+    IF(POSDATA.NDIM>2) TITLE1(NTI1)="PROBE AT POINT(X,Y,Z):"
+    NTI1=NTI1+1
+    DO I=1,POSDATA.NDIM
+        WRITE(STR1,10) PT1(I)
+        IF(I==1) THEN
+            TITLE1(NTI1)='('//TRIM(ADJUSTL(STR1))
+        ELSE
+            TITLE1(NTI1)=TRIM(ADJUSTL(TITLE1(NTI1)))//','//TRIM(ADJUSTL(STR1))
+        ENDIF
+        IF(I==POSDATA.NDIM) TITLE1(NTI1)=TRIM(ADJUSTL(TITLE1(NTI1)))//')'
+    ENDDO
+    DO I=1,POSDATA.NVAR
+		WRITE(STR1,10) VAL1(I)
+		NTI1=NTI1+1
+        TITLE1(NTI1)=TRIM(ADJUSTL(POSDATA.OUTVAR(I).NAME))//':'//TRIM(ADJUSTL(STR1))
+    ENDDO
+    NTI1=NTI1+1
+    WRITE(STR1,20) TET(IEL).MOTHER
+    TITLE1(NTI1)="ELEMENT ID:"//':'//TRIM(ADJUSTL(STR1))
+    NTI1=NTI1+1
+    WRITE(STR1,20) POSDATA.ELEMENT(TET(IEL).MOTHER).ISET
+    TITLE1(NTI1)="ELEMENT SET:"//':'//TRIM(ADJUSTL(STR1))
+        
+	POS1(1)=0.01;POS1(2)=0.95
+    
+    CALL SHOW_MTEXT(TITLE1,NTI1,POS1,BLACK,ProbeValuelist)
+    
+10 FORMAT(G16.3)
+20 FORMAT(I7)
+ENDSUBROUTINE
 
 
 subroutine tetshapefun(Pt,itet,shpfun) 
@@ -69,7 +117,7 @@ subroutine tetshapefun(Pt,itet,shpfun)
     real(8),intent(in)::Pt(3)
     real(8),dimension(4)::shpfun
     real(8)::Va1(3,4),v1(3),v2(3),v3(3),vol1
-    integer::i,vi1(3,4)
+    integer::i,vi1(3,4),n1
     !real(8),EXTERNAL::determinant
      
     do i=1,tet(itet).nv
@@ -79,17 +127,22 @@ subroutine tetshapefun(Pt,itet,shpfun)
         v1=va1(:,2)-va1(:,1)
         v2=va1(:,3)-va1(:,1) 
         call r8vec_cross_3d ( v1, v2, v3 )
-        vol1=norm2(v3)
+        n1=maxloc(abs(v3),dim=1)
+        vol1=v3(n1)
         if(abs(vol1)<1e-7) then
             print *, "Error. the tet(itet) Area is 0. sub=tetshapefun,itet=",itet
             stop
         endif
-        do i=1,3
+        shpfun(3)=1.0d0
+        do i=1,2
             v1=va1(:,mod(i,3)+1)-Pt
             v2=va1(:,mod(i+1,3)+1)-Pt
             call r8vec_cross_3d ( v1, v2, v3 )
-            shpfun(i)=max(min(norm2(v3)/vol1,1.d0),0.d0) !0-1             
+            !shpfun(i)=max(min(norm2(v3)/vol1,1.d0),0.d0) !0-1
+            shpfun(i)=v3(n1)/vol1
+            shpfun(3)=shpfun(3)-shpfun(i)
         enddo
+        
         
     elseif(tet(itet).dim==3) then
 		vi1=reshape([2,4,3,1,3,4,1,4,2,1,2,3],([3,4]))
@@ -98,11 +151,14 @@ subroutine tetshapefun(Pt,itet,shpfun)
         v2=va1(:,3)-va1(:,1) 
         v3=va1(:,4)-va1(:,1) 
         vol1=determinant(reshape([v1,v2,v3],([3,3])))
-        do i=1,4
+        shpfun(4)=1.d0
+        do i=1,3
             v1=va1(:,vi1(1,i))-Pt
             v2=va1(:,vi1(2,i))-Pt
             v3=va1(:,vi1(3,i))-Pt
-            shpfun(i)=min(max(abs(determinant(reshape([v1,v2,v3],([3,3])))/vol1),0.d0),1.d0)
+            !shpfun(i)=min(max(abs(determinant(reshape([v1,v2,v3],([3,3])))/vol1),0.d0),1.d0)
+            shpfun(i)=determinant(reshape([v2,v1,v3],([3,3])))/vol1
+            shpfun(4)=shpfun(4)-shpfun(i)
         enddo
     endif
     
@@ -112,7 +168,7 @@ endsubroutine
 
  subroutine getval(Pt,itet,val)
     !use solverds
-    use MESHGEO
+    !use MESHGEO
     USE function_plotter
     implicit none
     integer,intent(in)::itet
@@ -193,33 +249,134 @@ INTEGER FUNCTION POINTlOC(PT)
 	USE MESHGEO
 	IMPLICIT NONE
 	REAL(8),INTENT(IN)::PT(3)
-	INTEGER::I
+	INTEGER::I,J,K
 	LOGICAL,EXTERNAL::PtInTri,PtInTET
-	
+    LOGICAL::ISFOUND=.FALSE.
+	!INTEGER::SEARCHLIST(NTET)
 	!I=INT(1+(RANDOM(1))(NFACE-1))
     
+    ISFOUND=.FALSE.    
     
+    DO J=1,NSZONE
+        IF(SEARCHZONE(J).NEL<1) CYCLE
+        IF(SEARCHZONE(J).NDX(1)>1) THEN
+            IF(PT(1)<SEARCHZONE(J).BBOX(1,1)) CYCLE
+            IF(PT(1)>SEARCHZONE(J).BBOX(2,1)) CYCLE
+        ENDIF
+        IF(SEARCHZONE(J).NDX(2)>1) THEN
+            IF(PT(2)<SEARCHZONE(J).BBOX(1,2)) CYCLE
+            IF(PT(2)>SEARCHZONE(J).BBOX(2,2)) CYCLE
+        ENDIF        
+        IF(SEARCHZONE(J).NDX(3)>1) THEN
+            IF(PT(3)<SEARCHZONE(J).BBOX(1,3)) CYCLE
+            IF(PT(3)>SEARCHZONE(J).BBOX(2,3)) CYCLE
+        ENDIF        
+        
+	    do K=1,SEARCHZONE(J).NEL
+            I=SEARCHZONE(J).ELEMENT(K)
+		    IF(TET(I).ISDEAD==1) CYCLE
+		    IF(TET(I).BBOX(2,1)>=PT(1).and.TET(I).BBOX(1,1)<=PT(1)) then
+			    IF(TET(I).BBOX(2,2)>=PT(2).and.TET(I).BBOX(1,2)<=PT(2)) then
+				    IF(POSDATA.NDIM>2) THEN
+					    IF(TET(I).BBOX(2,3)<PT(3).and.TET(I).BBOX(1,3)>PT(3)) CYCLE
+				    ENDIF
+				    IF(TET(I).DIM==2) THEN
+					    IF(PtInTri(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD)) THEN
+                            ISFOUND=.TRUE.
+                            EXIT
+                        ENDIF
+				    ELSEIF(TET(I).DIM==3) THEN
+					    IF(PtInTET(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD,POSDATA.NODE(TET(I).V(4)).COORD)) THEN
+                            ISFOUND=.TRUE.
+                            EXIT
+                        ENDIF
+				    ENDIF
+			    ENDIF
+		    endif
+	    ENDDO
+        
 
-	do i=1,NTET
-		IF(TET(I).ISDEAD==1) CYCLE
-		IF(TET(I).BBOX(2,1)>=PT(1).and.TET(I).BBOX(1,1)<=PT(1)) then
-			IF(TET(I).BBOX(2,2)>=PT(2).and.TET(I).BBOX(1,2)<=PT(2)) then
-				IF(POSDATA.NDIM>2) THEN
-					IF(TET(I).BBOX(2,3)<PT(3).and.TET(I).BBOX(1,3)>PT(3)) CYCLE
-				ENDIF
-				IF(TET(I).DIM==2) THEN
-					IF(PtInTri(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD)) EXIT
-				ELSEIF(TET(I).DIM==3) THEN
-					IF(PtInTET(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD,POSDATA.NODE(TET(I).V(4)).COORD)) EXIT
-				ENDIF
-			ENDIF
-		endif
-	ENDDO
+    ENDDO
 	
-	IF(I>NTET) I=0
-	POINTlOC=I
+	IF(.NOT.ISFOUND) I=0
+    LASTLOC=I
+    POINTlOC=I
 	RETURN
 ENDFUNCTION
+
+
+!INTEGER FUNCTION POINTlOC_SEC(PT,TRYIEL)
+!    !USE solverds
+!!TRYIEL<1，START search from iel=1 to ntet
+!!TRYIEL>=1, START SEARCH FROM THE THECENTER OF IEL=TRYIEL TO ITS NEIghborhood.
+!	USE MESHGEO
+!	IMPLICIT NONE
+!	REAL(8),INTENT(IN)::PT(3)
+!    INTEGER,INTENT(IN)::TRYIEL
+!	INTEGER::I,J,K,NEXTTRI
+!	LOGICAL,EXTERNAL::PtInTri,PtInTET
+!	
+!    LOGICAL::ISNOTFOUND=.TRUE.,ISIN=.FALSE.
+!	!I=INT(1+(RANDOM(1))(NFACE-1))
+!    
+!    
+!    
+!    
+!    IF(.NOT.ALLOCATED(ISSEARCH)) THEN
+!        ALLOCATE(ISSEARCH(NTET))        
+!    ENDIF
+!    
+!    IF(TRYIEL<1) THEN
+!        
+!	    DO I=1,NTET       
+!		    IF(TET(I).ISDEAD==1) CYCLE
+!		    IF(TET(I).BBOX(2,1)>=PT(1).and.TET(I).BBOX(1,1)<=PT(1)) then
+!			    IF(TET(I).BBOX(2,2)>=PT(2).and.TET(I).BBOX(1,2)<=PT(2)) then
+!				    IF(POSDATA.NDIM>2) THEN
+!					    IF(TET(I).BBOX(2,3)<PT(3).and.TET(I).BBOX(1,3)>PT(3)) CYCLE
+!				    ENDIF
+!				    IF(TET(I).DIM==2) THEN
+!					    IF(PtInTri(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD)) EXIT
+!				    ELSEIF(TET(I).DIM==3) THEN
+!					    IF(PtInTET(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD,POSDATA.NODE(TET(I).V(4)).COORD)) EXIT
+!				    ENDIF
+!			    ENDIF
+!		    endif
+!	    ENDDO
+!    
+!    ELSE
+!        
+!        ISSEARCH=0
+!        NEXTTRI=TRYIEL
+!
+!        DO WHILE(NEXTTRI>0)
+!            I=NEXTTRI            
+!            IF(ISSEARCH(I)==1) THEN
+!            
+!            ENDIF
+!
+!
+!		    IF(TET(I).DIM==2) THEN
+!                CALL PtInTri2(PT,I,ISIN,NEXTTRI) 
+!                IF(ISIN.OR.NEXTTRI==0) THEN
+!                    I=NEXTTRI
+!                    EXIT
+!                
+!                ENDIF
+!			    
+!		    ELSEIF(TET(I).DIM==3) THEN
+!			    IF(PtInTET(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD,POSDATA.NODE(TET(I).V(4)).COORD)) EXIT
+!		    ENDIF
+!			    
+!	    ENDDO
+!        
+!    ENDIF
+!	
+!	IF(I>NTET) I=0
+!    LASTLOC=I
+!    POINTlOC_SEC=I
+!	RETURN
+!ENDFUNCTION
 
 INTEGER FUNCTION PTINTRIlOC(PT)
     !USE solverds
@@ -250,6 +407,124 @@ INTEGER FUNCTION PTINTRIlOC(PT)
 	RETURN
 ENDFUNCTION
 
+integer function POINTlOC_BC(Pt,TRYiel)
+    use MESHGEO
+    USE IFPORT
+    implicit none
+    real(8),intent(in)::pt(3)
+    integer,intent(in)::TRYiel
+    real(8)::shpfun(4)
+    integer::IEL,n1,N2,I
+    INTEGER,EXTERNAL::POINTlOC
+
+    !IF(.NOT.ALLOCATED(ISSEARCH)) THEN
+    !    ALLOCATE(ISSEARCH(NTET))        
+    !ENDIF
+    !
+    !ISSEARCH=0
+    N2=0
+    POINTlOC_BC=0
+    IEL=0
+    if(TRYiel<1) THEN
+        DO I=1,NSZONE
+            IF(SEARCHZONE(I).NEL<1) CYCLE
+            IF(SEARCHZONE(I).NDX(1)>1) THEN
+                IF(PT(1)<SEARCHZONE(I).BBOX(1,1)) CYCLE
+                IF(PT(1)>SEARCHZONE(I).BBOX(2,1)) CYCLE
+            ENDIF
+            IF(SEARCHZONE(I).NDX(2)>1) THEN
+                IF(PT(2)<SEARCHZONE(I).BBOX(1,2)) CYCLE
+                IF(PT(2)>SEARCHZONE(I).BBOX(2,2)) CYCLE
+            ENDIF        
+            IF(SEARCHZONE(I).NDX(3)>1) THEN
+                IF(PT(3)<SEARCHZONE(I).BBOX(1,3)) CYCLE
+                IF(PT(3)>SEARCHZONE(I).BBOX(2,3)) CYCLE
+            ENDIF                
+        
+            iel=SEARCHZONE(I).ELEMENT(MAX(INT(rand(1)*SEARCHZONE(I).NEL),1))
+
+            EXIT
+        ENDDO
+        IF(IEL==0) THEN
+            RETURN
+        ENDIF
+        
+        !iel=(MAX(INT(rand(1)*NTET),1))
+    ELSE
+        IEL=TRYiel
+    ENDIF
+    
+    do while(.true.)
+        N2=N2+1
+        call tetshapefun(Pt,iel,shpfun)
+        n1=minloc(shpfun(1:tet(iel).nv),dim=1)
+        if(shpfun(n1)<0.d0) then            
+            iel=tet(iel).adjelt(mod(n1,3)+1)
+            !PRINT *, IEL,N2
+            if(iel==0) then
+                !RECHECK BY THE FINAL METHOD.
+                POINTlOC_BC=POINTlOC(PT)                
+                exit
+            endif
+            
+        else
+            POINTlOC_BC=iel
+            exit
+        endif
+        !ISSEARCH(IEL)=IEL
+    enddo
+    
+    !if(.not.isfound) iel=0
+    
+end function
+
+
+!subroutine PtInTri2 (pt,iel,isIn)
+!
+!    use MESHGEO
+!	implicit none
+!	real(8),intent(in)::pt(3)
+!    integer,intent(inout)::iel
+!    integer,intent(inout)::isIn
+!    
+!    integer,EXTERNAL::isacw
+!    real(8)::T1(3,3)
+!    integer::i,j,b1,n1,n2,n3
+!    
+!    
+!    
+!    isIn=.false.;nextTri=0,E1=2
+!    issearch=0
+!    if(iel<1) iel=1
+!    do while(.true)
+!    
+!        do i=1,3
+!            t1(:,i)=posdata.node(tet(iel).v(i)).coord
+!        enddo
+!        !v1,v2,v3 assume to be in ccw order.   
+!        n1=
+!        do i=1,3
+!            if(i==crossedge1) cycle            
+!            j=mod(i,3)+1
+!            b1 = isacw(pt(1),pt(2),pt(3),t1(1,i),t1(2,i),t1(3,i),t1(1,j),t1(2,j),t1(3,j)) ;
+!            if(b1==2) then
+!                isIn=.true.
+!                return
+!            endif
+!            n1=tet(iel).adjelt(i)   
+!            if(b1==-1.and.n1>0) then
+!                iel=n1           
+!                crossedge1=i
+!            endif
+!        enddo
+!    
+!        isIn=.true.	
+!        
+!    enddo
+!    
+! 
+!end subroutine
+
 logical function PtInTri (pt, v1, v2, v3)
 	implicit none
 	integer b1, b2
@@ -277,6 +552,8 @@ logical function PtInTri (pt, v1, v2, v3)
     
 	PtInTri=.true.	
 end function
+
+
 
 logical function PtInTet(pt, v1, v2, v3,v4)
     !假定四面体四个面的正向一致，都为正向(节点逆时针)或负向
@@ -348,6 +625,7 @@ integer function isacw(x1,y1,z1,x2,y2,z2,x3,y3,z3)
     real(8)::t1,yn2,xn2,zn2,yn3,xn3,zn3,norm1(3),t2
 	
 	isacw=0
+    !isacw=1,=2,onedge,=3,coline;
     
 	yn2=y2-y1
 	xn2=x2-x1
@@ -359,12 +637,12 @@ integer function isacw(x1,y1,z1,x2,y2,z2,x3,y3,z3)
     t2=norm2(norm1)
     if(t2<1e-10) then !共线
         ISACW=3
-        if(X3<min(x1,x2)) return
-        if(X3>max(x1,x2)) return
-        if(Y3<min(y1,y2)) return
-        if(Y3>max(y1,y2)) return 
-        if(Z3<min(z1,z2)) return
-        if(Z3>max(z1,z2)) return 
+        if(x1<min(x3,x2)) return
+        if(X1>max(x3,x2)) return
+        if(Y1<min(y3,y2)) return
+        if(Y1>max(y3,y2)) return 
+        if(Z1<min(z3,z2)) return
+        if(Z1>max(z3,z2)) return 
         isacw=2 !on the edge
     else
         t1=(xn2*yn3-yn2*xn3)+(yn2*zn3-zn2*yn3)-(xn2*zn3-zn2*xn3)

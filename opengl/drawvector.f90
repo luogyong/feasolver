@@ -1,5 +1,5 @@
 subroutine DrawVector()
-use POS_IO
+!use POS_IO
 use opengl_gl
 use function_plotter
 implicit none 
@@ -54,7 +54,7 @@ call glutPostRedisplay
 endsubroutine
 
 SUBROUTINE VEC_PLOT_DATA()
-	USE POS_IO
+	!USE POS_IO
 	USE function_plotter
 	IMPLICIT NONE
 	

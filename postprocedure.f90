@@ -582,7 +582,7 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 			case(mw_spg)
 				NodalQ(:,i,NnodalQ)=node.mw
 			case(SFR)
-				do j=1,6
+				do j=1,8
 					NodalQ(:,i+j-1,nnodalq)=node.SFR(j)
 				enddo
 			case(NF)
@@ -969,7 +969,7 @@ subroutine BlOCKout(file_unit)
 			case(mw_spg)
 				write(file_unit,999) node.mw
 			case(SFR)
-				do j=1,6
+				do j=1,8
 					write(file_unit,999) node.SFR(j)
 				enddo
 			case(NF)

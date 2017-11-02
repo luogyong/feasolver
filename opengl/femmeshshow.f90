@@ -64,7 +64,7 @@ LOGICAL::isstreamlineinitialized=.false.
 TYPE STREAMLINE_TYDEF
     INTEGER::NV=0
     REAL(8)::PTstart(3)
-    REAL(8),ALLOCATABLE::V(:,:),DT(:)
+    REAL(8),ALLOCATABLE::V(:,:),VAL(:,:)
 ENDTYPE
 TYPE(STREAMLINE_TYDEF)::STREAMLINE(100)
 INTEGER::NSTREAMLINE=0
@@ -203,7 +203,10 @@ TYPE TIMESTEPINFO_TYDEF
     PROCEDURE::UPDATE=>STEP_UPDATE
 	
 ENDTYPE
-TYPE(TIMESTEPINFO_TYDEF),PUBLIC::STEPPLOT				 
+TYPE(TIMESTEPINFO_TYDEF),PUBLIC::STEPPLOT
+
+REAL(8)::PT_PROBE(3)=0.0D0
+INTEGER::IEL_PROBE=0
 
 contains
 
@@ -235,10 +238,10 @@ SUBROUTINE STEP_INITIALIZE(STEPINFO,ISTEP,NSTEP,TIME)
         IF(POSDATA.IZ>0) POSDATA.NODE(I).COORD(3)=POSDATA.NODALQ(I,POSDATA.IZ,ISTEP)
     ENDDO
     
-    minx=minval(POSDATA.NODE.COORD(1));maxx=maxval(POSDATA.NODE.COORD(1))
-    miny=minval(POSDATA.NODE.COORD(2));maxy=maxval(POSDATA.NODE.COORD(2))
-    minz=minval(POSDATA.NODE.COORD(3));maxz=maxval(POSDATA.NODE.COORD(3))
-    POSDATA.MODELR=((minx-maxx)**2+(miny-maxy)**2+(minz-maxz)**2)**0.5/2.0
+    POSDATA.minx=minval(POSDATA.NODE.COORD(1));POSDATA.maxx=maxval(POSDATA.NODE.COORD(1))
+    POSDATA.miny=minval(POSDATA.NODE.COORD(2));POSDATA.maxy=maxval(POSDATA.NODE.COORD(2))
+    POSDATA.minz=minval(POSDATA.NODE.COORD(3));POSDATA.maxz=maxval(POSDATA.NODE.COORD(3))
+    POSDATA.MODELR=((POSDATA.minx-POSDATA.maxx)**2+(POSDATA.miny-POSDATA.maxy)**2+(POSDATA.minz-POSDATA.maxz)**2)**0.5/2.0
 	
 	!SET UP VECSCALE
 	IF(POSDATA.IDISX>0.AND.POSDATA.IDISY>0) THEN
@@ -375,6 +378,10 @@ SUBROUTINE STEP_UPDATE(STEPINFO)
     if(draw_surface_grid.or.show_edge.or.show_node) then
         call drawGrid()
     endif
+    
+    IF(isProbeState) THEN
+        CALL ProbeShow(PT_PROBE,IEL_PROBE)    
+    ENDIF
 ENDSUBROUTINE
 
 
@@ -839,7 +846,7 @@ subroutine plot_func(TECFILE)
 use opengl_gl
 use opengl_glut
 use function_plotter
-USE POS_IO
+!USE POS_IO
 implicit none
 CHARACTER(*),INTENT(IN)::TECFILE
 
@@ -884,11 +891,14 @@ IF(.NOT.ISINI_GMSHET) THEN
     ISINI_GMSHET=.TRUE.
     
 ENDIF
+
 call SETUP_EDGE_TBL(POSDATA.ELEMENT,POSDATA.NEL,POSDATA.ESET,POSDATA.NESET,POSDATA.NODE,POSDATA.NNODE)
 call SETUP_FACE_TBL(POSDATA.ELEMENT,POSDATA.NEL,POSDATA.ESET,POSDATA.NESET,POSDATA.NODE,POSDATA.NNODE)
 call SETUP_SUB_TET4_ELEMENT(POSDATA.ELEMENT,POSDATA.NEL,POSDATA.ESET,POSDATA.NESET,POSDATA.NODE,POSDATA.NNODE)
 call SETUP_EDGE_TBL_TET()
 call SETUP_FACE_TBL_TET()
+CALL SETUP_ADJACENT_ELEMENT_TET()
+CALL SETUP_SUBZONE_TET()
 
 call glutInit
 call glutInitDisplayMode(ior(GLUT_DOUBLE,ior(GLUT_RGB,GLUT_DEPTH)))
@@ -902,9 +912,9 @@ winid = glutCreateWindow(trim(adjustl(POSDATA.title)))
 
 
 model_radius=POSDATA.MODELR
-init_lookat.x=(minx+maxx)/2.0
-init_lookat.y=(miny+maxy)/2.0
-init_lookat.z=(minz+maxz)/2.0
+init_lookat.x=(POSDATA.minx+POSDATA.maxx)/2.0
+init_lookat.y=(POSDATA.miny+POSDATA.maxy)/2.0
+init_lookat.z=(POSDATA.minz+POSDATA.maxz)/2.0
 if(POSDATA.NDIM<3) then
 init_lookfrom.x=init_lookat.x
 init_lookfrom.y=init_lookat.y
@@ -1055,7 +1065,7 @@ subroutine PickPoint(x,y,Pt1,IEL)
     !use solverds
     !use view_modifier
     use function_plotter
-    USE MESHGEO
+    !USE MESHGEO
 	implicit none    
     integer(kind=glcint),intent(in) ::  x, y
     INTEGER,INTENT(OUT)::IEL
@@ -1087,6 +1097,7 @@ real(8)::Pt1(3)
 ! This gets called when a mouse button changes
   moving_left = .FALSE.
   moving_MIDDLE= .FALSE.
+  left_button_func=-1
   if (button == GLUT_LEFT_BUTTON) then
     moving_left = .TRUE.
     select case(state)
@@ -1095,6 +1106,7 @@ real(8)::Pt1(3)
         SELECT CASE(glutGetModifiers())
         CASE(GLUT_ACTIVE_CTRL)
             call ProbeatPoint(x,y)
+            
         CASE(GLUT_ACTIVE_SHIFT)
             call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
             begin_left = cart2D(x,y)
@@ -1381,7 +1393,7 @@ subroutine myreshape(w,h)
 	call glViewport(0, 0, w, h);
 
 	R = real(w) / real(h);
-    r1=((minx-maxx)**2+(miny-maxy)**2+(minz-maxz)**2)**0.5/2.0
+    r1=POSDATA.MODELR/2.0
     dis1=((init_lookat.x-init_lookfrom.x)**2+(init_lookat.y-init_lookfrom.y)**2+(init_lookat.z-init_lookfrom.z)**2)**0.5 
     
     near=1.0;far=near+2*r1+dis1*10

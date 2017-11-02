@@ -35,40 +35,75 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
 	real(8),intent(inout)::sfr(6)
 	
 	integer::i
-	real(8)::ss1(6),pss1(4),t1,t2,C1,phi1,R1,PI1,sin1,cos1,t3,t4,t5,ta1(4)
-	
+	real(8)::ss1(6),pss1(4),t1,t2,C1,phi1,PI1,sin1,cos1,t3,t4,t5,ta1(4),A,B
+	real(8)::sigmaC1,R1,sita1
+    
 	PI1=dATAN(1.0)*4.0
 	C1=cohesion
 	phi1=PhiD/180*PI1
 	sfr=0.d0
+   
 	call principal_stress_cal(pss1,stress,ndim)
 	
 	t2=(pss1(1)-pss1(2))/2.0
+    
+    sigmaC1=(stress(1)+stress(2))/2.0
+    R1=t2
+    if(R1>0) then
+        
+        B=-tan(phi1)
+        A=(C1+sigmaC1*B)/R1
+        !最大破坏面与主应力面的夹角
+        if(abs(B)>0) then
+            sita1=atan(-(A**2-B**2)**0.5/B)
+        else
+            sita1=pi1/2.0
+        endif
+        sfr(1)=sin(sita1)/(A+B*cos(sita1)) !sfr for stress failure ratio
+    else
+        sfr(1)=0.d0
+        sita1=pi1/2.0
+    endif      
+    
     if((pss1(1)+pss1(2))<0.d0) then 
-	    if(phi1>0.d0) then
-		    t1=(-(pss1(1)+pss1(2))/2.0+c1/dtan(phi1))*dsin(phi1) !受拉为正			
-	    else
-		    t1=C1
-	    endif
-	    IF(ABS(T1)>1E-14) THEN
-            sfr(1)=t2/t1
-        ELSE
-            SFR(1)=1
-        ENDIF
+    
+	    !if(phi1>0.d0) then
+		   ! t1=(-(pss1(1)+pss1(2))/2.0+c1/dtan(phi1))*dsin(phi1) !受拉为正			
+	    !else
+		   ! t1=C1
+	    !endif
+	    !IF(ABS(T1)>1E-14) THEN
+     !       sfr(1)=t2/t1
+     !   ELSE
+     !       SFR(1)=1
+     !   ENDIF
+      
+        
+        
     else !>0.拉坏
         sfr(1)=-1. !表拉坏
     endif
     !
     t1=slidedirection
+    !sfr(2)=pss1(4)-(sita1)/2.0*t1 
     if(stress(2)>stress(1)) then !sigmax<sigmay
-        sfr(2)=pss1(4)+(PI1/2-phi1)/2.0*t1  
+        !sfr(2)=pss1(4)+(PI1/2-phi1)/2.0*t1  
+        sfr(2)=pss1(4)+(sita1)/2.0*t1 
     else
-        sfr(2)=pss1(4)-(PI1/2+phi1)/2.0*t1 
+        !sfr(2)=pss1(4)-(PI1/2+phi1)/2.0*t1
+        sfr(2)=pss1(4)-(PI1-sita1)/2.0*t1 
     endif
-    sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(PI1/2-phi1)
-    sfr(4)=-t2*sin(PI1/2-phi1)*t1 
+    !sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(PI1/2-phi1)
+    !sfr(4)=-t2*sin(PI1/2-phi1)*t1 
+    sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(sita1)
+    sfr(4)=-t2*sin(sita1)*t1 
     sfr(5)=sign(sfr(1),-sfr(4))*dcos(sfr(2)) !输出归一化的剪应力
     sfr(6)=sign(sfr(1),-sfr(4))*dsin(sfr(2))
+    !sfr(5)=abs(sfr(1))*dcos(sfr(2)) !输出归一化的剪应力
+    !sfr(6)=abs(sfr(1))*dsin(sfr(2))    
+    
+    sfr(2)=sfr(2)/PI1*180.0 !to degree
+    
     
     !t1=0.5*(stress(1)+stress(2))
     !t2=0.5*(stress(1)-stress(2))	
@@ -95,7 +130,9 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     !
     !enddo 
     
-	sfr(2)=sfr(2)/PI1*180.0 !to degree
+    
+    
+	
 	
 
 endsubroutine
@@ -122,7 +159,9 @@ subroutine principal_stress_cal(pstress,stress,ndim)
 		!默认z方向为应力为中应力。
         IF(ABS(stress(1)-stress(2))>1E-14) THEN 
 		    sita=0.5*atan(2*stress(4)/(stress(1)-stress(2)))
-		    Pstress(4)=sita 
+            !sita为莫尔圆主应力平面与x轴的夹角
+		    Pstress(4)=sita
+            !if(stress(1)>stress(2)) Pstress(4)=sita+Pi/2.0
         ELSE
             Pstress(4)=0 
         ENDIF
@@ -652,7 +691,7 @@ subroutine E2N_stress_strain(ISTEP)
 			C1=material(node(i).sfr(2)).GET(3,ISTEP)
 			Phi1=material(node(i).sfr(2)).GET(4,ISTEP)
             !dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
-
+			NODE(I).SFR(7)=C1;NODE(I).SFR(8)=PHI1;
 			call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection)
 			
 		end if
