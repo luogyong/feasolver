@@ -21,17 +21,19 @@ subroutine stree_failure_ratio_cal(ienum,ISTEP)
 		!积分点的位移
 		!disg1(1:ndim1)=matmul(dis1(1:ndim1,1:nsh1),ecp(et1).Lshape(:,i))		
 
-		call stress_in_failure_surface(element(ienum).sfr(:,i),ss1,ecp(element(ienum).et).ndim,c1,Phi1,solver_control.slidedirection)
+		call stress_in_failure_surface(element(ienum).sfr(:,i),ss1,ecp(element(ienum).et).ndim,c1,Phi1,solver_control.slidedirection,&
+                                    element(ienum).xygp(ndimension,i))
 		
         
 	enddo
 	
 end subroutine
 
-subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirection)
+subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirection,Y)
+    USE DS_SlopeStability
 	implicit none
 	integer,intent(in)::ndim,slidedirection
-	real(8),intent(in)::stress(6),cohesion,PhiD
+	real(8),intent(in)::stress(6),cohesion,PhiD,Y
 	real(8),intent(inout)::sfr(6)
 	
 	integer::i
@@ -51,47 +53,61 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     R1=t2
     if(R1>0) then
         
-        B=-tan(phi1)
-        A=(C1+sigmaC1*B)/R1
-        !最大破坏面与主应力面的夹角
-        if(abs(B)>0) then
-            sita1=atan(-(A**2-B**2)**0.5/B)
+        if(sigmaC1<=0) then
+            
+            B=-tan(phi1)
+            A=(C1+sigmaC1*B)/R1
+            !最大破坏面与主应力面的夹角
+            if(r1<=C1*cos(phi1)-sigmaC1*sin(phi1)) then
+                sita1=asin((1.d0-(B/A)**2)**0.5)
+            else
+                sita1=pi1/2.0-phi1
+            endif
+            sfr(1)=sin(sita1)/(A+B*cos(sita1)) !sfr for stress failure ratio
         else
+            !tension
+            sfr(1)=-1.            
             sita1=pi1/2.0
         endif
-        sfr(1)=sin(sita1)/(A+B*cos(sita1)) !sfr for stress failure ratio
+        !if(isnan(sfr(1))) then
+        !    pause
+        !endif
     else
         sfr(1)=0.d0
-        sita1=pi1/2.0
+        sita1=0.d0
     endif      
     
-    if((pss1(1)+pss1(2))<0.d0) then 
-    
-	    !if(phi1>0.d0) then
-		   ! t1=(-(pss1(1)+pss1(2))/2.0+c1/dtan(phi1))*dsin(phi1) !受拉为正			
-	    !else
-		   ! t1=C1
-	    !endif
-	    !IF(ABS(T1)>1E-14) THEN
-     !       sfr(1)=t2/t1
-     !   ELSE
-     !       SFR(1)=1
-     !   ENDIF
-      
-        
-        
-    else !>0.拉坏
-        sfr(1)=-1. !表拉坏
-    endif
+    !if((pss1(1)+pss1(2))<0.d0) then 
+    !
+	   ! !if(phi1>0.d0) then
+		  ! ! t1=(-(pss1(1)+pss1(2))/2.0+c1/dtan(phi1))*dsin(phi1) !受拉为正			
+	   ! !else
+		  ! ! t1=C1
+	   ! !endif
+	   ! !IF(ABS(T1)>1E-14) THEN
+    ! !       sfr(1)=t2/t1
+    ! !   ELSE
+    ! !       SFR(1)=1
+    ! !   ENDIF
+    !  
+    !    
+    !    
+    !else !>0.拉坏
+    !    sfr(1)=-1. !表拉坏
+    !endif
     !
     t1=slidedirection
-    !sfr(2)=pss1(4)-(sita1)/2.0*t1 
-    if(stress(2)>stress(1)) then !sigmax<sigmay
-        !sfr(2)=pss1(4)+(PI1/2-phi1)/2.0*t1  
-        sfr(2)=pss1(4)+(sita1)/2.0*t1 
+    !一般在坡顶和坡脚，会出现sxx<syy(水平方向的压力大于竖向)的情况，按下面的方法计算，其破坏面的夹角与x轴的夹角大于0
+    !这时，当slidedirection=right时，坡顶会出现不相容的破坏面方向(sfr(2)>0),这时令其取另一个方向。
+    IF(slidedirection==1.and.SLOPEPARAMETER.ISYDWZ.AND.Y>SLOPEPARAMETER.YDOWNWARDZONE.AND.stress(2)>stress(1)) THEN
+        T1=-T1
+    ENDIF
+
+    
+    if(stress(2)>stress(1)) then !sigmax<sigmay         
+        sfr(2)=pss1(4)+(sita1)/2.0*T1
     else
-        !sfr(2)=pss1(4)-(PI1/2+phi1)/2.0*t1
-        sfr(2)=pss1(4)-(PI1-sita1)/2.0*t1 
+        sfr(2)=pss1(4)-(PI1-sita1)/2.0*T1
     endif
     !sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(PI1/2-phi1)
     !sfr(4)=-t2*sin(PI1/2-phi1)*t1 
@@ -100,7 +116,8 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     sfr(5)=sign(sfr(1),-sfr(4))*dcos(sfr(2)) !输出归一化的剪应力
     sfr(6)=sign(sfr(1),-sfr(4))*dsin(sfr(2))
     !sfr(5)=abs(sfr(1))*dcos(sfr(2)) !输出归一化的剪应力
-    !sfr(6)=abs(sfr(1))*dsin(sfr(2))    
+    !sfr(6)=abs(sfr(1))*dsin(sfr(2))
+
     
     sfr(2)=sfr(2)/PI1*180.0 !to degree
     
@@ -692,7 +709,7 @@ subroutine E2N_stress_strain(ISTEP)
 			Phi1=material(node(i).sfr(2)).GET(4,ISTEP)
             !dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
 			NODE(I).SFR(7)=C1;NODE(I).SFR(8)=PHI1;
-			call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection)
+			call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection,node(i).coord(ndimension))
 			
 		end if
 		!total generalized shear stain

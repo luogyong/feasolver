@@ -16,7 +16,7 @@
 
     call GetOGLPos(x, y,Pt1)
 
-    iel=POINTlOC(pt1)
+    iel=POINTlOC(pt1,0)
 	
     IF(iel>0) then
         call ProbeShow(Pt1,iel)
@@ -40,7 +40,7 @@ subroutine ProbeatPhyscialspace(pt,val,iel)
     INTEGER,EXTERNAL::PTINTRIlOC,POINTlOC
    
     iel=0
-    iel=POINTlOC(pt)
+    iel=POINTlOC(pt,0)
 	val=0.d0
     IF(iel>0) then
         call getval(Pt,iel,val)
@@ -243,13 +243,14 @@ end subroutine
  
  
 
-
-INTEGER FUNCTION POINTlOC(PT)
-    !USE solverds
+!search method:element-by-element£¬it is robust but may be comparily slow.
+!if tryiel>0, it the element and its nerghborhood will be searched firstly.
+INTEGER FUNCTION POINTlOC(PT,TRYIEL)
 	USE MESHGEO
 	IMPLICIT NONE
 	REAL(8),INTENT(IN)::PT(3)
-	INTEGER::I,J,K
+    INTEGER,INTENT(IN)::TRYIEL
+	INTEGER::I,J,K,ELT1(-10:0)
 	LOGICAL,EXTERNAL::PtInTri,PtInTET
     LOGICAL::ISFOUND=.FALSE.
 	!INTEGER::SEARCHLIST(NTET)
@@ -270,10 +271,25 @@ INTEGER FUNCTION POINTlOC(PT)
         IF(SEARCHZONE(J).NDX(3)>1) THEN
             IF(PT(3)<SEARCHZONE(J).BBOX(1,3)) CYCLE
             IF(PT(3)>SEARCHZONE(J).BBOX(2,3)) CYCLE
-        ENDIF        
+        ENDIF     
         
-	    do K=1,SEARCHZONE(J).NEL
-            I=SEARCHZONE(J).ELEMENT(K)
+        IF(TRYIEL>0) THEN
+            ELT1(-TET(TRYIEL).NV)=TRYIEL
+            DO K=1,TET(TRYIEL).NV
+                ELT1(-TET(TRYIEL).NV+K)=TET(TRYIEL).ADJELT(K)
+            ENDDO
+            K=-TET(TRYIEL).NV
+        ELSE
+            K=1
+        ENDIF
+        
+	    do K=K,SEARCHZONE(J).NEL
+            IF(K>0) THEN
+                I=SEARCHZONE(J).ELEMENT(K) 
+            ELSE
+                I=ELT1(K)
+            ENDIF
+            IF(I<1) CYCLE
 		    IF(TET(I).ISDEAD==1) CYCLE
 		    IF(TET(I).BBOX(2,1)>=PT(1).and.TET(I).BBOX(1,1)<=PT(1)) then
 			    IF(TET(I).BBOX(2,2)>=PT(2).and.TET(I).BBOX(1,2)<=PT(2)) then
@@ -394,7 +410,7 @@ integer function POINTlOC_BC(Pt,TRYiel)
             !PRINT *, IEL,N2
             if(iel==0) then
                 !RECHECK BY THE FINAL METHOD.
-                POINTlOC_BC=POINTlOC(PT)                
+                POINTlOC_BC=POINTlOC(PT,TRYiel)                
                 exit
             endif
             

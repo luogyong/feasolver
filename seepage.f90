@@ -244,13 +244,13 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
 	Phi1=material(ELEMENT(IENUMC1).MAT).GET(4,ISTEP)
     !!!!HERE,THE STRESS IS STILL NOT UPDATED.
     SIGMA1=ELEMENT(IENUMC1).STRESS(:,IGP)+ELEMENT(IENUMC1).DSTRESS(:,IGP)
-	call stress_in_failure_surface(sfr1,SIGMA1,2,C1,Phi1,solver_control.slidedirection)
+	call stress_in_failure_surface(sfr1,SIGMA1,2,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUMC1).XYGP(NDIMENSION,IGP))
         
         
 
-    FAC1=ABS(SFR1(1))
+    FAC1=MAX((ABS(SFR1(1)))**2,1.D-8)
     SITA1=-SFR1(2)/180.*PI()
-    element(ienum).kr(IGP)=element(ienum).kr(IGP)*fac1
+    !element(ienum).kr(IGP)=element(ienum).kr(IGP)*fac1
     
 	!KT=0.D0
 	!KT(1,1)=MATERIAL(ELEMENT(IENUM).MAT).GET(1,ISTEP)*FAC1

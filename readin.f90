@@ -495,7 +495,7 @@ subroutine solvercommand(term,unit)
 				end select
 			end do            
 		    
-    
+        
 		case('node')
 			print *, 'Reading NODE data...'
 			do i=1, pro_num
@@ -1458,7 +1458,11 @@ subroutine solvercommand(term,unit)
                 CASE('xmin_mc')
                     slopeparameter.xmin_mc=property(i).value
                 CASE('xmax_mc')
-                    slopeparameter.xmax_mc=property(i).value                    
+                    slopeparameter.xmax_mc=property(i).value
+                case('downwardzone')
+                    slopeparameter.ISYDWZ=.TRUE.
+                    slopeparameter.ydownwardzone=property(i).value
+                    
                 endselect
             enddo
 		case('ueset')

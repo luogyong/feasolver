@@ -25,6 +25,8 @@ SUBROUTINE STREAMLINE_PLOT()
 
     implicit none
     integer :: i,j,k,n1
+    REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1
+    CHARACTER(16)::STR1
 
     call glDeleteLists(STREAMLINELIST, 1_glsizei)
     call reset_view    
@@ -32,21 +34,70 @@ SUBROUTINE STREAMLINE_PLOT()
 
     call glPolygonMode(gl_front_and_back, gl_fill)
 	call gldisable(GL_CULL_FACE);  
-    CALL glcolor4fv(mycolor(:,BLUE))
-    CALL glLineWidth(2.0_glfloat)
+    
+    
     DO I=1,NSTREAMLINE
+        CALL glLineWidth(2.0_glfloat)
+        CALL glcolor4fv(mycolor(:,BLUE))
+        IF(ISSTREAMLINESLOPE) THEN
+            N1=MINLOC(ABS(SF_SLOPE(1:10)-I),DIM=1)
+            IF(SF_SLOPE(N1)==I)  THEN
+                CALL glcolor4fv(mycolor(:,COLOR_TOP_TEN(N1)))
+                CALL glLineWidth(3.0_glfloat)            
+            ENDIF
+            IF(.NOT.IS_SHOW_ALL_SLOPE) THEN                
+                IF(IS_JUST_SHOW_TOP_TEN_SLOPE) THEN
+                    IF(SF_SLOPE(N1)/=I) CYCLE
+                ENDIF
+                IF(IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE) THEN
+                    IF(SF_SLOPE(1)/=I) CYCLE
+                ENDIF                
+            ENDIF
+            
+        ENDIF
+        
 	    call glBegin(gl_LINE_STRIP)
 		DO J=1,STREAMLINE(I).NV
 			call glvertex3dv(STREAMLINE(I).V(:,J)) 
 		ENDDO
 	    CALL GLEND()
         
-		call glPointSize(4.0_glfloat)
-		call glbegin(gl_points)
-		    DO J=1,STREAMLINE(I).NV
-			    call glvertex3dv(STREAMLINE(I).V(:,J)) 
-		    ENDDO			
-		call glend        
+        IF(ISSTREAMLINESLOPE) THEN
+            DX1=STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV)-STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV-1)
+            DY1=STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV)-STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV-1)
+            T1=(DX1**2+DY1**2)**0.5
+            !DEG1=ASIN(DY1/T1)/PI*180.0 
+            IF(ABS(DX1)>1E-7) THEN
+                DEG1=ATAN(DY1/DX1)/PI*180.
+            ELSE
+                DEG1=SIGN(PI/2.0,DY1)/PI*180.
+            ENDIF
+            
+            IF(DEG1<0) DEG1=DEG1+180.
+            
+            WRITE(STR1,'(F6.3)') STREAMLINE(I).SF_SLOPE
+            
+            !PPM1=glutget(GLUT_SCREEN_WIDTH)/REAL(glutget(GLUT_SCREEN_WIDTH_MM)) !PIXELS PER MM
+            !10 pound 
+            FS1=glutStrokeWidth(GLUT_STROKE_ROMAN,ICHAR("X")) 
+            SCALE1=POSDATA.MODELR/80/FS1*stroke_fontsize
+            !scale1=PPM1*3.527777778/119.05*0.02*stroke_fontsize
+            call glLineWidth(1.0_glfloat)
+            CALL drawStrokeText(DEG1,&
+                                STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV), &
+                                STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV),0.0, &
+                                scale1,&
+                                STR1)
+            !CALL output3D(STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV), &
+            !              STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV),0.0, &
+            !              STR1)                    
+        ENDIF
+		!call glPointSize(4.0_glfloat)
+		!call glbegin(gl_points)
+		!    DO J=1,STREAMLINE(I).NV
+		!	    call glvertex3dv(STREAMLINE(I).V(:,J)) 
+		!    ENDDO			
+		!call glend        
 
     ENDDO
     CALL glLineWidth(1.0_glfloat)
@@ -69,8 +120,8 @@ subroutine gen_new_streamline(PTstart)
 	CALL STREAMLINE_INI()
 	call STREAMLINE_STEP_SIZE()
     NSTREAMLINE=NSTREAMLINE+1
-    IF(NSTREAMLINE>100) THEN
-        PAUSE 'NSTREAMLINE>100.'
+    IF(NSTREAMLINE>500) THEN
+        PAUSE 'NSTREAMLINE>500.'
         RETURN
     ENDIF
 	
@@ -98,22 +149,81 @@ subroutine streamline_update()
 	
 end subroutine
 
-subroutine slopestability_streamline()
+subroutine slopestability_streamline(islip)
     use function_plotter
     implicit none
+    integer,intent(in)::islip
     real(8)::pt1(3)
-    integer::iel1,i,j
+    integer::iel1,i,j,n1,n2
+    REAL(8)::SS(3),T1,RAD1,DX1,DY1,SNT1(2),C1,PHI1,SIGMA_TF1,SIGMA_T1
+   
+    IF(POSDATA.ISXX*POSDATA.ISYY*POSDATA.ISXY*POSDATA.IMC_C*POSDATA.IMC_PHI==0) THEN
+        RETURN
+    ELSE
+        ISSTREAMLINESLOPE=.TRUE.
+    ENDIF
+    if(islip>0) then
+        n1=islip;n2=islip
+    else
+        n1=1;n2=nstreamline
+    endif
     
-    
-    do i=1,nstreamline
-        do j=1,streamline(i).nv       
-		
+    do i=n1,n2
+        SIGMA_TF1=0.D0;SIGMA_T1=0.D0
+        
+        DO j=1,streamline(i).nv-1
+            SS(1)=(STREAMLINE(I).VAL(POSDATA.ISXX,J)+STREAMLINE(I).VAL(POSDATA.ISXX,J+1))/2.0
+            SS(2)=(STREAMLINE(I).VAL(POSDATA.ISYY,J)+STREAMLINE(I).VAL(POSDATA.ISYY,J+1))/2.0
+		    SS(3)=(STREAMLINE(I).VAL(POSDATA.ISXY,J)+STREAMLINE(I).VAL(POSDATA.ISXY,J+1))/2.0
+            C1=(STREAMLINE(I).VAL(POSDATA.IMC_C,J)+STREAMLINE(I).VAL(POSDATA.IMC_C,J+1))/2.0
+            PHI1=(STREAMLINE(I).VAL(POSDATA.IMC_PHI,J)+STREAMLINE(I).VAL(POSDATA.IMC_PHI,J+1))/2.0
+            
+            DX1=STREAMLINE(I).VAL(POSDATA.IX,J+1)-STREAMLINE(I).VAL(POSDATA.IX,J)
+            DY1=STREAMLINE(I).VAL(POSDATA.IY,J+1)-STREAMLINE(I).VAL(POSDATA.IY,J)
+            T1=(DX1**2+DY1**2)**0.5
+            IF(ABS(DX1)>1E-7) THEN
+                RAD1=ATAN(DY1/DX1)
+            ELSE
+                RAD1=SIGN(PI/2.0,DY1)
+            ENDIF
+            CALL stress_in_inclined_plane(SS,RAD1,SNT1)
+            IF(SNT1(1)<0.D0) THEN
+                SIGMA_TF1=SIGMA_TF1+(C1-SNT1(1)*DTAN(PHI1/180.0*PI))*T1
+                SIGMA_T1=SIGMA_T1+SNT1(2)*T1
+            ENDIF
+                        
+        ENDDO
+        
+        STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1)        
+        SF_SLOPE(NSTREAMLINE)=I        
+        DO J=1, NSTREAMLINE-1          
+
+            IF(STREAMLINE(SF_SLOPE(J)).SF_SLOPE>STREAMLINE(I).SF_SLOPE) THEN
+                SF_SLOPE(NSTREAMLINE:J+1:-1)=SF_SLOPE(NSTREAMLINE-1:J:-1)
+                SF_SLOPE(J)=I
+                EXIT
+            ENDIF
+
         ENDDO
 	enddo
     
     
 
 endsubroutine
+
+SUBROUTINE stress_in_inclined_plane(ss,RAD,SNT)
+!angle in rad.
+!ss:sx,sy,sxy
+!ss1:sn,st
+    implicit none
+    real(8),intent(in)::ss(3),RAD
+    real(8),INTENT(OUT)::Snt(2)
+    
+    Snt(1)=0.5*(ss(1)+ss(2))+0.5*(ss(1)-ss(2))*cos(2*RAD)+ss(3)*sin(2*RAD)
+    Snt(2)=-0.5*(ss(1)-ss(2))*sin(2*RAD)+ss(3)*cos(2*RAD) 
+    
+    
+endSUBROUTINE
 
 subroutine streamline_integration(istreamline)
     use function_plotter
@@ -193,7 +303,8 @@ subroutine streamline_integration(istreamline)
                 STREAMLINE(istreamline).V(1:POSDATA.NDIM,NUP1+1)=STREAMLINE(ISTREAMLINE).PTstart(1:POSDATA.NDIM)
                 STREAMLINE(istreamline).V(1:POSDATA.NDIM,2+NUP1:I+1+NUP1)=YSAV(:,1:I)
                 STREAMLINE(ISTREAMLINE).VAL(:,1:NUP1)=VAL2(1:POSDATA.NVAR,1:NUP1)
-                STREAMLINE(ISTREAMLINE).VAL(:,NUP1+1:NUP1+I+1)=VAL1(1:POSDATA.NVAR,0:I)                
+                STREAMLINE(ISTREAMLINE).VAL(:,NUP1+1:NUP1+I+1)=VAL1(1:POSDATA.NVAR,0:I)
+                CALL slopestability_streamline(ISTREAMLINE)
             ENDIF
         ENDIF
     ENDDO

@@ -1089,7 +1089,7 @@ subroutine Tosolver()
 122 FORMAT("//",A<ITEM>)
 123 FORMAT("// ", <ITEM>("N",I<width(j)>,5X))
 
-130 FORMAT(/'BC,NUM=',I7,',ISINC=1') 
+130 FORMAT(/'BC,NUM=',I7,',ISINC=0') 
 131 FORMAT(I7,1X,I2,1X,E15.7,1X,I4)
 132 FORMAT("// ","NODE DOF VALUE [STEPFUNC.]")
 

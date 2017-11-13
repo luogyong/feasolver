@@ -1,6 +1,7 @@
 module IndexColor
 
-    !COLOR CONSTANT				 
+    !COLOR CONSTANT	
+
 INTEGER,PARAMETER::Black=1
 INTEGER,PARAMETER::White=2
 INTEGER,PARAMETER::Red=3
@@ -282,5 +283,8 @@ REAL(4),PARAMETER::MYCOLOR(4,139)=RESHAPE([&
                     0.8275,0.8275,0.8275,1.0000,&
                     0.8627,0.8627,0.8627,1.0000,&
                     0.9608,0.9608,0.9608,1.0000],([4,139]))    
+                    
+INTEGER,PARAMETER::COLOR_TOP_TEN(10)=[RED,BLUE,YELLOW,GREEN,ORANGE,&
+                    PURPLE,DARK_RED,LIGHT_BLUE,LIGHT_GREEN,DARK_BLUE]                    
     
 end module

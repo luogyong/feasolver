@@ -8,6 +8,8 @@ use MESHGEO
 implicit none
 !private
 !public :: display,menu_handler,make_menu,CONTOUR_PLOT_VARIABLE,VECTOR_PLOT_GROUP
+!REAL(8),PARAMETER::PI=3.141592653589793
+real(8)::stroke_fontsize=1.0
 private::SET_VARIABLE_SHOW,SET_VECTOR_PLOT_GROUP
 ! symbolic constants
 
@@ -59,15 +61,25 @@ INTEGER::NSLICE=0
 
 INTEGER::IVO(3)=0 !FOR VECTOR PAIR LOCATION IN POSDATA.NODALQ
 INTEGER::IEL_STREAMLINE=0 !当前积分点所在的单元
-INTEGER,PARAMETER::streamline_location_click=1,Plot_streamline_CLICK=2
+INTEGER,PARAMETER::streamline_location_click=1,Plot_streamline_CLICK=2,&
+                   Reset_streamline_CLICK=3,Enlarger_StrokeFontSize_CLICK=4,&
+                   Smaller_StrokeFontSize_CLICK=5
 LOGICAL::isstreamlineinitialized=.false.
 TYPE STREAMLINE_TYDEF
     INTEGER::NV=0
-    REAL(8)::PTstart(3)
+    REAL(8)::PTstart(3),SF_SLOPE=1.D5
     REAL(8),ALLOCATABLE::V(:,:),VAL(:,:)
 ENDTYPE
-TYPE(STREAMLINE_TYDEF)::STREAMLINE(100)
-INTEGER::NSTREAMLINE=0
+TYPE(STREAMLINE_TYDEF)::STREAMLINE(500)
+INTEGER::NSTREAMLINE=0,SF_SLOPE(500)=0.0
+LOGICAL::IS_JUST_SHOW_TOP_TEN_SLOPE=.FALSE.,IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.,&
+        IS_SHOW_ALL_SLOPE=.TRUE.
+
+
+!TYPE SLOPE_TYDEF
+!    
+!ENDTYPE
+
 
 !vector
 TYPE VECTOR_PLOT_TYDEF
@@ -183,7 +195,9 @@ integer,parameter,public::ContourList=1,&
                           StreamLineList=7,&
 						  STEPSTATUSLIST=8
                           
-                       
+integer,parameter::STREAMLINE_SLOPE_CLICK=1,ShowTopTen_SLOPE_CLICK=2,ShowMinimal_SLOPE_CLICK=3,&
+                    ShowAll_SLOPE_CLICK=4
+LOGICAL::ISSTREAMLINESLOPE=.FALSE.
 
 !real(GLFLOAT) :: red(4) = (/1.0,0.0,0.0,1.0/), &
 !                 black(4) = (/0.0,0.0,0.0,1.0/), &
@@ -478,7 +492,8 @@ end subroutine
 subroutine streamline_handler(selection)
     implicit none
     integer(kind=glcint), intent(in out) :: selection
-
+    INTEGER::I
+    
     select case (selection)
 
     case(streamline_location_click)
@@ -488,6 +503,20 @@ subroutine streamline_handler(selection)
         call glutSetCursor(GLUT_CURSOR_CROSSHAIR)  
     CASE(Plot_streamline_CLICK)
 		isPlotStreamLine=.not.isPlotStreamLine
+    case(Reset_streamline_CLICK)
+        DO I=1,NSTREAMLINE
+            IF(ALLOCATED(STREAMLINE(I).V)) THEN
+                DEALLOCATE(STREAMLINE(I).V,STREAMLINE(I).VAL)
+            ENDIF
+        ENDDO
+        nstreamline=0
+        CALL STREAMLINE_PLOT()
+     CASE(Enlarger_StrokeFontSize_CLICK) 
+        stroke_fontsize=2.*stroke_fontsize
+        CALL STREAMLINE_PLOT()
+     CASE(Smaller_StrokeFontSize_CLICK)
+        stroke_fontsize=0.5*stroke_fontsize
+        CALL STREAMLINE_PLOT()
   !  CASE(PLOTSLICEISOLINE_CLICK)
 		!ISPLOTSLICEISOLINE=.NOT.ISPLOTSLICEISOLINE
         
@@ -498,6 +527,57 @@ subroutine streamline_handler(selection)
 	!call SLICEPLOT()
 	
 end subroutine
+
+subroutine slope_handler(selection)
+    implicit none
+    integer(kind=glcint), intent(in out) :: selection
+
+    select case (selection)
+       
+    case(STREAMLINE_SLOPE_CLICK)
+        ISSTREAMLINESLOPE=.NOT.ISSTREAMLINESLOPE
+        IF(ISSTREAMLINESLOPE) THEN
+            call slopestability_streamline(0) 
+        ENDIF
+    CASE(ShowTopTen_SLOPE_CLICK)
+        IS_JUST_SHOW_TOP_TEN_SLOPE=.NOT.IS_JUST_SHOW_TOP_TEN_SLOPE
+        IF(IS_JUST_SHOW_TOP_TEN_SLOPE) THEN
+            IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.
+            IS_SHOW_ALL_SLOPE=.FALSE.
+        ELSE
+            IS_SHOW_ALL_SLOPE=.TRUE.
+        ENDIF
+        CALL STREAMLINE_PLOT()
+    CASE(SHOWMINIMAL_SLOPE_CLICK)
+        IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.NOT.IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE
+        IF(IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE) THEN
+            IS_JUST_SHOW_TOP_TEN_SLOPE=.FALSE.
+            IS_SHOW_ALL_SLOPE=.FALSE.
+        ELSE
+            IS_SHOW_ALL_SLOPE=.TRUE.
+        ENDIF        
+        CALL STREAMLINE_PLOT()
+    CASE(SHOWALL_SLOPE_CLICK)
+        IS_SHOW_ALL_SLOPE=.NOT.IS_SHOW_ALL_SLOPE
+        IF(IS_SHOW_ALL_SLOPE) THEN
+            IS_JUST_SHOW_TOP_TEN_SLOPE=.FALSE.
+            IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.
+        ENDIF         
+        CALL STREAMLINE_PLOT()
+    CASE default
+		!isPlotStreamLine=.not.isPlotStreamLine
+  !  CASE(PLOTSLICEISOLINE_CLICK)
+		!ISPLOTSLICEISOLINE=.NOT.ISPLOTSLICEISOLINE
+        
+		
+    end select
+    
+    !CALL STREAMLINE_INI()
+	!call SLICEPLOT()
+	
+end subroutine
+
+
 
 SUBROUTINE set_variable_show(VALUE)
 integer(kind=glcint), intent(in out) :: value 
@@ -725,7 +805,8 @@ INTEGER::VSHOW_SPG_ID,VSHOW_STRESS_ID,VSHOW_STRAIN_ID,VSHOW_PSTRAIN_ID,&
         SLICESHOW_SFR_ID,&
         SLICESHOW_DIS_ID,&
         SLICESHOW_FORCE_ID,&
-        STREAMLINE_PLOT_ID
+        STREAMLINE_PLOT_ID,&
+        SLOPE_ID
 
         
 contour_color_menu = glutCreateMenu(contour_color_handler)
@@ -816,6 +897,15 @@ call glutAddSubMenu("SHOW_VARS",SLICESHOW_SPG_ID)
 STREAMLINE_PLOT_ID=glutCreateMenu(STREAMLINE_handler)
 call glutAddMenuEntry("PICK START POINT",STREAMLINE_LOCATION_CLICK)
 call glutAddMenuEntry("PlotStreamLine toggle",Plot_streamline_CLICK)
+call glutAddMenuEntry("ResetStreamLine",Reset_streamline_CLICK)
+call glutAddMenuEntry("++StrokeFontSize",Enlarger_StrokeFontSize_CLICK)
+call glutAddMenuEntry("--StrokeFontSize",Smaller_StrokeFontSize_CLICK)
+
+SLOPE_ID=glutCreateMenu(SLOPE_handler)
+call glutAddMenuEntry("STREAMLINE_METHOD",STREAMLINE_SLOPE_CLICK)
+call glutAddMenuEntry("JustShowTopTenSlips",ShowTopTen_SLOPE_CLICK)
+call glutAddMenuEntry("JustShowMinimalSlip",ShowMinimal_SLOPE_CLICK)
+call glutAddMenuEntry("ShowAllSlips",ShowAll_SLOPE_CLICK)
 
 
 
@@ -826,9 +916,11 @@ call glutAddSubMenu("Slice",SLICE_PLOT_ID)
 call glutAddSubMenu("Streamline",STREAMLINE_PLOT_ID)
 call glutAddSubMenu("NodalValue",Show_NodalValue_ID)
 call glutAddSubMenu("Model",Model_ID)
+CALL glutAddSubMenu("SlopeStability",SLOPE_ID)
 call glutAddSubMenu("View",submenuid)
 !call glutAddSubMenu("plotting parameters",param_id)
 call glutAddMenuEntry("ShowProbeValue toggle",probe_selected)
+
 call glutAddMenuEntry("quit",quit_selected)
 
 
@@ -1076,7 +1168,7 @@ subroutine PickPoint(x,y,Pt1,IEL)
 
     call GetOGLPos(x, y,Pt1)
 
-    iel=POINTlOC(pt1)
+    iel=POINTlOC(pt1,0)
 
 
     
