@@ -52,8 +52,8 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     sigmaC1=(stress(1)+stress(2))/2.0
     R1=t2
     if(R1>0) then
-        
-        if(sigmaC1<=0) then
+        if(pss1(1)<=0) then
+        !if(sigmaC1<=0) then
             
             B=-tan(phi1)
             A=(C1+sigmaC1*B)/R1
@@ -64,6 +64,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
                 sita1=pi1/2.0-phi1
             endif
             sfr(1)=sin(sita1)/(A+B*cos(sita1)) !sfr for stress failure ratio
+            if(sfr(1)>1.d0) sfr(1)=1.0d0
         else
             !tension
             sfr(1)=-1.            
@@ -103,21 +104,30 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
         T1=-T1
     ENDIF
 
-    
-    if(stress(2)>stress(1)) then !sigmax<sigmay         
-        sfr(2)=pss1(4)+(sita1)/2.0*T1
-    else
-        sfr(2)=pss1(4)-(PI1-sita1)/2.0*T1
-    endif
-    !sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(PI1/2-phi1)
-    !sfr(4)=-t2*sin(PI1/2-phi1)*t1 
-    sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(sita1)
-    sfr(4)=-t2*sin(sita1)*t1 
-    sfr(5)=sign(sfr(1),-sfr(4))*dcos(sfr(2)) !输出归一化的剪应力
-    sfr(6)=sign(sfr(1),-sfr(4))*dsin(sfr(2))
-    !sfr(5)=abs(sfr(1))*dcos(sfr(2)) !输出归一化的剪应力
-    !sfr(6)=abs(sfr(1))*dsin(sfr(2))
-
+    IF(sfr(1)>=0.d0) then
+        if(stress(2)>stress(1)) then !sigmax<sigmay         
+            sfr(2)=pss1(4)+(sita1)/2.0*T1
+        else
+            sfr(2)=pss1(4)-(PI1-sita1)/2.0*T1
+        endif
+        !sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(PI1/2-phi1)
+        !sfr(4)=-t2*sin(PI1/2-phi1)*t1 
+        sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(sita1)
+        sfr(4)=-t2*sin(sita1)*t1 
+        sfr(5)=sign(sfr(1),-sfr(4))*dcos(sfr(2)) !输出归一化的剪应力
+        sfr(6)=sign(sfr(1),-sfr(4))*dsin(sfr(2))
+        !sfr(5)=abs(sfr(1))*dcos(sfr(2)) !输出归一化的剪应力
+        !sfr(6)=abs(sfr(1))*dsin(sfr(2))
+    ELSE
+        !TENSION FAILURE,THE FAILURE SURFACE IS PLANE THE MAJOR PRINCIPLE STRESS.
+        IF(stress(2)>stress(1)) THEN
+            SFR(2)=pss1(4)
+        ELSE
+            SFR(2)=pss1(4)+PI1/2.0
+        ENDIF
+        SFR(5)=0.D0
+        SFR(6)=-1
+    ENDIF
     
     sfr(2)=sfr(2)/PI1*180.0 !to degree
     

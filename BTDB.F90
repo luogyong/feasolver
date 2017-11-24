@@ -195,6 +195,39 @@ subroutine CMM_SPG_Cal(istep) !for transient seepage problem.
 
 end subroutine
 
+subroutine BTmN(elb,ielb,jelb,kelb,elk,ielk,jelk,weight,iweight,detjac,idetjac,ienum)
+	use solverds	
+!	use operation_x
+!	use operation_tx
+	implicit none
+	integer::i,ielb,jelb,kelb,ielk,jelk,iweight,idetjac,ienum
+	real(8)::elb(ielb,jelb,kelb),elk(ielk,jelk),weight(iweight),detjac(idetjac)
+	real(8)::r1=1,m(6)=0.d0
+	
+    if(ndimension==2) then
+        m=[1,1,0,0,0,0]
+    else
+        m=[1,1,1,0,0,0]
+    endif
+	elk=0.0D0
+	do i=1,iweight
+		r1=1.0
+		if(element(ienum).ec==cax.or.element(ienum).ec==CAX_SPG) then
+!			r1=dot_product(ecp(element(ienum).et).Lshape(:,i), &
+!								node(element(ienum).node(1:element(ienum).nnum)).coord(1))
+			r1=abs(element(ienum).xygp(1,i))
+			if(abs(r1)<1e-7) r1=1.0e-7
+		end if
+!		ELK=ELK+weight(i)*(ELB(:,:,i).TX.ELD.X.ELB(:,:,i))*detjac(i)*r1
+		ELK=ELK+WEIGHT(I)*DETJAC(I)*R1* MATMUL(TRANSPOSE(ELB(:,:,I)),&
+				csproduct(m(1:jelb),ecp(element(ienum).et).Lshape(:,I)))
+				
+	end do
+	return
+	
+end subroutine
+
+
 
 
 !according to the element type(ET) and  calculate:

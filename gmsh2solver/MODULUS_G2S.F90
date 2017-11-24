@@ -90,12 +90,15 @@ module DS_Gmsh2Solver
 	type(et_type)::elttype(100)
 	
 	type bcgroup_type
-		integer::group
+		integer::group,ISFIELD=0
 		integer::ndim=0 !=0,point load; =1,line load; =2, planar load; =3,volume load;
 		integer::dof
 		integer::sf=0
 		real(8)::value=0  !当输入seepageface时，value=1,2,3 分别表示节点的水头值等于坐标x,y,z.
 		integer::n1=0,n2=0 !for spgface output
+        real(8)::LFC(4)=0.d0 !FIELD=AX+BY+CY+D LFC()=[A,B,C,D]
+    CONTAINS
+        PROCEDURE::GETVALUE=>LINEARFILEDCAL
 	end type
 	type(bcgroup_type),allocatable::elt_bc(:),elt_load(:),elt_spgface(:)
 	integer::nelt_bc,nelt_load,nelt_spgface
@@ -170,6 +173,35 @@ module DS_Gmsh2Solver
     INTEGER::ISGENTRISURFACE=0,ISGEO=0,ISSTL=0,ISOFF=0
 	
     CONTAINS
+    
+    REAL(8) FUNCTION LINEARFILEDCAL(BCG,X,Y,Z)
+        IMPLICIT NONE
+        CLASS(bcgroup_type),INTENT(IN)::BCG
+        REAL(8),INTENT(IN),OPTIONAL::X,Y,Z
+        REAL(8)::X1=0.D0,Y1=0.D0,Z1=0.D0
+        
+        IF(BCG.ISFIELD==0) THEN
+            LINEARFILEDCAL=BCG.VALUE
+        ELSE
+            IF(PRESENT(X)) THEN
+                X1=X 
+            ELSE
+                X1=0.D0
+            ENDIF
+            IF(PRESENT(Y)) THEN
+                Y1=Y 
+            ELSE
+                Y1=0.D0
+            ENDIF
+            IF(PRESENT(Z)) THEN
+                Z1=Z 
+            ELSE
+                Z1=0.D0
+            ENDIF       
+            
+            LINEARFILEDCAL=BCG.LFC(1)*X1+BCG.LFC(2)*Y1+BCG.LFC(3)*Z1+BCG.LFC(4)
+        ENDIF
+    ENDFUNCTION
     
     SUBROUTINE I_ENLARGE_AR(AVAL,DSTEP)
         INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:)

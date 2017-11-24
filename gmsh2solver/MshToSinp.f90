@@ -685,7 +685,7 @@ subroutine elt_bc_load_translate()
 	use DS_Gmsh2Solver
 	implicit none
 	integer::i,j,k,n1,n2,nc,iar1(5)
-	real(8)::LAV1
+	real(8)::LAV1,t1
 	integer,allocatable::nodalload1(:),node1(:)
 	real(8),allocatable::load1(:)
 	
@@ -709,7 +709,7 @@ subroutine elt_bc_load_translate()
 							nodalLoad(nnodalLoad).node=n2
 							nodalLoad(nnodalLoad).dof=elt_load(i).dof
 							nodalLoad(nnodalLoad).sf=elt_load(i).sf
-							nodalLoad(nnodalLoad).value=elt_load(i).value
+							nodalLoad(nnodalLoad).value=elt_load(i).GETVALUE(node(n2).xy(1),node(n2).xy(2),node(n2).xy(3))
 							nodalload1(n2)=1
 						end if
 					end do
@@ -719,12 +719,22 @@ subroutine elt_bc_load_translate()
 				load1=0
 				do j=1,physicalgroup(elt_load(i).group).nel
 					n1=physicalgroup(elt_load(i).group).element(j)
-					call Element_LAV_Cal(n1,LAV1) 
-					LAV1=LAV1*elt_load(i).value
+					call Element_LAV_Cal(n1,LAV1)
+					
+					
+					t1=0.d0
+					!equivalent uniform load
 					do k=1,element(n1).nnode
 						n2=element(n1).node(k)
-						load1(n2)=load1(n2)+Elttype(element(n1).et).weight(k,1)*LAV1 !均布荷载		 				
-					end do					
+						t1=t1+elt_load(i).getvalue(node(n2).xy(1),node(n2).xy(2),node(n2).xy(3))								 				
+					end do
+					t1=t1/element(n1).nnode
+					LAV1=LAV1*t1
+					do k=1,element(n1).nnode
+						n2=element(n1).node(k)
+						load1(n2)=load1(n2)+Elttype(element(n1).et).weight(k,1)*LAV1 !均布荷载								 				
+					end do
+					
 				end do				
 				do j=1,nnode
 					if(abs(load1(j))>1e-10) then
@@ -754,7 +764,7 @@ subroutine elt_bc_load_translate()
 					nodalBC(nnodalBC).node=n2
 					nodalBC(nnodalBC).dof=elt_bc(i).dof
 					nodalBC(nnodalBC).sf=elt_bc(i).sf
-					nodalBC(nnodalBC).value=elt_bc(i).value
+					nodalBC(nnodalBC).value=elt_bc(i).GETVALUE(node(n2).xy(1),node(n2).xy(2),node(n2).xy(3))
 					nodalload1(n2)=1 !多次出现时以第一次出现的值为准。
 				end if
 			end do			

@@ -591,18 +591,29 @@ subroutine solvercommand(term,unit)
                 if(nset==1) geoline(n2).title=set(1)
             enddo
 		CASE('waterlevel')
-			 print *, 'Reading WALTERLEVEL LINE data...'
+			print *, 'Reading WALTERLEVEL LINE data...'
+            N2=0
             do i=1,pro_num
                 select case(property(i).name)
 					case('num')
-						WATERLEVEL.NPOINT=int(property(i).value)                                            
+						WATERLEVEL.NPOINT=int(property(i).value)
+                    case('fmt','format')
+                        WATERLEVEL.FMT=int(property(i).value)
+                    case('var')
+                        WATERLEVEL.VAR=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select    
             end do
-            allocate(WATERLEVEL.POINT(WATERLEVEL.NPOINT))
-			call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
-			WATERLEVEL.POINT=AR(1:n1)
+            allocate(WATERLEVEL.POINT(WATERLEVEL.NPOINT),WATERLEVEL.H(2,WATERLEVEL.NPOINT))
+            IF(WATERLEVEL.FMT==0) THEN
+			    call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+			    WATERLEVEL.POINT=AR(1:n1)
+                WATERLEVEL.H(1,:)=KPOINT(WATERLEVEL.VAR,WATERLEVEL.POINT)
+                WATERLEVEL.H(2,:)=KPOINT(NDIMENSION,WATERLEVEL.POINT)
+            ELSE
+                READ(UNIT,*) WATERLEVEL.H
+            ENDIF
 			
         case('right turn point','rtpoint','rtp')
 			print *, 'Reading RIGHT TURN POINTS ...'
@@ -2150,8 +2161,6 @@ subroutine solvercommand(term,unit)
 						outvar(NFX).value=NFX
 						outvar(NFY).name='NFY'
 						outvar(NFY).value=NFY
-						outvar(NFZ).name='NFZ'
-						outvar(NFZ).value=NFZ						
 						IF(NDIMENSION>2) THEN
 							outvar(NFZ).name='NFZ'
 							outvar(NFZ).value=NFZ
@@ -2264,11 +2273,14 @@ end subroutine
    !每行后面以'/'开始的后面的字符是无效的。
    subroutine  strtoint(unit,ar,nmax,n1,num_read,set,maxset,nset)
 	  implicit none
+      INTEGER,INTENT(IN)::unit,nmax,num_read,maxset
+      INTEGER,INTENT(INOUT)::N1,NSET
+      REAL(8),INTENT(INOUT)::ar(nmax)
+      character(*)::set(maxset)
 	  logical::tof1,tof2
-	  integer::i,j,k,strl,ns,ne,n1,n2,n3,n4,step,nmax,& 
-			num_read,unit,ef,n5,nsubs,maxset,nset
-	  real(8)::ar(nmax),t1
-		character(32)::set(maxset)
+	  integer::i,j,k,strl,ns,ne,n2,n3,n4,step,& 
+			ef,n5,nsubs
+	  real(8)::t1	  
 	  character(1024)::string
 	  character(32)::substring(100)
 	  character(16)::legalC,SC

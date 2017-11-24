@@ -1192,12 +1192,13 @@ subroutine el_alloc_room(ienum)
 			allocate(element(ienum).pstrain(6,element(ienum).ngp+element(ienum).nnum))
 			allocate(element(ienum).evp(6,element(ienum).ngp+element(ienum).nnum))	
 			allocate(element(ienum).ev(element(ienum).ngp), &
-			element(ienum).e(element(ienum).ngp))
+			element(ienum).e(element(ienum).ngp),element(ienum).uw(element(ienum).ngp))
 			allocate(element(ienum).sfr(6,element(ienum).ngp+element(ienum).nnum))	
 			element(ienum).pstrain=0.0D0
 			element(ienum).evp=0.0D0	
 			element(ienum).ev=0.0
 			element(ienum).e=0.0
+            element(ienum).uw=0.0
 			element(ienum).sfr=0.d0
 			do i=1,element(ienum).nnum
 				if(.not.allocated(node(element(ienum).node(i)).stress)) then

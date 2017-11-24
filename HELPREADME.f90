@@ -179,10 +179,12 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) = "//注意：1）按X从左至右的顺序输入,既x1<=x2<=..<=xn" 
 	
  	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//WATERLEVEL,NUM=...(I)"  
+	README(IPP(I)) = "//WATERLEVEL,NUM=...(I),FMT=0|1,VAR=1|2|3  //VAR=INTERPOLATION INDEPENDENT VARIABLE. 1/2/3 MEANS X/Y/Z"  
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT WALTERLEVEL LINE DATA."//'"'
-	README(IPP(I)) = "//A:{P1,P2,...,P(NUM)]}  //控制点号(共NUM个)" 
- 	README(IPP(I)) = "//{A}*1   //共1组"   
+    README(IPP(I)) = "//IF fmt=0(DEFAULT) then input the id number in the array KPOINT of the points. " 
+    README(IPP(I)) = "//IF fmt=1 then INPUT (VAR,H) of the points. " 
+	README(IPP(I)) = "//A:{P1,P2,...,P(NUM)]}  //(IF FMT=0)控制点号(共NUM个)" 
+    README(IPP(I)) = "//A:{XI,HI}*NUM  //(IF FMT=1)(共NUM个)" 
 	README(IPP(I)) = "//注意：1）按X从左至右的顺序输入,既x1<=x2<=..<=xn" 	
 	
  	README(IPP(I)) ="\N//******************************************************************************************************"C

@@ -25,7 +25,7 @@ SUBROUTINE STREAMLINE_PLOT()
 
     implicit none
     integer :: i,j,k,n1
-    REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1
+    REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1,DEG2
     CHARACTER(16)::STR1
 
     call glDeleteLists(STREAMLINELIST, 1_glsizei)
@@ -39,7 +39,8 @@ SUBROUTINE STREAMLINE_PLOT()
     DO I=1,NSTREAMLINE
         CALL glLineWidth(2.0_glfloat)
         CALL glcolor4fv(mycolor(:,BLUE))
-        IF(ISSTREAMLINESLOPE) THEN
+        !INPUTSLIPS ARE ALWAYS PLOTTED.
+        IF(ISSTREAMLINESLOPE.AND.STREAMLINE(I).ISINPUTSLIP==0) THEN        
             N1=MINLOC(ABS(SF_SLOPE(1:10)-I),DIM=1)
             IF(SF_SLOPE(N1)==I)  THEN
                 CALL glcolor4fv(mycolor(:,COLOR_TOP_TEN(N1)))
@@ -52,8 +53,7 @@ SUBROUTINE STREAMLINE_PLOT()
                 IF(IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE) THEN
                     IF(SF_SLOPE(1)/=I) CYCLE
                 ENDIF                
-            ENDIF
-            
+            ENDIF            
         ENDIF
         
 	    call glBegin(gl_LINE_STRIP)
@@ -65,8 +65,7 @@ SUBROUTINE STREAMLINE_PLOT()
         IF(ISSTREAMLINESLOPE) THEN
             DX1=STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV)-STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV-1)
             DY1=STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV)-STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV-1)
-            T1=(DX1**2+DY1**2)**0.5
-            !DEG1=ASIN(DY1/T1)/PI*180.0 
+
             IF(ABS(DX1)>1E-7) THEN
                 DEG1=ATAN(DY1/DX1)/PI*180.
             ELSE
@@ -74,6 +73,18 @@ SUBROUTINE STREAMLINE_PLOT()
             ENDIF
             
             IF(DEG1<0) DEG1=DEG1+180.
+
+            DX1=STREAMLINE(I).VAL(POSDATA.IX,1)-STREAMLINE(I).VAL(POSDATA.IX,2)
+            DY1=STREAMLINE(I).VAL(POSDATA.IY,1)-STREAMLINE(I).VAL(POSDATA.IY,2)
+            !DEG1=ASIN(DY1/T1)/PI*180.0 
+            IF(ABS(DX1)>1E-7) THEN
+                DEG2=ATAN(DY1/DX1)/PI*180.
+            ELSE
+                DEG2=SIGN(PI/2.0,DY1)/PI*180.
+            ENDIF
+            
+            IF(DEG2<0) DEG2=DEG2+180.
+            
             
             WRITE(STR1,'(F6.3)') STREAMLINE(I).SF_SLOPE
             
@@ -83,11 +94,20 @@ SUBROUTINE STREAMLINE_PLOT()
             SCALE1=POSDATA.MODELR/80/FS1*stroke_fontsize
             !scale1=PPM1*3.527777778/119.05*0.02*stroke_fontsize
             call glLineWidth(1.0_glfloat)
+            
+            IF(ABS(STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV))<1E-7) THEN
+            PAUSE
+            ENDIF
             CALL drawStrokeText(DEG1,&
                                 STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV), &
                                 STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV),0.0, &
                                 scale1,&
                                 STR1)
+            CALL drawStrokeText(DEG2,&
+                                STREAMLINE(I).VAL(POSDATA.IX,1), &
+                                STREAMLINE(I).VAL(POSDATA.IY,1),0.0, &
+                                scale1,&
+                                STR1)                                
             !CALL output3D(STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV), &
             !              STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV),0.0, &
             !              STR1)                    
@@ -118,15 +138,11 @@ subroutine gen_new_streamline(PTstart)
 	real(8),intent(in)::PTstart(3)
 	
 	CALL STREAMLINE_INI()
-	call STREAMLINE_STEP_SIZE()
-    NSTREAMLINE=NSTREAMLINE+1
-    IF(NSTREAMLINE>500) THEN
-        PAUSE 'NSTREAMLINE>500.'
-        RETURN
-    ENDIF
-	
+	call STREAMLINE_STEP_SIZE()    
+    IF(NSTREAMLINE+1>MAXNSTREAMLINE) CALL ENLARGE_STREAMLINE()
+	NSTREAMLINE=NSTREAMLINE+1
     STREAMLINE(nstreamline).PTstart=PTstart
-	
+	STREAMLINE(nstreamline).isinputslip=0
 	call streamline_integration(nstreamline)
 	
 	CALL STREAMLINE_PLOT()
@@ -142,6 +158,7 @@ subroutine streamline_update()
 	call STREAMLINE_STEP_SIZE()
 	
 	do i=1,nstreamline
+        if(streamline(i).isinputslip==1) cycle
 		call streamline_integration(i)		
 	enddo
 	
@@ -155,7 +172,7 @@ subroutine slopestability_streamline(islip)
     integer,intent(in)::islip
     real(8)::pt1(3)
     integer::iel1,i,j,n1,n2
-    REAL(8)::SS(3),T1,RAD1,DX1,DY1,SNT1(2),C1,PHI1,SIGMA_TF1,SIGMA_T1
+    REAL(8)::SS(3),T1,RAD1,DX1,DY1,SNT1(2),C1,PHI1,SIGMA_TF1,SIGMA_T1,T2
    
     IF(POSDATA.ISXX*POSDATA.ISYY*POSDATA.ISXY*POSDATA.IMC_C*POSDATA.IMC_PHI==0) THEN
         RETURN
@@ -194,11 +211,23 @@ subroutine slopestability_streamline(islip)
                         
         ENDDO
         
-        STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1)        
+        STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1) 
+        
+        !INPUTSLIP 让其参在最后(实际上不参与排序)
+        IF(STREAMLINE(I).ISINPUTSLIP>0) THEN
+            T1=1.D10
+        ELSE
+            T1=STREAMLINE(I).SF_SLOPE
+        ENDIF
+        
         SF_SLOPE(NSTREAMLINE)=I        
-        DO J=1, NSTREAMLINE-1          
-
-            IF(STREAMLINE(SF_SLOPE(J)).SF_SLOPE>STREAMLINE(I).SF_SLOPE) THEN
+        DO J=1, NSTREAMLINE-1
+           IF(STREAMLINE(SF_SLOPE(J)).ISINPUTSLIP>0) THEN
+                T2=1.D10
+            ELSE
+                T2=STREAMLINE(SF_SLOPE(J)).SF_SLOPE
+            ENDIF
+            IF(T2>T1) THEN
                 SF_SLOPE(NSTREAMLINE:J+1:-1)=SF_SLOPE(NSTREAMLINE-1:J:-1)
                 SF_SLOPE(J)=I
                 EXIT
@@ -258,17 +287,29 @@ subroutine streamline_integration(istreamline)
                 IF(POSDATA.NDIM==2) THEN
                     P1(3)=0.D0;P2(3)=0.D0
                 ENDIF
+                IPT1=0.D0;IPT2=0.D0
                 CALL GET_BC_INTERSECTION(P1,P2,IPT1,IPT2,ISINTERCEPT1)
                 IF(ISINTERCEPT1==1) THEN
                     YSAV(:,I)=IPT1(1:POSDATA.NDIM)
+                    !IF(NORM2(IPT1)<1E-10) THEN
+                    !    PAUSE
+                    !ENDIF
                     call ProbeatPhyscialspace(IPT1,VAL1(1:POSDATA.NVAR,I),iel) 
+                    !if(norm2(ipt1(1:2)-VAL1(1:2,i))>0.01) then
+                    !    pause
+                    !endif
                     !if(iel<=0) then
                     !    pause 'point out of mesh.sub=streamline_integration'
                     !endif
+                ELSE
+                    CALL GET_BC_INTERSECTION(P1,P2,IPT1,IPT2,ISINTERCEPT1)
                 ENDIF
+                
                 EXIT 
             ENDIF    
             IF(NORM2(V1)<1E-10) EXIT
+            
+            
             
             IF(I<1) THEN
                 htry=TET(RKINFO.IEL).STEPSIZE
@@ -283,6 +324,10 @@ subroutine streamline_integration(istreamline)
             YSAV(:,I)=Y(1:POSDATA.NDIM)
         
         ENDDO
+        
+        !IF(ALL(abs(VAL1(1:POSDATA.NVAR,i))<1e-7)) then
+        !    pause
+        !endif
         
         IF(I>=MAXSTEP1) THEN
             pause 'Too many steps in streamline'
@@ -342,7 +387,7 @@ SUBROUTINE derivs(T,PT,V)
     INTEGER,SAVE::TRYIEL=0
     
     VAL1=0.D0
-    !iel=POINTlOC(PT)
+    !iel=POINTlOC(PT,TRYIEL)
     
     IEL=POINTlOC_BC(Pt,TRYIEL)
     TRYIEL=IEL
@@ -382,7 +427,7 @@ SUBROUTINE GET_BC_INTERSECTION(PT1,PT2,IPT1,IPT2,ISINTERCEPT)
             TOF1=.FALSE.
             IF(EDGE(I).ENUM==1) THEN
                 TOF1=.TRUE.
-            ELSEIF(FACE(I).ENUM==2) THEN
+            ELSEIF(EDGE(I).ENUM==2) THEN
                 TOF1=TET(EDGE(I).ELEMENT(1)).ISDEAD==1.OR.TET(EDGE(I).ELEMENT(2)).ISDEAD==1 
             ENDIF            
             IF(TOF1) THEN

@@ -1783,6 +1783,7 @@ end subroutine
 subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 
 	use solverds
+    USE Geometry
 	!use operation_ix
 	implicit none
 	logical,intent(in)::iscon
@@ -1798,8 +1799,9 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 					Dstress1(6)=0.0,dqwi(3)=0.0,dqf(6)=0.0,dp(6,6)=0.0,&
 					de(6,6)=0.0,t1=0.0,pstress1(6)=0.0,lamda=0.0,&
 					buf1(6)=0.0,buf2(6)=0.0,pstrain(6)=0.0,ev=0,PlasPar(3),SIGMAB(6),SIGMAC(6)
-	REAL(8)::E1,V1,R1,vyf2,AT1(6),DLAMDA,DSIGMAP1(6),VYF1
+	REAL(8)::E1,V1,R1,vyf2,AT1(6),DLAMDA,DSIGMAP1(6),VYF1,UW1(6)=0.D0
 	integer::nd1=0,ndim1,region,SITER1
+    REAL(8),EXTERNAL::MultiSegInterpolate
 	
 	n1=element(ienum).ngp
 	nd1=element(ienum).nd
@@ -1820,8 +1822,18 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		!stress incremental
 		de(1:nd1,1:nd1)=element(ienum).d
 		Dstress1(1:nd1)=matmul(de(1:nd1,1:nd1),Dstrain1(1:nd1))
+        !pore pressure
+        UW1=0.D0
+        element(ienum).UW(j)=0.D0
+        IF(WATERLEVEL.NPOINT>0) THEN
+            element(ienum).UW(j)=MultiSegInterpolate(WATERLEVEL.H(1,:),WATERLEVEL.H(2,:),WATERLEVEL.NPOINT,&
+                                ELEMENT(IENUM).XYGP(WATERLEVEL.VAR,J)) 
+            element(ienum).UW(j)=MAX((element(ienum).UW(j)-ELEMENT(IENUM).XYGP(NDIMENSION,J))*9.8,0.D0) !UNSATURATED SOIL IS NOT CONSIDERED.            
+        ENDIF
+        UW1(1:NDIMENSION)=element(ienum).UW(j)
 		!total stress
 		Tstress1=Dstress1+element(ienum).stress(:,j)
+        
         IF(istep>0) THEN !IINCS==0,假定只建立弹性应力场。
             IF(MATERIAL(ELEMENT(IENUM).MAT).TYPE==MC.AND.solver_control.bfgm==consistent) THEN
                 PlasPar=PARA_MC_CLAUSEN(ELEMENT(IENUM).MAT,ISTEP)
@@ -1949,7 +1961,8 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		!element(ienum).e(j)=e
 		
         bload(1:element(ienum).ndof)=bload(1:element(ienum).ndof)+ &
-						matmul((element(ienum).stress(1:nd1,j)+element(ienum).Dstress(1:nd1,j)),element(ienum).b(:,:,j))* &
+						matmul((element(ienum).stress(1:nd1,j)+element(ienum).Dstress(1:nd1,j) &
+                                -UW1(1:ND1)),element(ienum).b(:,:,j))* &
 						element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*r1
 						
 		if(ISTEP>0.AND.(solver_control.bfgm==continuum.OR.solver_control.bfgm==consistent)) then
@@ -1989,5 +2002,8 @@ subroutine element_activate(istep)
         endif
     enddo
 end
+
+
+
 
 

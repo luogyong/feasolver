@@ -16,6 +16,10 @@
 
     call GetOGLPos(x, y,Pt1)
 
+    !PT1(1)=19.2507603482789
+    !PT1(2)=20.2225219827355
+    !PT1(3)=0.D0
+    
     iel=POINTlOC(pt1,0)
 	
     IF(iel>0) then
@@ -547,20 +551,20 @@ integer function isacw(x1,y1,z1,x2,y2,z2,x3,y3,z3)
         if(Z1>max(z3,z2)) return 
         isacw=2 !on the edge
     else
-        t1=(xn2*yn3-yn2*xn3)+(yn2*zn3-zn2*yn3)-(xn2*zn3-zn2*xn3)
-        if(abs(t1)<1.d-10) then 
+        !t1=(xn2*yn3-yn2*xn3)+(yn2*zn3-zn2*yn3)-(xn2*zn3-zn2*xn3)
+        !if(abs(t1)<1.d-10) then 
             !与(1,1,1)垂直            
-            if(abs(norm1(3))>1e-10) then
-                isacw=sign(1.,norm1(3)) !从+z看
-            elseif(abs(norm1(1))>1e-10) then
-                isacw=sign(1.,norm1(1)) !从+x看
-            elseif(abs(norm1(2))>1e-10) then
-                isacw=sign(1.,norm1(2)) !从+y看
-            endif
-        else
-            !从(1,1,1)方向看
-            isacw=sign(1.,t1)
+        if(abs(norm1(3))>1e-10) then
+            isacw=sign(1.,norm1(3)) !从+z看
+        elseif(abs(norm1(1))>1e-10) then
+            isacw=sign(1.,norm1(1)) !从+x看
+        elseif(abs(norm1(2))>1e-10) then
+            isacw=sign(1.,norm1(2)) !从+y看
         endif
+        !else
+            !从(1,1,1)方向看
+        !    isacw=sign(1.,t1)
+        !endif
     endif
 	
 

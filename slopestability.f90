@@ -930,7 +930,7 @@ function MultiSegInterpolate(x,y,nx,xi)
 	real(DPN)::MultiSegInterpolate,t1
 	integer::i
     
-    MultiSegInterpolate=ERRORVALUE
+    MultiSegInterpolate=0
     
     if(nx==1.AND.ABS(XI-X(1))<1.D-6) then
        MultiSegInterpolate=y(1)

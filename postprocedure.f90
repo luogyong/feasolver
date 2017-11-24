@@ -634,7 +634,7 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 
 	
 	
-999 format(<nvo>E15.7)
+999 format(<nvo>(F24.16,1X))
 100	FORMAT("IPARASYS",7X,"CaseID",9X,"DATASET",8X,"ISTEP",10X,"ISUBTS",9X,"ITER",11X,"NO",13X,<NVO>A15)
 110 FORMAT(7(I14,X),<nvo>(E14.7,X))
 120 FORMAT(7(I14,X),<NVO1>(E14.7,X),"//",<NVO1>A15)
@@ -742,7 +742,7 @@ subroutine pointout_barfamily(file_unit,ieset)
 		end do
 	end do
 	
-999 format(<nvo>E15.7)
+999 format(<nvo>(F24.16,1X))
 !	if(allocated(NodalQ1)) deallocate(NodalQ1)
 	if(allocated(DisILS)) deallocate(DisILS)
 	if(allocated(QMILS)) deallocate(QMILS)

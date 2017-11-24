@@ -66,12 +66,15 @@ INTEGER,PARAMETER::streamline_location_click=1,Plot_streamline_CLICK=2,&
                    Smaller_StrokeFontSize_CLICK=5
 LOGICAL::isstreamlineinitialized=.false.
 TYPE STREAMLINE_TYDEF
-    INTEGER::NV=0
+    INTEGER::NV=0,ISINPUTSLIP=0
     REAL(8)::PTstart(3),SF_SLOPE=1.D5
     REAL(8),ALLOCATABLE::V(:,:),VAL(:,:)
+    
 ENDTYPE
-TYPE(STREAMLINE_TYDEF)::STREAMLINE(500)
-INTEGER::NSTREAMLINE=0,SF_SLOPE(500)=0.0
+INTEGER::MAXNSTREAMLINE=0
+TYPE(STREAMLINE_TYDEF),ALLOCATABLE::STREAMLINE(:)
+INTEGER,ALLOCATABLE::SF_SLOPE(:)
+INTEGER::NSTREAMLINE=0,NINPUTSLIP=0,INPUTSLIP(100)=0
 LOGICAL::IS_JUST_SHOW_TOP_TEN_SLOPE=.FALSE.,IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.,&
         IS_SHOW_ALL_SLOPE=.TRUE.
 
@@ -196,7 +199,7 @@ integer,parameter,public::ContourList=1,&
 						  STEPSTATUSLIST=8
                           
 integer,parameter::STREAMLINE_SLOPE_CLICK=1,ShowTopTen_SLOPE_CLICK=2,ShowMinimal_SLOPE_CLICK=3,&
-                    ShowAll_SLOPE_CLICK=4
+                    ShowAll_SLOPE_CLICK=4,ReadSlipSurface_slope_click=5
 LOGICAL::ISSTREAMLINESLOPE=.FALSE.
 
 !real(GLFLOAT) :: red(4) = (/1.0,0.0,0.0,1.0/), &
@@ -223,6 +226,28 @@ REAL(8)::PT_PROBE(3)=0.0D0
 INTEGER::IEL_PROBE=0
 
 contains
+
+!ENLARGE STREAMLINE SF_slope by 100
+SUBROUTINE ENLARGE_STREAMLINE()
+    IMPLICIT NONE
+    
+    TYPE(STREAMLINE_TYDEF),ALLOCATABLE::STREAMLINE1(:)
+	INTEGER,ALLOCATABLE::SF_SLOPE1(:)
+    
+	MAXNSTREAMLINE=MAXNSTREAMLINE+100
+	Allocate(STREAMLINE1(MAXNSTREAMLINE),SF_SLOPE1(MAXNSTREAMLINE))
+    
+    IF(NSTREAMLINE>0) THEN
+        STREAMLINE1(1:NSTREAMLINE)=STREAMLINE(1:NSTREAMLINE)
+        SF_SLOPE1(1:NSTREAMLINE)=SF_SLOPE(1:NSTREAMLINE)
+    ENDIF
+	if(allocated(STREAMLINE)) deallocate(STREAMLINE,SF_SLOPE)
+		
+	allocate(STREAMLINE,SOURCE=STREAMLINE1)
+    allocate(SF_SLOPE,SOURCE=SF_SLOPE1)
+	deallocate(STREAMLINE1,SF_SLOPE1)    
+
+ENDSUBROUTINE
 
 SUBROUTINE STEP_INITIALIZE(STEPINFO,ISTEP,NSTEP,TIME)
     IMPLICIT NONE    
@@ -508,6 +533,7 @@ subroutine streamline_handler(selection)
             IF(ALLOCATED(STREAMLINE(I).V)) THEN
                 DEALLOCATE(STREAMLINE(I).V,STREAMLINE(I).VAL)
             ENDIF
+            STREAMLINE(I).ISINPUTSLIP=0
         ENDDO
         nstreamline=0
         CALL STREAMLINE_PLOT()
@@ -529,9 +555,19 @@ subroutine streamline_handler(selection)
 end subroutine
 
 subroutine slope_handler(selection)
+    USE SolverMath
     implicit none
     integer(kind=glcint), intent(in out) :: selection
-
+    INTEGER::NSLIP1,I,IEL1,J,K,n1=0,N2=0,OFFSET1
+    INTEGER,SAVE::TRYIEL1=0
+    INTEGER,EXTERNAL::POINTlOC_BC
+    real(8)::AR2D1(2,500),AR2D2(2,2000)
+    INTEGER::unit,NAR1=100,NTOREAD1=100,NSET1=10
+    INTEGER::NREADIN1,NSETREADIN1,NNODE1
+    REAL(8)::AR1(100),DT1
+    CHARACTER(32)::SET1(10)
+    REAL(IWP),ALLOCATABLE::NODE1(:,:)
+    
     select case (selection)
        
     case(STREAMLINE_SLOPE_CLICK)
@@ -564,6 +600,62 @@ subroutine slope_handler(selection)
             IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.
         ENDIF         
         CALL STREAMLINE_PLOT()
+    CASE(ReadSlipSurface_slope_click)
+   
+        open(10,file='',status='old')
+        READ(10,*) NSLIP1
+        DO K=1,NSLIP1
+			IF(NSTREAMLINE+1>MAXNSTREAMLINE) CALL ENLARGE_STREAMLINE()
+            NSTREAMLINE=NSTREAMLINE+1
+            CALL strtoint(10,AR1,NAR1,NREADIN1,NTOREAD1,SET1,NSET1,NSETREADIN1)
+            N1=INT(AR1(1));
+            READ(10,*) AR2D1(:,1:N1)
+            IF(NREADIN1>1.AND.DT1>1.D-7) THEN
+                DT1=AR1(2)
+                N2=0
+                DO I=1,N1-1
+                    CALL EQUDIVIDE(AR2D1(:,I),AR2D1(:,I+1),DT1,NODE1,NNODE1)
+                    !GET RID OFF THE REPEATED NODES
+                    IF(I>1) then
+                        OFFSET1=1 
+                    ELSE
+                        OFFSET1=0
+                    ENDIF
+                    IF(N2+NNODE1-OFFSET1>2000) THEN
+                        STOP 'OVERSIZE.SUB=slope_handler'                        
+                    ENDIF
+                    AR2D2(:,N2+1:N2+NNODE1-OFFSET1)=NODE1(:,1+OFFSET1:NNODE1)
+                    N2=N2+NNODE1-OFFSET1                    
+                ENDDO  
+                 STREAMLINE(NSTREAMLINE).NV=N2                
+            ELSE
+                STREAMLINE(NSTREAMLINE).NV=N1
+                AR2D2(:,1:N1)=AR2D1(:,1:N1)
+            ENDIF
+            
+            
+            IF(ALLOCATED(STREAMLINE(NSTREAMLINE).V)) DEALLOCATE(STREAMLINE(NSTREAMLINE).V)                
+            ALLOCATE(STREAMLINE(NSTREAMLINE).V(3,STREAMLINE(NSTREAMLINE).NV))
+            IF(ALLOCATED(STREAMLINE(NSTREAMLINE).VAL)) DEALLOCATE(STREAMLINE(NSTREAMLINE).VAL)
+            ALLOCATE(STREAMLINE(NSTREAMLINE).VAL(1:POSDATA.NVAR,STREAMLINE(NSTREAMLINE).NV))
+            STREAMLINE(NSTREAMLINE).VAL=0.D0
+            STREAMLINE(NSTREAMLINE).V(3,:)=0.d0
+            DO J=1,STREAMLINE(NSTREAMLINE).NV
+                !READ(10,*) STREAMLINE(NSTREAMLINE).V(1:2,J)
+                STREAMLINE(NSTREAMLINE).V(1:2,J)=AR2D2(:,J)
+                IEL1=POINTlOC_BC(STREAMLINE(NSTREAMLINE).V(:,j),TRYIEL1)
+                TRYIEL1=IEL1
+                IF(IEL1>0) call getval(STREAMLINE(NSTREAMLINE).V(:,J),iel1,STREAMLINE(NSTREAMLINE).VAL(:,J))
+            ENDDO
+            CALL slopestability_streamline(NSTREAMLINE)
+            STREAMLINE(NSTREAMLINE).ISINPUTSLIP=1
+            NINPUTSLIP=NINPUTSLIP+1
+            INPUTSLIP(NINPUTSLIP)=NSTREAMLINE
+            
+        ENDDO
+        CALL STREAMLINE_PLOT()
+        close(10)
+        
     CASE default
 		!isPlotStreamLine=.not.isPlotStreamLine
   !  CASE(PLOTSLICEISOLINE_CLICK)
@@ -906,6 +998,7 @@ call glutAddMenuEntry("STREAMLINE_METHOD",STREAMLINE_SLOPE_CLICK)
 call glutAddMenuEntry("JustShowTopTenSlips",ShowTopTen_SLOPE_CLICK)
 call glutAddMenuEntry("JustShowMinimalSlip",ShowMinimal_SLOPE_CLICK)
 call glutAddMenuEntry("ShowAllSlips",ShowAll_SLOPE_CLICK)
+Call glutAddMenuEntry('ReadSlips',ReadSlipSurface_slope_click)
 
 
 
@@ -938,9 +1031,11 @@ subroutine plot_func(TECFILE)
 use opengl_gl
 use opengl_glut
 use function_plotter
+USE IFPORT
 !USE POS_IO
 implicit none
 CHARACTER(*),INTENT(IN)::TECFILE
+character*8 char_time
 
 integer :: winid, menuid, submenuid
 !real(gldouble)::r1
@@ -962,7 +1057,8 @@ interface
     endsubroutine
 endinterface
 
-
+CALL TIME(char_time)
+PRINT *, 'importing data...',char_time
 IF(LEN_TRIM(ADJUSTL(TECFILE))>0) THEN
     CALL TECDATA.READIN(TECFILE)
     CALL POSDATA.TEC2POSDATA(TECDATA)
@@ -984,13 +1080,24 @@ IF(.NOT.ISINI_GMSHET) THEN
     
 ENDIF
 
+CALL TIME(char_time)
+PRINT *, 'Setup mesh topology for the model mesh...',char_time
 call SETUP_EDGE_TBL(POSDATA.ELEMENT,POSDATA.NEL,POSDATA.ESET,POSDATA.NESET,POSDATA.NODE,POSDATA.NNODE)
 call SETUP_FACE_TBL(POSDATA.ELEMENT,POSDATA.NEL,POSDATA.ESET,POSDATA.NESET,POSDATA.NODE,POSDATA.NNODE)
+CALL TIME(char_time)
+PRINT *, 'Convert to Tri/Tet mesh...',char_time
 call SETUP_SUB_TET4_ELEMENT(POSDATA.ELEMENT,POSDATA.NEL,POSDATA.ESET,POSDATA.NESET,POSDATA.NODE,POSDATA.NNODE)
+CALL TIME(char_time)
+PRINT *, 'Setup mesh topology for Tri/Tet mesh...',char_time
 call SETUP_EDGE_TBL_TET()
 call SETUP_FACE_TBL_TET()
 CALL SETUP_ADJACENT_ELEMENT_TET()
+CALL TIME(char_time)
+PRINT *, 'Group element to subzones...',char_time
 CALL SETUP_SUBZONE_TET()
+
+CALL TIME(char_time)
+PRINT *, 'Begin to Render...',char_time
 
 call glutInit
 call glutInitDisplayMode(ior(GLUT_DOUBLE,ior(GLUT_RGB,GLUT_DEPTH)))

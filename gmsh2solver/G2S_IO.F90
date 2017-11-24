@@ -434,10 +434,19 @@ subroutine kwcommand(term,unit)
 				elt_bc(n1).dof=int(ar(4))
 				elt_bc(n1).sf=int(ar(5))
 				elt_bc(n1).value=ar(6)
+                if(nread>6) then
+                    IF(NREAD==10) THEN
+                        ELT_BC(N1).LFC(1:4)=AR(7:10)
+                        ELT_BC(N1).ISFIELD=1
+                    ELSE
+                        PRINT *, "INPUT NUMBERS IS NOT AS EXPECTED(6 OR 10). ELT_BC(I),I=",N1
+                        STOP
+                    ENDIF
+                endif
 			end do
 		case('endelt_bc')
 			strL1=LEN('ELT_BC')
-			write(*, 20) "ELT_BC"		
+			write(*, 20) "ELT_BC"        
 		case('elt_load')
 			call skipcomment(unit)
 			read(unit,*) nelt_load
@@ -450,6 +459,15 @@ subroutine kwcommand(term,unit)
 				elt_load(n1).dof=int(ar(4))
 				elt_load(n1).sf=int(ar(5))
 				elt_load(n1).value=ar(6)
+                if(nread>6) then
+                    IF(NREAD==10) THEN
+                        ELT_LOAD(N1).LFC(1:4)=AR(7:10)
+                        ELT_LOAD(N1).ISFIELD=1
+                    ELSE
+                        PRINT *, "INPUT NUMBERS IS NOT AS EXPECTED(6 OR 10). ELT_BC(I),I=",N1
+                        STOP
+                    ENDIF
+                endif                
 			end do
 		case('endelt_load')
 			strL1=len('elt_load')
@@ -835,6 +853,9 @@ subroutine not_nodal_force_weight(et)
 			Elttype(et).weight(3,2)=4/45.
 			Elttype(et).weight(5,2)=4./15.
 			Elttype(et).weight(4,2)=1/15.
+		case default
+			print *, 'To be improved. sub=not_nodal_force_weight.et=',et
+			stop
 		end select
 end subroutine
 

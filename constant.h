@@ -6,6 +6,8 @@
 	integer,parameter::MaxNumRead=1000 !when input data, data numbers in each line is restricted to the MaxNumRead
 												!Care should be taken when the following input way is used in SUB:strtoint: 1-5 or 1*100 
 	!DEFINE PARAMETER 
+	!DIRECTION
+	!INTEGER,PARAMETER::X=1,Y=2,Z=3
 	!element type
 	integer,parameter::CONDUCT1D=1 ! One demenasional  CONDUCTIVITY element, the active DOF is x.
 	!solid element

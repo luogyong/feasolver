@@ -1,5 +1,8 @@
 module SolverMath
-    
+IMPLICIT NONE
+
+INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
+
 contains    
     
 SUBROUTINE invert(matrix)
@@ -7,7 +10,6 @@ SUBROUTINE invert(matrix)
 ! This subroutine inverts a small square matrix onto itself.
 !
  IMPLICIT NONE
- INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
  REAL(iwp),INTENT(IN OUT)::matrix(:,:)
  REAL(iwp)::det,j11,j12,j13,j21,j22,j23,j31,j32,j33,con
  INTEGER::ndim,i,k
@@ -67,7 +69,6 @@ FUNCTION determinant(jac) RESULT(det)
 ! Jacobian matrix.
 !
  IMPLICIT NONE    
- INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
  REAL(iwp),DIMENSION(:,:),INTENT(IN)::jac
  REAL(iwp)::det
  INTEGER::it 
@@ -92,5 +93,42 @@ FUNCTION determinant(jac) RESULT(det)
 
 RETURN
 END FUNCTION determinant 
+
+
+SUBROUTINE EQUDIVIDE(X1,X2,DT,NODE,NNODE) 
+!IF ABS(X1-X2)>0 AND DT>0,DIVIDE SEGMENT(X1,X2) INTO MAX(INT((X2-X1)/DT),1) SUBSEGS AND RETURN ALL NODES
+!IF ABS(X1-X2)>0 AND DT=0, NODE=[X1,X2]
+!IF  ABS(X1-X2)=0, RETURN NODE=[X1]
+    IMPLICIT NONE
+    REAL(IWP),INTENT(IN)::X1(:),X2(:),DT
+    INTEGER,INTENT(OUT)::NNODE
+    REAL(IWP),ALLOCATABLE::NODE(:,:)
+    INTEGER::N1,I
+    REAL(IWP)::T1,DT1(3)
+    
+    T1=NORM2(X1-X2)
+    N1=SIZE(X1)
+    IF(ALLOCATED(NODE)) DEALLOCATE(NODE)
+    IF(T1<1.D-10) THEN
+        NNODE=1
+        ALLOCATE(NODE(N1,1))
+        NODE(:,1)=X1
+    ELSE
+        IF(DT<1.D-10) THEN
+            NNODE=2
+            ALLOCATE(NODE(N1,2))
+            NODE(:,1)=X1;NODE(:,2)=X2;        
+        ELSE
+            NNODE=MAX(INT(T1/DT),1)+1
+            ALLOCATE(NODE(N1,NNODE))
+            DT1(1:N1)=(X2-X1)/(NNODE-1)
+            DO I=1,NNODE
+                NODE(:,I)=X1+DT1*(I-1)
+            ENDDO
+        ENDIF
+        
+    ENDIF
+    
+ENDSUBROUTINE
 
 end module

@@ -66,6 +66,7 @@ module solverds
 		real(kind=DPN),allocatable::B(:,:,:)  !B matrix, B(nd,ndof,ngp+nnum)
 		real(kind=DPN),allocatable::D(:,:)  !elastic strain-stress Matrix, D(nd,nd), its shape depends on the
 										!for element cpe3_spg D stores the initial km
+        real(kind=DPN),allocatable::MHK(:,:) !couple matrix
 		real(kind=DPN),allocatable::detjac(:) ! the determinant of jacobian matrix in each gauss point. 
 		real(kind=DPN),allocatable::stress(:,:),Dstress(:,:) !stress at gauss points and nodes, stress(6,ngp+nnum)
 		real(kind=DPN),allocatable::strain(:,:),Dstrain(:,:) !strain at gauss points and nodes, strain(6,ngp+nnum)
@@ -77,6 +78,7 @@ module solverds
 		real(kind=DPN),allocatable::xygp(:,:) !globe co-ordinates of gausian points.
 		real(kind=DPN),allocatable::ev(:) !evolution variable in each gausian point.
 		real(kind=DPN),allocatable::e(:) !void ratio of each gausian point
+        real(kind=DPN),allocatable::uw(:) !pore pressure at each gausian point
 		real(kind=DPN),allocatable::GForce(:),DGforce(:) !the cumulative general force of each dof in globle system,Gf(ndof),useful for structure elements
 														!the nodal discharges, for spg element.
                                                         !Dgforce(:),每步内力增量。

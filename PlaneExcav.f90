@@ -10,10 +10,13 @@ Module Geometry
     type line_tydef
         integer::npoint=0
         integer,allocatable::Point(:)
-        integer::mat=-1
+        integer::mat=-1,FMT=0,VAR=1 
+        !VAR IS  independent VARIABLE of INTERPOLATion. var=1/2/3 means var=x/y/z 
         character(64)::title=''
+        REAL(Double),allocatable::h(:,:) !for waterlevel stored (xi,hi)
     end type
-    type(line_tydef),allocatable::line(:),Geoline(:),waterlevel
+    type(line_tydef),allocatable::line(:),Geoline(:)
+    type(line_tydef)::waterlevel
     integer::nline=0,nGEOline=0
     !Assumption of GeoLine£º1)points must be ordered from a2z. 2) no revserse is allowed. 
     

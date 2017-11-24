@@ -18,14 +18,14 @@ program main
 	Print *, 'FEASOLVER. LGY WORK.'
     !ef = setexitqq(QWIN$EXITNOPERSIST)
 	call TIME(char_time) 
-    !IF(SOLVER_CONTROL.NOPOPUP==0) THEN
-	   ! write(*, 10) 
-	   ! key=getcharqq()
-	   ! if(ichar(key)==ichar('h').or.ichar(key)==ichar('H')) then		
-		  !  call write_readme_FEASOLVER()			
-		  !  stop
-    !    end if
-    !ENDIF
+    IF(SOLVER_CONTROL.NOPOPUP==0) THEN
+	    write(*, 10) 
+	    key=getcharqq()
+	    if(ichar(key)==ichar('h').or.ichar(key)==ichar('H')) then		
+		    call write_readme_FEASOLVER()			
+		    stop
+        end if
+    ENDIF
 	
 	call TIME(char_time) 
 	PRINT *, 'Reading data...',char_time
@@ -47,6 +47,6 @@ program main
     endif
     
    ! ef = setexitqq(QWIN$EXITNOPERSIST)
-10 format("Press 'H' to write a keyword help file named 'D:\README_FEASOLVER.TXT'. Any other key to read an SINP file.")		
+10 format("Press 'H/h' to write a keyword help file in the current direction . Any other key to read an SINP file.")		
 
 end program main
