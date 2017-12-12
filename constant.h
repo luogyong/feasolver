@@ -305,6 +305,24 @@ integer, parameter::soilspring = 16 !soil spring
 integer, parameter::CAX_CPL = 17
 integer,parameter::SSA=18 !SLOPE STABILITY ANALYSIS
 
+!element shape type
+integer,parameter::Tri3=1
+integer, parameter::tri6 = 2
+integer, parameter::tri15 = 3
+
+!integer, parameter::tet4 = 27
+!integer, parameter::tet8 = 28
+
+integer, parameter::qua4 = 11
+integer, parameter::qua8 = 12
+
+!integer, parameter::prm6 = 24
+!integer, parameter::prm15 = 25
+
+integer, parameter::Seg2 = 41
+integer, parameter::Node_one = 51
+
+
 !method for mapping the values in integration points to nodes
 integer, parameter::SHT = 1
 integer, parameter::SPR = 2

@@ -47,21 +47,64 @@ SUBROUTINE invert(matrix)
    matrix(3,3)=j33
    matrix=matrix/det
  ELSE
-   DO k=1,ndim
-     con=matrix(k,k)
-     matrix(k,k)=1.0_iwp
-     matrix(k,:)=matrix(k,:)/con
-     DO i=1,ndim
-       IF(i/=k)THEN
-         con=matrix(i,k)
-         matrix(i,k)=0.0_iwp
-         matrix(i,:)=matrix(i,:)-matrix(k,:)*con
-       END IF
-     END DO
-   END DO
+   !DO k=1,ndim
+   !  con=matrix(k,k)
+   !  matrix(k,k)=1.0_iwp
+   !  matrix(k,:)=matrix(k,:)/con
+   !  DO i=1,ndim
+   !    IF(i/=k)THEN
+   !      con=matrix(i,k)
+   !      matrix(i,k)=0.0_iwp
+   !      matrix(i,:)=matrix(i,:)-matrix(k,:)*con
+   !    END IF
+   !  END DO
+   !END DO
+    call InvByGauss(matrix,ndim)
  END IF
 RETURN
 END SUBROUTINE invert   
+
+
+! --------------------------------------------------------------------
+SUBROUTINE InvByGauss (a,n)       ! Invert matrix by Gauss method
+! --------------------------------------------------------------------
+IMPLICIT NONE
+
+INTEGER,intent(in):: n
+REAL(8),intent(inout) :: a(n,n)
+
+! - - - Local Variables - - -
+REAL(8) :: b(n,n), c, d, temp(n)
+INTEGER :: i, j, k, m, imax(1), ipvt(n)
+! - - - - - - - - - - - - - -
+
+b = a
+ipvt = (/ (i, i = 1, n) /)
+
+DO k = 1,n
+   imax = MAXLOC(ABS(b(k:n,k)))
+   m = k-1+imax(1)
+
+   IF (m /= k) THEN
+      ipvt( (/m,k/) ) = ipvt( (/k,m/) )
+      b((/m,k/),:) = b((/k,m/),:)
+   END IF
+   d = 1/b(k,k)
+
+   temp = b(:,k)
+   DO j = 1, n
+      c = b(k,j)*d
+      b(:,j) = b(:,j)-temp*c
+      b(k,j) = c
+   END DO
+   b(:,k) = temp*(-d)
+   b(k,k) = d
+END DO
+
+a(:,ipvt) = b
+
+END SUBROUTINE InvByGauss
+
 
 FUNCTION determinant(jac) RESULT(det)
 !

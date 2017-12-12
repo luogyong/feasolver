@@ -27,71 +27,75 @@ IF(ISDEFORMEDMESH.AND.POSDATA.IDISX>0.AND.POSDATA.IDISY>0) THEN
 ENDIF
 
 call glNewList(gridlist, gl_compile_and_execute)
-	if (draw_surface_grid) then
+	
+    
+do k=1,2
+		    
+            
+	if(k==1) then
+        if(.not.show_set) cycle
+        call glPolygonMode(gl_front_and_back, gl_fill)
 
-		do k=1,2
-		    if(k==1) cycle
-			if(k==1) then
-                call glPolygonMode(gl_front_and_back, gl_fill)
-
-            endif
-			if(k==2) then
-                call glPolygonMode(gl_front_and_back, gl_line)
-                !call glenable(gl_polygon_offset_line)
-                !call glPolygonoffset(-1.0_glfloat,-1.0_glfloat)
-            endif
+    endif
+	if(k==2) then
+        if (.not.draw_surface_grid) cycle
+        call glPolygonMode(gl_front_and_back, gl_line)
+        !call glenable(gl_polygon_offset_line)
+        !call glPolygonoffset(-1.0_glfloat,-1.0_glfloat)
+    endif
 		
-			call glBegin(gl_triangles)
+	call glBegin(gl_triangles)
 				
 	 
-				do i=1,nmface
-					if(mface(i).isdead==1) cycle
-					if(mface(i).shape/=3) cycle
-					!只对外边界及材料边界进行渲染。
-					MAT1(1:MFACE(I).ENUM)=POSDATA.ELEMENT(ABS(MFACE(I).ELEMENT)).ISET !
-					IF(MFACE(I).ENUM>1) THEN				    
-						IF(all(MAT1(1:MFACE(I).ENUM)-MAT1(1)==0)) CYCLE
-					ENDIF
+		do i=1,nmface
+			if(mface(i).isdead==1) cycle
+			if(mface(i).shape/=3) cycle
+			!只对外边界及材料边界进行渲染。
+			MAT1(1:MFACE(I).ENUM)=POSDATA.ELEMENT(ABS(MFACE(I).ELEMENT)).ISET !
+			IF(MFACE(I).ENUM>1) THEN				    
+				IF(all(MAT1(1:MFACE(I).ENUM)-MAT1(1)==0)) CYCLE
+			ENDIF
 					
-					if(k==1) then
-						call glcolor4fv(mycolor(:,max(mod(mat1(1)+2,139),3)))
-					else
-						call glcolor4fv(mycolor(:,forest_green))
-					endif			
-					do j=1,MFACE(I).SHAPE
-						!call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,MFACE(I).v(j)))
+			if(k==1) then
+				call glcolor4fv(DISTINCT_COLOR(:,MAX(mod(mat1(1),45),1)))
+			else
+				call glcolor4fv(mycolor(:,BLACK))
+			endif			
+			do j=1,MFACE(I).SHAPE
+				!call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,MFACE(I).v(j)))
 					
-						call glvertex3dv(POSDATA.node(MFACE(I).v(j)).coord+VEC1(:,MFACE(I).v(j))*SCALE1)            
-					enddo
+				call glvertex3dv(POSDATA.node(MFACE(I).v(j)).coord+VEC1(:,MFACE(I).v(j))*SCALE1)            
+			enddo
 					
-	            enddo
-			call glEnd
+	    enddo
+	call glEnd
 		
-			call glBegin(GL_QUADS)
+	call glBegin(GL_QUADS)
 
-				do i=1,nmface
-					if(mface(i).isdead==1) cycle
-					if(mface(i).shape/=4) cycle
-					!只对外边界及材料边界进行渲染。
-					MAT1(1:MFACE(I).ENUM)=POSDATA.ELEMENT(ABS(MFACE(I).ELEMENT)).ISET !
-					IF(MFACE(I).ENUM>1) THEN
-						IF(all(MAT1(1:MFACE(I).ENUM)-MAT1(1)==0)) CYCLE
-					ENDIF
-					if(k==1) then
-						call glcolor4fv(mycolor(:,max(mod(mat1(1)+2,139),3)))
-					else
-						call glcolor4fv(mycolor(:,black))
-					endif
-					do j=1,MFACE(I).SHAPE
-						!call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,MFACE(I).v(j)))
+		do i=1,nmface
+			if(mface(i).isdead==1) cycle
+			if(mface(i).shape/=4) cycle
+			!只对外边界及材料边界进行渲染。
+			MAT1(1:MFACE(I).ENUM)=POSDATA.ELEMENT(ABS(MFACE(I).ELEMENT)).ISET !
+			IF(MFACE(I).ENUM>1) THEN
+				IF(all(MAT1(1:MFACE(I).ENUM)-MAT1(1)==0)) CYCLE
+			ENDIF
+			if(k==1) then
+				call glcolor4fv(DISTINCT_COLOR(:,MAX(mod(mat1(1),45),1)))
+			else
+				call glcolor4fv(mycolor(:,black))
+			endif
+			do j=1,MFACE(I).SHAPE
+				!call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,MFACE(I).v(j)))
 					
-						call glvertex3dv(POSDATA.node(MFACE(I).v(j)).coord+VEC1(:,MFACE(I).v(j))*SCALE1)            
-					enddo    
-				enddo
+				call glvertex3dv(POSDATA.node(MFACE(I).v(j)).coord+VEC1(:,MFACE(I).v(j))*SCALE1)            
+			enddo    
+		enddo
 			
-			call glEnd
-        enddo
-    end if
+	call glEnd
+    
+enddo
+    
 	
     
     

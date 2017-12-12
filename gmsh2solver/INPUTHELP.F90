@@ -197,6 +197,8 @@ subroutine write_readme_gmsh2sinp()
 		item=len_trim(readme(j))
 		write(2,20) readme(j)
 	end do
+    
+    close(2)
 	
 !	tof=system("D:\README_GMSH2SINP.TXT")	
 	

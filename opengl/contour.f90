@@ -62,15 +62,16 @@ if (draw_surface_solid) then
         !if(face(i).shape/=3) cycle
 		!只对外边界及材料边界进行渲染。
 		IF(FACE(I).ISDEAD==1) CYCLE
-		
-        IF(FACE(I).ENUM>1) THEN
-			MAT1(1:FACE(I).ENUM)=POSDATA.ELEMENT(TET(ABS(FACE(I).ELEMENT)).MOTHER).ISET !
+		MAT1(1:FACE(I).ENUM)=POSDATA.ELEMENT(TET(ABS(FACE(I).ELEMENT)).MOTHER).ISET !
+        IF(FACE(I).ENUM>1) THEN			
 			IF(all(MAT1(1:FACE(I).ENUM)-MAT1(1)==0)) CYCLE		
 		ENDIF
         do j=1,3
             !call glMaterialfv(gl_front_and_back,gl_ambient_and_diffuse,vcolor(:,face(i).v(j)))
             IF(surface_color == white_surface)THEN
-                call glcolor4fv(mycolor(:,gray))
+                call glcolor4fv(mycolor(:,light_gray))
+            ELSEIF(surface_color==color_by_set) THEN
+                call glcolor4fv(DISTINCT_COLOR(:,MAX(mod(mat1(1),45),1)))
             ELSE
                 call glcolor4fv(vcolor(:,face(i).v(j)))
             ENDIF

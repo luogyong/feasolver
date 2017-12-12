@@ -250,7 +250,7 @@ subroutine EL_SFR2(ET)
 			ecp(et).ndim=2
 			ecp(et).ngp=1
 			ecp(et).nnum=3
-	
+	        ecp(et).ShType=tri3
 			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
 								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
 								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp))
@@ -267,6 +267,7 @@ subroutine EL_SFR2(ET)
 			ecp(et).ndim=2
 			ecp(et).ngp=3
 			ecp(et).nnum=6
+            ecp(et).ShType=tri6
 			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
 								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
 								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp),&
@@ -297,6 +298,7 @@ subroutine EL_SFR2(ET)
 			ecp(et).ndim=2
 			ecp(et).ngp=4
 			ecp(et).nnum=4
+            ecp(et).ShType=qua4
 			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
 								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
 								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp),&
@@ -320,6 +322,7 @@ subroutine EL_SFR2(ET)
 			ecp(et).ndim=2
 			ecp(et).ngp=1
 			ecp(et).nnum=4
+            ecp(et).ShType=qua4
 			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
 								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
 								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp))
@@ -335,6 +338,7 @@ subroutine EL_SFR2(ET)
 			ecp(et).ndim=2
 			ecp(et).ngp=9
 			ecp(et).nnum=8
+            ecp(et).ShType=qua8
 			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
 								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
 								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp))
@@ -376,6 +380,7 @@ subroutine EL_SFR2(ET)
 			ecp(et).ndim=2
 			ecp(et).ngp=4
 			ecp(et).nnum=8
+            ecp(et).ShType=qua8
 			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
 								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
 								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp),&
@@ -404,6 +409,7 @@ subroutine EL_SFR2(ET)
 			ecp(et).ndim=2
 			ecp(et).ngp=12
 			ecp(et).nnum=15
+            ecp(et).ShType=tri15
 			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
 								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
 								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp),&
@@ -468,6 +474,7 @@ subroutine EL_SFR2(ET)
 			ecp(et).ndim=3
 			ecp(et).ngp=2
 			ecp(et).nnum=6
+            ecp(et).ShType=prm6
 			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
 								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
 								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp),&
@@ -488,6 +495,7 @@ subroutine EL_SFR2(ET)
 			ecp(et).ndim=3
 			ecp(et).ngp=9
 			ecp(et).nnum=15
+            ecp(et).ShType=prm15
 			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
 								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
 								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp), &
@@ -530,6 +538,7 @@ subroutine EL_SFR2(ET)
 			ecp(et).ndim=3
 			ecp(et).ngp=1
 			ecp(et).nnum=4
+            ecp(et).ShType=tet4
 			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
 								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
 								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp))
@@ -545,6 +554,7 @@ subroutine EL_SFR2(ET)
 			ecp(et).ndim=3
 			ecp(et).ngp=4
 			ecp(et).nnum=10
+            ecp(et).ShType=tet10
 			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
 								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
 								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp),&

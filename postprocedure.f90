@@ -24,7 +24,8 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	end if
 	
 !	call GS2LS_Displacement()
-	
+	if(solver_control.i2ncal==spr) call spr_stress_strain_cal(iincs,isubts)
+    
 	!map stress in gauss point to nodes.
 	anybarfamily=.false.
 	do i=1,enum
@@ -39,9 +40,10 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 				anybarfamily=.true.
 			case default
 				select case(solver_control.i2ncal) 
-					case(spr)
-						print *, 'CAUSION! SPR METHOD IS OUT OF MANTAINED NOW.SHT METHOD IS USED INSTEAD'
-						!call spr_stress_strain_cal()						
+					!case(spr)
+						!print *, 'CAUSION! SPR METHOD IS OUT OF MANTAINED NOW.SHT METHOD IS USED INSTEAD'
+						
+                        !
 					case(sht)
 						call shift_stress_strain_cal(i)				
 					case(avg)
@@ -82,7 +84,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	do i=1,neset
 		iset1=esetid(i)
 		if(sf(eset(iset1).sf).factor(iincs)==0) cycle
-        IF(ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
+        IF(ESET(ISET1).COUPLESET>0.AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
 		write(file_unit,'(a1024)') eset(iset1).zonetitle
 		!if(anybarfamily) write(file_diagram,'(a1024)') eset(iset1).zonetitle
 		

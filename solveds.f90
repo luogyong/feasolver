@@ -17,7 +17,7 @@ module solverds
 		real(kind=DPN)::angle=0.0D0 !the angle around the vertex.
 		real(kind=DPN)::MISES=0.0D0,EEQ=0.0D0,PEEQ=0.0D0
 		real(kind=DPN)::Q=0.0D0,Kr=0.0D0,Mw=0.0D0  !nodal flux,relative permeability,slope of volumetric water content.		
-		integer::nelist=0,NELIST_SPG=0
+		integer::nelist=0,NELIST_SPG=0,ISACTIVE=0
 		integer,allocatable::elist(:),ELIST_SPG(:) !elements sharing the node.
 !		integer::Property=0 !for SPG, Property=1 suggesting that the node is on the seepage surface.
 	end type
@@ -293,7 +293,7 @@ module solverds
 	
 	!element class property
 	type ECP_tydef
-		integer::nshape,ngp,ndim,nnum  !number of the shape function,number of the gaussian integer point, space dimensions,number of nodes
+		integer::nshape,ngp,ndim,nnum,shtype  !number of the shape function,number of the gaussian integer point, space dimensions,number of nodes
 		logical::isini=.false.  ! whether the element type is initialized or not.
 		real(kind=DPN),allocatable::gp(:,:),weight(:) !gaussina point local coordinates and their corresponding weights
 							!gp(ndim,ngp), the last nnum entries store the local coordinates in element nodal points.
@@ -308,20 +308,6 @@ module solverds
 	end type
 	type(ECP_tydef)::ecp(maxiet)  !ecp(1:maxet), the class property of element(i) is stored in ecp(element(i).et)
 	!element list sharing the same vertex, the mid- and insided nodes are excluded
-	type SPR_tydef
-		integer::elist(10)
-		integer::nelist=0	!the element number sharing the vertex
-		integer::p=0		!the order of the extropolating polynomial
-		integer::item=0	!the number of the polynomail item.
-		integer::nsc=0	!the sample point number of superconvergence
-		logical::ispatch=.false. !wether the node is the centre of the patch.
-		real(kind=DPN),allocatable::polynomial(:,:) !the interpolating
-		real(kind=DPN),allocatable::A(:,:)  !the A 
-		integer,allocatable::ipvt(:) !the pivoting information
-		real(kind=DPN)::dxmax=-1e15,dymax=-1e15  !the max distance in x and y directions of the patch
-					! polynomials of each superconvergent sample point of the patch
-	end type
-	type(SPR_tydef),allocatable::SPRLIST(:)
 	
 	type geostatic_tydef
 		logical::isgeo=.false.

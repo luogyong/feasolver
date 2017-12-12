@@ -1986,6 +1986,7 @@ subroutine element_activate(istep)
     integer,intent(in)::istep
     integer::i,j,k
     
+    NODE.ISACTIVE=0
     do concurrent (i=1:enum)
         if(element(i).ec/=soilspring) then
 			if(geostatic.isgeo.and.istep==0) then
@@ -1994,6 +1995,7 @@ subroutine element_activate(istep)
             endif
             if(abs(sf(element(i).sf).factor(istep))>1e-7) then
                 element(i).isactive=1
+                NODE(ELEMENT(I).NODE).ISACTIVE=1
             else
                 element(i).isactive=0
 				!if(allocated(element(i).gforce)) element(i).gforce=0

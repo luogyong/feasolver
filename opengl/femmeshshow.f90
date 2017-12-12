@@ -24,7 +24,8 @@ integer, parameter :: black_contour = 1, &
 integer, parameter :: white_surface = 1, &
                       red_surface = 2, &
                       rainbow_surface = 3 ,&
-                      transparency=4
+                      transparency=4,&
+                      COLOR_BY_SET=5
                       
 real(8),public::Scale_Contour_Num=1.0
 logical,public::istransparency=.false.,IsContour_In_DeformedMesh=.false. 
@@ -63,7 +64,7 @@ INTEGER::IVO(3)=0 !FOR VECTOR PAIR LOCATION IN POSDATA.NODALQ
 INTEGER::IEL_STREAMLINE=0 !当前积分点所在的单元
 INTEGER,PARAMETER::streamline_location_click=1,Plot_streamline_CLICK=2,&
                    Reset_streamline_CLICK=3,Enlarger_StrokeFontSize_CLICK=4,&
-                   Smaller_StrokeFontSize_CLICK=5
+                   Smaller_StrokeFontSize_CLICK=5,SHOW_STREAMLINE_NODE_CLICK=6
 LOGICAL::isstreamlineinitialized=.false.
 TYPE STREAMLINE_TYDEF
     INTEGER::NV=0,ISINPUTSLIP=0
@@ -109,7 +110,9 @@ integer, parameter :: surfgrid_toggle = 1, &
                       Minify_Scale_DeformedMesh=7,&
 					  Edge_toggle=8,&
 					  Node_toggle=9,&
-					  probe_selected=10
+					  probe_selected=10,&
+                      SHOW_SET_TOGGLE=11,&
+                      Probe_Get_data_click=12
 					  
 					  
 !NODALVALUE
@@ -117,7 +120,7 @@ INTEGER,PARAMETER::SHOWNODALVALUE_TOGGLE=1
 INTEGER::SHOW_NODAL_VALUE=0
 LOGICAL::ISSHOWNODALVALUE=.FALSE.,isProbestate=.false.
                       
-logical::IsDeformedMesh=.false.,show_edge=.false.,show_node=.false.                     
+logical::IsDeformedMesh=.false.,show_edge=.false.,show_node=.false.,SHOW_SET=.FALSE.                     
 real(8)::Scale_Deformed_Grid=1.d0
 
 
@@ -182,7 +185,8 @@ logical :: draw_surface_grid = init_draw_surface_grid, &
 		   IsPlotSliceSurface=.false.,&
 		   isPLotSliceIsoLIne=.false.,&
            isPlotStreamLine=.false.,&
-		   ISPLOTSLICE=.FALSE.
+		   ISPLOTSLICE=.FALSE.,&
+           SHOW_STREAMLINE_NODE=.false.
 
 real(GLDOUBLE), allocatable :: actual_contours(:)
 real(GLDOUBLE) :: minv,maxv
@@ -224,6 +228,8 @@ TYPE(TIMESTEPINFO_TYDEF),PUBLIC::STEPPLOT
 
 REAL(8)::PT_PROBE(3)=0.0D0
 INTEGER::IEL_PROBE=0
+
+INTEGER::NODALID_SHOW=-1,ELEMENTID_SHOW=-2
 
 contains
 
@@ -414,7 +420,7 @@ SUBROUTINE STEP_UPDATE(STEPINFO)
 		CALL streamline_update()	
 	ENDIF
         
-    if(draw_surface_grid.or.show_edge.or.show_node) then
+    if(draw_surface_grid.or.show_edge.or.show_node.OR.SHOW_SET) then
         call drawGrid()
     endif
     
@@ -478,9 +484,7 @@ integer(kind=glcint), intent(in out) :: selection
 
 select case (selection)
 
-case(probe_selected)
-	isProbeState=.not.isProbestate
-    if(.not.isProbeState) call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
+
     
 case (quit_selected)
    stop
@@ -489,6 +493,9 @@ end select
 
 return
 end subroutine menu_handler
+
+
+
 
 subroutine SLICE_handler(selection)
     implicit none
@@ -528,6 +535,8 @@ subroutine streamline_handler(selection)
         call glutSetCursor(GLUT_CURSOR_CROSSHAIR)  
     CASE(Plot_streamline_CLICK)
 		isPlotStreamLine=.not.isPlotStreamLine
+    CASE(SHOW_STREAMLINE_NODE_CLICK)
+        SHOW_STREAMLINE_NODE=.NOT.SHOW_STREAMLINE_NODE
     case(Reset_streamline_CLICK)
         DO I=1,NSTREAMLINE
             IF(ALLOCATED(STREAMLINE(I).V)) THEN
@@ -536,19 +545,20 @@ subroutine streamline_handler(selection)
             STREAMLINE(I).ISINPUTSLIP=0
         ENDDO
         nstreamline=0
-        CALL STREAMLINE_PLOT()
+        
      CASE(Enlarger_StrokeFontSize_CLICK) 
         stroke_fontsize=2.*stroke_fontsize
-        CALL STREAMLINE_PLOT()
+       
      CASE(Smaller_StrokeFontSize_CLICK)
         stroke_fontsize=0.5*stroke_fontsize
-        CALL STREAMLINE_PLOT()
+        
   !  CASE(PLOTSLICEISOLINE_CLICK)
 		!ISPLOTSLICEISOLINE=.NOT.ISPLOTSLICEISOLINE
         
 		
     end select
     
+    CALL STREAMLINE_PLOT()
     !CALL STREAMLINE_INI()
 	!call SLICEPLOT()
 	
@@ -608,9 +618,9 @@ subroutine slope_handler(selection)
 			IF(NSTREAMLINE+1>MAXNSTREAMLINE) CALL ENLARGE_STREAMLINE()
             NSTREAMLINE=NSTREAMLINE+1
             CALL strtoint(10,AR1,NAR1,NREADIN1,NTOREAD1,SET1,NSET1,NSETREADIN1)
-            N1=INT(AR1(1));
+            N1=INT(AR1(1));AR2D1=0.d0;AR2D2=0.d0
             READ(10,*) AR2D1(:,1:N1)
-            IF(NREADIN1>1.AND.DT1>1.D-7) THEN
+            IF(NREADIN1>1.AND.AR1(2)>1.D-7) THEN
                 DT1=AR1(2)
                 N2=0
                 DO I=1,N1-1
@@ -669,7 +679,95 @@ subroutine slope_handler(selection)
 	
 end subroutine
 
+subroutine probe_handler(selection)
+    
+    USE SolverMath
+    USE IFPORT
+    implicit none
+    integer(kind=glcint), intent(in out) :: selection
+    INTEGER::NSLIP1,I,IEL1,J,K,n1=0,N2=0,OFFSET1
+    INTEGER,SAVE::TRYIEL1=0
+    INTEGER,EXTERNAL::POINTlOC_BC
+     real(8)::AR2D1(3,500),AR2D2(3,2000)
+    INTEGER::unit,NAR1=100,NTOREAD1=100,NSET1=10
+    INTEGER::NREADIN1,NSETREADIN1,NNODE1
+    REAL(8)::AR1(100),DT1,VAL1(100)
+    CHARACTER(32)::SET1(10)
+    REAL(IWP),ALLOCATABLE::NODE1(:,:)
+    
+    character(1024)::FILE1
+	CHARACTER(3)        drive
+	CHARACTER(1024)      dir
+	CHARACTER(1024)      name
+	CHARACTER(8)      ext
+    integer(4)::msg1
+   
+    
+    select case(selection)
+    case(probe_selected)
+	    isProbeState=.not.isProbestate
+        if(.not.isProbeState) call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
+    case(probe_get_data_click)
+    
+        open(10,file='',status='old')
+        inquire(10,name=FILE1)
+        MSG1 = SPLITPATHQQ(FILE1, drive, dir, name, ext)
+        FILE1=trim(drive)//trim(dir)//trim(name)//'_PointValue.dat'
+        open(20,file=FILE1,status='replace')
+        
+        WRITE(20,10) (TRIM(POSDATA.OUTVAR(I).NAME),I=1,POSDATA.NVAR)
+        
+        READ(10,*) NSLIP1
+        DO K=1,NSLIP1
+            CALL strtoint(10,AR1,NAR1,NREADIN1,NTOREAD1,SET1,NSET1,NSETREADIN1)
+            N1=INT(AR1(1));AR2D1=0.d0;AR2D2=0.d0
+            READ(10,*) AR2D1(1:POSDATA.NDIM,1:N1)
+            IF(NREADIN1>1.AND.AR1(2)>1.D-7) THEN
+                DT1=AR1(2)
+                N2=0
+                DO I=1,N1-1
+                    CALL EQUDIVIDE(AR2D1(1:POSDATA.NDIM,I),AR2D1(1:POSDATA.NDIM,I+1),DT1,NODE1,NNODE1)
+                    !GET RID OFF THE REPEATED NODES
+                    IF(I>1) then
+                        OFFSET1=1 
+                    ELSE
+                        OFFSET1=0
+                    ENDIF
+                    IF(N2+NNODE1-OFFSET1>2000) THEN
+                        STOP 'OVERSIZE.SUB=probe_handler'                        
+                    ENDIF
+                    AR2D2(1:POSDATA.NDIM,N2+1:N2+NNODE1-OFFSET1)=NODE1(1:POSDATA.NDIM,1+OFFSET1:NNODE1)
+                    N2=N2+NNODE1-OFFSET1                    
+                ENDDO  
+                N1=N2                
+            ELSE
+                AR2D2(:,1:N1)=AR2D1(:,1:N1)
+            ENDIF
+            
+            DO J=1,N1   
+                IEL1=POINTlOC_BC(AR2D2(:,J),TRYIEL1)
+                TRYIEL1=IEL1
+                IF(IEL1>0) THEN
+                    call getval(AR2D2(:,J),iel1,VAL1)
+                    WRITE(20,20) K,J,VAL1(1:POSDATA.NVAR)
+                ELSE
+                    WRITE(20,30) K,J,AR2D2(1:POSDATA.NDIM,J)
+                ENDIF
+            ENDDO        
+    
+        END DO
+    
+        CLOSE(10);CLOSE(20)
+        
+        PRINT *, 'OUTDATA DONE!'
+    
+    end select
 
+10  FORMAT('ILINE',1X,'  INODE',1X,<POSDATA.NVAR>(A24,1X))
+20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR>(EN24.15,1X))
+30  FORMAT(I5,1X,I7,1X,<POSDATA.NDIM>(EN24.15,1X),'*THE POINT IS OUT OF MODEL ZONE.*')
+    
+endsubroutine
 
 SUBROUTINE set_variable_show(VALUE)
 integer(kind=glcint), intent(in out) :: value 
@@ -793,7 +891,9 @@ case (surfgrid_toggle)
 case (edge_toggle)
    show_edge = .not. show_edge 
 case (node_toggle)
-   show_node = .not. show_node    
+   show_node = .not. show_node
+CASE(SHOW_SET_TOGGLE)
+    SHOW_SET=.NOT.SHOW_SET
 case(DeformedMesh)
     draw_surface_grid=.true.
     IsDeformedMesh=.not.IsDeformedMesh
@@ -898,7 +998,7 @@ INTEGER::VSHOW_SPG_ID,VSHOW_STRESS_ID,VSHOW_STRAIN_ID,VSHOW_PSTRAIN_ID,&
         SLICESHOW_DIS_ID,&
         SLICESHOW_FORCE_ID,&
         STREAMLINE_PLOT_ID,&
-        SLOPE_ID
+        SLOPE_ID,Probe_ID
 
         
 contour_color_menu = glutCreateMenu(contour_color_handler)
@@ -908,6 +1008,7 @@ call glutAddMenuEntry("contour value",rainbow_contour)
 surface_color_menu = glutCreateMenu(surface_color_handler)
 call glutAddMenuEntry("white",white_surface)
 call glutAddMenuEntry("rainbow",rainbow_surface)
+call glutAddMenuEntry("Set/Material",color_by_set)
 call glutAddMenuEntry("transparency",transparency)
 
 !param_id = glutCreateMenu(param_handler)
@@ -958,6 +1059,7 @@ Model_ID=glutCreateMenu(Model_HANDLER)
 call glutAddMenuEntry("ShowMesh",surfgrid_toggle)
 call glutAddMenuEntry("ShowEdge",edge_toggle)
 call glutAddMenuEntry("ShowNode",node_toggle)
+call glutAddMenuEntry("ShowSet",show_set_toggle)
 call glutAddMenuEntry("DeformedGrid Toggle",DeformedMesh)
 call glutAddMenuEntry("++DeformedGridScale",Enlarge_Scale_DeformedMesh)
 call glutAddMenuEntry("--DeformedGridScale",Minify_Scale_DeformedMesh)
@@ -965,8 +1067,10 @@ call glutAddMenuEntry("--DeformedGridScale",Minify_Scale_DeformedMesh)
 
 NodalValShow_SPG_ID=glutCreateMenu(SET_NODAL_VARIABLE_SHOW)
 DO I=1,POSDATA.NVAR
-    CALL GLUTADDMENUENTRY(TRIM(ADJUSTL(POSDATA.OUTVAR(I).NAME)),I)
+    CALL GLUTADDMENUENTRY(TRIM(ADJUSTL(POSDATA.OUTVAR(I).NAME)),I)    
 ENDDO
+CALL GLUTADDMENUENTRY('NodalID',NODALID_SHOW)
+CALL GLUTADDMENUENTRY('ElementID',ELEMENTID_SHOW)
 
 Show_NodalValue_ID=glutCreateMenu(SHOW_NodalValue_HANDLER)
 call glutAddSubMenu("SHOW_VARS",NodalValShow_SPG_ID)
@@ -990,6 +1094,7 @@ STREAMLINE_PLOT_ID=glutCreateMenu(STREAMLINE_handler)
 call glutAddMenuEntry("PICK START POINT",STREAMLINE_LOCATION_CLICK)
 call glutAddMenuEntry("PlotStreamLine toggle",Plot_streamline_CLICK)
 call glutAddMenuEntry("ResetStreamLine",Reset_streamline_CLICK)
+call glutAddMenuEntry("ShowStreamlineNode",SHOW_STREAMLINE_NODE_CLICK)
 call glutAddMenuEntry("++StrokeFontSize",Enlarger_StrokeFontSize_CLICK)
 call glutAddMenuEntry("--StrokeFontSize",Smaller_StrokeFontSize_CLICK)
 
@@ -1000,7 +1105,9 @@ call glutAddMenuEntry("JustShowMinimalSlip",ShowMinimal_SLOPE_CLICK)
 call glutAddMenuEntry("ShowAllSlips",ShowAll_SLOPE_CLICK)
 Call glutAddMenuEntry('ReadSlips',ReadSlipSurface_slope_click)
 
-
+PROBE_ID=glutCreateMenu(PROBE_handler)
+call glutAddMenuEntry("ShowProbeValue toggle",probe_selected)
+call glutAddMenuEntry("GetData...",Probe_Get_data_click)
 
 menuid = glutCreateMenu(menu_handler)
 call glutAddSubMenu("Contour",CONTOUR_PLOT_ID)
@@ -1008,11 +1115,12 @@ call glutAddSubMenu("Vector",VECTOR_PLOT_ID)
 call glutAddSubMenu("Slice",SLICE_PLOT_ID)
 call glutAddSubMenu("Streamline",STREAMLINE_PLOT_ID)
 call glutAddSubMenu("NodalValue",Show_NodalValue_ID)
+call glutAddSubMenu("ProbeValue",PROBE_ID)
 call glutAddSubMenu("Model",Model_ID)
 CALL glutAddSubMenu("SlopeStability",SLOPE_ID)
 call glutAddSubMenu("View",submenuid)
 !call glutAddSubMenu("plotting parameters",param_id)
-call glutAddMenuEntry("ShowProbeValue toggle",probe_selected)
+
 
 call glutAddMenuEntry("quit",quit_selected)
 

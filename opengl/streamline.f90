@@ -95,9 +95,6 @@ SUBROUTINE STREAMLINE_PLOT()
             !scale1=PPM1*3.527777778/119.05*0.02*stroke_fontsize
             call glLineWidth(1.0_glfloat)
             
-            IF(ABS(STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV))<1E-7) THEN
-            PAUSE
-            ENDIF
             CALL drawStrokeText(DEG1,&
                                 STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV), &
                                 STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV),0.0, &
@@ -112,13 +109,14 @@ SUBROUTINE STREAMLINE_PLOT()
             !              STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV),0.0, &
             !              STR1)                    
         ENDIF
-		!call glPointSize(4.0_glfloat)
-		!call glbegin(gl_points)
-		!    DO J=1,STREAMLINE(I).NV
-		!	    call glvertex3dv(STREAMLINE(I).V(:,J)) 
-		!    ENDDO			
-		!call glend        
-
+        IF(SHOW_STREAMLINE_NODE) THEN
+		    call glPointSize(4.0_glfloat)
+		    call glbegin(gl_points)
+		        DO J=1,STREAMLINE(I).NV
+			        call glvertex3dv(STREAMLINE(I).V(:,J)) 
+		        ENDDO			
+		    call glend        
+        ENDIF
     ENDDO
     CALL glLineWidth(1.0_glfloat)
     call glEndList

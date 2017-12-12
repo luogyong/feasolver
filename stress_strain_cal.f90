@@ -289,7 +289,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 				IF(ALLOCATED(ELEMENT(IENUM).MW)) ELEMENT(IENUM).mw(i)=dot_product( &
 					ELEMENT(IENUM).mw(1:element(ienum).ngp), &
 					ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,i-n1+1))
-				do CONCURRENT (j=1:4)
+				do CONCURRENT (j=1:6)
 					IF(ALLOCATED(ELEMENT(IENUM).SFR)) ELEMENT(IENUM).SFR(j,i)=dot_product( &
 						ELEMENT(IENUM).SFR(j,1:element(ienum).ngp), &
 						ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,i-n1+1))	
@@ -324,7 +324,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 			IF(ALLOCATED(ELEMENT(IENUM).MW)) THEN
 				CALL I2N_TRI15(element(ienum).MW(N1:N2),element(ienum).MW(1:ELEMENT(IENUM).NGP),ELEMENT(IENUM).ET)
 			ENDIF
-			do j=1,4
+			do j=1,6
 				IF(ALLOCATED(ELEMENT(IENUM).SFR)) THEN
 					CALL I2N_TRI15(element(ienum).SFR(j,N1:N2),element(ienum).SFR(j,1:ELEMENT(IENUM).NGP),ELEMENT(IENUM).ET)
 				ENDIF
@@ -341,45 +341,6 @@ subroutine extrapolation_stress_strain_cal(ienum)
 				ENDIF				
 			end do			
 			
-			!do CONCURRENT (i=n1:n2)
-			!	!k=k+1
-			!	K=I-N1+1
-			!	do j=1,ecp(element(ienum).et).ndim
-			!		IF(ALLOCATED(ELEMENT(IENUM).IGRAD)) element(ienum).IGRAD(J,I)=dot_product( &
-			!		matmul(ecp(element(ienum).et).expolating_Lshape,&
-			!				 element(ienum).igrad(j,1:element(ienum).ngp)),&
-			!						ecp(element(ienum).et).termval(:,k))
-			!		IF(ALLOCATED(ELEMENT(IENUM).VELOCITY)) element(ienum).velocity(J,I)=dot_product( &
-			!		matmul(ecp(element(ienum).et).expolating_Lshape,&
-			!				 element(ienum).velocity(j,1:element(ienum).ngp)),&
-			!						ecp(element(ienum).et).termval(:,k))							
-			!	end do
-			!	IF(ALLOCATED(ELEMENT(IENUM).KR)) element(ienum).kr(I)=dot_product( &
-			!	matmul(ecp(element(ienum).et).expolating_Lshape,&
-			!			 element(ienum).kr(1:element(ienum).ngp)),&
-			!					ecp(element(ienum).et).termval(:,k))
-			!	IF(ALLOCATED(ELEMENT(IENUM).MW)) element(ienum).mw(I)=dot_product( &
-			!	matmul(ecp(element(ienum).et).expolating_Lshape,&
-			!			 element(ienum).mw(1:element(ienum).ngp)),&
-			!					ecp(element(ienum).et).termval(:,k))	
-			!	
-			!	do CONCURRENT (j=1:6)
-			!		IF(ALLOCATED(ELEMENT(IENUM).STRESS)) element(ienum).STRESS(J,I)=dot_product( &
-			!		matmul(ecp(element(ienum).et).expolating_Lshape,&
-			!				 element(ienum).STRESS(j,1:element(ienum).ngp)),&
-			!						ecp(element(ienum).et).termval(:,k))
-			!		IF(ALLOCATED(ELEMENT(IENUM).STRAIN)) element(ienum).STRAIN(J,I)=dot_product( &
-			!		matmul(ecp(element(ienum).et).expolating_Lshape,&
-			!				 element(ienum).STRAIN(j,1:element(ienum).ngp)),&
-			!						ecp(element(ienum).et).termval(:,k))
-			!		IF(ALLOCATED(ELEMENT(IENUM).PSTRAIN)) element(ienum).PSTRAIN(J,I)=dot_product( &
-			!		matmul(ecp(element(ienum).et).expolating_Lshape,&
-			!				 element(ienum).PSTRAIN(j,1:element(ienum).ngp)),&
-			!						ecp(element(ienum).et).termval(:,k))					
-			!	end do
-			!	
-			!	
-			!end do
 			
 		CASE(prm6_spg,PRM6,PRM6_CPL)
 			DO CONCURRENT (I=1:2)
@@ -395,7 +356,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				IF(ALLOCATED(ELEMENT(IENUM).MW)) element(ienum).mw(N1:N2)=dot_product(ELEMENT(IENUM).mw(1:element(ienum).ngp), &
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
-				DO CONCURRENT (J=1:4) 
+				DO CONCURRENT (J=1:6) 
 					IF(ALLOCATED(ELEMENT(IENUM).SFR)) element(ienum).SFR(j,N1:N2)=dot_product(ELEMENT(IENUM).SFR(j,1:element(ienum).ngp), &
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				enddo
@@ -544,86 +505,74 @@ subroutine shift_stress_strain_cal(ienum)
 	
 end subroutine
 
-!subroutine spr_stress_strain_cal()
-!	include "link_fnl_shared.h"
-!	use solverds
-!	!use dfimsl
-!	implicit none	
-!	integer::i,j,k,k1,iel,nitem,nc,ixy,jxy,ivp,jvp,is
-!	real(8)::b(30,20),xy(2,1),vp(30,1),x(30,20),res(30)
-!	
-!	do i=1,nnum
-!		
-!		if(SPRLIST(i).ispatch) then
-!			nitem=sprlist(i).item
-!			nc=0
-!			b=0.0
-!			do j=1,sprlist(i).nelist
-!				iel=sprlist(i).elist(j)
-!				do k=1,element(iel).ngp
-!					nc=nc+1
-!					do k1=1,6
-!						b(1:nitem,k1)=b(1:nitem,k1)+sprlist(i).polynomial(:,nc)*element(iel).stress(k1,k)
-!						b(1:nitem,6+k1)=b(1:nitem,6+k1)+sprlist(i).polynomial(:,nc)*element(iel).strain(k1,k)
-!						b(1:nitem,12+k1)=b(1:nitem,12+k1)+sprlist(i).polynomial(:,nc)*element(iel).pstrain(k1,k)
-!					end do
-!				end do
-!			end do
-!!			write(10,'(i)') i
-!!			write(10,999) (b(j,2),j=1,nitem)
-!!			write(10,'(a)') ''
-!!			write(10,999) ((sprlist(i).invA(j,k),j=1,nitem),k=1,nitem)
-!!			x=0.0			
-!			do j=1,18
-!				res=0.0
-!				!b(1:nitem,j)=matmul(sprlist(i).invA(1:nitem,1:nitem),b(1:nitem,j))
-!				CALL DLFSSF (nitem, sprlist(i).A, nitem,sprlist(i).ipvt, b(1:nitem,j), b(1:nitem,j))
-!!				CALL DLFISF (nitem, sprlist(i).A, nitem, sprlist(i).invA, nitem, &
-!!					sprlist(i).ipvt, b(1:nitem,j), X(1:nitem,j),RES(1:nitem))
-!				!CALL DLFSDS (nitem, sprlist(i).invA, nitem, b(1:nitem,j), b(1:nitem,j))
-!			end do
-!!			b=x
-!			!write(10,999) (b(j,2),j=1,nitem)
-!			
-!			do j=1,sprlist(i).nelist
-!				do k=1,element(sprlist(i).elist(j)).nnum
-!					if((.not.sprlist(element(sprlist(i).elist(j)).node(k)).ispatch) &
-!							.or.(element(sprlist(i).elist(j)).node(k)==i)) then
-!						xy(1,1)=(node(element(sprlist(i).elist(j)).node(k)).coord(1)- &
-!							node(i).coord(1))/sprlist(i).dxmax
-!						xy(2,1)=(node(element(sprlist(i).elist(j)).node(k)).coord(2)- &
-!							node(i).coord(2))/sprlist(i).dymax						
-!						ixy=2
-!						jxy=1
-!						ivp=nitem
-!						jvp=1
-!						vp=0.0
-!						call vpolynomial(xy(1:ixy,1:jxy),ixy,jxy,sprlist(i).p,vp(1:ivp,1:jvp),ivp,jvp)
-!						is=element(sprlist(i).elist(j)).ngp+k
-!						!Attentioin. the order should be consistent.
-!						do k1=1,6
-!							if(.not.sprlist(element(sprlist(i).elist(j)).node(k)).ispatch) then
-!								element(sprlist(i).elist(j)).stress(k1,is)=element(sprlist(i).elist(j)).stress(k1,is)+ &
-!									dot_product(b(1:nitem,k1),vp(1:nitem,1))/element(sprlist(i).elist(j)).nspr
-!								element(sprlist(i).elist(j)).strain(k1,is)=element(sprlist(i).elist(j)).strain(k1,is)+ &
-!									dot_product(b(1:nitem,k1+6),vp(1:nitem,1))/element(sprlist(i).elist(j)).nspr
-!								element(sprlist(i).elist(j)).pstrain(k1,is)=element(sprlist(i).elist(j)).pstrain(k1,is)+ &
-!									dot_product(b(1:nitem,k1+12),vp(1:nitem,1))/element(sprlist(i).elist(j)).nspr
-!							else
-!								element(sprlist(i).elist(j)).stress(k1,is)=dot_product(b(1:nitem,k1),vp(1:nitem,1))
-!								element(sprlist(i).elist(j)).strain(k1,is)=dot_product(b(1:nitem,k1+6),vp(1:nitem,1))
-!								element(sprlist(i).elist(j)).pstrain(k1,is)=dot_product(b(1:nitem,k1+12),vp(1:nitem,1))					
-!							end if
-!						end do
-!					end if
-!				end do
-!			end do			
-!		end if
-!	end do	
+subroutine spr_stress_strain_cal(ISTEP,ISUBST)
+	
+	use SPR_RECOVERY
+	USE solverds
+	implicit none
+    INTEGER,INTENT(IN)::ISTEP,ISUBST
+    INTEGER::I,J,K,E1,N1,N2,NPATCH1
+    REAL(DPN)::VAL(100)
+    
+    IF(ISUBST==1) CALL spr_initialize()
+    
+        
+    
+    DO I=1,NNUM
+        IF(ALLOCATED(NODE(I).STRESS)) NODE(I).STRESS=0.D0
+        IF(ALLOCATED(NODE(I).STRAIN)) NODE(I).STRAIN=0.D0
+        IF(ALLOCATED(NODE(I).PSTRAIN)) NODE(I).PSTRAIN=0.D0
+        IF(ALLOCATED(NODE(I).IGRAD)) NODE(I).IGRAD=0.D0
+        IF(ALLOCATED(NODE(I).VELOCITY)) NODE(I).VELOCITY=0.D0
+        NODE(I).KR=0.D0;NODE(I).MW=0.D0
+    ENDDO
+    
+    DO I=1,NNUM
+        IF(.NOT.SPRLIST(I).ISPATCH) CYCLE
+        
+        DO K=1,SPRLIST(I).NNODE
+            N2=SPRLIST(I).NODE(K)
+            NPATCH1=SPRLIST(N2).NPATCH
+            IF(ALLOCATED(NODE(N2).STRESS)) THEN           
+                DO J=1,2*NDIMENSION            
+                    NODE(N2).STRESS(J)=NODE(N2).STRESS(J)+SPRLIST(I).GETNODALDERIVATIVE(NODE(N2).COORD(1:NDIMENSION),SPRLIST(I).GETGPVALUE(J+SXX-1))/NPATCH1            
+                ENDDO
+            ENDIF
+            IF(ALLOCATED(NODE(N2).STRAIN)) THEN           
+                DO J=1,2*NDIMENSION            
+                    NODE(N2).STRAIN(J)=NODE(N2).STRAIN(J)+SPRLIST(I).GETNODALDERIVATIVE(NODE(N2).COORD(1:NDIMENSION),SPRLIST(I).GETGPVALUE(J+EXX-1))/NPATCH1            
+                ENDDO
+            ENDIF        
+            IF(ALLOCATED(NODE(N2).PSTRAIN)) THEN           
+                DO J=1,2*NDIMENSION            
+                    NODE(N2).PSTRAIN(J)=NODE(N2).PSTRAIN(J)+SPRLIST(I).GETNODALDERIVATIVE(NODE(N2).COORD(1:NDIMENSION),SPRLIST(I).GETGPVALUE(J+PEXX-1))/NPATCH1            
+                ENDDO
+            ENDIF        
+            IF(ALLOCATED(NODE(N2).IGRAD)) THEN           
+                DO J=1,NDIMENSION            
+                    NODE(N2).IGRAD(J)=NODE(N2).IGRAD(J)+SPRLIST(I).GETNODALDERIVATIVE(NODE(N2).COORD(1:NDIMENSION),SPRLIST(I).GETGPVALUE(J+GRADX-1))/NPATCH1            
+                ENDDO
+            ENDIF 
+            IF(ALLOCATED(NODE(N2).VELOCITY)) THEN           
+                DO J=1,NDIMENSION            
+                    NODE(N2).VELOCITY(J)=NODE(N2).VELOCITY(J)+SPRLIST(I).GETNODALDERIVATIVE(NODE(N2).COORD(1:NDIMENSION),SPRLIST(I).GETGPVALUE(J+VX-1))/NPATCH1            
+                ENDDO
+            ENDIF
+            IF(OUTVAR(KR_SPG).VALUE>0) THEN
+                NODE(N2).KR=NODE(N2).KR+SPRLIST(I).GETNODALDERIVATIVE(NODE(N2).COORD(1:NDIMENSION),SPRLIST(I).GETGPVALUE(KR_SPG))/NPATCH1        
+            ENDIF
+            IF(OUTVAR(MW_SPG).VALUE>0) THEN
+                NODE(N2).MW=NODE(N2).MW+SPRLIST(I).GETNODALDERIVATIVE(NODE(N2).COORD(1:NDIMENSION),SPRLIST(I).GETGPVALUE(MW_SPG))/NPATCH1        
+            ENDIF
+        
+        ENDDO
+    ENDDO
+			
+
 !
 !	call E2N_stress_strain()
 !999 format(<sprlist(i).item>e15.7)	
-!end subroutine
+end subroutine
 
 !according average the nodal stress in elements.
 subroutine E2N_stress_strain(ISTEP)
@@ -634,24 +583,27 @@ subroutine E2N_stress_strain(ISTEP)
 
 	!clear zero
 	do i=1,nnum
-		if(allocated(node(i).stress))	node(i).stress=0.0d0
-		if(allocated(node(i).strain)) node(i).strain=0.0d0
-		if(allocated(node(i).pstrain))	node(i).pstrain=0.0d0
-		if(allocated(node(i).igrad)) node(i).igrad=0.0d0
-		if(allocated(node(i).velocity)) node(i).velocity=0.0d0
-		if(allocated(node(i).sfr)) then
+        IF(NODE(I).ISACTIVE==0) CYCLE
+        IF(solver_control.i2ncal/=SPR) THEN
+		    if(allocated(node(i).stress))	node(i).stress=0.0d0
+		    if(allocated(node(i).strain)) node(i).strain=0.0d0
+		    if(allocated(node(i).pstrain))	node(i).pstrain=0.0d0
+		    if(allocated(node(i).igrad)) node(i).igrad=0.0d0
+		    if(allocated(node(i).velocity)) node(i).velocity=0.0d0
+		    node(i).kr=0.0d0
+		    node(i).mw=0.0d0
+        ENDIF
+        if(allocated(node(i).sfr)) then
             node(i).sfr=0.0d0
             node(i).sfr(1)=-1.0d6
         endif
 		node(i).q=0.0d0
-		node(i).kr=0.0d0
-		node(i).mw=0.0d0
         !node(i).sfr(1)=-1.0d6
 	end do
 	
 	!averaged simplily at nodes
 	do i=1,enum
-			
+		IF(ELEMENT(I).ISACTIVE==0) CYCLE	
 		!vangle=pi()
 		!select case(element(i).et)
 		!	case(cps3,cpe3,cax3,cpe6,cps6,cax6,cpe15,cps15,cax15, &
@@ -668,32 +620,41 @@ subroutine E2N_stress_strain(ISTEP)
 		select case(element(i).ec)
 			case(C3D,CPE,CPS,CAX,CPL,CAX_CPL)
 				do j=1,element(i).nnum
-					n2=node(element(i).node(j)).nelist-node(element(i).node(j)).nelist_SPG
-					node(element(i).node(j)).stress=node(element(i).node(j)).stress &
-					+element(i).stress(:,n1+j)/n2
-					node(element(i).node(j)).strain=node(element(i).node(j)).strain &
-					+element(i).strain(:,n1+j)/n2
-					node(element(i).node(j)).pstrain=node(element(i).node(j)).pstrain &
-					+element(i).pstrain(:,n1+j)/n2
-					!get the mat for later nodal sfr cal. 
+                    IF(solver_control.i2ncal/=SPR) THEN
+					    n2=node(element(i).node(j)).nelist-node(element(i).node(j)).nelist_SPG
+					    node(element(i).node(j)).stress=node(element(i).node(j)).stress &
+					    +element(i).stress(:,n1+j)/n2
+					    node(element(i).node(j)).strain=node(element(i).node(j)).strain &
+					    +element(i).strain(:,n1+j)/n2
+					    node(element(i).node(j)).pstrain=node(element(i).node(j)).pstrain &
+					    +element(i).pstrain(:,n1+j)/n2
+                    ENDIF
                     
-					if(element(i).sfr(1,n1+j)>node(element(i).node(j)).sfr(1)) then					
-						node(element(i).node(j)).sfr(1)=element(i).sfr(1,n1+j)
-						node(element(i).node(j)).sfr(2)=element(i).mat !borrow 
-					endif
-				
+                    
+                    
+					!get the mat for later nodal sfr cal. 
+                    IF(OUTVAR(SFR).VALUE>0) THEN
+                        if(solver_control.i2ncal==SPR) call sfr_extrapolation_stress_strain_cal(i) !for spr method, no nodal sfr was calculated in an element way. 
+                        
+					    if(element(i).sfr(1,n1+j)>node(element(i).node(j)).sfr(1)) then					
+						    node(element(i).node(j)).sfr(1)=element(i).sfr(1,n1+j)
+						    node(element(i).node(j)).sfr(2)=element(i).mat !borrow 
+					    endif
+				    ENDIF
 				end do
 			case(spg2d,spg,cax_spg)
 				do j=1,element(i).nnum
-					n2=node(element(i).node(j)).nelist_SPG
-					node(element(i).node(j)).igrad=node(element(i).node(j)).igrad &
-					+element(i).igrad(:,n1+j)/n2
-					node(element(i).node(j)).velocity=node(element(i).node(j)).velocity &
-					+element(i).velocity(:,n1+j)/n2
-					node(element(i).node(j)).kr=node(element(i).node(j)).kr &
-					+element(i).kr(n1+j)/n2	
-					node(element(i).node(j)).mw=node(element(i).node(j)).mw &
-					+element(i).mw(n1+j)/n2						
+                    IF(solver_control.i2ncal/=SPR) THEN
+					    n2=node(element(i).node(j)).nelist_SPG
+					    node(element(i).node(j)).igrad=node(element(i).node(j)).igrad &
+					    +element(i).igrad(:,n1+j)/n2
+					    node(element(i).node(j)).velocity=node(element(i).node(j)).velocity &
+					    +element(i).velocity(:,n1+j)/n2
+					    node(element(i).node(j)).kr=node(element(i).node(j)).kr &
+					    +element(i).kr(n1+j)/n2	
+					    node(element(i).node(j)).mw=node(element(i).node(j)).mw &
+					    +element(i).mw(n1+j)/n2	
+                    ENDIF
 					node(element(i).node(j)).q=node(element(i).node(j)).q+element(i).flux(j)
                 end do
             case(stru,spring,soilspring)
@@ -707,6 +668,7 @@ subroutine E2N_stress_strain(ISTEP)
 	! generalized shear stress and strain
 	do i=1,nnum
 		!shear strain
+        if(node(i).isactive==0) cycle
 		if(allocated(node(i).stress)) then
 			node(i).mises=0.50*((node(i).stress(1)-node(i).stress(2))**2 &
 									+(node(i).stress(2)-node(i).stress(3))**2 &
@@ -714,13 +676,15 @@ subroutine E2N_stress_strain(ISTEP)
 									+6*(node(i).stress(4)**2+node(i).stress(5)**2 &
 									+node(i).stress(6)**2))
 			node(i).mises=node(i).mises**0.5
-			!节点的材料假定为破坏比最大的单元材料，以模拟成层土中的软弱夹层
-			C1=material(node(i).sfr(2)).GET(3,ISTEP)
-			Phi1=material(node(i).sfr(2)).GET(4,ISTEP)
-            !dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
-			NODE(I).SFR(7)=C1;NODE(I).SFR(8)=PHI1;
-			call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection,node(i).coord(ndimension))
-			
+            
+            IF(OUTVAR(SFR).VALUE>0) THEN
+			    !节点的材料假定为破坏比最大的单元材料，以模拟成层土中的软弱夹层
+			    C1=material(node(i).sfr(2)).GET(3,ISTEP)
+			    Phi1=material(node(i).sfr(2)).GET(4,ISTEP)
+                !dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
+			    NODE(I).SFR(7)=C1;NODE(I).SFR(8)=PHI1;
+			    call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection,node(i).coord(ndimension))
+			ENDIF
 		end if
 		!total generalized shear stain
 		if(allocated(node(i).strain)) then
@@ -748,211 +712,71 @@ subroutine E2N_stress_strain(ISTEP)
 	
 end subroutine
 
-! form the element list sharing the same vertex(mid-nodes are excluded)
-subroutine spr_elist()
+
+subroutine sfr_extrapolation_stress_strain_cal(ienum)
+!it is an identical sub with extrapolation_stress_strain_cal except that is only cal the sfr.
 	use solverds
 	implicit none
-	integer::i,j
-	integer::nnum1,p1,nsc1
-	real(8)::t1
-	
-	allocate(sprlist(nnum)) !assume that there  are 10 elements at most sharing the same vertex.
-	do i=1,enum
-		select case(element(i).et)
-			case(cps3,cpe3,cax3)
-				nnum1=3
-				nsc1=1
-				p1=1
-			case(cps4r,cpe4r,cax4r)
-				nnum1=4
-				nsc1=1
-				p1=1
-			case(cps4,cpe4,cax4)
-				nnum1=4
-				nsc1=4
-				p1=1
-			case(cps6,cpe6,cax6)
-				nnum1=3
-				nsc1=3
-				p1=2
-			case(cpe15,cps15,cax15)
-				nnum1=3
-				nsc1=12
-				p1=4	
-			case(cps8r,cpe8r,cax8r)
-				nnum1=4
-				nsc1=4
-				p1=2
-			case(cps8,cpe8,cax8)
-				nnum1=4
-				nsc1=9
-				p1=2
-		end select
-		do j=1,nnum1
-			sprlist(element(i).node(j)).nelist=sprlist(element(i).node(j)).nelist+1
-			SPRLIST(element(i).node(j)).elist(sprlist(element(i).node(j)).nelist)=i
-			sprlist(element(i).node(j)).nsc=sprlist(element(i).node(j)).nsc+nsc1
-			if(p1>sprlist(element(i).node(j)).p) sprlist(element(i).node(j)).p=p1
-			sprlist(element(i).node(j)).ispatch=.true.
-		end do		
-	end do
-	
-	do i=1,nnum
-		if(sprlist(i).ispatch) then
-			select case(sprlist(i).p) 
-				case(1)
-					if(sprlist(i).nsc<3) sprlist(i).ispatch=.false.
-					if(sprlist(i).nsc>6) sprlist(i).p=2
-				case(2)
-					if(sprlist(i).nsc<6) sprlist(i).ispatch=.false.
-					if(sprlist(i).nsc>=12) sprlist(i).p=3
-				case(3)
-					if(sprlist(i).nsc<10) sprlist(i).ispatch=.false.
-					if(sprlist(i).nsc>=20) sprlist(i).p=4
-				case(4)
-					if(sprlist(i).nsc<15) sprlist(i).ispatch=.false.
-					if(sprlist(i).nsc>=30) sprlist(i).p=5
-			end select
-			if(sprlist(i).ispatch) then
-				do j=1,sprlist(i).nelist
-					element(sprlist(i).elist(j)).nspr=element(sprlist(i).elist(j)).nspr+1
-					t1=maxval(node(element(sprlist(i).elist(j)).node).coord(1))- &
-					minval(node(element(sprlist(i).elist(j)).node).coord(1))
-					if(t1>sprlist(i).dxmax) sprlist(i).dxmax=t1
-					t1=maxval(node(element(sprlist(i).elist(j)).node).coord(2))- &
-					minval(node(element(sprlist(i).elist(j)).node).coord(2))
-					if(t1>sprlist(i).dymax) sprlist(i).dymax=t1
-				end do				
-			end if 
-		end if
-	end do
-end subroutine
+	integer,intent(in)::ienum
+	integer::i,j,k=0,n1,n2
 
+	!do i=1,enum
+	n1=element(ienum).ngp+1
+	n2=element(ienum).ngp+element(ienum).nnum
 
+	SELECT CASE(ELEMENT(IENUM).ET)
+		CASE(CAX3_SPG,CPE3_SPG,CPE4R_SPG,TET4_SPG,CAX4R_SPG,&
+			 CAX3,CPE3,CPE4R,TET4,CAX4R,&
+			 CAX3_CPL,CPE3_CPL,CPE4R_CPL,TET4_CPL,CAX4R_CPL)
+			do concurrent (i=n1:n2)
+				IF(ALLOCATED(ELEMENT(IENUM).SFR)) ELEMENT(IENUM).SFR(:,i)=ELEMENT(IENUM).SFR(:,1)
+			end do
+		CASE(CPE6_SPG,CPE8R_SPG,CPE4_SPG,PRM15_SPG,TET10_SPG,CAX6_SPG,CAX8R_SPG,CAX4_SPG,&
+			 CPE6_CPL,CPE8R_CPL,CPE4_CPL,PRM15_CPL,TET10_CPL,CAX6_CPL,CAX8R_CPL,CAX4_CPL,&
+			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4,ZT4_SPG)
+			do concurrent (i=n1:n2)
+				
 
-!calculate the interpolating polynomials
-subroutine vpolynomial(xy,ixy,jxy,order,p,ip,jp)
-	implicit none
-	integer::ixy,jxy,ip,jp,order,i,j
-	real(8)::xy(ixy,jxy),p(ip,jp),dx,dy
+				do CONCURRENT (j=1:6)
+					IF(ALLOCATED(ELEMENT(IENUM).SFR)) ELEMENT(IENUM).SFR(j,i)=dot_product( &
+						ELEMENT(IENUM).SFR(j,1:element(ienum).ngp), &
+						ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,i-n1+1))	
+				enddo			
+				
+			end do				
+		CASE(CPE15_SPG,CAX15_SPG,&
+			 CPE15_CPL,CAX15_CPL,&
+			 CPE15,CAX15)
+			
+			do j=1,6
+				IF(ALLOCATED(ELEMENT(IENUM).SFR)) THEN
+					CALL I2N_TRI15(element(ienum).SFR(j,N1:N2),element(ienum).SFR(j,1:ELEMENT(IENUM).NGP),ELEMENT(IENUM).ET)
+				ENDIF
+			enddo
+
+			
+			
+		CASE(prm6_spg,PRM6,PRM6_CPL)
+			DO CONCURRENT (I=1:2)
+				N1=3*I
+				N2=3*I+2
+				DO CONCURRENT (J=1:6) 
+					IF(ALLOCATED(ELEMENT(IENUM).SFR)) element(ienum).SFR(j,N1:N2)=dot_product(ELEMENT(IENUM).SFR(j,1:element(ienum).ngp), &
+							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
+				enddo			
+			END DO
+		CASE DEFAULT
+			PRINT *, 'NO SUCH A ELEMENT TYPE. SUB extrapolation_stress_strain_cal'
+			STOP					
+	END SELECT
+			
+		!CASE DEFAULT
+			
+		!	PRINT *, 'POSTPROCEDURE IN SOLID ELEMENT CLASS IS NOT COMPLETED.'
+			!STOP
+	!END SELECT
 	
-	if(order>5) then
-		print *, "the order of interpolating polynomials is assumed to be less or equel to 5." 
-		stop
-	end if
-	p=0.0	
-	do i=1,jxy
-		dx=xy(1,i)
-		dy=xy(2,i)
-		if(order>=1) then
-			p(1,i)=1.0
-			p(2,i)=dx
-			p(3,i)=dy
-		end if
-		if(order>=2) then
-			p(4,i)=dx**2
-			p(5,i)=dx*dy
-			p(6,i)=dy**2
-		end if
-		if(order>=3) then
-			p(7,i)=dx**3
-			p(8,i)=dx**2*dy
-			p(9,i)=dx*dy**2
-			p(10,i)=dy**3
-		end if
-		if(order>=4) then
-			p(11,i)=dx**4
-			p(12,i)=dx**3*dy
-			p(13,i)=dx**2*dy**2
-			p(14,i)=dx*dy**3
-			p(15,i)=dy**4
-		end if
-		if(order>=5) then
-			p(16,i)=dx**5
-			p(17,i)=dx**4*dy
-			p(18,i)=dx**3*dy**2
-			p(19,i)=dx**2*dy**3
-			p(20,i)=dx*dy**4
-			p(21,i)=dy**5
-		end if		
-	end do
 	
 end subroutine
-
-
-
-!use SPR method to calculate the polynomials for each patch.
-!subroutine spr_polynomial_cal()
-!	use solverds
-!	use operation_i
-!	implicit none
-!	integer::i,j,k,k1,nc,iel,item,ixy
-!	real(8)::xy(3,120),w(100),rcond
-!	
-!	do i=1,nnum
-! 		xy=0.0
-!		if(SPRLIST(i).ispatch) then
-!			nc=0
-!			do j=1,sprlist(i).nelist
-!				iel=sprlist(i).elist(j)
-!				do k=1,element(iel).ngp
-!					nc=nc+1
-!					xy(1,nc)=(element(iel).xygp(1,k)-node(i).coord(1))/SPRLIST(i).dxmax
-!					xy(2,nc)=(element(iel).xygp(2,k)-node(i).coord(2))/SPRLIST(i).dymax
-!				end do
-!			end do
-!			select case(sprlist(i).p)
-!				case(1)
-!					sprlist(i).item=3
-!				case(2)
-!					sprlist(i).item=6
-!				case(3)
-!					sprlist(i).item=10
-!				case(4)
-!					sprlist(i).item=15
-!				case(5)
-!					sprlist(i).item=21
-!			end select
-!			allocate(sprlist(i).polynomial(sprlist(i).item,sprlist(i).nsc),&
-!				sprlist(i).ipvt(sprlist(i).item),&
-!				sprlist(i).A(sprlist(i).item,sprlist(i).item))
-!			ixy=2
-!			sprlist(i).polynomial=0.0
-!			sprlist(i).A=0.0
-!			sprlist(i).ipvt=0.0
-!			call vpolynomial(xy(1:ixy,1:nc),ixy,nc,sprlist(i).p,sprlist(i).polynomial(1:sprlist(i).item,& 
-!							1:sprlist(i).nsc),sprlist(i).item,sprlist(i).nsc)
-!			do j=1,sprlist(i).nsc
-!				do k=1,sprlist(i).item
-!					do k1=1,sprlist(i).item
-!						sprlist(i).A(k,k1)=sprlist(i).A(k,k1)+ &
-!							sprlist(i).polynomial(k,j)*sprlist(i).polynomial(k1,j)
-!					end do
-!				end do
-!			end do
-!			rcond=0.0
-!			CALL DLFCSF(sprlist(i).item, sprlist(i).A, sprlist(i).item, sprlist(i).A, sprlist(i).item, &
-!				sprlist(i).ipvt,rcond) 
-!			if(abs(rcond)<1e-15) then
-!				sprlist(i).ispatch=.false.
-!				do j=1,sprlist(i).nelist
-!					element(sprlist(i).elist(j)).nspr=element(sprlist(i).elist(j)).nspr-1
-!				end do
-!			end if
-!!			CALL DLFTDS (sprlist(i).item, sprlist(i).invA, sprlist(i).item, sprlist(i).invA, sprlist(i).item)
-!!			CALL DLINDS (sprlist(i).item, sprlist(i).invA, sprlist(i).item, sprlist(i).invA, sprlist(i).item)
-!!			w=0.0
-!!			CALL MB01CD(sprlist(i).invA,sprlist(i).item,sprlist(i).item,sprlist(i).item,W(1:sprlist(i).item))
-!!			sprlist(i).invA=.i.(sprlist(i).invA(1:sprlist(i).item,1:sprlist(i).item))
-!!			write(10,999 ) (sprlist(i).invA(:,j),j=1,sprlist(i).item)
-!!			write(10,'(a)') ''
-!		end if
-!	end do
-!	
-!999 format(<sprlist(i).item>e15.7)
-!	
-!end subroutine
-
-
 
 
