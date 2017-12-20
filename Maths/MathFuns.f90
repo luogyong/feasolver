@@ -174,4 +174,92 @@ SUBROUTINE EQUDIVIDE(X1,X2,DT,NODE,NNODE)
     
 ENDSUBROUTINE
 
+
+
+   !计算四面体的其中的一个顶点（第一个）ar(:,1)的立体角，以angle返回。    
+	real(8) function solidangle(ar)
+	   implicit none
+	   
+	   real(8),intent(in)::ar(3,4)
+       integer::i
+       real(8)::br(3,3),t1,v1
+	   real(8)::cosA,cosB,cosC,A,B,C,p
+	   !br存储由ar形成三个向量，同时化为单位向量
+	   do i=1,3
+	      br(:,i)=ar(:,i+1)-ar(:,1) 
+		  t1=(br(1,i)**2+br(2,i)**2+br(3,i)**2)**0.5
+		  if(t1<1e-10) then
+		     print *, 'sub solid angle,the distance between two vertex is 0.'
+		     stop
+		  end if
+		  br(:,i)=br(:,i)/t1
+       end do
+	   
+       !求br中第一、二向量所组成的夹角
+       cosA=br(1,1)*br(1,2)+br(2,1)*br(2,2)+br(3,1)*br(3,2)
+       cosB=br(1,1)*br(1,3)+br(2,1)*br(2,3)+br(3,1)*br(3,3)
+	   cosC=br(1,3)*br(1,2)+br(2,3)*br(2,2)+br(3,3)*br(3,2)
+	   !因为三个向量都化为了单位向量。
+       A=dacos(cosA)
+       B=dacos(cosB)
+	   C=dacos(cosC)
+       p=(A+B+C)/2
+	   t1=(sin(p)*sin(p-A)*sin(p-B)*sin(p-C))**0.5/(2*cos(A/2)*cos(B/2)*cos(C/2))
+       solidangle=2*dasin(t1)
+       
+!	   !求第一、二向量所组成三角形的面积
+!       s=sin(A)/2
+!	   !求四面体的体积:abs(v1)/6
+!	   call dt(br,v1)
+!	   v1=abs(v1)/6
+!	   !求高h
+!       h=3*v1/s
+!	   !三角形球面的面积s
+!	   s=1*h*A/2
+       !s=A+B+C-3.1415926536
+	   !立体角，球面度
+       !angle=s/4/3.1415926536
+       !solidangle=s
+	end function
+
+    function NORMAL_TRIFACE(V) result (Normal)
+
+    !*****************************************************************************80
+    !V, XY OF THE FACET.
+    !CALCULATE THE NORMAL VECTOR OF A TRI-FACET. 
+    !
+
+    !
+      implicit none
+
+      REAL(8),INTENT(IN)::V(:,:) !3*3
+
+      real ( kind = 8 ) v1(SIZE(V,DIM=1))
+      real ( kind = 8 ) v2(SIZE(V,DIM=1))
+      real ( kind = 8 ) normal(SIZE(V,DIM=1))
+      
+      V1=V(:,2)-V(:,1);V2=V(:,3)-V(:,1);
+
+      normal(1) = v1(2) * v2(3) - v1(3) * v2(2)
+      normal(2) = v1(3) * v2(1) - v1(1) * v2(3)
+      normal(3) = v1(1) * v2(2) - v1(2) * v2(1)
+      !normal=normal/norm2(normal)
+      return
+  
+    end function
+    
+    !二面角，单位弧度,N1,N2为面的方向矢量
+    real(8) function DihedralAngle(N1,N2) 
+        implicit none
+        integer ( kind = 4 ), parameter :: dim_num = 3
+        real ( kind = 8 ),INTENT(IN):: N1(dim_num)
+        real ( kind = 8 ),INTENT(IN):: N2(dim_num)
+        REAL(8),PARAMETER::PI=3.141592653589793
+        
+        DihedralAngle=PI-DACOS(DOT_PRODUCT(N1,N2)/(NORM2(N1)*NORM2(N2)))
+        
+        
+    
+    end function
+
 end module

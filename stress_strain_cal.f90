@@ -575,12 +575,14 @@ subroutine spr_stress_strain_cal(ISTEP,ISUBST)
 end subroutine
 
 !according average the nodal stress in elements.
-subroutine E2N_stress_strain(ISTEP)
+subroutine E2N_stress_strain(ISTEP,isubts)
 	use solverds
 	implicit none
-	integer::i,j,k,n1,n2,ISTEP
-	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3)
+	integer::i,j,k,n1,n2,ISTEP,isubts
+	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3),T2
 
+    if(isubts==1) call NodalWeight(istep) !同一步中单元的生死不发生改变
+    
 	!clear zero
 	do i=1,nnum
         IF(NODE(I).ISACTIVE==0) CYCLE
@@ -604,30 +606,26 @@ subroutine E2N_stress_strain(ISTEP)
 	!averaged simplily at nodes
 	do i=1,enum
 		IF(ELEMENT(I).ISACTIVE==0) CYCLE	
-		!vangle=pi()
-		!select case(element(i).et)
-		!	case(cps3,cpe3,cax3,cpe6,cps6,cax6,cpe15,cps15,cax15, &
-		!		  cpe3_spg,cpe6_spg,cax6_spg,cpe15_spg,cax15_spg)
-		!		vangle(1:3)=element(i).angle(1:3)
-		!		vangle(13:15)=2*vangle(13:15)
 
-		!	case(cpe4,cps4,cax4,cpe4r,cps4r,cax4r,cpe8,cps8,cax8,cpe8r,cps8r,cax8r, &
-		!		  cpe4_spg,cax4_spg,cpe4r_spg,cax4r_spg,cpe8_spg,cpe8r_spg,cax8r_spg)
-		!		vangle(1:4)=element(i).angle(1:4)
-		!end select
 		n1=element(i).ngp
 		
 		select case(element(i).ec)
 			case(C3D,CPE,CPS,CAX,CPL,CAX_CPL)
 				do j=1,element(i).nnum
                     IF(solver_control.i2ncal/=SPR) THEN
-					    n2=node(element(i).node(j)).nelist-node(element(i).node(j)).nelist_SPG
+                        
+					    IF(SOLVER_CONTROL.I2NWEIGHT==WEIGHT_ANGLE) THEN
+                            T2=element(i).ANGLE(J)/node(element(i).node(j)).ANGLE
+                        ELSE
+                            T2=1./(node(element(i).node(j)).nelist-node(element(i).node(j)).nelist_SPG) 
+                        ENDIF
+                        
 					    node(element(i).node(j)).stress=node(element(i).node(j)).stress &
-					    +element(i).stress(:,n1+j)/n2
+					    +element(i).stress(:,n1+j)*T2
 					    node(element(i).node(j)).strain=node(element(i).node(j)).strain &
-					    +element(i).strain(:,n1+j)/n2
+					    +element(i).strain(:,n1+j)*T2
 					    node(element(i).node(j)).pstrain=node(element(i).node(j)).pstrain &
-					    +element(i).pstrain(:,n1+j)/n2
+					    +element(i).pstrain(:,n1+j)*T2
                     ENDIF
                     
                     
@@ -645,15 +643,22 @@ subroutine E2N_stress_strain(ISTEP)
 			case(spg2d,spg,cax_spg)
 				do j=1,element(i).nnum
                     IF(solver_control.i2ncal/=SPR) THEN
-					    n2=node(element(i).node(j)).nelist_SPG
+					    IF(SOLVER_CONTROL.I2NWEIGHT==WEIGHT_ANGLE) THEN
+                            T2=element(i).ANGLE(J)/node(element(i).node(j)).ANGLE
+                        ELSE
+                            T2=1./node(element(i).node(j)).nelist_SPG
+                        ENDIF                    
+                    
+					    
+                        !T2=node(element(i).node(j)).ANGLE/VANGLE(J)
 					    node(element(i).node(j)).igrad=node(element(i).node(j)).igrad &
-					    +element(i).igrad(:,n1+j)/n2
+					    +element(i).igrad(:,n1+j)*T2
 					    node(element(i).node(j)).velocity=node(element(i).node(j)).velocity &
-					    +element(i).velocity(:,n1+j)/n2
+					    +element(i).velocity(:,n1+j)*T2
 					    node(element(i).node(j)).kr=node(element(i).node(j)).kr &
-					    +element(i).kr(n1+j)/n2	
+					    +element(i).kr(n1+j)*T2	
 					    node(element(i).node(j)).mw=node(element(i).node(j)).mw &
-					    +element(i).mw(n1+j)/n2	
+					    +element(i).mw(n1+j)*T2	
                     ENDIF
 					node(element(i).node(j)).q=node(element(i).node(j)).q+element(i).flux(j)
                 end do
@@ -780,3 +785,201 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 end subroutine
 
 
+subroutine NodalWeight(istep)
+	use solverds
+	implicit none
+    integer,intent(in)::istep
+	integer::i,j,k,n1
+	LOGICAL::ISSPG1
+    
+	
+	
+	node.nelist=0;node.nelist_SPG=0;node.angle=0
+	do i=1,enum
+        if(solver_control.i2nweight==weight_angle) then
+            if(.not.allocated(element(i).angle))    call calangle(i)
+        endif
+        
+        if(element(i).isactive==0) cycle
+        
+		ISSPG1=ELEMENT(I).EC==SPG.OR.ELEMENT(I).EC==SPG2D.OR.ELEMENT(I).EC==CAX_SPG
+		do j=1,element(i).nnum
+			n1=element(i).node(j)
+			node(n1).nelist=node(n1).nelist+1
+			IF(ISSPG1) THEN
+				node(n1).nelist_SPG=node(n1).nelist_SPG+1
+			ENDIF
+            if(allocated(element(i).angle)) THEN
+                IF(.NOT.(ESET(ELEMENT(i).SET).COUPLESET>0.AND.ESET(ELEMENT(I).SET).COUPLESET<ELEMENT(I).SET)) THEN
+                    node(n1).angle=node(n1).angle+element(i).angle(j)
+                ENDIF
+            ENDIF
+		end do
+	end do
+    
+	!do i=1,nnum
+	!	allocate(node(i).elist(node(i).nelist),node(i).elist_SPG(node(i).nelist_SPG))
+	!end do
+	!node.nelist=0;node.nelist_SPG=0
+	!
+	!do i=1,enum
+	!	ISSPG1=ELEMENT(I).EC==SPG.OR.ELEMENT(I).EC==SPG2D.OR.ELEMENT(I).EC==CAX_SPG
+	!	do j=1,element(i).nnum
+	!		n1=element(i).node(j)
+	!		node(n1).nelist=node(n1).nelist+1
+	!		node(n1).elist(node(n1).nelist)=i
+	!		IF(ISSPG1) THEN
+	!			node(n1).nelist_SPG=node(n1).nelist_SPG+1
+	!			node(n1).elist_SPG(node(n1).nelist_SPG)=i
+	!		ENDIF
+	!	end do
+	!end do	
+
+end subroutine
+
+
+! calculate the internal angles for each node in a element, for the post-procedure.
+subroutine calangle(ienum)
+    use SolverMath
+	use solverds
+	implicit none
+	integer::i,j,IESET1
+	integer::ienum,idim=2,jdim=2,v1,v2,IA1(4),IA2D1(2,10),IA2D2(4,6)
+	real(8)::vec1(2,2)=0.0,angle=0.0,vangle(15)=0.0,ar1(3,10),VN1(3,15)=0
+	
+	!assume that all element edges are straight lines. such that the angle
+	!of the nodes inside a line equel to pi.
+	! the angle for inner nodes equel to 2pi	
+	
+	allocate(element(ienum).angle(element(ienum).nnum))
+    IESET1=ELEMENT(IENUM).SET
+    IF(ESET(IESET1).COUPLESET>0.AND.ESET(IESET1).COUPLESET<IESET1) THEN !GHOST
+        I=ESET(ESET(IESET1).COUPLESET).ENUMS+(IENUM-ESET(IESET1).ENUMS)
+        ELEMENT(IENUM).ANGLE=ELEMENT(I).ANGLE
+        RETURN
+    ENDIF
+    
+	select case(ecp(element(ienum).et).shtype)
+		case(tri3,tri6,tri15)
+            element(ienum).angle=pi()
+			do i=1,2
+				v1=i-1
+				if(v1<1) v1=3
+				v2=i+1
+				vec1(:,1)=node(element(ienum).node(v1)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
+				vec1(:,2)=node(element(ienum).node(v2)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
+				call vecangle(vec1,idim,jdim,angle)
+				element(ienum).angle(i)=angle
+				element(ienum).angle(3)=element(ienum).angle(3)-angle
+			end do
+            IF(ELEMENT(IENUM).NNUM==15) then
+			    element(ienum).angle(13:15)=2.*pi()
+            endif
+            
+		case(qua4,qua8)
+		
+			element(ienum).angle=pi()
+			element(ienum).angle(4)=2*pi()
+			do i=1,3
+				v1=i-1
+				if(v1<1) v1=4
+				v2=i+1
+				vec1(:,1)=node(element(ienum).node(v1)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
+				vec1(:,2)=node(element(ienum).node(v2)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
+				IF(ELEMENT(IENUM).ET==ZT4_SPG) THEN
+					vec1(:,1)=GNODE(1:2,element(ienum).node2(v1))-Gnode(1:2,element(ienum).node2(i))
+					vec1(:,2)=GNODE(1:2,element(ienum).node2(v2))-Gnode(1:2,element(ienum).node2(i))			
+				ENDIF
+				call vecangle(vec1,idim,jdim,angle)
+				element(ienum).angle(i)=angle
+				element(ienum).angle(4)=element(ienum).angle(4)-angle				
+			end do
+			
+
+        case(tet4,tet10)
+            
+            do i=1,4
+                IA1(1)=I;IA1(2)=MOD(IA1(1),4)+1;IA1(3)=MOD(IA1(2),4)+1;IA1(4)=MOD(IA1(3),4)+1
+                do j=1,4
+                    ar1(:,j)=node(element(ienum).node(IA1(j))).coord
+                enddo
+                element(ienum).angle(i)=solidangle(AR1(:,1:4))            
+            enddo
+            
+            IF(ELEMENT(IENUM).NNUM>4) THEN
+                do i=1,4
+                    ar1(:,i)=node(element(ienum).node(i)).coord 
+                enddo
+                !NOMRAL VECTOR OF THE FACE
+                VN1(:,1)=NORMAL_TRIFACE(AR1(:,[2,1,3]))
+                VN1(:,2)=NORMAL_TRIFACE(AR1(:,[1,2,4]))
+                VN1(:,3)=NORMAL_TRIFACE(AR1(:,[2:4]))
+                VN1(:,4)=NORMAL_TRIFACE(AR1(:,[3,1,4]))
+                IA2D1(:,1:6)=RESHAPE([1,2,1,3,1,4,2,4,2,3,3,4],([2,6]))
+                DO I=5,ELEMENT(IENUM).NNUM
+                    ELEMENT(IENUM).ANGLE(I)=DihedralAngle(VN1(:,IA2D1(1,I-4)),VN1(:,IA2D1(2,I-4)))        
+                ENDDO
+            
+            ENDIF
+            
+            
+        CASE(PRM6,PRM15)
+        
+            
+            IA2D2=RESHAPE([1,2,3,4,&
+                           2,3,1,5,&
+                           3,1,2,6,&
+                           4,6,5,1,&
+                           5,4,6,2,&
+                           6,5,4,3],([4,6]))
+                           
+            do i=1,6
+                do j=1,4
+                    ar1(:,j)=node(element(ienum).node(IA2D2(j,i))).coord 
+                enddo
+                element(ienum).angle(i)=solidangle(AR1(:,1:4))            
+            enddo
+            
+            IF(ELEMENT(IENUM).NNUM>6) THEN
+                do i=1,6
+                    ar1(:,i)=node(element(ienum).node(i)).coord 
+                enddo
+                !NOMRAL VECTOR OF THE FACE
+                VN1(:,1)=NORMAL_TRIFACE(AR1(:,[2,1,3]))
+                VN1(:,2)=NORMAL_TRIFACE(AR1(:,[1,2,4]))
+                VN1(:,3)=NORMAL_TRIFACE(AR1(:,[2,3,5]))
+                VN1(:,4)=NORMAL_TRIFACE(AR1(:,[3,1,4]))
+                VN1(:,5)=NORMAL_TRIFACE(AR1(:,[4,5,6]))
+                
+                IA2D1(:,1:9)=RESHAPE([1,2,1,3,1,4,2,5,3,5,4,5,2,4,2,3,3,4],([2,9]))
+                DO I=7,ELEMENT(IENUM).NNUM
+                    ELEMENT(IENUM).ANGLE(I)=DihedralAngle(VN1(:,IA2D1(1,I-6)),VN1(:,IA2D1(2,I-6)))        
+                ENDDO
+            
+            ENDIF
+            
+    case default 
+        
+        stop 'no sub element shapetype. To be improved in cal element angle.'
+        
+        
+	end select
+	
+
+	
+end subroutine
+
+! given vec(2,2),calculate the angle
+! vec(:,1) for the first vector, and vec(:,2) for the other
+subroutine vecangle(vec,irow,jcol,angle)
+	implicit none
+	integer::irow,jcol
+	real(8)::vec(irow,jcol),angle
+	real(8)::r1=0.0,r2=0.0,r12=0.0
+	
+	r12=vec(1,1)*vec(1,2)+vec(2,1)*vec(2,2)
+	r1=(vec(1,1)**2+vec(2,1)**2)**0.5
+	r2=(vec(1,2)**2+vec(2,2)**2)**0.5
+	angle=r12/r1/r2
+	angle=dacos(angle)
+end subroutine

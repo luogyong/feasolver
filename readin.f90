@@ -1384,8 +1384,10 @@ subroutine solvercommand(term,unit)
 						if(int(property(i).value)==YES) solver_control.islaverify=.true.
 					case('ispg')
 						if(int(property(i).value)==YES) solver_control.ispg=.true.
-					case('i2ncal')
+					case('i2ncal','i2n')
 						solver_control.i2ncal=int(property(i).value)
+					case('i2nweight','i2nw')
+						solver_control.i2nweight=int(property(i).value)                        
 					case('bfgm','sim')
 						solver_control.bfgm=int(property(i).value)
 					case('isfc','force_criteria')

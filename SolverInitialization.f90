@@ -753,7 +753,7 @@ subroutine Initialization()
 					ALLOCATE(ELEMENT(I).NODE2(4))
 					ELEMENT(I).NODE2=[NGNODE-4:NGNODE:1]
 				ENDIF
-				call Calangle(i)
+				!call Calangle(i)
 				!allocate room for km,b,d.
 				call el_alloc_room(i)
 				!according to the material,initialize d
@@ -1053,7 +1053,7 @@ subroutine Initialization()
 	
 	
 	!form element list
-	call FormElementList()
+	!call FormElementList()
 
 	
     
@@ -1277,89 +1277,7 @@ subroutine el_ini_D(ienum)
 	end select
 end subroutine
 
-! calculate the internal angles for each node in a element, for the post-procedure.
-subroutine calangle(ienum)
-	use solverds
-	implicit none
-	integer::i
-	integer::ienum,idim=2,jdim=2,v1,v2
-	real(8)::vec1(2,2)=0.0,angle=0.0,vangle(15)=0.0
-	
-	!assume that all element edges are straight lines. such that the angle
-	!of the nodes inside a line equel to pi.
-	! the angle for inner nodes equel to 2pi	
-	vangle=pi()
-	
-	select case(element(ienum).et)
-		case(cps3,cpe3,cpe6,cps6,cpe15,CPS15,CAX3,CAX6,CAX15, &
-				 cps3_spg,cpe3_spg,cpe6_spg,cps6_spg,cpe15_spg,CPS15_spg, &
-				 CAX3_spg,CAX6_spg,CAX15_spg, &
-				 cps3_cpl,cpe3_cpl,cpe6_cpl,cps6_cpl,cpe15_cpl,CPS15_cpl, &
-				 CAX3_cpl,CAX6_cpl,CAX15_cpl)
-			allocate(element(ienum).angle(3))
-			element(ienum).angle(3)=pi()
-			do i=1,2
-				v1=i-1
-				if(v1<1) v1=3
-				v2=i+1
-				vec1(:,1)=node(element(ienum).node(v1)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
-				vec1(:,2)=node(element(ienum).node(v2)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
-				call vecangle(vec1,idim,jdim,angle)
-				element(ienum).angle(i)=angle
-				element(ienum).angle(3)=element(ienum).angle(3)-angle
-			end do
-			vangle(1:3)=element(ienum).angle
-			vangle(13:15)=2*vangle(13:15)
-			
-			do i=1,element(ienum).nnum
-				node(element(ienum).node(i)).angle=node(element(ienum).node(i)).angle+vangle(i)
-			end do			
-		case(cpe4,cps4,cpe4r,cps4r,cpe8,cpe8r,cps8,cps8r,CAX4,CAX4R,CAX8,CAX8R,&
-				 cpe4_spg,cps4_spg,cpe4r_spg,cps4r_spg,cpe8_spg,cpe8r_spg,cps8_spg, &
-				 cps8r_spg,CAX4_spg,CAX4R_spg,CAX8_spg,CAX8R_spg, &
-				 cpe4_cpl,cps4_cpl,cpe4r_cpl,cps4r_cpl,cpe8_cpl,cpe8r_cpl,cps8_cpl, &
-				 cps8r_cpl,CAX4_cpl,CAX4R_cpl,CAX8_cpl,CAX8R_cpl,ZT4_SPG)
-		
-			allocate(element(ienum).angle(4))
-			element(ienum).angle(4)=2*pi()
-			do i=1,3
-				v1=i-1
-				if(v1<1) v1=4
-				v2=i+1
-				vec1(:,1)=node(element(ienum).node(v1)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
-				vec1(:,2)=node(element(ienum).node(v2)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
-				IF(ELEMENT(IENUM).ET==ZT4_SPG) THEN
-					vec1(:,1)=GNODE(1:2,element(ienum).node2(v1))-Gnode(1:2,element(ienum).node2(i))
-					vec1(:,2)=GNODE(1:2,element(ienum).node2(v2))-Gnode(1:2,element(ienum).node2(i))			
-				ENDIF
-				call vecangle(vec1,idim,jdim,angle)
-				element(ienum).angle(i)=angle
-				element(ienum).angle(4)=element(ienum).angle(4)-angle				
-			end do
-			vangle(1:4)=element(ienum).angle
-			do i=1,element(ienum).nnum
-				node(element(ienum).node(i)).angle=node(element(ienum).node(i)).angle+vangle(i)
-			end do			
-	end select
-	
 
-	
-end subroutine
-
-! given vec(2,2),calculate the angle
-! vec(:,1) for the first vector, and vec(:,2) for the other
-subroutine vecangle(vec,irow,jcol,angle)
-	implicit none
-	integer::irow,jcol
-	real(8)::vec(irow,jcol),angle
-	real(8)::r1=0.0,r2=0.0,r12=0.0
-	
-	r12=vec(1,1)*vec(1,2)+vec(2,1)*vec(2,2)
-	r1=(vec(1,1)**2+vec(2,1)**2)**0.5
-	r2=(vec(1,2)**2+vec(2,2)**2)**0.5
-	angle=r12/r1/r2
-	angle=dacos(angle)
-end subroutine
 !convert bodfy force to nodal force
 subroutine cbf2nf()
 	use solverds
@@ -1434,43 +1352,7 @@ subroutine cbf2nf()
 
 end subroutine
 
-subroutine FormElementList()
-	use solverds
-	implicit none
-	integer::i,j,k,n1
-	LOGICAL::ISSPG1
-	
-	
-	
-	do i=1,enum
-		ISSPG1=ELEMENT(I).EC==SPG.OR.ELEMENT(I).EC==SPG2D.OR.ELEMENT(I).EC==CAX_SPG
-		do j=1,element(i).nnum
-			n1=element(i).node(j)
-			node(n1).nelist=node(n1).nelist+1
-			IF(ISSPG1) THEN
-				node(n1).nelist_SPG=node(n1).nelist_SPG+1
-			ENDIF
-		end do
-	end do
-	do i=1,nnum
-		allocate(node(i).elist(node(i).nelist),node(i).elist_SPG(node(i).nelist_SPG))
-	end do
-	node.nelist=0;node.nelist_SPG=0
-	
-	do i=1,enum
-		ISSPG1=ELEMENT(I).EC==SPG.OR.ELEMENT(I).EC==SPG2D.OR.ELEMENT(I).EC==CAX_SPG
-		do j=1,element(i).nnum
-			n1=element(i).node(j)
-			node(n1).nelist=node(n1).nelist+1
-			node(n1).elist(node(n1).nelist)=i
-			IF(ISSPG1) THEN
-				node(n1).nelist_SPG=node(n1).nelist_SPG+1
-				node(n1).elist_SPG(node(n1).nelist_SPG)=i
-			ENDIF
-		end do
-	end do	
 
-end subroutine
 
 
 !calculate the globe co-ordinates of gausian point for each element.

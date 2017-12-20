@@ -328,6 +328,8 @@ integer, parameter::SHT = 1
 integer, parameter::SPR = 2
 integer, parameter::AVG = 3
 integer, parameter::EXPO = 4
+integer,parameter::WEIGHT_ANGLE=2
+integer,parameter::WEIGHT_NELT = 1
 
 !parameters for plastic body force generation method
 integer, parameter::VISCOP = 1 !viscoplasticity method

@@ -93,6 +93,7 @@ subroutine solve_SLD()
 		if(iincs==0) then
 			if(geostatic.method==ko_geo) then
 				call ko_initialstress()
+                isubts=1
 				call outdata(iincs,iiter,iscon,isfirstcall,isubts)
 				cycle
 			!else
@@ -2003,7 +2004,10 @@ subroutine element_activate(istep)
             endif
         endif
     enddo
-end
+    
+    
+    
+endsubroutine
 
 
 

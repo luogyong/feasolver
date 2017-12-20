@@ -18,7 +18,7 @@ module solverds
 		real(kind=DPN)::MISES=0.0D0,EEQ=0.0D0,PEEQ=0.0D0
 		real(kind=DPN)::Q=0.0D0,Kr=0.0D0,Mw=0.0D0  !nodal flux,relative permeability,slope of volumetric water content.		
 		integer::nelist=0,NELIST_SPG=0,ISACTIVE=0
-		integer,allocatable::elist(:),ELIST_SPG(:) !elements sharing the node.
+		!integer,allocatable::elist(:),ELIST_SPG(:) !elements sharing the node.
 !		integer::Property=0 !for SPG, Property=1 suggesting that the node is on the seepage surface.
 	end type
 	integer::nnum !½ÚµãÊý
@@ -207,7 +207,7 @@ module solverds
 		real(kind=DPN)::force_tol=1.D-2 !tolerance permitted for unbalanced residual force to be vilated
 		real(kind=DPN)::disp_tol=1.D-3 !tolerance permitted for residual displacement to be vilated
 		integer::output=1 !1:output for mod(increments,output)=0 iteration
-		integer::i2ncal=4  !method mapping variables in integration points to nodes
+		integer::i2ncal=4,I2NWEIGHT=1  !method mapping variables in integration points to nodes
 			!SHT=1,spr=2,AVG=3,EXP=4
 		logical::issym=.true.
 !		logical::issteady=.true. 

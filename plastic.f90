@@ -78,7 +78,7 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 				un(1:element(i).ndof)=stepdis(element(i).g)  
 				element(i).Dgforce(1:element(i).ndof)=element(i).property(1)*matmul(element(i).km,un)
 				gforce1(1:element(i).ndof)=element(i).gforce(1:element(i).ndof)+element(i).Dgforce(1:element(i).ndof)
-				call ssp_slave_master_contact_force_cal(istep,isubts,iiter,i,gforce1,element(i).ndof,un)
+				!call ssp_slave_master_contact_force_cal(istep,isubts,iiter,i,gforce1,element(i).ndof,un)
 				
 			case default
 				un(1:element(i).ndof)=stepdis(element(i).g)
@@ -544,53 +544,53 @@ end subroutine
 
 
 subroutine ssp_slave_master_contact_force_cal(istep,isubts,iiter,iel,Tforce,nTforce,Ddis)
-	use solverds
-	implicit none
-	integer,intent(in)::istep,isubts,iiter,iel,nTforce
-	real(kind=DPN),intent(in out)::Tforce(nTforce),Ddis(nTforce)
-	integer::i,j,k,n1,n2
-	real(kind=DPN)::t1,T2
-	
-	i=element(iel).ngp
-    smnp(i).interforce=0.d0
-	
-	n1=smnp(i).master
-	do j=1,node(n1).nelist
-		n2=node(n1).elist(j)
-		
-		if(element(n2).et/=ssp2d) cycle
-		
-		if(element(n2).node(1)==n1) then
-			smnp(i).interforce=smnp(i).interforce+element(n2).gforce(2)+element(n2).Dgforce(2)
-		else
-			smnp(i).interforce=smnp(i).interforce+element(n2).gforce(5)+element(n2).Dgforce(5)
-		end if
-	
-	end do
-	
-	if(iiter==1) then
-		do j=1,smnp(i).nmbl
-			t1=sf(bc_load(smnp(i).mbl(j)).sf).factor(istep)
-			if(t1==-999.d0) cycle
-			
-			T2=sf(bc_load(smnp(i).mbl(j)).sf).factor(max(istep-1,0))
-            IF(bc_load(smnp(i).mbl(j)).ISINCREMENT==1 .OR. T2==-999.D0.OR.ISTEP>1) T2=0
-			t1=sf(bc_load(smnp(i).mbl(j)).sf).factor(istep)-T2
-			smnp(i).load=smnp(i).load+bc_load(smnp(i).mbl(j)).value*t1			
-		end do
-	end if
-	!当前步总的垂直力
-	smnp(i).interforce=smnp(i).interforce+smnp(i).load
-	smnp(i).aff=abs(smnp(i).interforce*material(element(smnp(i).pe).mat).GET(1,ISTEP))
-				
-	!当前荷载步下剪切力增量
-	if(abs(Tforce(1))<smnp(i).aff) then
-		element(smnp(i).pe).property(1)=1.0d0
-	else
-		element(smnp(i).pe).property(1)=0.0d0
-		Tforce(1)=sign(smnp(i).aff,-ddis(1))
-		Tforce(2)=sign(smnp(i).aff,-ddis(2))		
-	end if
+	!use solverds
+	!implicit none
+	!integer,intent(in)::istep,isubts,iiter,iel,nTforce
+	!real(kind=DPN),intent(in out)::Tforce(nTforce),Ddis(nTforce)
+	!integer::i,j,k,n1,n2
+	!real(kind=DPN)::t1,T2
+	!
+	!i=element(iel).ngp
+ !   smnp(i).interforce=0.d0
+	!
+	!n1=smnp(i).master
+	!do j=1,node(n1).nelist
+	!	n2=node(n1).elist(j)
+	!	
+	!	if(element(n2).et/=ssp2d) cycle
+	!	
+	!	if(element(n2).node(1)==n1) then
+	!		smnp(i).interforce=smnp(i).interforce+element(n2).gforce(2)+element(n2).Dgforce(2)
+	!	else
+	!		smnp(i).interforce=smnp(i).interforce+element(n2).gforce(5)+element(n2).Dgforce(5)
+	!	end if
+	!
+	!end do
+	!
+	!if(iiter==1) then
+	!	do j=1,smnp(i).nmbl
+	!		t1=sf(bc_load(smnp(i).mbl(j)).sf).factor(istep)
+	!		if(t1==-999.d0) cycle
+	!		
+	!		T2=sf(bc_load(smnp(i).mbl(j)).sf).factor(max(istep-1,0))
+ !           IF(bc_load(smnp(i).mbl(j)).ISINCREMENT==1 .OR. T2==-999.D0.OR.ISTEP>1) T2=0
+	!		t1=sf(bc_load(smnp(i).mbl(j)).sf).factor(istep)-T2
+	!		smnp(i).load=smnp(i).load+bc_load(smnp(i).mbl(j)).value*t1			
+	!	end do
+	!end if
+	!!当前步总的垂直力
+	!smnp(i).interforce=smnp(i).interforce+smnp(i).load
+	!smnp(i).aff=abs(smnp(i).interforce*material(element(smnp(i).pe).mat).GET(1,ISTEP))
+	!			
+	!!当前荷载步下剪切力增量
+	!if(abs(Tforce(1))<smnp(i).aff) then
+	!	element(smnp(i).pe).property(1)=1.0d0
+	!else
+	!	element(smnp(i).pe).property(1)=0.0d0
+	!	Tforce(1)=sign(smnp(i).aff,-ddis(1))
+	!	Tforce(2)=sign(smnp(i).aff,-ddis(2))		
+	!end if
 
 	
 

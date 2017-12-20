@@ -57,7 +57,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 
 	end do
 	
-	call E2N_stress_strain(IINCS)
+	call E2N_stress_strain(IINCS,isubts)
 	
 	CALL BC_RHS_OUT(iincs,iiter,ISUBTS)
 	
