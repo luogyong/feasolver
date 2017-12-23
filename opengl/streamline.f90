@@ -37,6 +37,8 @@ SUBROUTINE STREAMLINE_PLOT()
     
     
     DO I=1,NSTREAMLINE
+        IF((.NOT.STREAMLINE(I).SHOW).AND.STREAMLINE(I).ISINPUTSLIP==0) CYCLE !INPUT SLIPS ARE ALWAYS SHOWN 
+        
         CALL glLineWidth(2.0_glfloat)
         CALL glcolor4fv(mycolor(:,BLUE))
         !INPUTSLIPS ARE ALWAYS PLOTTED.
@@ -48,13 +50,21 @@ SUBROUTINE STREAMLINE_PLOT()
             ENDIF
             IF(.NOT.IS_SHOW_ALL_SLOPE) THEN                
                 IF(IS_JUST_SHOW_TOP_TEN_SLOPE) THEN
-                    IF(SF_SLOPE(N1)/=I) CYCLE
+                    IF(SF_SLOPE(N1)/=I) THEN
+                        STREAMLINE(I).SHOW=.FALSE.
+                        CYCLE
+                    ENDIF
                 ENDIF
                 IF(IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE) THEN
-                    IF(SF_SLOPE(1)/=I) CYCLE
+                    IF(SF_SLOPE(1)/=I) THEN
+                        STREAMLINE(I).SHOW=.FALSE.
+                        CYCLE
+                    ENDIF
                 ENDIF                
             ENDIF            
         ENDIF
+        
+        
         
 	    call glBegin(gl_LINE_STRIP)
 		DO J=1,STREAMLINE(I).NV
@@ -170,7 +180,7 @@ subroutine slopestability_streamline(islip)
     integer,intent(in)::islip
     real(8)::pt1(3)
     integer::iel1,i,j,n1,n2
-    REAL(8)::SS(3),T1,RAD1,DX1,DY1,SNT1(2),C1,PHI1,SIGMA_TF1,SIGMA_T1,T2
+    REAL(8)::SS(3),T1,RAD1,DX1,DY1,SNT1(2),C1,PHI1,SIGMA_TF1,SIGMA_T1,T2,SFR1
    
     IF(POSDATA.ISXX*POSDATA.ISYY*POSDATA.ISXY*POSDATA.IMC_C*POSDATA.IMC_PHI==0) THEN
         RETURN
@@ -192,6 +202,7 @@ subroutine slopestability_streamline(islip)
 		    SS(3)=(STREAMLINE(I).VAL(POSDATA.ISXY,J)+STREAMLINE(I).VAL(POSDATA.ISXY,J+1))/2.0
             C1=(STREAMLINE(I).VAL(POSDATA.IMC_C,J)+STREAMLINE(I).VAL(POSDATA.IMC_C,J+1))/2.0
             PHI1=(STREAMLINE(I).VAL(POSDATA.IMC_PHI,J)+STREAMLINE(I).VAL(POSDATA.IMC_PHI,J+1))/2.0
+            SFR1=(STREAMLINE(I).VAL(POSDATA.ISFR,J)+STREAMLINE(I).VAL(POSDATA.ISFR,J+1))/2.0
             
             DX1=STREAMLINE(I).VAL(POSDATA.IX,J+1)-STREAMLINE(I).VAL(POSDATA.IX,J)
             DY1=STREAMLINE(I).VAL(POSDATA.IY,J+1)-STREAMLINE(I).VAL(POSDATA.IY,J)
@@ -202,7 +213,7 @@ subroutine slopestability_streamline(islip)
                 RAD1=SIGN(PI/2.0,DY1)
             ENDIF
             CALL stress_in_inclined_plane(SS,RAD1,SNT1)
-            IF(SNT1(1)<0.D0) THEN
+            IF(SNT1(1)<0.D0.AND.SFR1>=0.D0) THEN
                 SIGMA_TF1=SIGMA_TF1+(C1-SNT1(1)*DTAN(PHI1/180.0*PI))*T1
                 SIGMA_T1=SIGMA_T1+SNT1(2)*T1
             ENDIF
@@ -217,7 +228,7 @@ subroutine slopestability_streamline(islip)
         ELSE
             T1=STREAMLINE(I).SF_SLOPE
         ENDIF
-        
+        !SF_SLOPE(1)=I MEANS STREAMLINE(I).SF_SLOPE IS MINMAL
         SF_SLOPE(NSTREAMLINE)=I        
         DO J=1, NSTREAMLINE-1
            IF(STREAMLINE(SF_SLOPE(J)).ISINPUTSLIP>0) THEN
@@ -237,6 +248,43 @@ subroutine slopestability_streamline(islip)
     
 
 endsubroutine
+
+subroutine showlocalminimalslope(P1,P2)
+    USE function_plotter
+    IMPLICIT NONE
+    REAL(8),INTENT(IN)::P1(3),P2(3)
+    REAL(8)::V1(3),V2(3),IPT1(3),IPT2(3),T1
+    INTEGER::I,J,ISINTERCEPT,N1,N2
+    INTEGER,ALLOCATABLE::SELECTED1(:)
+    
+    ALLOCATE(SELECTED1(NSTREAMLINE))
+    T1=1.D10;N1=0;SELECTED1=0;N2=0
+    DO I=1,NSTREAMLINE
+        IF(.NOT.STREAMLINE(I).SHOW) CYCLE
+        DO j=1,streamline(i).nv-1
+            V1=STREAMLINE(I).V(:,J);V2=STREAMLINE(I).V(:,J+1);
+            CALL GET_SEGINTERCECTION(P1,P2,V1,V2,IPT1,IPT2,ISINTERCEPT,POSDATA.NDIM)
+            IF(ISINTERCEPT>0) THEN
+                N1=N1+1
+                SELECTED1(N1)=I
+                IF(STREAMLINE(I).SF_SLOPE<T1) THEN
+                    T1=STREAMLINE(I).SF_SLOPE
+                    N2=I
+                ENDIF
+                CYCLE
+            ENDIF
+        ENDDO
+    ENDDO
+    
+    STREAMLINE(SELECTED1(1:N1)).SHOW=.FALSE.
+    IF(N2>0) STREAMLINE(N2).SHOW=.TRUE.
+    
+    CALL STREAMLINE_PLOT()
+    
+    DEALLOCATE(SELECTED1)
+
+
+END SUBROUTINE
 
 SUBROUTINE stress_in_inclined_plane(ss,RAD,SNT)
 !angle in rad.
@@ -406,7 +454,38 @@ SUBROUTINE derivs(T,PT,V)
 
 END
 
+SUBROUTINE OUT_SHOWN_STREAMLINE()
+    USE function_plotter
+    IMPLICIT NONE
+    INTEGER::I,J
+    
+    PRINT *, 'SELECT TO FILE TO SAVE THE STREAMLINE DATA...'
+    
+    open(20,file='',status='UNKNOWN')
+        
+    WRITE(20,10) (TRIM(POSDATA.OUTVAR(I).NAME),I=1,POSDATA.NVAR)
+        
+    
+    DO I=1,NSTREAMLINE
+       IF(.NOT.STREAMLINE(I).SHOW) CYCLE
+            
+        DO J=1,STREAMLINE(I).NV   
+            WRITE(20,20) I,J,STREAMLINE(I).VAL(1:POSDATA.NVAR,J)
+        ENDDO        
+    
+    END DO
+    
+    CLOSE(20)
+        
+    PRINT *, 'OUTDATA DONE!'
+    
 
+
+10  FORMAT('ILINE',1X,'  INODE',1X,<POSDATA.NVAR>(A24,1X))
+20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR>(EN24.15,1X))
+30  FORMAT(I5,1X,I7,1X,<POSDATA.NDIM>(EN24.15,1X),'*THE POINT IS OUT OF MODEL ZONE.*')
+
+ENDSUBROUTINE
 
 SUBROUTINE GET_BC_INTERSECTION(PT1,PT2,IPT1,IPT2,ISINTERCEPT)
     !USE solverds

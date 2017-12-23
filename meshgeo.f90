@@ -68,7 +68,7 @@ INTEGER::NE_BC=0,NF_BC=0
 
 
 type et_type
-	integer::nnode=0,nedge=0,nface=0,ntet=0		
+	integer::nnode=0,nedge=0,nface=0,ntet=0		!NOTE THAT THE NNODE IS ONLY THE END NODE NUMBER 
 	character(512)::description
 	integer,allocatable::edge(:,:),face(:,:),FaceEdge(:,:)
 	integer,allocatable::tet(:,:) !,tetEDGE(:,:),TETFACE(:,:)
@@ -679,11 +679,13 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
         ET=AET1(I)
 		SELECT CASE(ET)
 			CASE(1) !LINE
+                ELTTYPE(ET).NNODE=2
 				Elttype(ET).NEDGE=1;Elttype(ET).NFACE=0;Elttype(ET).NTET=0;ELTTYPE(ET).DIM=1
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE))
 				Elttype(ET).EDGE(:,1)=[1,2]
 			CASE(2) !TRIANGLE
+                ELTTYPE(ET).NNODE=3
 				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1;Elttype(ET).NTET=1;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(3,Elttype(ET).NTET))
@@ -692,6 +694,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 				Elttype(ET).FACEEDGE=Elttype(ET).FACE
 				Elttype(ET).TET(:,1)=[1,2,3,0]
 			CASE(9) !6-NODED-TRIANGLE
+                ELTTYPE(ET).NNODE=3
 				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1;Elttype(ET).NTET=4;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(3,Elttype(ET).NTET))
@@ -705,6 +708,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                                                4,5,6,0],&
                                                (/4,4/))				
 			CASE(23) !15-NODED-TRIANGLE
+                ELTTYPE(ET).NNODE=3
 				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1;Elttype(ET).NTET=16;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(3,Elttype(ET).NTET))
@@ -734,6 +738,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 				
 				
 			CASE(3) !QUADRANGLE
+                ELTTYPE(ET).NNODE=4
 				Elttype(ET).NEDGE=4;Elttype(ET).NFACE=1;Elttype(ET).NTET=2;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(3,Elttype(ET).NTET))
@@ -745,6 +750,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                                               3,4,1,0],(/4,2/))				
                 
 			CASE(16) !8-noded-QUADRANGLE
+                ELTTYPE(ET).NNODE=4
 				Elttype(ET).NEDGE=4;Elttype(ET).NFACE=1;Elttype(ET).NTET=6;ELTTYPE(ET).DIM=2				
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(3,Elttype(ET).NTET))
@@ -761,6 +767,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 											   (/4,6/))				
 				
 			CASE(4) !TETRAHEDRON
+                ELTTYPE(ET).NNODE=4
 				Elttype(ET).NEDGE=6;Elttype(ET).NFACE=4;Elttype(ET).NTET=1;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))	
@@ -776,6 +783,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                 Elttype(ET).TET(:,:)=RESHAPE([1,2,3,4], (/4,1/))
 
 			CASE(11) !10-noded-TETRAHEDRON
+                ELTTYPE(ET).NNODE=4
 				Elttype(ET).NEDGE=6;Elttype(ET).NFACE=4;Elttype(ET).NTET=8;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
@@ -799,6 +807,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                                                 (/4,8/))
 
 			CASE(5) !HEXAHEDRON
+                ELTTYPE(ET).NNODE=8
 				Elttype(ET).NEDGE=12;Elttype(ET).NFACE=6;Elttype(ET).NTET=6;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))				
@@ -827,6 +836,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                                                 (/4,6/))
 			
 			CASE(6) !6-NODE PRISM
+                ELTTYPE(ET).NNODE=6
 				Elttype(ET).NEDGE=9;Elttype(ET).NFACE=5;Elttype(ET).NTET=3;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))				
@@ -848,6 +858,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 												1,6,4,5],(/4,3/))
 
 			CASE(18) !15-NODE PRISM
+                ELTTYPE(ET).NNODE=6
 				Elttype(ET).NEDGE=9;Elttype(ET).NFACE=5;Elttype(ET).NTET=14;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))			
@@ -880,6 +891,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 												5,10,11,14],&
                                                 (/4,14/))
 			CASE(7) !5-node pyramid
+                ELTTYPE(ET).NNODE=5
 				Elttype(ET).NEDGE=8;Elttype(ET).NFACE=5;Elttype(ET).NTET=2;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
@@ -901,6 +913,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 				
 				
 			CASE(15) !POINTS
+                ELTTYPE(ET).NNODE=1
 				Elttype(ET).NEDGE=0;Elttype(ET).NFACE=0
 				ELTTYPE(ET).DIM=0
             !CASE DEFAULT

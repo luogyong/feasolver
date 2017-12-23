@@ -32,3 +32,5 @@
 *.doc
 *.docx
 *.pdf
+[Dd]ebug*/
+[Rr]elease*/

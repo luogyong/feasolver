@@ -64,10 +64,11 @@ INTEGER::IVO(3)=0 !FOR VECTOR PAIR LOCATION IN POSDATA.NODALQ
 INTEGER::IEL_STREAMLINE=0 !当前积分点所在的单元
 INTEGER,PARAMETER::streamline_location_click=1,Plot_streamline_CLICK=2,&
                    Reset_streamline_CLICK=3,Enlarger_StrokeFontSize_CLICK=4,&
-                   Smaller_StrokeFontSize_CLICK=5,SHOW_STREAMLINE_NODE_CLICK=6
+                   Smaller_StrokeFontSize_CLICK=5,SHOW_STREAMLINE_NODE_CLICK=6,OUTPUT_SHOWNSTREAMLINE_CLICK=7
 LOGICAL::isstreamlineinitialized=.false.
 TYPE STREAMLINE_TYDEF
     INTEGER::NV=0,ISINPUTSLIP=0
+    LOGICAL::SHOW=.TRUE.
     REAL(8)::PTstart(3),SF_SLOPE=1.D5
     REAL(8),ALLOCATABLE::V(:,:),VAL(:,:)
     
@@ -203,8 +204,8 @@ integer,parameter,public::ContourList=1,&
 						  STEPSTATUSLIST=8
                           
 integer,parameter::STREAMLINE_SLOPE_CLICK=1,ShowTopTen_SLOPE_CLICK=2,ShowMinimal_SLOPE_CLICK=3,&
-                    ShowAll_SLOPE_CLICK=4,ReadSlipSurface_slope_click=5
-LOGICAL::ISSTREAMLINESLOPE=.FALSE.
+                    ShowAll_SLOPE_CLICK=4,ReadSlipSurface_slope_click=5,ShowLocalMinimal_Slope_Click=6
+LOGICAL::ISSTREAMLINESLOPE=.FALSE.,IsShowLocalMinimalMode=.false.
 
 !real(GLFLOAT) :: red(4) = (/1.0,0.0,0.0,1.0/), &
 !                 black(4) = (/0.0,0.0,0.0,1.0/), &
@@ -530,6 +531,7 @@ subroutine streamline_handler(selection)
 
     case(streamline_location_click)
         isPickforstreamline=.true.
+        IsShowLocalMinimalMode=.false.
         isPlotStreamLine=.true.
         info.qkey=.true.
         call glutSetCursor(GLUT_CURSOR_CROSSHAIR)  
@@ -543,9 +545,11 @@ subroutine streamline_handler(selection)
                 DEALLOCATE(STREAMLINE(I).V,STREAMLINE(I).VAL)
             ENDIF
             STREAMLINE(I).ISINPUTSLIP=0
+            STREAMLINE(I).SHOW=.TRUE.
         ENDDO
         nstreamline=0
-        
+     CASE(OUTPUT_SHOWNSTREAMLINE_CLICK)
+        CALL OUT_SHOWN_STREAMLINE()
      CASE(Enlarger_StrokeFontSize_CLICK) 
         stroke_fontsize=2.*stroke_fontsize
        
@@ -590,17 +594,24 @@ subroutine slope_handler(selection)
         IF(IS_JUST_SHOW_TOP_TEN_SLOPE) THEN
             IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.
             IS_SHOW_ALL_SLOPE=.FALSE.
+            STREAMLINE(1:NSTREAMLINE).SHOW=.FALSE.           
+            IF(IS_JUST_SHOW_TOP_TEN_SLOPE) STREAMLINE(SF_SLOPE(1:MIN(10,NSTREAMLINE))).SHOW=.TRUE.            
         ELSE
             IS_SHOW_ALL_SLOPE=.TRUE.
+            STREAMLINE(1:NSTREAMLINE).SHOW=.TRUE.
         ENDIF
         CALL STREAMLINE_PLOT()
     CASE(SHOWMINIMAL_SLOPE_CLICK)
         IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.NOT.IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE
+        
         IF(IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE) THEN
             IS_JUST_SHOW_TOP_TEN_SLOPE=.FALSE.
             IS_SHOW_ALL_SLOPE=.FALSE.
+            STREAMLINE(1:NSTREAMLINE).SHOW=.FALSE.
+            STREAMLINE(SF_SLOPE(1)).SHOW=.TRUE.
         ELSE
             IS_SHOW_ALL_SLOPE=.TRUE.
+            STREAMLINE(1:NSTREAMLINE).SHOW=.TRUE.
         ENDIF        
         CALL STREAMLINE_PLOT()
     CASE(SHOWALL_SLOPE_CLICK)
@@ -608,8 +619,23 @@ subroutine slope_handler(selection)
         IF(IS_SHOW_ALL_SLOPE) THEN
             IS_JUST_SHOW_TOP_TEN_SLOPE=.FALSE.
             IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.
+            STREAMLINE(1:NSTREAMLINE).SHOW=.TRUE.
+        ELSE
+            STREAMLINE(1:NSTREAMLINE).SHOW=.FALSE.
+            IF(IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE) STREAMLINE(SF_SLOPE(MIN(1,NSTREAMLINE))).SHOW=.TRUE.
+            IF(IS_JUST_SHOW_TOP_TEN_SLOPE) STREAMLINE(SF_SLOPE(1:MIN(10,NSTREAMLINE))).SHOW=.TRUE.
         ENDIF         
         CALL STREAMLINE_PLOT()
+    CASE(ShowLocalMinimal_Slope_Click)
+        IsShowLocalMinimalMode=.not.IsShowLocalMinimalMode
+        if(IsShowLocalMinimalMode) then
+            isPickforstreamline=.false. !avoiding conflict
+            isPlotStreamLine=.true.
+            info.qkey=.true.
+            call glutSetCursor(GLUT_CURSOR_CROSSHAIR) 
+        
+        endif
+        
     CASE(ReadSlipSurface_slope_click)
    
         open(10,file='',status='old')
@@ -659,10 +685,12 @@ subroutine slope_handler(selection)
             ENDDO
             CALL slopestability_streamline(NSTREAMLINE)
             STREAMLINE(NSTREAMLINE).ISINPUTSLIP=1
+            STREAMLINE(NSTREAMLINE).SHOW=.TRUE.
             NINPUTSLIP=NINPUTSLIP+1
             INPUTSLIP(NINPUTSLIP)=NSTREAMLINE
             
         ENDDO
+        
         CALL STREAMLINE_PLOT()
         close(10)
         
@@ -1093,6 +1121,7 @@ call glutAddSubMenu("SHOW_VARS",SLICESHOW_SPG_ID)
 STREAMLINE_PLOT_ID=glutCreateMenu(STREAMLINE_handler)
 call glutAddMenuEntry("PICK START POINT",STREAMLINE_LOCATION_CLICK)
 call glutAddMenuEntry("PlotStreamLine toggle",Plot_streamline_CLICK)
+call glutAddMenuEntry("OutPutShownStreamline",OUTPUT_SHOWNSTREAMLINE_CLICK)
 call glutAddMenuEntry("ResetStreamLine",Reset_streamline_CLICK)
 call glutAddMenuEntry("ShowStreamlineNode",SHOW_STREAMLINE_NODE_CLICK)
 call glutAddMenuEntry("++StrokeFontSize",Enlarger_StrokeFontSize_CLICK)
@@ -1103,6 +1132,7 @@ call glutAddMenuEntry("STREAMLINE_METHOD",STREAMLINE_SLOPE_CLICK)
 call glutAddMenuEntry("JustShowTopTenSlips",ShowTopTen_SLOPE_CLICK)
 call glutAddMenuEntry("JustShowMinimalSlip",ShowMinimal_SLOPE_CLICK)
 call glutAddMenuEntry("ShowAllSlips",ShowAll_SLOPE_CLICK)
+call glutAddMenuEntry("ShowLocalMinimalSlip",ShowLocalMinimal_Slope_Click)
 Call glutAddMenuEntry('ReadSlips',ReadSlipSurface_slope_click)
 
 PROBE_ID=glutCreateMenu(PROBE_handler)
@@ -1136,14 +1166,16 @@ end module function_plotter
 
 subroutine plot_func(TECFILE)
 
-use opengl_gl
-use opengl_glut
+
 use function_plotter
+USE MESHADJ
 USE IFPORT
 !USE POS_IO
 implicit none
 CHARACTER(*),INTENT(IN)::TECFILE
 character*8 char_time
+INTEGER::I
+REAL(8),ALLOCATABLE::NODE1(:,:)
 
 integer :: winid, menuid, submenuid
 !real(gldouble)::r1
@@ -1190,15 +1222,36 @@ ENDIF
 
 CALL TIME(char_time)
 PRINT *, 'Setup mesh topology for the model mesh...',char_time
-call SETUP_EDGE_TBL(POSDATA.ELEMENT,POSDATA.NEL,POSDATA.ESET,POSDATA.NESET,POSDATA.NODE,POSDATA.NNODE)
-call SETUP_FACE_TBL(POSDATA.ELEMENT,POSDATA.NEL,POSDATA.ESET,POSDATA.NESET,POSDATA.NODE,POSDATA.NNODE)
+IF(ALLOCATED(NODE1)) DEALLOCATE(NODE1)
+ALLOCATE(NODE1(3,POSDATA.NNODE))
+DO I=1,POSDATA.NNODE
+    NODE1(:,I)=POSDATA.NODE(I).COORD
+ENDDO
+
+CALL SETUP_EDGE_ADJL(MEDGE,NMEDGE,POSDATA.ELEMENT,POSDATA.NEL,NODE1,POSDATA.NNODE,POSDATA.ESET,POSDATA.NESET)
+!call SETUP_EDGE_TBL(POSDATA.ELEMENT,POSDATA.NEL,POSDATA.ESET,POSDATA.NESET,POSDATA.NODE,POSDATA.NNODE)
+!call SETUP_FACE_TBL(POSDATA.ELEMENT,POSDATA.NEL,POSDATA.ESET,POSDATA.NESET,POSDATA.NODE,POSDATA.NNODE)
+CALL SETUP_FACE_ADJL(MFACE,NMFACE,MEDGE,NMEDGE,POSDATA.ELEMENT,POSDATA.NEL,NODE1,POSDATA.NNODE,POSDATA.ESET,POSDATA.NESET)
+
+
 CALL TIME(char_time)
 PRINT *, 'Convert to Tri/Tet mesh...',char_time
 call SETUP_SUB_TET4_ELEMENT(POSDATA.ELEMENT,POSDATA.NEL,POSDATA.ESET,POSDATA.NESET,POSDATA.NODE,POSDATA.NNODE)
 CALL TIME(char_time)
 PRINT *, 'Setup mesh topology for Tri/Tet mesh...',char_time
-call SETUP_EDGE_TBL_TET()
-call SETUP_FACE_TBL_TET()
+CALL SETUP_EDGE_ADJL(EDGE,NEDGE,TET,NTET,NODE1,POSDATA.NNODE,POSDATA.ESET,POSDATA.NESET)
+!call SETUP_EDGE_TBL_TET()
+
+CALL SETUP_FACE_ADJL(FACE,NFACE,EDGE,NEDGE,TET,NTET,NODE1,POSDATA.NNODE,POSDATA.ESET,POSDATA.NESET)
+!call SETUP_FACE_TBL_TET()
+!OPEN(15,FILE='FACE.TXT',STATUS='REPLACE')
+!DO I=1,Nedge
+!    WRITE(15,'(15I7)') I,edge(I).V,edge(I).ELEMENT(1:edge(I).ENUM),edge(I).SUBID(1:edge(I).ENUM)
+!ENDDO
+!CLOSE(15)
+
+DEALLOCATE(NODE1)
+
 CALL SETUP_ADJACENT_ELEMENT_TET()
 CALL TIME(char_time)
 PRINT *, 'Group element to subzones...',char_time
@@ -1421,7 +1474,7 @@ real(8)::Pt1(3)
         CASE DEFAULT
             
         
-            if(isPickforstreamline) then
+            if(isPickforstreamline.or.IsShowLocalMinimalMode) then
                 
                 call PickPoint(x,y,Pt1,IEL)
                 IF(iel==0) then
@@ -1471,7 +1524,27 @@ real(8)::Pt1(3)
             info.color=green;info.qkey=.true. 
         
         ENDIF
+
+        if(IsShowLocalMinimalMode) then
+            info.str='Click to Pick more or Press q to exit.'C
+            if(info.qkey==.false.) then
+                IsShowLocalMinimalMode=.false.
+                LINE_TEMP.SHOW=.FALSE.
+                LINE_TEMP.V1=LINE_TEMP.V2
+                left_button_func=ROTATE
+                info.str=''
+                call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
+                return
+            endif
+			
+            IF(NORM2(LINE_TEMP.V1-LINE_TEMP.V2)>1E-3) THEN
+                call showlocalminimalslope(LINE_TEMP.V1,LINE_TEMP.V2)
+            ENDIF
+            LINE_TEMP.SHOW=.FALSE.
+            LINE_TEMP.V1=LINE_TEMP.V2
+            info.color=green;info.qkey=.true. 
         
+        ENDIF        
     
     end select
     

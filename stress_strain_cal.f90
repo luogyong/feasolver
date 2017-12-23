@@ -64,7 +64,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
                 sita1=pi1/2.0-phi1
             endif
             sfr(1)=sin(sita1)/(A+B*cos(sita1)) !sfr for stress failure ratio
-            if(sfr(1)>1.d0) sfr(1)=1.0d0
+            !if(sfr(1)>1.d0) sfr(1)=1.0d0
         else
             !tension
             sfr(1)=-1.            

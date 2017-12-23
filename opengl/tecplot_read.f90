@@ -226,7 +226,7 @@ MODULE POS_IO
                 IVX=0,IVY=0,IVZ=0,IHEAD=0,&
                 IGRADX=0,IGRADY=0,IGRADZ=0,&
                 ISFR_SFRX=0,ISFR_SFRY=0,IMC_C=0,IMC_PHI=0,&
-                ISXX=0,ISYY=0,ISXY=0
+                ISXX=0,ISYY=0,ISXY=0,ISFR=0
         real(8)::modelr,minx,miny,minz,maxx,maxy,maxz !模型外接圆半径
         type(outvar_tydef),ALLOCATABLE::OUTVAR(:)
         TYPE(NODE_TYDEF),ALLOCATABLE::NODE(:)        
@@ -659,6 +659,8 @@ CONTAINS
             POSDATA.ISYY=IVAL
         case('sxy')
              POSDATA.ISXY=IVAL
+        case('sfr')
+            POSDATA.ISFR=IVAL
         END SELECT
         
     ENDSUBROUTINE
