@@ -25,8 +25,9 @@ SUBROUTINE STREAMLINE_PLOT()
 
     implicit none
     integer :: i,j,k,n1
-    REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1,DEG2
+    REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1,DEG2,MAX1
     CHARACTER(16)::STR1
+    REAL(GLFLOAT)::COLOR1(4)
 
     call glDeleteLists(STREAMLINELIST, 1_glsizei)
     call reset_view    
@@ -34,13 +35,19 @@ SUBROUTINE STREAMLINE_PLOT()
 
     call glPolygonMode(gl_front_and_back, gl_fill)
 	call gldisable(GL_CULL_FACE);  
+    !MAX1=MAXVAL(STREAMLINE.SF_SLOPE,MASK=STREAMLINE.SF_SLOPE<10)
     
     
     DO I=1,NSTREAMLINE
         IF((.NOT.STREAMLINE(I).SHOW).AND.STREAMLINE(I).ISINPUTSLIP==0) CYCLE !INPUT SLIPS ARE ALWAYS SHOWN 
-        
+        IF(STREAMLINE(I).NV<2) CYCLE
         CALL glLineWidth(2.0_glfloat)
-        CALL glcolor4fv(mycolor(:,BLUE))
+        !IF(ISSTREAMLINESLOPE) THEN
+        !    CALL get_rainbow(STREAMLINE(I).SF_SLOPE,STREAMLINE(SF_SLOPE(1)).SF_SLOPE,MAX1,COLOR1)
+        !ELSE
+            COLOR1=mycolor(:,BLUE)
+        !ENDIF
+        CALL glcolor4fv(COLOR1)
         !INPUTSLIPS ARE ALWAYS PLOTTED.
         IF(ISSTREAMLINESLOPE.AND.STREAMLINE(I).ISINPUTSLIP==0) THEN        
             N1=MINLOC(ABS(SF_SLOPE(1:10)-I),DIM=1)
@@ -48,20 +55,20 @@ SUBROUTINE STREAMLINE_PLOT()
                 CALL glcolor4fv(mycolor(:,COLOR_TOP_TEN(N1)))
                 CALL glLineWidth(3.0_glfloat)            
             ENDIF
-            IF(.NOT.IS_SHOW_ALL_SLOPE) THEN                
-                IF(IS_JUST_SHOW_TOP_TEN_SLOPE) THEN
-                    IF(SF_SLOPE(N1)/=I) THEN
-                        STREAMLINE(I).SHOW=.FALSE.
-                        CYCLE
-                    ENDIF
-                ENDIF
-                IF(IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE) THEN
-                    IF(SF_SLOPE(1)/=I) THEN
-                        STREAMLINE(I).SHOW=.FALSE.
-                        CYCLE
-                    ENDIF
-                ENDIF                
-            ENDIF            
+            !IF(.NOT.IS_SHOW_ALL_SLOPE) THEN                
+            !    IF(IS_JUST_SHOW_TOP_TEN_SLOPE) THEN
+            !        IF(SF_SLOPE(N1)/=I) THEN
+            !            STREAMLINE(I).SHOW=.FALSE.
+            !            CYCLE
+            !        ENDIF
+            !    ENDIF
+            !    IF(IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE) THEN
+            !        IF(SF_SLOPE(1)/=I) THEN
+            !            STREAMLINE(I).SHOW=.FALSE.
+            !            CYCLE
+            !        ENDIF
+            !    ENDIF                
+            !ENDIF            
         ENDIF
         
         
@@ -96,7 +103,7 @@ SUBROUTINE STREAMLINE_PLOT()
             IF(DEG2<0) DEG2=DEG2+180.
             
             
-            WRITE(STR1,'(F6.3)') STREAMLINE(I).SF_SLOPE
+            WRITE(STR1,'(F7.3)') STREAMLINE(I).SF_SLOPE
             
             !PPM1=glutget(GLUT_SCREEN_WIDTH)/REAL(glutget(GLUT_SCREEN_WIDTH_MM)) !PIXELS PER MM
             !10 pound 
@@ -176,11 +183,13 @@ end subroutine
 
 subroutine slopestability_streamline(islip)
     use function_plotter
+    use quicksort
     implicit none
     integer,intent(in)::islip
     real(8)::pt1(3)
     integer::iel1,i,j,n1,n2
     REAL(8)::SS(3),T1,RAD1,DX1,DY1,SNT1(2),C1,PHI1,SIGMA_TF1,SIGMA_T1,T2,SFR1
+    REAL(8)::RA1(NSTREAMLINE)
    
     IF(POSDATA.ISXX*POSDATA.ISYY*POSDATA.ISXY*POSDATA.IMC_C*POSDATA.IMC_PHI==0) THEN
         RETURN
@@ -214,42 +223,54 @@ subroutine slopestability_streamline(islip)
             ENDIF
             CALL stress_in_inclined_plane(SS,RAD1,SNT1)
             IF(SNT1(1)<0.D0.AND.SFR1>=0.D0) THEN
+            !IF(SNT1(1)<0.D0) THEN
                 SIGMA_TF1=SIGMA_TF1+(C1-SNT1(1)*DTAN(PHI1/180.0*PI))*T1
                 SIGMA_T1=SIGMA_T1+SNT1(2)*T1
             ENDIF
                         
         ENDDO
+        IF(ABS(SIGMA_T1)>1E-10) THEN
+            STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1) 
+        ELSE
+            STREAMLINE(I).SF_SLOPE=HUGE(1.D0)
+        ENDIF
         
-        STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1) 
+        !IF(ISNAN(STREAMLINE(I).SF_SLOPE)) THEN
+        !    PAUSE
+        !ENDIF
         
         !INPUTSLIP 让其参在最后(实际上不参与排序)
-        IF(STREAMLINE(I).ISINPUTSLIP>0) THEN
-            T1=1.D10
-        ELSE
-            T1=STREAMLINE(I).SF_SLOPE
-        ENDIF
+        !IF(STREAMLINE(I).ISINPUTSLIP>0) THEN
+        !    T1=1.D10
+        !ELSE
+        !    T1=STREAMLINE(I).SF_SLOPE
+        !ENDIF
         !SF_SLOPE(1)=I MEANS STREAMLINE(I).SF_SLOPE IS MINMAL
-        SF_SLOPE(NSTREAMLINE)=I        
-        DO J=1, NSTREAMLINE-1
-           IF(STREAMLINE(SF_SLOPE(J)).ISINPUTSLIP>0) THEN
-                T2=1.D10
-            ELSE
-                T2=STREAMLINE(SF_SLOPE(J)).SF_SLOPE
-            ENDIF
-            IF(T2>T1) THEN
-                SF_SLOPE(NSTREAMLINE:J+1:-1)=SF_SLOPE(NSTREAMLINE-1:J:-1)
-                SF_SLOPE(J)=I
-                EXIT
-            ENDIF
-
-        ENDDO
+        !SF_SLOPE(NSTREAMLINE)=I        
+        !DO J=1, NSTREAMLINE-1
+        !   !IF(STREAMLINE(SF_SLOPE(J)).ISINPUTSLIP>0) THEN
+        !   !     T2=1.D10
+        !   ! ELSE
+        !   !     T2=STREAMLINE(SF_SLOPE(J)).SF_SLOPE
+        !   ! ENDIF
+        !    IF(STREAMLINE(SF_SLOPE(J)).SF_SLOPE>STREAMLINE(I).SF_SLOPE) THEN
+        !        SF_SLOPE(NSTREAMLINE:J+1:-1)=SF_SLOPE(NSTREAMLINE-1:J:-1)
+        !        SF_SLOPE(J)=I
+        !        EXIT
+        !    ENDIF
+        !
+        !ENDDO
 	enddo
     
     
-
+    RA1=STREAMLINE.SF_SLOPE
+    SF_SLOPE(1:NSTREAMLINE)=[1:NSTREAMLINE]
+    CALL quick_sort(RA1,SF_SLOPE)
+    
+    RETURN
 endsubroutine
 
-subroutine showlocalminimalslope(P1,P2)
+subroutine Filterlocalminimalslope(P1,P2)
     USE function_plotter
     IMPLICIT NONE
     REAL(8),INTENT(IN)::P1(3),P2(3)
@@ -300,6 +321,117 @@ SUBROUTINE stress_in_inclined_plane(ss,RAD,SNT)
     
 endSUBROUTINE
 
+SUBROUTINE SEARCH_MINIMAL_SF_SLOPE()
+    use function_plotter
+    use FindLocalEx1D
+    implicit none
+    INTEGER::I,J,K,IA1(NNLBC),NH1,IA2(NNLBC),IMSF1,N1,NSTREAMLINE1,IMSF2,N2
+    LOGICAL::L1,L2
+    REAL(8)::MSF1,PT1(3),MSF2,ASF1(NNLBC)
+    REAL(8),ALLOCATABLE::MAXTEM1(:,:),MINTEM1(:,:)
+    character(16)::str1
+    
+    NH1=0;IA1=0
+    MSF1=1E10
+    isPlotStreamLine=.TRUE.
+    VECTOR_PLOT_GROUP=VECTOR_GROUP_SEEPAGE_VEC
+    NSTREAMLINE1=NSTREAMLINE+1
+    ISSTREAMLINESLOPE=.TRUE.
+   
+    info.color=red;info.qkey=.true.
+    
+    DO I=1,NNLBC 
+        IF(POSDATA.IH_BC>0) THEN
+            L1=(POSDATA.NODALQ(NODE_LOOP_BC(I),POSDATA.IH_BC,stepplot.istep)+4.0D0)<1E-7
+            L2=POSDATA.NODALQ(NODE_LOOP_BC(I),POSDATA.IQ,stepplot.istep)>0.d0
+            IF(L1.AND.L2) THEN                
+             
+                PT1(3)=0.0D0
+                PT1(1:POSDATA.NDIM)=POSDATA.NODE(NODE_LOOP_BC(I)).COORD(1:POSDATA.NDIM)
+                CALL gen_new_streamline(PT1)                
+                NH1=NH1+1
+                IA1(NH1)=I
+                IA2(NH1)=NSTREAMLINE
+                ASF1(NH1)=STREAMLINE(NSTREAMLINE).SF_SLOPE
+                STREAMLINE(NSTREAMLINE).SHOW=.FALSE.
+                IF(STREAMLINE(NSTREAMLINE).SF_SLOPE<MSF1) THEN
+                    MSF1=STREAMLINE(NSTREAMLINE).SF_SLOPE
+                    IMSF1=NSTREAMLINE
+                    N2=I                    
+                ENDIF
+            ENDIF
+            
+        ELSE
+            STOP 'THERE SEEMS TO BE NO SUCH A VARIABLE "H_BC".'
+        ENDIF
+    
+    ENDDO
+    
+    !REFINE
+
+    MSF2=MSF1;IMSF2=IMSF1
+    DO K=1,2
+        IF(K==1) THEN
+            N1=N2-1
+            IF(N1<1) N1=NNLBC
+        ELSE
+            N1=MOD(N2,NNLBC)+1   
+        ENDIF
+        L1=(POSDATA.NODALQ(NODE_LOOP_BC(N1),POSDATA.IH_BC,stepplot.istep)+4.0D0)<1E-7
+        L2=POSDATA.NODALQ(NODE_LOOP_BC(N1),POSDATA.IQ,stepplot.istep)>0.d0
+        IF(L1.AND.L2) THEN        
+            DO J=2,10
+                PT1=POSDATA.NODE(NODE_LOOP_BC(N2)).COORD+(J-1)/10.0*(POSDATA.NODE(NODE_LOOP_BC(N1)).COORD-POSDATA.NODE(NODE_LOOP_BC(N2)).COORD)
+                call gen_new_streamline(PT1)
+                STREAMLINE(NSTREAMLINE).SHOW=.FALSE.
+                IF(STREAMLINE(NSTREAMLINE).SF_SLOPE<MSF2) THEN
+                    MSF2=STREAMLINE(NSTREAMLINE).SF_SLOPE
+                    IMSF2=NSTREAMLINE                  
+                ENDIF
+            ENDDO        
+        ENDIF
+    
+    ENDDO
+    
+    STREAMLINE(IMSF2).SHOW=.TRUE.
+    write(str1,'(f8.3)') msf2
+    info.str='Search done...The MinimalFS='//trim(adjustl(str1))
+    !call peakdet(MAXTEM1,MINTEM1,NH1,ASF1(1:NH1),0.01)
+    !
+    !DO I=1,SIZE(MINTEM1,DIM=1)
+    !    STREAMLINE(IA2(INT(MINTEM1(1,I)))).ISLOCALSMALL=.TRUE.    
+    !ENDDO
+    
+    RETURN
+    
+
+ENDSUBROUTINE
+
+SUBROUTINE ShowLocalMinimalSlope()
+    USE function_plotter
+    USE FindLocalEx1D
+    use quicksort
+    implicit none
+    INTEGER::I,IORDER1(NSTREAMLINE),N1
+    real(8)::RA1(NSTREAMLINE)
+    REAL(8),ALLOCATABLE::MAXTEM1(:,:),MINTEM1(:,:)
+    
+    RA1=STREAMLINE.VAL(POSDATA.IX,1)
+    IORDER1=[1:NSTREAMLINE]
+    CALL quick_sort(RA1,IORDER1)
+    call peakdet(MAXTEM1,MINTEM1,NSTREAMLINE,STREAMLINE(IORDER1).SF_SLOPE,0.01)
+    STREAMLINE(1:NSTREAMLINE).SHOW=.FALSE.
+    STREAMLINE(1:NSTREAMLINE).ISLOCALSMALL=.FALSE.
+    DO I=1,SIZE(MINTEM1,DIM=2)
+        N1=IORDER1(INT(MINTEM1(1,I)))
+        STREAMLINE(N1).ISLOCALSMALL=.TRUE.
+        STREAMLINE(N1).SHOW=.TRUE.
+    ENDDO
+    
+    
+
+ENDSUBROUTINE
+
 subroutine streamline_integration(istreamline)
     use function_plotter
     use ODE_SOLVER
@@ -326,9 +458,13 @@ subroutine streamline_integration(istreamline)
         DO WHILE(I<MAXSTEP1)        
            CALL derivs(T,y,V1) 
            VAL1(1:POSDATA.NVAR,I)=RKINFO.VAL(1:POSDATA.NVAR)
-           IF(RKINFO.ISOUTOFRANGE.AND.I>1) then
+           IF(RKINFO.ISOUTOFRANGE.AND.I>0) then
                 ISINTERCEPT1=0
-                P1(1:POSDATA.NDIM)=YSAV(1:POSDATA.NDIM,I-1)
+                IF(I==1) THEN                
+                    P1(1:POSDATA.NDIM)=STREAMLINE(ISTREAMLINE).PTstart(1:POSDATA.NDIM)                    
+                ELSE
+                    P1(1:POSDATA.NDIM)=YSAV(1:POSDATA.NDIM,I-1)
+                ENDIF
                 P2(1:POSDATA.NDIM)=YSAV(1:POSDATA.NDIM,I)
                 IF(POSDATA.NDIM==2) THEN
                     P1(3)=0.D0;P2(3)=0.D0
@@ -336,7 +472,11 @@ subroutine streamline_integration(istreamline)
                 IPT1=0.D0;IPT2=0.D0
                 CALL GET_BC_INTERSECTION(P1,P2,IPT1,IPT2,ISINTERCEPT1)
                 IF(ISINTERCEPT1==1) THEN
-                    YSAV(:,I)=IPT1(1:POSDATA.NDIM)
+                    IF(NORM2(P1-IPT1)>1E-7) THEN
+                        YSAV(:,I)=IPT1(1:POSDATA.NDIM)
+                    ELSE
+                        I=I-1
+                    ENDIF
                     !IF(NORM2(IPT1)<1E-10) THEN
                     !    PAUSE
                     !ENDIF
@@ -396,6 +536,7 @@ subroutine streamline_integration(istreamline)
                 STREAMLINE(ISTREAMLINE).VAL(:,1:NUP1)=VAL2(1:POSDATA.NVAR,1:NUP1)
                 STREAMLINE(ISTREAMLINE).VAL(:,NUP1+1:NUP1+I+1)=VAL1(1:POSDATA.NVAR,0:I)
                 CALL slopestability_streamline(ISTREAMLINE)
+
             ENDIF
         ENDIF
     ENDDO
@@ -467,10 +608,11 @@ SUBROUTINE OUT_SHOWN_STREAMLINE()
         
     
     DO I=1,NSTREAMLINE
-       IF(.NOT.STREAMLINE(I).SHOW) CYCLE
+       IF((.NOT.STREAMLINE(I).SHOW).OR.STREAMLINE(I).NV<2) CYCLE
             
         DO J=1,STREAMLINE(I).NV   
-            WRITE(20,20) I,J,STREAMLINE(I).VAL(1:POSDATA.NVAR,J)
+            WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J)
+            IF(J==STREAMLINE(I).NV) WRITE(20,'(I5)') I
         ENDDO        
     
     END DO
@@ -481,8 +623,8 @@ SUBROUTINE OUT_SHOWN_STREAMLINE()
     
 
 
-10  FORMAT('ILINE',1X,'  INODE',1X,<POSDATA.NVAR>(A24,1X))
-20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR>(EN24.15,1X))
+10  FORMAT('ILINE',1X,'  INODE',1X,22X,'FOS',1X,<POSDATA.NVAR>(A24,1X))
+20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR+1>(EN24.15,1X))
 30  FORMAT(I5,1X,I7,1X,<POSDATA.NDIM>(EN24.15,1X),'*THE POINT IS OUT OF MODEL ZONE.*')
 
 ENDSUBROUTINE

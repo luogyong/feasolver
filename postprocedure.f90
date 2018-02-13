@@ -9,6 +9,9 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	real(8)::rar(MNDOF),t1
 
 	!
+   
+	
+    
 	if(iincs==0.and.(geostatic.method==cal_geo)) then
 		load=0.0
 		do j=1,enum
@@ -59,7 +62,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	
 	call E2N_stress_strain(IINCS,isubts)
 	
-	CALL BC_RHS_OUT(iincs,iiter,ISUBTS)
+	
 	
 	if(anybarfamily) call barfamily_outfordiagram(iincs,isubts)
 	
@@ -77,7 +80,11 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	else
 		open(unit=file_unit,file=resultfile2,status='old',access='append')
 	endif	
-		
+	
+    if(.NOT.allocated(NODALQ)) allocate(NodalQ(nnum,nvo,SUM(timestep.nsubts)))
+    
+    CALL BC_RHS_OUT(iincs,iiter,ISUBTS)
+    
 	call tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 	isset1=.false.
 	
@@ -161,10 +168,12 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 						write(file_unit,9999) element(j).node(13),element(j).node(8),element(j).node(9)
 						write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(2)
 				case(prm6,prm6_spg,prm6_cpl)
-						nc=8	
-						write(file_unit,9999) element(j).node(1:3),element(j).node(3), &
-																	element(j).node(4:6),element(j).node(6)
-				case(prm15,prm15_spg,prm15_cpl) !desolve into 14 tetrahedral element 
+						nc=4	
+						write(file_unit,9999) element(j).node([1,2,3,5])
+                        write(file_unit,9999) element(j).node([1,3,6,5])
+                        write(file_unit,9999) element(j).node([1,6,4,5])
+																	
+                case(prm15,prm15_spg,prm15_cpl) !desolve into 14 tetrahedral element 
 						nc=4
 						write(file_unit,9999) element(j).node(1),element(j).node(7),element(j).node(9),element(j).node(13)
 						write(file_unit,9999) element(j).node(7),element(j).node(2),element(j).node(8),element(j).node(14)
@@ -209,20 +218,22 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	9999 format(<nc>I7)
 end subroutine
 
-SUBROUTINE NODAL_ACTIVE_DOF(INODE,DOFS,NDOFS)
+SUBROUTINE NODAL_ACTIVE_DOF(INODE,DOFS,ADOFS,NDOFS)
 	USE SOLVERDS
 	IMPLICIT NONE
 	INTEGER,INTENT(IN)::INODE,NDOFS
-	INTEGER,INTENT(OUT)::DOFS(NDOFS)
+	INTEGER,INTENT(OUT)::DOFS(NDOFS),ADOFS(NDOFS)
 	INTEGER::N1,I,IDOF1
 	
 	N1=0
 	DOFS=-1
 	DO I=1,MNDOF
 		IDOF1=NODE(INODE).DOF(I)
-		IF(IDOF1>0) THEN
+        
+		IF(IDOF1>0) THEN            
 			N1=N1+1
 			DOFS(N1)=IDOF1
+            ADOFS(N1)=I
 			IF(N1==NODE(INODE).NDOF) EXIT
 		ENDIF
 	ENDDO	
@@ -233,7 +244,7 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 	use solverds
 	implicit none
 	INTEGER,INTENT(IN)::INC,ITER,ISUBTS
-	integer::i,J,NITEM1,N1,DOFS1(MNDOF)
+	integer::i,J,NITEM1,N1,DOFS1(MNDOF),ADOFS1(MNDOF)
 	real(KIND=DPN)::t1,t2,t3,dt1,VAL1(MNDOF)
 	
 	WRITE(99,20)
@@ -244,26 +255,43 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 		dt1=timestep(INC).subts(isubts)
 	end if
 
+    !NODALQ(:,OUTVAR(90).IVO,NNODALQ)=0
+    DO I=1,7
+        IF(OUTVAR(90+I).VALUE>0) NODALQ(:,OUTVAR(90+I).IVO,NNODALQ)=0
+    ENDDO
+    
 	DO I=1, BL_NUM
-		if(sf(bc_load(i).sf).factor(inc)==-999.D0) cycle
+		if(sf(bc_load(i).sf).factor(inc)==-999.D0)     cycle
+        
+        !NODALQ(bc_load(i).node,OUTVAR(90).IVO,NNODALQ)=2 !FORCE=2,DIS=1,NONE=0
+
 		NITEM1=NODE(bc_load(i).node).NDOF
-		CALL NODAL_ACTIVE_DOF(bc_load(i).node,DOFS1,MNDOF)		
-		WRITE(99,11) bc_load(i).node,bc_load(i).dof,'LOAD',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1))*dt1,TDISP(DOFS1(1:NITEM1))*dt1
+		CALL NODAL_ACTIVE_DOF(bc_load(i).node,DOFS1,ADOFS1,MNDOF)		
+		WRITE(99,11) bc_load(i).node,bc_load(i).dof,'LOAD',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1)) 
+        NODALQ(bc_load(i).node,OUTVAR(90+bc_LOAD(i).dof).IVO,NNODALQ)=bc_LOAD(i).dof
+        
+        
 		!QT=QT+NODE(bc_load(i).node).Q*dt1
 	END DO
 	DO I=1, BD_NUM
-		if(bc_disp(I).isdead==1) cycle
+		if(bc_disp(I).isdead==1)    cycle
+        
+        !NODALQ(bc_disp(i).node,OUTVAR(90).IVO,NNODALQ)=1
+
 		NITEM1=NODE(bc_DISP(i).node).NDOF
-		CALL NODAL_ACTIVE_DOF(bc_DISP(i).node,DOFS1,MNDOF)		
-		WRITE(99,11) bc_DISP(i).node,bc_DISP(i).dof,'B.C.',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1))*dt1,TDISP(DOFS1(1:NITEM1))*dt1
+		CALL NODAL_ACTIVE_DOF(bc_DISP(i).node,DOFS1,ADOFS1,MNDOF)		
+		WRITE(99,11) bc_DISP(i).node,bc_DISP(i).dof,'B.C.',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1))
+        NODALQ(bc_DISP(i).node,OUTVAR(90+bc_DISP(i).dof).IVO,NNODALQ)=-bc_DISP(i).dof
 		!QT=QT+NODE(bc_DISP(i).node).Q*dt1
 	END DO
 	DO I=1, NUMNSEEP
 		if(sf(NSEEP(i).sf).factor(inc)==-999.D0) cycle
 		IF(NSEEP(I).ISDEAD==1) CYCLE
+        !NODALQ(NSEEP(i).node,OUTVAR(90).IVO,NNODALQ)=1
 		NITEM1=NODE(NSEEP(i).node).NDOF
-		CALL NODAL_ACTIVE_DOF(NSEEP(i).node,DOFS1,MNDOF)			
-		WRITE(99,11) NSEEP(i).node,NSEEP(i).dof,'S.F.',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1))*dt1,TDISP(DOFS1(1:NITEM1))*dt1
+		CALL NODAL_ACTIVE_DOF(NSEEP(i).node,DOFS1,ADOFS1,MNDOF)			
+		WRITE(99,11) NSEEP(i).node,NSEEP(i).dof,'S.F.',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1))
+        NODALQ(NSEEP(i).node,OUTVAR(90+NSEEP(i).dof).IVO,NNODALQ)=-NSEEP(i).dof
 		!QT=QT+NODE(NSEEP(i).node).Q*dt1
 	END DO
 	
@@ -375,8 +403,7 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 	integer::i,j,k,idof,IDISQ1=0,NVO1=0,NQ1=0
 	
 	REAL(8)::SUMQ1=0
-	NQ1=SUM(timestep.nsubts)
-	if(.NOT.allocated(NODALQ)) allocate(NodalQ(nnum,nvo,NQ1))
+
     !IF(.NOT.ALLOCATED(VEC)) ALLOCATE(VEC(3,NNUM))
     !VEC=0.0D0
 	i=1
@@ -1031,6 +1058,8 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*5
 			case(prm15,prm15_spg,prm15_cpl)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*14
+			case(prm6,prm6_spg,prm6_cpl)
+				n1=(eset(iset1).enume-eset(iset1).enums+1)*3                
 			case(tet10,tet10_spg,tet10_cpl)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*8
 			case default

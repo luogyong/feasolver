@@ -21,7 +21,7 @@ subroutine solve_SLD()
 	integer::nnslope=0,npslope=0
 	real(kind=dpn)::minrelax=0.1d0,maxrelax=1.0d0
 	
-	logical::iscon=.false.,isfirstcall=.true.,isfirstcall2=.true.,isoscilated=.false.
+	logical::iscon=.false.,isfirstcall=.true.,isfirstcall2=.true.,isoscilated=.false.,ISTOCONV=.TRUE.
 	real(kind=dpn)::NormBL=0.0,resdis=0,t1,relax=1.0,convratio=0.0, &
                     normres=0.0,sumforce=0.0,TTime1=0.d0,R0,R1
 	real(kind=dpn),ALLOCATABLE::bdylds(:),exdis(:),stepdis(:),stepstress(:,:,:),stepstrain(:,:,:),YFACUPDATE(:),PDDIS(:,:)
@@ -181,7 +181,7 @@ subroutine solve_SLD()
 					case(N_R,INISTIFF)
 						
 						!if(SOLVER_CONTROL.ISLS==1) then							
-                        CALL Linesearch(iincs,isubts,iiter,iscon,relax,stepdis,LOAD,bdylds,PDDIS)
+                        CALL Linesearch(iincs,isubts,iiter,iscon,relax,stepdis,LOAD,bdylds,PDDIS,ISTOCONV)
 						!endif
 						
 						stepdis=stepdis+load*relax
@@ -192,12 +192,14 @@ subroutine solve_SLD()
 
 						if(.not.solver_control.isfc) then
 							!call checon_sec(iscon,exdis,stepdis,ndof,solver_control.disp_tol,resdis,convratio,iiter)
-							call CHECON_THD(iscon,STEPDIS,load,ndof,solver_control.disp_tol,resdis,sumforce,convratio,ndofhead,dofhead,iiter)
+							call CHECON_THD(iscon,STEPDIS,load,ndof,solver_control.disp_tol,resdis,&
+                                            sumforce,convratio,ndofhead,dofhead,iiter,ISTOCONV)
 							
 							t1=dsqrt(dot_product(bdylds,bdylds))	
                         else
 							!call checon_sec(iscon,pload,bdylds,ndof,solver_control.force_tol,resdis,convratio,iiter)
-							call CHECON_THD(iscon,NI_NodalForce,bdylds,ndof,solver_control.FORCE_tol,resdis,sumforce,convratio,ndofhead,dofhead,iiter)
+							call CHECON_THD(iscon,NI_NodalForce,bdylds,ndof,solver_control.FORCE_tol,resdis,&
+                                            sumforce,convratio,ndofhead,dofhead,iiter,ISTOCONV)
 							t1=resdis
 							
 
@@ -244,7 +246,8 @@ subroutine solve_SLD()
 						else
 							if(.not.solver_control.isfc) then
 								!call checon_sec(iscon,exdis,load,ndof,solver_control.disp_tol,resdis,convratio,iiter)
-								call CHECON_THD(iscon,STEPDIS,load,ndof,solver_control.disp_tol,resdis,sumforce,convratio,ndofhead,dofhead,iiter)
+								call CHECON_THD(iscon,STEPDIS,load,ndof,solver_control.disp_tol,resdis,&
+                                                sumforce,convratio,ndofhead,dofhead,iiter,ISTOCONV)
 							end if
 						end if					
 				end select
@@ -464,21 +467,26 @@ SUBROUTINE INISTIFF_ACCELERATION_SLOAN(RELAX,DDIS,STEPDIS,RFORCE,ISTEP,ISUBSTEP,
 	
 ENDSUBROUTINE
 
-subroutine Linesearch(iincs,isubts,iiter,iscon,relax,stepdis,Ddis,bdylds,PDDIS)
+subroutine Linesearch(iincs,isubts,iiter,iscon,relax,stepdis,Ddis,bdylds,PDDIS,ISTOCONV)
 	use solverlib 	
 	implicit none
 	integer,intent(in)::iincs,isubts,iiter
-    LOGICAL,INTENT(IN)::iscon
+    LOGICAL,INTENT(IN)::iscon,ISTOCONV
 	real(kind=DPN),intent(in)::stepdis(ndof),PDDIS(NDOF,2)
 	real(kind=DPN),INTENT(INOUT)::relax,bdylds(ndof),Ddis(ndof)
 	real(kinD=DPN)::stepdis1(ndof)
     INTEGER::ILS1=0,INEG1,IPOS1,N1,N2,I
     real(kind=DPN)::ETA1(SOLVER_CONTROL.NLS),RATIO1(SOLVER_CONTROL.NLS),T1,ETAALT1,S0,T2,ALPHA1
-	
+	REAL(DPN),SAVE::LASTCONVRATIO=0
     
     
-	IF(MOD(IITER,50)==0) RELAX=MAX(RELAX/2.0D0,0.1d0)
-	
+    
+	IF(MOD(IITER,50)==0.AND.(.NOT.ISTOCONV)) RELAX=MAX(RELAX/2.0D0,0.1d0)
+	!IF(IITER==1) THEN
+ !       LASTCONVRATIO=10
+ !   ELSE
+ !       LASTCONVRATIO=CONVRATIO
+ !   ENDIF
     IF(SOLVER_CONTROL.SOLVER==INISTIFF.AND.SOLVER_CONTROL.ISACC>0) THEN
 		IF(SOLVER_CONTROL.ISACC==DANG) CALL INISTIFF_ACCELERATION_DANG(RELAX,PDDIS,IITER)
 		IF(SOLVER_CONTROL.ISACC==SLOAN) CALL INISTIFF_ACCELERATION_SLOAN(RELAX,DDIS,STEPDIS,bdylds,iincs,isubts,IITER,ISCON)

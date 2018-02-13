@@ -3,7 +3,7 @@ subroutine stree_failure_ratio_cal(ienum,ISTEP)
 	implicit none
 	integer,intent(in)::ienum,ISTEP
 	integer::i,et1,nsh1,ndim1,dof1(3)
-	real(8)::ss1(6),pss1(4),t1,t2,C1,phi1,R1,PI1,dis1(3,30),disg1(3)
+	real(8)::ss1(6),pss1(4),t1,t2,C1,phi1,R1,PI1,dis1(3,30),disg1(3),tensilestrength1
 	
 	PI1=Pi()
 	et1=element(ienum).et
@@ -15,25 +15,26 @@ subroutine stree_failure_ratio_cal(ienum,ISTEP)
 		!MC material		
 		phi1=material(element(ienum).mat).GET(4,ISTEP)
 		c1=material(element(ienum).mat).GET(3,ISTEP)
-		
+		tensilestrength1=material(element(ienum).mat).GET(5,ISTEP)
+        
 	do i=1,element(ienum).ngp
 		ss1=element(ienum).stress(:,i)
 		!积分点的位移
 		!disg1(1:ndim1)=matmul(dis1(1:ndim1,1:nsh1),ecp(et1).Lshape(:,i))		
 
 		call stress_in_failure_surface(element(ienum).sfr(:,i),ss1,ecp(element(ienum).et).ndim,c1,Phi1,solver_control.slidedirection,&
-                                    element(ienum).xygp(ndimension,i))
+                                    element(ienum).xygp(ndimension,i),tensilestrength1)
 		
         
 	enddo
 	
 end subroutine
 
-subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirection,Y)
+subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirection,Y,TensileS)
     USE DS_SlopeStability
 	implicit none
 	integer,intent(in)::ndim,slidedirection
-	real(8),intent(in)::stress(6),cohesion,PhiD,Y
+	real(8),intent(in)::stress(6),cohesion,PhiD,Y,TensileS
 	real(8),intent(inout)::sfr(6)
 	
 	integer::i
@@ -52,13 +53,14 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     sigmaC1=(stress(1)+stress(2))/2.0
     R1=t2
     if(R1>0) then
-        if(pss1(1)<=0) then
+        if(pss1(1)<=TensileS) then
         !if(sigmaC1<=0) then
             
             B=-tan(phi1)
             A=(C1+sigmaC1*B)/R1
-            !最大破坏面与主应力面的夹角
-            if(r1<=C1*cos(phi1)-sigmaC1*sin(phi1)) then
+            !最大破坏面与主应力面的夹角的2倍
+            !if(r1<=C1*cos(phi1)-sigmaC1*sin(phi1)) then
+            if(abs(A)>=abs(B)) then
                 sita1=asin((1.d0-(B/A)**2)**0.5)
             else
                 sita1=pi1/2.0-phi1
@@ -579,9 +581,9 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 	use solverds
 	implicit none
 	integer::i,j,k,n1,n2,ISTEP,isubts
-	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3),T2
+	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3),T2,ts1
 
-    if(isubts==1) call NodalWeight(istep) !同一步中单元的生死不发生改变
+    if(isubts==1) call NodalWeight() !同一步中单元的生死不发生改变
     
 	!clear zero
 	do i=1,nnum
@@ -686,9 +688,10 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 			    !节点的材料假定为破坏比最大的单元材料，以模拟成层土中的软弱夹层
 			    C1=material(node(i).sfr(2)).GET(3,ISTEP)
 			    Phi1=material(node(i).sfr(2)).GET(4,ISTEP)
+                TS1=material(node(i).sfr(2)).GET(5,ISTEP)
                 !dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
 			    NODE(I).SFR(7)=C1;NODE(I).SFR(8)=PHI1;
-			    call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection,node(i).coord(ndimension))
+			    call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection,node(i).coord(ndimension),TS1)
 			ENDIF
 		end if
 		!total generalized shear stain
@@ -785,10 +788,10 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 end subroutine
 
 
-subroutine NodalWeight(istep)
+subroutine NodalWeight()
 	use solverds
 	implicit none
-    integer,intent(in)::istep
+    !integer,intent(in)::istep
 	integer::i,j,k,n1
 	LOGICAL::ISSPG1
     
@@ -796,8 +799,10 @@ subroutine NodalWeight(istep)
 	
 	node.nelist=0;node.nelist_SPG=0;node.angle=0
 	do i=1,enum
-        if(solver_control.i2nweight==weight_angle) then
-            if(.not.allocated(element(i).angle))    call calangle(i)
+        if(solver_control.i2nweight==weight_angle.OR.solver_control.I2NCAL==SPR) then
+            if(.not.allocated(element(i).angle))    then
+                  call calangle(i)
+            endif
         endif
         
         if(element(i).isactive==0) cycle

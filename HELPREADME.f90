@@ -101,7 +101,7 @@ subroutine write_readme_feasolver()
     README(IPP(I)) = "//{...}  //共NUM行"	
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//STEP FUNCTION,NUM=...(I),STEP=...(I)[,BASE=1]   //NUM=步方程的个数,STEP=步数.,BASE=0，请同是输入地应力步(第0步)的FACTOR，这是要输入STEP+1个factors"  
+	README(IPP(I)) = "//STEP FUNCTION,NUM=...(I),STEP=...(I)[,BASE=1]   //NUM=步方程的个数,STEP=步数.,BASE=0，请同时输入地应力步(第0步)的FACTOR，这是要输入STEP+1个factors"  
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD STEP FUNCTION IS USED TO STEP FUNCTION DATA."//'"'
 	README(IPP(I)) = "//{[FACTOR(0)(R)],FACTOR(1)(R),FACTOR(2)(R),...,FACTOR(STEP)(R),TITLE(A)& 
                          \N// FACTOR(ISTEP)=第ISTEP步边界或荷载的系数. &

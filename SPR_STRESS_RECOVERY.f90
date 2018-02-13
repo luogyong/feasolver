@@ -249,6 +249,7 @@ subroutine spr_initialize()
 	integer::i,j,K,ISET1
 	integer::nnum1,nsc1,shtype1,nitem1,N1,elt1,N2=0
 	real(8)::t1,XY1(3)
+    real(8),parameter::PI1=3.1415926535897932
 	
 	if(allocated(sprlist)) THEN
         DO I=1,NNUM
@@ -259,6 +260,8 @@ subroutine spr_initialize()
     ENDIF
     
     allocate(sprlist(nnum)) !assume that there  are 10 elements at most sharing the same vertex.
+    
+    call NodalWeight()
     
     DO K=1,NESET
         ISET1=ESETID(K)
@@ -304,7 +307,7 @@ subroutine spr_initialize()
 			    sprlist(N2).NSP=sprlist(N2).NSP+nsc1
                 SPRLIST(N2).INODE=N2
             
-			    if((J<=NNUM1).AND.sprlist(N2).NSP>sprlist(N2).NP) then
+			    if((J<=NNUM1).AND.sprlist(N2).NSP>sprlist(N2).NP.and.(ABS(node(n2).angle-2*PI1)<1.E-5.OR.ABS(node(n2).angle-4*PI1)<1E-5)) then
                     sprlist(N2).ispatch=.true.
                 else
                     sprlist(N2).ispatch=.FALSE.

@@ -63,9 +63,11 @@
 		<File RelativePath="seepage.f90"/>
 		<File RelativePath="Tresca_clausen.for"/></Filter>
 		<Filter Name="Maths">
+		<File RelativePath=".\Module\FindLocalEx.f90"/>
 		<File RelativePath="Maths\MathFuns.f90"/>
 		<File RelativePath="Maths\ODE_MODULE.f90"/>
 		<File RelativePath="Maths\odeint.for"/>
+		<File RelativePath=".\Module\quicksort.f90"/>
 		<File RelativePath="Maths\rk4.for"/>
 		<File RelativePath="Maths\rkck.for"/>
 		<File RelativePath="Maths\rkqs.for"/></Filter>

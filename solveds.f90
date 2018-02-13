@@ -216,6 +216,7 @@ module solverds
 		logical::islaverify=.false. !.true. to verify a soluction is whether a feasible one.
 		logical::ispg=.false.  ! whether the job is just to read in result file and out put to tecplot.
 		logical::isfc=.true. !whether the residual force criteria is implemented in judge of the convergence.
+        LOGICAL::ISCONVERGING=.TRUE.
 		!real(kind=DPN)::epsilon_spg=0.1 !for spg only. control the conductivity slope
 !		integer::Para_spg=linear_spg !step_spg,linear_spg,unsat_spg.
 									!if Para_spg=unsat_spg, van genuchten model is used. and 
@@ -332,8 +333,8 @@ module solverds
 								!at the center of the sphere
 		integer::nval=1 !这个变量包含多少个数。
 	end type
-	type(outvar_tydef)::outvar(100)	
-	integer::vo(100)=0,nvo=0
+	type(outvar_tydef)::outvar(150)	
+	integer::vo(150)=0,nvo=0
 	
 	type coordinate_tydef !global to local system transformation matrix 
 		real(kind=DPN)::c(3,3)=0 !c(i,j)=cos(ei,Ej),ei and Ej are base vectors for new and old coordinates.

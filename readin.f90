@@ -218,7 +218,7 @@
 				bf1(i).sf=0								
 
 				bf1(i).isdual=1
-
+                OUTVAR(90+BF1(I).DOF).VALUE=90+BF1(I).DOF   
 			end do
 			if(bd_num>0) then
 				bf1(1:bd_num)=bc_disp(1:bd_num)
@@ -312,7 +312,16 @@
 	endif
 
     if(solver_control.bfgm==inistress) solver_control.issym=.true.
-	
+    
+    !OUTVAR(90).VALUE=90;OUTVAR(90).NAME='BC_TYPE'; 
+    IF(OUTVAR(DISX_BC).VALUE>0) OUTVAR(DISX_BC).NAME='DISX_BC'
+    IF(OUTVAR(DISY_BC).VALUE>0) OUTVAR(DISY_BC).NAME='DISY_BC'
+    IF(OUTVAR(DISZ_BC).VALUE>0) OUTVAR(DISZ_BC).NAME='DISZ_BC'
+    IF(OUTVAR(H_BC).VALUE>0) OUTVAR(H_BC).NAME='H_BC'
+    IF(OUTVAR(RX_BC).VALUE>0) OUTVAR(RX_BC).NAME='RX_BC'
+    IF(OUTVAR(RY_BC).VALUE>0) OUTVAR(RY_BC).NAME='RY_BC'
+    IF(OUTVAR(RZ_BC).VALUE>0) OUTVAR(RZ_BC).NAME='RZ_BC'
+    
 	!if(solver_control.bfgm==lacy) then
 	!	do i=1,bd_num
 	!		if(bc_disp(i).dof==4) then
@@ -789,8 +798,8 @@ subroutine solvercommand(term,unit)
 !						if(et1<minet) minet=et1
 						!according to the element type, return the element node number,and the dofs number
 						call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1)
-					!case('material','mat')
-					!	material1=int(property(i).value)
+					case('material')
+						material1=int(property(i).value)
 					case('mat','matid','material id')
 						matid1=int(property(i).value)
 					case('system') !local coordinate
@@ -1039,7 +1048,7 @@ subroutine solvercommand(term,unit)
 				bf1(i).ssp_onepile=n2
 				if(n1>=6) bf1(i).ssp_onepile=int(ar(6))
                 IF(N1>=7) bf1(i).isincrement=int(ar(7))
-
+                OUTVAR(90+BF1(I).DOF).VALUE=90+BF1(I).DOF   
 			end do
 			if(bl_num>0) then
 				bf1(1:bl_num)=bc_load(1:bl_num)
@@ -1183,7 +1192,7 @@ subroutine solvercommand(term,unit)
 				bf1(i).ssp_onepile=n2
 				if(n1>=6) bf1(i).ssp_onepile=int(ar(6))
                 if(n1>=7) bf1(i).isincrement=int(ar(7))
-                
+                OUTVAR(90+BF1(I).DOF).VALUE=90+BF1(I).DOF                
 			end do
 			if(bd_num>0) then
 				bf1(1:bd_num)=bc_disp(1:bd_num)
@@ -1194,6 +1203,8 @@ subroutine solvercommand(term,unit)
 			bd_num=bd_num+nbf1
 			deallocate(bf1)	
 			
+            
+            
         case('hinge','freedof')
             print *, 'Reading HINGE/FREEDOF data...'
   			do i=1,pro_num
@@ -2250,7 +2261,8 @@ subroutine solvercommand(term,unit)
 						endif
 						outvar(rz).name='rz'
 						outvar(rz).value=rz
-						outvar(rz).system=property(i).value						
+						outvar(rz).system=property(i).value                    
+                        
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -2785,7 +2797,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			!ndof1=6
 			ngp1=2
 			!nd1=3
-			stype='FEBRICK'
+			stype='FETETRAHEDRON'
 			IF(ET1==PRM6_SPG) THEN
 			EC1=SPG;NDOF1=6;nd1=3
 			ENDIF

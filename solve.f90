@@ -505,7 +505,7 @@ SUBROUTINE checon_sec(iscon,PUBForce,UBForce,ndof,tol,resdis,convratio,niter)
 RETURN
 END SUBROUTINE
 
-SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,ndofhead,dofhead,niter)
+SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,ndofhead,dofhead,niter,ISTOCONV)
 !
 !
  IMPLICIT NONE
@@ -514,12 +514,14 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
  INTEGER,INTENT(IN)::NDOF,NDOFHEAD,niter,DOFHEAD(NDOFHEAD)
  REAL(iwp),INTENT(IN)::UBForce(ndof),tol
  REAL(iwp),INTENT(IN OUT)::stepload(ndof),resdis,sumforce,convratio
- LOGICAL,INTENT(OUT)::iscon
+ LOGICAL,INTENT(OUT)::iscon,ISTOCONV
  REAL(IWP)::RESDIS_SPG,SUMFORCE_SPG
- 
+ REAL(IWP),SAVE::LASTCONVRATIO=0.0
  
  iscon=.false.
  resdis_SPG=0.D0;SUMFORCE_SPG=0.D0
+ 
+ 
  
  if(ndofhead>0) resdis_SPG=(dot_product(UBFORCE(DOFHEAD),UBFORCE(DOFHEAD)))
  
@@ -555,11 +557,17 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
      end if
  endif
  
- 
+ IF(NITER<2) THEN    
+    ISTOCONV=.TRUE.
+ ELSE
+    ISTOCONV=(convratio/LASTconvratio<0.9999)    
+ ENDIF
+ LASTconvratio=convratio
  !convratio=resdis/SumForce
  
  ISCON=(convratio<=TOL)
 
+ 
  
 RETURN
 END SUBROUTINE
