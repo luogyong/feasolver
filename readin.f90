@@ -1365,6 +1365,7 @@ subroutine solvercommand(term,unit)
 			
 		case('solvercontrol','solver','solver_control')
 			print *, 'Reading SOLVER_CONTROL data'
+            n1=0
 			do i=1,pro_num
 				select case(property(i).name)
 					case('type') 
@@ -1400,7 +1401,10 @@ subroutine solvercommand(term,unit)
 					case('i2nweight','i2nw')
 						solver_control.i2nweight=int(property(i).value)                        
 					case('bfgm','sim')
-						solver_control.bfgm=int(property(i).value)
+						solver_control.bfgm=int(property(i).value)                        
+                    case('bfgm_spg')
+                        solver_control.bfgm_spg=int(property(i).value)
+                        n1=1
 					case('isfc','force_criteria')
 						if(int(property(i).value)==YES) then
 							solver_control.isfc=.true.
@@ -1455,11 +1459,12 @@ subroutine solvercommand(term,unit)
             end do
 
 			if(solver_control.BFGM==INISTRESS) then
-				solver_control.solver=inistiff
+				solver_control.solver=INISTIFF
 			endif	
 			if(solver_control.BFGM==CONTINUUM.OR.solver_control.BFGM==CONSISTENT) then
 				solver_control.solver=N_R
-			endif			
+            endif	
+            if(n1==0) solver_control.bfgm_spg=solver_control.bfgm
 !			if(associated(solver_control.factor)) then
 !				read(unit,*)   solver_control.factor
 !			else
@@ -1467,6 +1472,19 @@ subroutine solvercommand(term,unit)
 !				allocate(solver_control.factor(1))
 !				solver_control.factor(1)=1.0
 !			end if
+        case('bfgm_step')
+            print *,'Reading BFGM INFO FOR EACH STEP...'
+            do i=1,pro_num
+				select case(property(i).name)
+                case('step','num')
+                    n1=int(property(i).value)
+                case default
+                    call Err_msg(property(i).name)                    
+                endselect
+            enddo
+            allocate(bfgm_step(n1))
+            call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+            bfgm_step=int(ar(1:n1))
         CASE('slopeparameter')
             print *,'Reading SLOPE PARAMETER data...'
             do i=1,pro_num

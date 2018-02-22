@@ -82,6 +82,9 @@ subroutine solve_SLD()
 	endif
 	do iincs=istep,nstep
         !active element
+        if(iincs>0.and.allocated(bfgm_step)) then
+            solver_control.bfgm=bfgm_step(iincs)
+        endif
         call element_activate(iincs)
         if(isexca2d/=0) call excavation(iincs)
         call dof_activate(iincs)
@@ -134,7 +137,11 @@ subroutine solve_SLD()
 
 				call incremental_load(iincs,iiter,solver_control.solver,isubts)
 
-				load=load+bdylds
+				DO I=1,NDOF
+                    IF(ADOF(I)/=0) THEN                    
+                        load(I)=load(I)+bdylds(I)
+                    ENDIF
+                ENDDO
 	!			t1=sum(load)
 				call bc(iincs,iiter,load,stepdis(1:ndof),isubts)					
 				
@@ -350,6 +357,7 @@ subroutine solve_SLD()
 			Tdisp=Tstepdis(:,iincs) !!for outdata
 			if(isexca2d/=0) call Beam_Result_EXCA(iincs)
 			
+            
 			call outdata(iincs,iiter,iscon,isfirstcall,isubts)
 		
 
@@ -2007,6 +2015,8 @@ subroutine element_activate(istep)
                 NODE(ELEMENT(I).NODE).ISACTIVE=1
             else
                 element(i).isactive=0
+                if(allocated(element(i).DSTRESS)) ELEMENT(I).DSTRESS=0.D0
+                if(allocated(element(i).DSTRAIN)) ELEMENT(I).DSTRAIN=0.D0
 				!if(allocated(element(i).gforce)) element(i).gforce=0
 				!if(allocated(element(i).gforceILS)) element(i).gforceILS=0
             endif

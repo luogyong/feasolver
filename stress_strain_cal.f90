@@ -12,11 +12,13 @@ subroutine stree_failure_ratio_cal(ienum,ISTEP)
 	!do concurrent(i=1:element(ienum).nnum)	
 	!	dis1(1:ndim1,i)=Tdisp(node(element(ienum).node(i)).dof(1:ndim1))		
 	!enddo
-		!MC material		
-		phi1=material(element(ienum).mat).GET(4,ISTEP)
-		c1=material(element(ienum).mat).GET(3,ISTEP)
-		tensilestrength1=material(element(ienum).mat).GET(5,ISTEP)
-        
+	!MC material		
+	phi1=material(element(ienum).mat).GET(4,ISTEP)
+	c1=material(element(ienum).mat).GET(3,ISTEP)
+	tensilestrength1=material(element(ienum).mat).GET(5,ISTEP)
+    IF(material(element(ienum).mat).TYPE==MC) THEN
+        tensilestrength1=1.D6 !NO TENSION CUT OFF
+    ENDIF
 	do i=1,element(ienum).ngp
 		ss1=element(ienum).stress(:,i)
 		!积分点的位移
@@ -53,7 +55,9 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     sigmaC1=(stress(1)+stress(2))/2.0
     R1=t2
     if(R1>0) then
-        if(pss1(1)<=TensileS) then
+        T1=1E-7
+        IF(PHI1>1E-7) T1=TAN(PHI1) 
+        if(pss1(1)<MIN(TensileS,C1/T1)) then
         !if(sigmaC1<=0) then
             
             B=-tan(phi1)
@@ -516,7 +520,7 @@ subroutine spr_stress_strain_cal(ISTEP,ISUBST)
     INTEGER::I,J,K,E1,N1,N2,NPATCH1
     REAL(DPN)::VAL(100)
     
-    IF(ISUBST==1) CALL spr_initialize()
+    IF(ISUBST==1) CALL spr_initialize(ISTEP)
     
         
     
@@ -583,7 +587,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 	integer::i,j,k,n1,n2,ISTEP,isubts
 	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3),T2,ts1
 
-    if(isubts==1) call NodalWeight() !同一步中单元的生死不发生改变
+    if(isubts==1) call NodalWeight(ISTEP) !同一步中单元的生死不发生改变
     
 	!clear zero
 	do i=1,nnum
@@ -689,6 +693,9 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 			    C1=material(node(i).sfr(2)).GET(3,ISTEP)
 			    Phi1=material(node(i).sfr(2)).GET(4,ISTEP)
                 TS1=material(node(i).sfr(2)).GET(5,ISTEP)
+                IF(material(node(i).sfr(2)).TYPE==MC) THEN
+                    TS1=1.D6 !NO TENSION CUT OFF
+                ENDIF
                 !dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
 			    NODE(I).SFR(7)=C1;NODE(I).SFR(8)=PHI1;
 			    call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection,node(i).coord(ndimension),TS1)
@@ -788,11 +795,11 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 end subroutine
 
 
-subroutine NodalWeight()
+subroutine NodalWeight(ISTEP)
 	use solverds
 	implicit none
-    !integer,intent(in)::istep
-	integer::i,j,k,n1
+    integer,intent(in)::istep
+	integer::i,j,k,n1,CESET1=0
 	LOGICAL::ISSPG1
     
 	
@@ -815,7 +822,8 @@ subroutine NodalWeight()
 				node(n1).nelist_SPG=node(n1).nelist_SPG+1
 			ENDIF
             if(allocated(element(i).angle)) THEN
-                IF(.NOT.(ESET(ELEMENT(i).SET).COUPLESET>0.AND.ESET(ELEMENT(I).SET).COUPLESET<ELEMENT(I).SET)) THEN
+                CESET1=ESET(ELEMENT(I).SET).COUPLESET
+                IF(.NOT.(CESET1>0.AND.CESET1<ELEMENT(I).SET)) THEN
                     node(n1).angle=node(n1).angle+element(i).angle(j)
                 ENDIF
             ENDIF

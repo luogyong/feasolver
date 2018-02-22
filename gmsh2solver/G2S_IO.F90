@@ -55,6 +55,7 @@ subroutine readin()
 	
     DO I=1,nphgp
 		PHYSICALGROUP(phgpnum(I)).COUPLESET=PHYSICALGROUP(phgpnum(I)).MAT(NLAYER+1)
+        PHYSICALGROUP(phgpnum(I)).SF=PHYSICALGROUP(phgpnum(I)).MAT(NLAYER+2)
 		IF(PHYSICALGROUP(phgpnum(I)).COUPLESET<=0) THEN
 			PHYSICALGROUP(phgpnum(I)).COUPLESET=phgpnum(I)
 		ENDIF
@@ -1034,7 +1035,7 @@ subroutine Tosolver()
         IF(physicalgroup(N1).nel==0) CYCLE
         nset=nset+1
 		write(unit,120) physicalgroup(N1).nel,n1,physicalgroup(N1).et, &
-						physicalgroup(N1).mat(1),physicalgroup(N1).COUPLESET,CH1
+						physicalgroup(N1).mat(1),physicalgroup(N1).COUPLESET,physicalgroup(N1).SF,CH1
 		!IF(physicalgroup(N1).ISMASTER) THEN
 		item=len_trim(elttype(physicalgroup(N1).et_gmsh).description)
 		write(unit,122) elttype(physicalgroup(N1).et_gmsh).description
@@ -1105,7 +1106,7 @@ subroutine Tosolver()
 111 FORMAT(<MODELDIMENSION>(F24.16,1X))
 112 FORMAT("//",<MODELDIMENSION>(A15,1X))
 
-120 FORMAT(/'ELEMENT,NUM=',I7,',SET=',I3,',ET=',A<ITEM>,',MATID=',I3,',COUPLESET=',I3,',TITLE=',A<ITEM1>)
+120 FORMAT(/'ELEMENT,NUM=',I7,',SET=',I3,',ET=',A<ITEM>,',MATID=',I3,',COUPLESET=',I3,',SF=',I3,',TITLE=',A<ITEM1>)
 121 FORMAT(<ITEM>(I7,1X))
 122 FORMAT("//",A<ITEM>)
 123 FORMAT("// ", <ITEM>("N",I<width(j)>,5X))

@@ -25,7 +25,7 @@ subroutine solver_initialization(kref,iincs,iiter)
 	integer::iincs,iiter
 
 	
-	if(iincs<=1.and.iiter==1) then
+	if(iiter==1) then
 		kref=1
 		return
 	end if

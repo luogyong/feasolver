@@ -203,9 +203,11 @@ subroutine slopestability_streamline(islip)
     endif
     
     do i=n1,n2
-        SIGMA_TF1=0.D0;SIGMA_T1=0.D0
-        
+        SIGMA_TF1=0.D0;SIGMA_T1=0.D0        
         DO j=1,streamline(i).nv-1
+            IF(ALLOCATED(STREAMLINE(I).PARA_SFCAL)) DEALLOCATE(STREAMLINE(I).PARA_SFCAL)
+            ALLOCATE(STREAMLINE(I).PARA_SFCAL(7,streamline(i).nv))
+            STREAMLINE(I).PARA_SFCAL(:,streamline(i).nv)=0.d0
             SS(1)=(STREAMLINE(I).VAL(POSDATA.ISXX,J)+STREAMLINE(I).VAL(POSDATA.ISXX,J+1))/2.0
             SS(2)=(STREAMLINE(I).VAL(POSDATA.ISYY,J)+STREAMLINE(I).VAL(POSDATA.ISYY,J+1))/2.0
 		    SS(3)=(STREAMLINE(I).VAL(POSDATA.ISXY,J)+STREAMLINE(I).VAL(POSDATA.ISXY,J+1))/2.0
@@ -222,12 +224,14 @@ subroutine slopestability_streamline(islip)
                 RAD1=SIGN(PI/2.0,DY1)
             ENDIF
             CALL stress_in_inclined_plane(SS,RAD1,SNT1)
+            T2=(C1-SNT1(1)*DTAN(PHI1/180.0*PI)) !TAUF
             IF(SNT1(1)<0.D0.AND.SFR1>=0.D0) THEN
             !IF(SNT1(1)<0.D0) THEN
-                SIGMA_TF1=SIGMA_TF1+(C1-SNT1(1)*DTAN(PHI1/180.0*PI))*T1
+                SIGMA_TF1=SIGMA_TF1+T2*T1
                 SIGMA_T1=SIGMA_T1+SNT1(2)*T1
             ENDIF
-                        
+            !SIGN,SIGT,RAD1,TAUF,DIS,C,PHI
+            STREAMLINE(I).PARA_SFCAL(:,J)=[SNT1,RAD1,T2,T1,C1,PHI1]
         ENDDO
         IF(ABS(SIGMA_T1)>1E-10) THEN
             STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1) 
@@ -308,16 +312,17 @@ subroutine Filterlocalminimalslope(P1,P2)
 END SUBROUTINE
 
 SUBROUTINE stress_in_inclined_plane(ss,RAD,SNT)
-!angle in rad.
+!rad£¬angle with x axis,in rad.
 !ss:sx,sy,sxy
 !ss1:sn,st
     implicit none
     real(8),intent(in)::ss(3),RAD
     real(8),INTENT(OUT)::Snt(2)
     
-    Snt(1)=0.5*(ss(1)+ss(2))+0.5*(ss(1)-ss(2))*cos(2*RAD)+ss(3)*sin(2*RAD)
-    Snt(2)=-0.5*(ss(1)-ss(2))*sin(2*RAD)+ss(3)*cos(2*RAD) 
-    
+    !Snt(1)=0.5*(ss(1)+ss(2))+0.5*(ss(1)-ss(2))*cos(2*RAD)+ss(3)*sin(2*RAD)
+    !Snt(2)=-0.5*(ss(1)-ss(2))*sin(2*RAD)+ss(3)*cos(2*RAD) 
+    Snt(1)=0.5*(ss(1)+ss(2))-0.5*(ss(1)-ss(2))*cos(2*RAD)-ss(3)*sin(2*RAD)
+    Snt(2)=0.5*(ss(1)-ss(2))*sin(2*RAD)-ss(3)*cos(2*RAD)
     
 endSUBROUTINE
 
@@ -438,7 +443,7 @@ subroutine streamline_integration(istreamline)
     implicit none
     integer,intent(in)::istreamline  
     INTEGER::N1=3,IEL,I,J,NUP1
-    INTEGER,PARAMETER::MAXSTEP1=5000
+    INTEGER,PARAMETER::MAXSTEP1=10000
     REAL(8)::V1(3),V2(3),Y(3),EPS,YSCAL(3),Hdid,Hnext,T,Htry,direction1,IPT1(3)=0.D0,IPT2(3)=0.D0
     REAL(8)::YSAV(1:POSDATA.NDIM,MAXSTEP1),YSAV_UP(1:POSDATA.NDIM,MAXSTEP1),&
             VAL1(1:POSDATA.NVAR,0:MAXSTEP1), VAL2(1:POSDATA.NVAR,0:MAXSTEP1)
@@ -598,20 +603,24 @@ END
 SUBROUTINE OUT_SHOWN_STREAMLINE()
     USE function_plotter
     IMPLICIT NONE
-    INTEGER::I,J
+    INTEGER::I,J,EF
     
     PRINT *, 'SELECT TO FILE TO SAVE THE STREAMLINE DATA...'
     
-    open(20,file='',status='UNKNOWN')
-        
+    open(20,file='',status='UNKNOWN',iostat=EF)
+    IF(EF/=0) RETURN
     WRITE(20,10) (TRIM(POSDATA.OUTVAR(I).NAME),I=1,POSDATA.NVAR)
         
     
     DO I=1,NSTREAMLINE
        IF((.NOT.STREAMLINE(I).SHOW).OR.STREAMLINE(I).NV<2) CYCLE
             
-        DO J=1,STREAMLINE(I).NV   
-            WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J)
+        DO J=1,STREAMLINE(I).NV 
+            IF(ALLOCATED(STREAMLINE(I).PARA_SFCAL)) THEN
+                WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J),STREAMLINE(I).PARA_SFCAL(:,J)
+            ELSE
+                WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J),0,0,0,0,0,0,0
+            ENDIF
             IF(J==STREAMLINE(I).NV) WRITE(20,'(I5)') I
         ENDDO        
     
@@ -622,9 +631,12 @@ SUBROUTINE OUT_SHOWN_STREAMLINE()
     PRINT *, 'OUTDATA DONE!'
     
 
-
-10  FORMAT('ILINE',1X,'  INODE',1X,22X,'FOS',1X,<POSDATA.NVAR>(A24,1X))
-20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR+1>(EN24.15,1X))
+    
+10  FORMAT('ILINE',1X,'  INODE',1X,22X,'FOS',1X,<POSDATA.NVAR>(A24,1X),&
+        1X,'SLIPSEG_SN',1X,'SLIPSEG_TAU',1X,'SLIPSEG_ANGLE_IN_RAD',1X,'SLIPSEG_TANF',&
+        1X,'SLIPSEG_DIS',1X,'SLIPSEG_C',1X,'SLIPSEG_PHI')
+20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR+8>(EN24.15,1X))
+         
 30  FORMAT(I5,1X,I7,1X,<POSDATA.NDIM>(EN24.15,1X),'*THE POINT IS OUT OF MODEL ZONE.*')
 
 ENDSUBROUTINE

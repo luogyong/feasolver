@@ -59,7 +59,7 @@ module DS_Gmsh2Solver
 	
 	
 	type physicalGroup_type
-		integer::isini=0
+		integer::isini=0,SF=0
 		integer::ndim,COUPLESET=0 !COUPLESET>0 AND <>itself，表此单元组的单元与physicalgroup(COUPLESET)的单元相同。 by default it was set to be itself
 		logical::ismodel=.FALSE.,ISMASTER=.TRUE. !phgpnum(:) OUPLESET>0 AND <>itself, ismaster=.false. then let elemnt=coupleset.element
 		integer::ET_GMSH=0 

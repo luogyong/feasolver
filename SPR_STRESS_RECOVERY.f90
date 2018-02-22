@@ -242,9 +242,10 @@ END FUNCTION
 
 
 ! form the element list sharing the same vertex(mid-nodes are excluded)
-subroutine spr_initialize()	
+subroutine spr_initialize(ISTEP)	
     use SolverMath
 	implicit none
+    INTEGER,INTENT(IN)::ISTEP
     !TYPE(SPR_tydef),ALLOCATABLE::SPRLIST(:)
 	integer::i,j,K,ISET1
 	integer::nnum1,nsc1,shtype1,nitem1,N1,elt1,N2=0
@@ -261,7 +262,7 @@ subroutine spr_initialize()
     
     allocate(sprlist(nnum)) !assume that there  are 10 elements at most sharing the same vertex.
     
-    call NodalWeight()
+    call NodalWeight(ISTEP)
     
     DO K=1,NESET
         ISET1=ESETID(K)

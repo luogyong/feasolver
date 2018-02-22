@@ -49,9 +49,9 @@
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<Filter Name="NODE_REORDER">
-		<File RelativePath="..\..\FEMGRID\mc40.for"/>
-		<File RelativePath="..\..\FEMGRID\mc40dependency.for"/>
-		<File RelativePath="..\..\FEMGRID\mc49.for"/></Filter>
+		<File RelativePath=".\reorder\mc40.for"/>
+		<File RelativePath=".\reorder\mc40dependency.for"/>
+		<File RelativePath=".\reorder\mc49.for"/></Filter>
 		<File RelativePath="gmsh2solver\G2S_IO.F90"/>
 		<File RelativePath="gmsh2solver\INPUTHELP.F90"/>
 		<File RelativePath="gmsh2solver\MODULUS_G2S.F90"/>

@@ -36,7 +36,7 @@ module solverds
 		integer::set=0 !element set
 		integer::ndof !total dofs of the element
 		integer::ngp !the number of gauss points		
-		integer::isactive=1 !1Y0N。
+		integer::isactive=1 !1Y0N。-1,COUPLEELEMET,不进行计算，仅输出上一步的结果作为本步的结果。
         INTEGER::SF=0 !STEP FUNCTION .FACTOR=0,DEATICE;FACTOR=1,ACTIVE
 		integer::sign=1 !for soilspring element .sign=1, Pa,Po,Pp,Pw=+; sign=-1, pa,po,pp,pw=-.
 					!for pe_ssp2d,ngp=i指向smnp(i).		
@@ -133,6 +133,7 @@ module solverds
         integer::matherstep=0
         logical::issteady=.true.
         integer::bctype=step,loadtype=step
+        
         !LOADTYPE(BCTYPE):为荷载(位移边界)施加方式，
 		!=1(ramp),表示步内荷载(位移边界)随时间线性施加，
 		!=2(step(default))，表示步荷载(位移边界)在步初瞬间施加。
@@ -199,7 +200,7 @@ module solverds
 	type solver_tydef
 		integer::type=SLD !problem type,=SLD,solid;=SPG,seepage;=CPL,coupled.
 		integer::solver=N_R !solution method, =-2, upper bound analysis,the default solver is N_R
-		integer::bfgm=continuum  !body force generation method(stress update algorithm) if the INISTIFF method is applied.
+		integer::bfgm=continuum,bfgm_spg=continuum  !body force generation method(stress update algorithm) if the INISTIFF method is applied.
 		integer::niteration=100  !Maximum number of iterations allowed for each increment
         integer::NYITER=20 !Maximum number of iterations allowed for STRESS RETURN
 		real(kind=DPN)::tolerance=0.001D0 !Convergence tolenance factor.
@@ -439,7 +440,8 @@ module solverds
 	INTEGER,ALLOCATABLE::DOFHEAD(:),DOFMEC(:),CalStep(:) !head dofs in the model.
 	real(kind=DPN),allocatable::NodalQ(:,:,:),RTime(:) !NODALQ(INODE,IVO,NNODALQ) !NNODALQ=SUM(TEIMSTEP.nsubts)
 	INTEGER::NNODALQ=0
-	
+	integer,allocatable::bfgm_step(:)
+    
     
     INTERFACE
          PURE subroutine INVARIANT(stress,inv)

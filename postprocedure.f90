@@ -24,9 +24,23 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	if(.not.allocated(tdispInLS)) then
 		allocate(tdispInLS(ndof))
 		tdispInLS=0.0
-	end if
+    end if
 	
 !	call GS2LS_Displacement()
+    !RESET ISACTIVE=2    
+    !附属单元的依附单元必须输出，即使其状态isactive=0，为使其能够输出，暂时令isactive/=0(=2)
+    
+    DO I=1,ENUM
+        IF(ELEMENT(I).ISACTIVE==0 &
+            .AND.ESET(ELEMENT(I).SET).COUPLESET>0 &            
+            .AND.ESET(ELEMENT(I).SET).COUPLESET>ELEMENT(I).SET) THEN
+            ELEMENT(I).ISACTIVE=2
+            NODE(ELEMENT(I).NODE).ISACTIVE=2
+            SF(ELEMENT(I).SF).FACTOR(IINCS)=2
+        ENDIF    
+    ENDDO
+    
+    
 	if(solver_control.i2ncal==spr) call spr_stress_strain_cal(iincs,isubts)
     
 	!map stress in gauss point to nodes.
@@ -81,7 +95,10 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 		open(unit=file_unit,file=resultfile2,status='old',access='append')
 	endif	
 	
-    if(.NOT.allocated(NODALQ)) allocate(NodalQ(nnum,nvo,SUM(timestep.nsubts)))
+    if(.NOT.allocated(NODALQ)) then
+        allocate(NodalQ(nnum,nvo,SUM(timestep.nsubts)))
+        NodalQ=0.D0
+    endif
     
     CALL BC_RHS_OUT(iincs,iiter,ISUBTS)
     
@@ -91,7 +108,8 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	do i=1,neset
 		iset1=esetid(i)
 		if(sf(eset(iset1).sf).factor(iincs)==0) cycle
-        IF(ESET(ISET1).COUPLESET>0.AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
+        IF(ESET(ISET1).COUPLESET>0 &            
+            .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
 		write(file_unit,'(a1024)') eset(iset1).zonetitle
 		!if(anybarfamily) write(file_diagram,'(a1024)') eset(iset1).zonetitle
 		
@@ -209,7 +227,16 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 			
 		end do			
 		
-	end do
+    end do
+    
+    !恢复附属单元的依附单元的状态
+    DO I=1,ENUM
+        IF(ELEMENT(I).ISACTIVE==2) THEN
+            ELEMENT(I).ISACTIVE=0
+            NODE(ELEMENT(I).NODE).ISACTIVE=0
+            SF(ELEMENT(I).SF).FACTOR(IINCS)=1 !本来应恢复为0，但为后续plot func能处理此次输出，令其为1. 
+        ENDIF    
+    ENDDO
 		
 	close(file_unit)
 

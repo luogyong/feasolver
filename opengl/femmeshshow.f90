@@ -71,6 +71,7 @@ TYPE STREAMLINE_TYDEF
     LOGICAL::SHOW=.TRUE.,ISLOCALSMALL=.FALSE.
     REAL(8)::PTstart(3),SF_SLOPE=HUGE(1.d0)
     REAL(8),ALLOCATABLE::V(:,:),VAL(:,:)
+    REAL(8),ALLOCATABLE::PARA_SFCAL(:,:) !SIGN,SIGT,RAD1,SIGTA,DIS,C,PHI
     
 ENDTYPE
 INTEGER::MAXNSTREAMLINE=0
@@ -545,6 +546,7 @@ subroutine streamline_handler(selection)
             IF(ALLOCATED(STREAMLINE(I).V)) THEN
                 DEALLOCATE(STREAMLINE(I).V,STREAMLINE(I).VAL)
             ENDIF
+            IF(ALLOCATED(STREAMLINE(I).PARA_SFCAL)) DEALLOCATE(STREAMLINE(I).PARA_SFCAL)
             STREAMLINE(I).ISINPUTSLIP=0
             STREAMLINE(I).SHOW=.TRUE.
         ENDDO
@@ -578,7 +580,7 @@ subroutine slope_handler(selection)
     INTEGER,EXTERNAL::POINTlOC_BC
     real(8)::AR2D1(2,500),AR2D2(2,2000)
     INTEGER::unit,NAR1=100,NTOREAD1=100,NSET1=10
-    INTEGER::NREADIN1,NSETREADIN1,NNODE1
+    INTEGER::NREADIN1,NSETREADIN1,NNODE1,EF
     REAL(8)::AR1(100),DT1
     CHARACTER(32)::SET1(10)
     REAL(IWP),ALLOCATABLE::NODE1(:,:)
@@ -650,8 +652,9 @@ subroutine slope_handler(selection)
         CALL STREAMLINE_PLOT()
         
     CASE(ReadSlipSurface_slope_click)
-   
-        open(10,file='',status='old')
+        EF=0
+        open(10,file='',status='old',iostat=EF)
+        IF(EF/=0) RETURN
         READ(10,*) NSLIP1
         DO K=1,NSLIP1
 			IF(NSTREAMLINE+1>MAXNSTREAMLINE) CALL ENLARGE_STREAMLINE()
@@ -731,7 +734,7 @@ subroutine probe_handler(selection)
     INTEGER,EXTERNAL::POINTlOC_BC
      real(8)::AR2D1(3,500),AR2D2(3,2000)
     INTEGER::unit,NAR1=100,NTOREAD1=100,NSET1=10
-    INTEGER::NREADIN1,NSETREADIN1,NNODE1
+    INTEGER::NREADIN1,NSETREADIN1,NNODE1,EF
     REAL(8)::AR1(100),DT1,VAL1(100)
     CHARACTER(32)::SET1(10)
     REAL(IWP),ALLOCATABLE::NODE1(:,:)
@@ -749,8 +752,9 @@ subroutine probe_handler(selection)
 	    isProbeState=.not.isProbestate
         if(.not.isProbeState) call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
     case(probe_get_data_click)
-    
-        open(10,file='',status='old')
+        EF=0
+        open(10,file='',status='old',iostat=EF)
+        IF(EF/=0) RETURN
         inquire(10,name=FILE1)
         MSG1 = SPLITPATHQQ(FILE1, drive, dir, name, ext)
         FILE1=trim(drive)//trim(dir)//trim(name)//'_PointValue.dat'
@@ -1276,14 +1280,17 @@ PRINT *, 'Begin to Render...',char_time
 
 call glutInit
 call glutInitDisplayMode(ior(GLUT_DOUBLE,ior(GLUT_RGB,GLUT_DEPTH)))
+call glutInitWindowPosition(10_glcint,10_glcint)
+
 call glutInitWindowSize(800_glcint,600_glcint)
 
 ! Create a window
 
 
 
-winid = glutCreateWindow(trim(adjustl(POSDATA.title)))
-
+!winid = glutCreateWindow(trim(adjustl(POSDATA.title)))
+winid = glutCreateWindow("IFSOLVER")
+PRINT *, 'Create Window Successfully.'
 
 model_radius=POSDATA.MODELR
 init_lookat.x=(POSDATA.minx+POSDATA.maxx)/2.0
@@ -1689,18 +1696,68 @@ integer(glcint), intent(in out) :: key, x, y
 
 real(kind=gldouble) :: factor
 
-select case(arrow_key_func)
-
-CASE(STEP_KEY)
+select case(glutGetModifiers())
+case(GLUT_ACTIVE_CTRL) !PAN
+   select case(key)
+   case(GLUT_KEY_LEFT)
+      shift%x = shift%x - .02
+   case(GLUT_KEY_RIGHT)
+      shift%x = shift%x + .02
+   case(GLUT_KEY_DOWN)
+      shift%y = shift%y - .02
+   case(GLUT_KEY_UP)
+      shift%y = shift%y + .02
+   end select
+case(GLUT_ACTIVE_SHIFT) !ROTATE
+    select case(key)
+    case(GLUT_KEY_LEFT)
+        angle%x = angle%x - 1.0_gldouble
+    case(GLUT_KEY_RIGHT)
+        angle%x = angle%x + 1.0_gldouble
+    case(GLUT_KEY_DOWN)
+        angle%y = angle%y + 1.0_gldouble
+    case(GLUT_KEY_UP)
+        angle%y = angle%y - 1.0_gldouble
+    end select    
+CASE(GLUT_ACTIVE_ALT) !ZOOM
+    select case(key)
+    case(GLUT_KEY_DOWN)
+        factor = 1.0_gldouble + .02_gldouble
+    case(GLUT_KEY_UP)
+        factor = 1.0_gldouble/(1.0_gldouble + .02_gldouble)
+    case default
+        factor = 1.0_gldouble
+    end select
+    IF(ISPERSPECT) THEN
+        shift%z = shift%z/factor
+    ELSE
+        xscale_factor = xscale_factor * factor
+        yscale_factor = yscale_factor * factor
+        zscale_factor = zscale_factor * factor
+    ENDIF
+CASE DEFAULT
     select case(key)
     CASE(GLUT_KEY_DOWN,GLUT_KEY_RIGHT)
         STEPPLOT.ISTEP=MOD(STEPPLOT.ISTEP,STEPPLOT.NSTEP)+1        
     CASE(GLUT_KEY_UP,GLUT_KEY_LEFT)
         STEPPLOT.ISTEP=STEPPLOT.ISTEP-1
         IF(STEPPLOT.ISTEP<1) STEPPLOT.ISTEP=STEPPLOT.NSTEP
-    ENDSELECT
-    
+    ENDSELECT    
     CALL STEPPLOT.UPDATE()
+end select
+
+!select case(arrow_key_func)
+!
+!CASE(STEP_KEY)
+!    select case(key)
+!    CASE(GLUT_KEY_DOWN,GLUT_KEY_RIGHT)
+!        STEPPLOT.ISTEP=MOD(STEPPLOT.ISTEP,STEPPLOT.NSTEP)+1        
+!    CASE(GLUT_KEY_UP,GLUT_KEY_LEFT)
+!        STEPPLOT.ISTEP=STEPPLOT.ISTEP-1
+!        IF(STEPPLOT.ISTEP<1) STEPPLOT.ISTEP=STEPPLOT.NSTEP
+!    ENDSELECT
+!    
+!    CALL STEPPLOT.UPDATE()
 !case(ZOOM)
 !   select case(key)
 !   case(GLUT_KEY_DOWN)
@@ -1764,7 +1821,7 @@ CASE(STEP_KEY)
 !   end select
 !   zscale_factor = zscale_factor * factor
 !
-end select
+!end select
    
 call glutPostRedisplay
 
@@ -1840,6 +1897,7 @@ subroutine keyboardCB(key,  x,  y)
     use strings
     implicit none
     integer,intent(in)::key,x,y
+    real(kind=gldouble)::factor
     integer::nlen=0,nsubstr=0
     character(len(info.inputstr))::substr(50)
     
@@ -1855,6 +1913,26 @@ subroutine keyboardCB(key,  x,  y)
             INFO.ISNEEDINPUT=.FALSE.
             info.qkey=.false.
         endif
+    case(ichar('+'),ichar('='))
+           
+      factor = 1._gldouble+0.02_gldouble
+       IF(ISPERSPECT) THEN
+            shift%z = shift%z/factor
+       ELSE
+            xscale_factor = xscale_factor * factor
+            yscale_factor = yscale_factor * factor
+            zscale_factor = zscale_factor * factor
+       ENDIF
+    case(ichar('_'),ichar('-'))
+       factor = 1._gldouble/(1._gldouble+0.02_gldouble)
+       IF(ISPERSPECT) THEN
+            shift%z = shift%z/factor
+       ELSE
+            xscale_factor = xscale_factor * factor
+            yscale_factor = yscale_factor * factor
+            zscale_factor = zscale_factor * factor
+       ENDIF       
+        
     case DEFAULT
  
     end select
