@@ -185,7 +185,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 						write(file_unit,9999) element(j).node(13),element(j).node(4),element(j).node(8)
 						write(file_unit,9999) element(j).node(13),element(j).node(8),element(j).node(9)
 						write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(2)
-				case(prm6,prm6_spg,prm6_cpl)
+				case(prm6,prm6_spg,prm6_cpl,ZT6_SPG)
 						nc=4	
 						write(file_unit,9999) element(j).node([1,2,3,5])
                         write(file_unit,9999) element(j).node([1,3,6,5])
@@ -295,7 +295,7 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 		NITEM1=NODE(bc_load(i).node).NDOF
 		CALL NODAL_ACTIVE_DOF(bc_load(i).node,DOFS1,ADOFS1,MNDOF)		
 		WRITE(99,11) bc_load(i).node,bc_load(i).dof,'LOAD',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1)) 
-        NODALQ(bc_load(i).node,OUTVAR(90+bc_LOAD(i).dof).IVO,NNODALQ)=bc_LOAD(i).dof
+        IF(OUTVAR(90+bc_LOAD(i).dof).IVO>0) NODALQ(bc_load(i).node,OUTVAR(90+bc_LOAD(i).dof).IVO,NNODALQ)=bc_LOAD(i).dof
         
         
 		!QT=QT+NODE(bc_load(i).node).Q*dt1
@@ -308,7 +308,7 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 		NITEM1=NODE(bc_DISP(i).node).NDOF
 		CALL NODAL_ACTIVE_DOF(bc_DISP(i).node,DOFS1,ADOFS1,MNDOF)		
 		WRITE(99,11) bc_DISP(i).node,bc_DISP(i).dof,'B.C.',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1))
-        NODALQ(bc_DISP(i).node,OUTVAR(90+bc_DISP(i).dof).IVO,NNODALQ)=-bc_DISP(i).dof
+        IF(OUTVAR(90+bc_DISP(i).dof).IVO>0) NODALQ(bc_DISP(i).node,OUTVAR(90+bc_DISP(i).dof).IVO,NNODALQ)=-bc_DISP(i).dof
 		!QT=QT+NODE(bc_DISP(i).node).Q*dt1
 	END DO
 	DO I=1, NUMNSEEP
@@ -318,7 +318,7 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 		NITEM1=NODE(NSEEP(i).node).NDOF
 		CALL NODAL_ACTIVE_DOF(NSEEP(i).node,DOFS1,ADOFS1,MNDOF)			
 		WRITE(99,11) NSEEP(i).node,NSEEP(i).dof,'S.F.',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1))
-        NODALQ(NSEEP(i).node,OUTVAR(90+NSEEP(i).dof).IVO,NNODALQ)=-NSEEP(i).dof
+        IF(OUTVAR(90+NSEEP(i).dof).IVO>0) NODALQ(NSEEP(i).node,OUTVAR(90+NSEEP(i).dof).IVO,NNODALQ)=-NSEEP(i).dof
 		!QT=QT+NODE(NSEEP(i).node).Q*dt1
 	END DO
 	
@@ -1085,7 +1085,7 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*5
 			case(prm15,prm15_spg,prm15_cpl)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*14
-			case(prm6,prm6_spg,prm6_cpl)
+			case(prm6,prm6_spg,prm6_cpl,ZT6_SPG)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*3                
 			case(tet10,tet10_spg,tet10_cpl)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*8

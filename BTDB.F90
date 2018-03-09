@@ -30,7 +30,7 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
 	!initialize node coordinates
 	do i=1,nnode
 		xy(1:ndim,i)=node(element(ienum).node(i)).coord(1:ndim)
-		IF(ELEMENT(IENUM).ET==ZT4_SPG) xy(1:ndim,i)=GNODE(1:NDIM,ELEMENT(IENUM).NODE2(I))
+		IF(ELEMENT(IENUM).ET==ZT4_SPG.OR.ELEMENT(IENUM).ET==ZT6_SPG) xy(1:ndim,i)=GNODE(1:NDIM,ELEMENT(IENUM).NODE2(I))
 	end do
 	
 	do i=1,kelb
@@ -469,7 +469,7 @@ subroutine EL_SFR2(ET)
 			!ecp(et).gp(1,12)=0.636502499121398
 			!ecp(et).gp(2,12)=0.053145049844817
 
-		case(PRM6,PRM6_SPG,PRM6_CPL)
+		case(PRM6,PRM6_SPG,PRM6_CPL,ZT6_SPG)
 			ecp(et).nshape=6
 			ecp(et).ndim=3
 			ecp(et).ngp=2
@@ -628,7 +628,7 @@ subroutine EL_SFR2(ET)
 				call shapefunction_cal(CPE4,localxy1(1:ecp(et).ndim,i),& 
 						ecp(et).expolating_Lshape(:,i),ecp(et).ngp,ecp(et).ndim)
 			end do
-		case(prm6,prm6_spg,PRM6_CPL)
+		case(prm6,prm6_spg,PRM6_CPL,ZT6_SPG)
 			localxy1=0.0D0
 			t1=sqrt(3.)
 			localxy1(1,1)=-t1
@@ -832,7 +832,7 @@ subroutine shapefunction_cal(et,gp,Ni,Nni,ndim)
 			Ni(14)=128.0*XI*EDA*L3*T(7)
 			Ni(15)=128.0*XI*EDA*L3*T(1)
 
-       case(PRM6,PRM6_SPG,PRM6_CPL)
+       case(PRM6,PRM6_SPG,PRM6_CPL,ZT6_SPG)
 !Prism:                      Prism15:             
 !                                                 
 !           w                                     
@@ -1080,7 +1080,7 @@ subroutine Deri_shapefunction_cal(et,gp,dNi,ndNi,ndim)
 			dNi(13,2)=0.128D3*(XI)*(L3)*(T(4))-0.128D3*(XI)*(EDA)*(T(4))+(128*XI*EDA*(L3))
 			dNi(14,2)=0.128D3*(L3)*(XI)*(T(7))-0.128D3*(XI)*(EDA)*(T(7))-(128*XI*EDA*(L3))
 			dNi(15,2)=0.128D3*(L3)*(XI)*(T(1))-0.128D3*(XI)*(EDA)*(T(1))
-		case(PRM6,PRM6_SPG,PRM6_CPL)
+		case(PRM6,PRM6_SPG,PRM6_CPL,ZT6_SPG)
 			L3=1-XI-EDA
 
 			dNi(1,1)=(1-ZTA)/2.0

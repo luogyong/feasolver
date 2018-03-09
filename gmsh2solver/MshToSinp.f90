@@ -10,10 +10,10 @@
 	LOGICAL(4)::tof,pressed
 	integer,allocatable::IPERM(:)
 	
-	winfo%TYPE = QWIN$MIN
+	!winfo%TYPE = QWIN$MAX
 	tof=SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo)
 	tof=SETWSIZEQQ(0, winfo)  
-	NOPOPUP=1
+	NOPOPUP=0
 	print *, 'LGY Works. Msh2Sinp'
 !!DEC$ IF DEFINED(NOPOP)
     IF(NOPOPUP==0) THEN

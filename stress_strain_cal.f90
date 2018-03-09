@@ -348,7 +348,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 			end do			
 			
 			
-		CASE(prm6_spg,PRM6,PRM6_CPL)
+		CASE(prm6_spg,PRM6,PRM6_CPL,ZT6_SPG)
 			DO CONCURRENT (I=1:2)
 				N1=3*I
 				N2=3*I+2
@@ -771,7 +771,7 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 
 			
 			
-		CASE(prm6_spg,PRM6,PRM6_CPL)
+		CASE(prm6_spg,PRM6,PRM6_CPL,ZT6_SPG)
 			DO CONCURRENT (I=1:2)
 				N1=3*I
 				N2=3*I+2

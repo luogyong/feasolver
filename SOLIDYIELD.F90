@@ -46,7 +46,7 @@ subroutine solve_SLD()
 	
 	if(solver_control.ismkl) then
 		! Initialize the solver.
-		error = DSS_CREATE( handle, MKL_DSS_DEFAULTS )
+		error = DSS_CREATE( handle, MKL_DSS_MSG_LVL_INFO + MKL_DSS_TERM_LVL_ERROR )
 		IF (error /= MKL_DSS_SUCCESS) call mkl_solver_error(error)
 		! Define the non-zero structure of the matrix.        
 		if(solver_control.issym) then
@@ -379,9 +379,13 @@ subroutine solve_SLD()
             key=getcharqq()
         enddo
 		nc1 = setexitqq(QWIN$EXITNOPERSIST)
+    else
+    
+        call plot_func('')
+
     endif
     
-    call plot_func('')
+    
     
 	if(allocated(solution)) deallocate(solution)
 	if(allocated(bdylds)) deallocate(bdylds)
