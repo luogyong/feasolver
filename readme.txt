@@ -60,8 +60,8 @@
 !   property(12)=sita_r !残余体积含水量
 !   property(13)=rw !水的重度
 !	property(14)=zerothickness element thickness,the default value is 1.
-!	Note that, for zt4_spg and zt6_spg, the element k1 k2 is the kn and kt in local element system,which ,kn
-!   is normal to element face and kt is tangent.k3=k2 is assuming ,which means the premeability is transverse-anisotropty	
+!	Note that, for zt4_spg and zt6_spg, element k1 k2 and k3 is the ktx and kty and knz in local element system,which ,kn
+!   is normal to element face and kt is tangent.k1=k2 is assuming ,which means the premeability is transverse-anisotropty	
 !case(bar)
 !	property(1)=E
 !	property(2)=A

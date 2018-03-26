@@ -49,17 +49,13 @@
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<Filter Name="NODE_REORDER">
-		<File RelativePath=".\reorder\mc40.for"/>
-		<File RelativePath=".\reorder\mc40dependency.for"/>
-		<File RelativePath=".\reorder\mc49.for"/></Filter>
-		<File RelativePath="gmsh2solver\G2S_IO.F90"/>
-		<File RelativePath="gmsh2solver\INPUTHELP.F90"/>
-		<File RelativePath="gmsh2solver\MODULUS_G2S.F90"/>
-		<File RelativePath="gmsh2solver\modulus_hashtable.f90"/>
-		<File RelativePath="gmsh2solver\MshToSinp.f90">
-			<FileConfiguration Name="Debug|Win32">
-				<Tool Name="VFFortranCompilerTool" FPS4Filenames="true"/></FileConfiguration>
-			<FileConfiguration Name="Release|Win32">
-				<Tool Name="VFFortranCompilerTool" FPS4Filenames="true"/></FileConfiguration></File>
-		<File RelativePath="gmsh2solver\stla_io.f90"/></Filter></Files>
+		<File RelativePath="..\reorder\mc40.for"/>
+		<File RelativePath="..\reorder\mc40dependency.for"/>
+		<File RelativePath="..\reorder\mc49.for"/></Filter>
+		<File RelativePath=".\G2S_IO.F90"/>
+		<File RelativePath=".\INPUTHELP.F90"/>
+		<File RelativePath=".\MODULUS_G2S.F90"/>
+		<File RelativePath=".\modulus_hashtable.f90"/>
+		<File RelativePath=".\MshToSinp.f90"/>
+		<File RelativePath=".\stla_io.f90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

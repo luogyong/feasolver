@@ -1297,13 +1297,13 @@ init_lookat.x=(POSDATA.minx+POSDATA.maxx)/2.0
 init_lookat.y=(POSDATA.miny+POSDATA.maxy)/2.0
 init_lookat.z=(POSDATA.minz+POSDATA.maxz)/2.0
 if(POSDATA.NDIM<3) then
-init_lookfrom.x=init_lookat.x
-init_lookfrom.y=init_lookat.y
-init_lookfrom.z=3.0*POSDATA.MODELR+init_lookat.z
+    init_lookfrom.x=init_lookat.x
+    init_lookfrom.y=init_lookat.y
+    init_lookfrom.z=3.0*POSDATA.MODELR+init_lookat.z
 else
-init_lookfrom.x=POSDATA.MODELR*3.0
-init_lookfrom.y=POSDATA.MODELR*3.0
-init_lookfrom.z=POSDATA.MODELR*3.0
+    init_lookfrom.x=init_lookat.x+POSDATA.MODELR*3.0
+    init_lookfrom.y=init_lookat.y+POSDATA.MODELR*3.0
+    init_lookfrom.z=init_lookat.z+POSDATA.MODELR*3.0
 endif
 
 IF(POSDATA.IHEAD>0) THEN

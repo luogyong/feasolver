@@ -1255,7 +1255,7 @@ subroutine solvercommand(term,unit)
 			deallocate(Nseep1)
 			
 			Nseep.dof=4
-			Nseep.isdead=1
+			Nseep.isdead=0
 
 			Nseep.value=Node(Nseep.node).coord(ndimension)
 !			node(Nseep.node).property=1

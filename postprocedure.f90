@@ -690,7 +690,7 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 
 	
 	
-999 format(<nvo>(F24.16,1X))
+999 format(<nvo>(E24.15,1X))
 100	FORMAT("IPARASYS",7X,"CaseID",9X,"DATASET",8X,"ISTEP",10X,"ISUBTS",9X,"ITER",11X,"NO",13X,<NVO>A15)
 110 FORMAT(7(I14,X),<nvo>(E14.7,X))
 120 FORMAT(7(I14,X),<NVO1>(E14.7,X),"//",<NVO1>A15)
@@ -704,7 +704,7 @@ subroutine pointout_barfamily(file_unit,ieset)
 	use solverds
 	implicit none
 	integer,intent(in)::file_unit,ieset
-	integer::i,j,k,idof,n1
+	integer::i,j,k,idof,n1,inode1
 	real(kind=dpn)::Vector1(3)=0.0d0,x1,y1,z1
 	real(kind=dpn),allocatable::DisILS(:,:),QMILS(:,:)
 	
@@ -723,35 +723,37 @@ subroutine pointout_barfamily(file_unit,ieset)
 		select case(vo(i))
 			case(locx)
 				do j=1,n1
-					NodalQ(j,i,NnodalQ)=node(eset(ieset).outorder(j)).coord(1)
+                    inode1=eset(ieset).outorder(j)
+					NodalQ(inode1,i,NnodalQ)=node(inode1).coord(1)
 				end do
 			case(locy)
 				do j=1,n1
-					NodalQ(j,i,NnodalQ)=node(eset(ieset).outorder(j)).coord(2)
+					NodalQ(inode1,i,NnodalQ)=node(inode1).coord(2)
 				end do
 			case(locz)
 				do j=1,n1
-					NodalQ(j,i,NnodalQ)=node(eset(ieset).outorder(j)).coord(3)
+					NodalQ(inode1,i,NnodalQ)=node(inode1).coord(3)
 				end do
 				
 			case(disx,disy,disz)
 				idof=vo(i)-3
-				do j=1,n1					
+				do j=1,n1
+                    inode1=eset(ieset).outorder(j)
 					if(outvar(vo(i)).system/=0) then
-						NodalQ(j,i,NnodalQ)=DisILS(j,idof)
+						NodalQ(inode1,i,NnodalQ)=DisILS(j,idof)
 					else
-						NodalQ(j,i,NnodalQ)=tdisp(node(eset(ieset).outorder(j)).dof(idof))
+						NodalQ(inode1,i,NnodalQ)=tdisp(node(inode1).dof(idof))
 					end if
 				end do
 											
 			case(Rx,Ry,Rz)
 				idof=vo(i)-45
 				do j=1,n1
-					
+					inode1=eset(ieset).outorder(j)
 					if((outvar(vo(i)).system/=0).and.(ndimension==3)) then
-						NodalQ(j,i,NnodalQ)=DisILS(j,idof)
+						NodalQ(inode1,i,NnodalQ)=DisILS(j,idof)
 					else
-						NodalQ(j,i,NnodalQ)=tdisp(node(eset(ieset).outorder(j)).dof(idof))
+						NodalQ(inode1,i,NnodalQ)=tdisp(node(inode1).dof(idof))
 					end if
 				end do
 
@@ -760,26 +762,31 @@ subroutine pointout_barfamily(file_unit,ieset)
 				
 				idof=vo(i)-55
 !				if(vo(i)==Qz) idof=vo(i)-54
-				
-				NodalQ(:,i,NnodalQ)=QMILS(:,idof)
-								
+				do j=1,n1
+                    inode1=eset(ieset).outorder(j)
+				    NodalQ(inode1,i,NnodalQ)=QMILS(j,idof)
+				enddo				
 			case(Mx,My,Mz) !53,54,55
 				idof=vo(i)-49
 !				if(vo(i)==Mz) idof=vo(i)-52
-				
-				NodalQ(:,i,NnodalQ)=QMILS(:,idof)				
-			
+				do j=1,n1
+                    inode1=eset(ieset).outorder(j)
+				    NodalQ(inode1,i,NnodalQ)=QMILS(j,idof)				
+			    enddo
 			case(xf_out)
 				do j=1,n1
-					NodalQ(j,i,NnodalQ)=node(eset(ieset).outorder(j)).coord(1)+tdisp(node(eset(ieset).outorder(j)).dof(1))
+                    inode1=eset(ieset).outorder(j)
+					NodalQ(inode1,i,NnodalQ)=node(inode1).coord(1)+tdisp(node(inode1).dof(1))
 				end do
 			case(yf_out)
 				do j=1,n1
-					NodalQ(j,i,NnodalQ)=node(eset(ieset).outorder(j)).coord(2)+tdisp(node(eset(ieset).outorder(j)).dof(2))
+                    inode1=eset(ieset).outorder(j)
+					NodalQ(inode1,i,NnodalQ)=node(inode1).coord(2)+tdisp(node(inode1).dof(2))
 				end do
 			case(zf_out)
 				do j=1,n1
-					NodalQ(j,i,NnodalQ)=node(eset(ieset).outorder(j)).coord(3)+tdisp(node(eset(ieset).outorder(j)).dof(3))
+                    inode1=eset(ieset).outorder(j)
+					NodalQ(inode1,i,NnodalQ)=node(inode1).coord(3)+tdisp(node(inode1).dof(3))
 				end do
 			
 				
@@ -788,12 +795,13 @@ subroutine pointout_barfamily(file_unit,ieset)
 	
 	do i=1,n1
 		!1个节点对应4个节点，这4个节点只是x,y,z不同，其它节点量相同。
+        inode1=eset(ieset).outorder(i)
 		do k=1,4
 		
 			x1=nodalQ(i,1,nnodalq)+eset(ieset).xyz_section(1,k)
 			y1=nodalQ(i,2,nnodalq)+eset(ieset).xyz_section(2,k)
 			z1=nodalQ(i,3,nnodalq)+eset(ieset).xyz_section(3,k) !对于杆系单元，在命令outdata中，必须含有Z.
-			write(file_unit,999) x1,y1,z1,(NodalQ(i,j,nnodalq),j=4,nvo)
+			write(file_unit,999) x1,y1,z1,(NodalQ(inode1,j,nnodalq),j=4,nvo)
 		
 		end do
 	end do
@@ -1521,8 +1529,8 @@ subroutine pointout_barfamily_diagram()
         lcs(1:ndimension,1:ndimension)=transpose(element(eset(iset1).enums).g2l(1:ndimension,1:ndimension))*T1
                                       
         DO J=1,NDIMENSION
-            IF(NDIMENSION==3) WRITE(file_diagram,40) color(mod(i,6))
-            IF(NDIMENSION==2) WRITE(file_diagram,41) color(mod(i,6))
+            IF(NDIMENSION==3) WRITE(file_diagram,40) color(mod(i-1,6)+1)
+            IF(NDIMENSION==2) WRITE(file_diagram,41) color(mod(i-1,6)+1)
             WRITE(file_diagram,'(I3)') 1
             WRITE(file_diagram,'(I3)') 2
             WRITE(file_diagram,'(3E15.7)') node(element(eset(iset1).enums).node(1)).coord(1:ndimension) 

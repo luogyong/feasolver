@@ -804,7 +804,7 @@ subroutine Initialization()
 								element(i).km,element(i).ndof,element(i).ndof, &
 								ecp(element(i).et).weight,ecp(element(i).et).ngp, &
 								element(i).detjac,element(i).ngp,i)
-
+                !if(isnan(element(i).km))
 				
 !				write(99,*) 'element,', i
 !				write(99,999) ((element(i).km(j,k),k=1,element(i).ndof),j=1,element(i).ndof)
