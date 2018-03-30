@@ -14,6 +14,7 @@ subroutine Initialization()
 !Last update: 2009,10,04 
 !**************************************************************************************************************
 	use solverds
+    USE SolverMath
     !USE MESHGEO
 	implicit none
 	integer::i,j,k,nj,p,j1,j2,iset1
@@ -738,21 +739,55 @@ subroutine Initialization()
 					VCOS=(NODE(ELEMENT(I).NODE(2)).COORD(1)-NODE(ELEMENT(I).NODE(1)).COORD(1))/T1
 					VSIN=(NODE(ELEMENT(I).NODE(2)).COORD(2)-NODE(ELEMENT(I).NODE(1)).COORD(2))/T1
 					C1(1,1)=VCOS
-					C1(1,2)=VSIN
+					C1(1,2)=-VSIN
 					C1(2,2)=VCOS
-					C1(2,1)=-VSIN
-					COORD1(1,1)=T1;COORD1(2,1)=matproperty(ELEMENT(I).MAT,14,0)
-					COORD1(1,2)=0.D0;COORD1(2,2)=COORD1(2,1)
+					C1(2,1)=VSIN
+                    !4#节点的局部坐标
+					COORD1(1,1)=0.D0;COORD1(2,1)=MAX(Matproperty(ELEMENT(I).MAT,14,0),1.D0)                   
+					!COORD1(1,2)=0.D0;COORD1(2,2)=COORD1(2,1)
 					IF(.NOT.ALLOCATED(GNODE)) ALLOCATE(GNODE(3,1000))
 					IF(NGNODE+4>SIZE(GNODE,DIM=2)) CALL ENLARGE_GNODE(1000)
 					NGNODE=NGNODE+1;GNODE(:,NGNODE)=NODE(ELEMENT(I).NODE(1)).COORD
 					NGNODE=NGNODE+1;GNODE(:,NGNODE)=NODE(ELEMENT(I).NODE(2)).COORD
-					COORD1(1:2,1:2)=MATMUL(C1(1:2,1:2),COORD1(1:2,1:2))
+					COORD1(1:2,1)=MATMUL(C1(1:2,1:2),COORD1(1:2,1))
+					NGNODE=NGNODE+1;GNODE(:,NGNODE)=COORD1(:,1)+NODE(ELEMENT(I).NODE(2)).COORD
 					NGNODE=NGNODE+1;GNODE(:,NGNODE)=COORD1(:,1)+NODE(ELEMENT(I).NODE(1)).COORD
-					NGNODE=NGNODE+1;GNODE(:,NGNODE)=COORD1(:,2)+NODE(ELEMENT(I).NODE(1)).COORD
 					ALLOCATE(ELEMENT(I).NODE2(4))
-					ELEMENT(I).NODE2=[NGNODE-4:NGNODE:1]
+					ELEMENT(I).NODE2=[NGNODE-4+1:NGNODE:1]
 				ENDIF
+				IF(ELEMENT(I).ET==ZT6_SPG) THEN
+					!GENERATE THE GHOST NODE
+
+					!LOCAL TO GLOBAL
+                    do j=1,3
+                        C1(:,j)=NODE(ELEMENT(I).NODE(j)).COORD;
+                    enddo
+                    C1(3,:)=NORMAL_TRIFACE(C1)
+                    C1(3,:)=C1(3,:)/norm2(C1(3,:))
+                    T1=((NODE(ELEMENT(I).NODE(1)).COORD(1)-NODE(ELEMENT(I).NODE(2)).COORD(1))**2+ &
+					(NODE(ELEMENT(I).NODE(1)).COORD(2)-NODE(ELEMENT(I).NODE(2)).COORD(2))**2)**0.5D0
+                    C1(1,:)=(NODE(ELEMENT(I).NODE(2)).COORD-NODE(ELEMENT(I).NODE(1)).COORD)/T1
+                    C1(2,:)=0.d0
+                    C1(2,:)=NORMAL_TRIFACE(RESHAPE([C1(2,:),C1(1,:),C1(3,:)],([3,3])))
+                    C1(2,:)=C1(2,:)/norm2(C1(2,:))
+                    C1=TRANSPOSE(C1)
+                    !4#节点的坐标
+					COORD1(1,1)=0;COORD1(2,1)=0;COORD1(3,1)=MAX(Matproperty(ELEMENT(I).MAT,14,0),1.D0)                   
+					
+					IF(.NOT.ALLOCATED(GNODE)) ALLOCATE(GNODE(3,1000))
+					IF(NGNODE+6>SIZE(GNODE,DIM=2)) CALL ENLARGE_GNODE(1000)
+					NGNODE=NGNODE+1;GNODE(:,NGNODE)=NODE(ELEMENT(I).NODE(1)).COORD
+					NGNODE=NGNODE+1;GNODE(:,NGNODE)=NODE(ELEMENT(I).NODE(2)).COORD
+                    NGNODE=NGNODE+1;GNODE(:,NGNODE)=NODE(ELEMENT(I).NODE(3)).COORD
+					COORD1(:,1)=MATMUL(C1,COORD1(:,1))
+					NGNODE=NGNODE+1;GNODE(:,NGNODE)=COORD1(:,1)+NODE(ELEMENT(I).NODE(1)).COORD
+					NGNODE=NGNODE+1;GNODE(:,NGNODE)=COORD1(:,1)+NODE(ELEMENT(I).NODE(2)).COORD
+                    NGNODE=NGNODE+1;GNODE(:,NGNODE)=COORD1(:,1)+NODE(ELEMENT(I).NODE(3)).COORD
+					ALLOCATE(ELEMENT(I).NODE2(6))
+					ELEMENT(I).NODE2=[NGNODE-6+1:NGNODE:1]
+				ENDIF                
+               
+                
 				!call Calangle(i)
 				!allocate room for km,b,d.
 				call el_alloc_room(i)
@@ -769,7 +804,7 @@ subroutine Initialization()
 								element(i).km,element(i).ndof,element(i).ndof, &
 								ecp(element(i).et).weight,ecp(element(i).et).ngp, &
 								element(i).detjac,element(i).ngp,i)
-
+                !if(isnan(element(i).km))
 				
 !				write(99,*) 'element,', i
 !				write(99,999) ((element(i).km(j,k),k=1,element(i).ndof),j=1,element(i).ndof)
@@ -902,7 +937,7 @@ subroutine Initialization()
 			case(CPE3_SPG,CPE6_SPG,CPE4_SPG,CPE8_SPG,CPE4R_SPG,CPE8R_SPG,CPE15_SPG, &
 					 CPS4_SPG,CPS4R_SPG,CPS8_SPG,CPS8R_SPG,CPS6_SPG,CPS15_SPG, &	
 					 CAX3_SPG,CAX4_SPG,CAX4R_SPG,CAX6_SPG,CAX15_SPG,CAX8_SPG,CAX8R_SPG, &
-					 PRM6_SPG,PRM15_SPG,TET4_SPG,TET10_SPG,ZT4_SPG)
+					 PRM6_SPG,PRM15_SPG,TET4_SPG,TET10_SPG,ZT4_SPG,ZT6_SPG)
 				dof1=0
 				dof1(4)=4
 				!allocate(element(i).g(element(i).ndof))
@@ -1216,10 +1251,11 @@ end subroutine
 !according the element material,initialize the elemental strain-stress matrix
 subroutine el_ini_D(ienum)
 	use solverds
+    use SolverMath
 	implicit none
 	integer::ienum
 	integer::nd1,mat1,isys1,i
-	real(8)::t1=0,t2=0
+	real(8)::t1=0,t2=0,VSIN1,VCOS1,V1(3,3)
 	
 	nd1=element(ienum).nd
 	mat1=element(ienum).mat
@@ -1259,8 +1295,17 @@ subroutine el_ini_D(ienum)
 			element(ienum).d=0.0D0
 			element(ienum).d(1,1)=material(mat1).property(1)
 			element(ienum).d(2,2)=material(mat1).property(2)
-			isys1=int(material(mat1).property(4))
-			if(isys1/=0) then
+			isys1=int(material(mat1).property(4))            
+            IF(element(ienum).ET==ZT4_SPG.AND.(element(ienum).d(1,1)-element(ienum).d(2,2))>.1D-7) THEN
+                ISYS1=-1
+                T1=NORM2(GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1)))
+                VCOS1=GNODE(1,ELEMENT(IENUM).NODE2(4))-GNODE(1,ELEMENT(IENUM).NODE2(1))/T1
+                VSIN1=GNODE(2,ELEMENT(IENUM).NODE2(4))-GNODE(2,ELEMENT(IENUM).NODE2(1))/T1
+                coordinate(isys1).c(1,1)=VCOS1;coordinate(isys1).c(2,2)=VCOS1;
+                coordinate(isys1).c(2,1)=VSIN1;coordinate(isys1).c(1,2)=-VSIN1;
+            ENDIF
+			if(isys1/=0.AND.ABS(element(ienum).d(1,1)-element(ienum).d(2,2))>.1D-7) then
+                
 				element(ienum).d(1:nd1,1:nd1)=matmul(matmul(coordinate(isys1).c(1:nd1,1:nd1), &
 													element(ienum).d(1:nd1,1:nd1)),transpose(coordinate(isys1).c(1:nd1,1:nd1)))
 			end if
@@ -1270,6 +1315,17 @@ subroutine el_ini_D(ienum)
 			element(ienum).d(2,2)=material(mat1).property(2)
 			element(ienum).d(3,3)=material(mat1).property(3)
 			isys1=int(material(mat1).property(4))
+            IF(element(ienum).ET==ZT6_SPG.AND.(element(ienum).d(1,1)-element(ienum).d(2,2))>.1D-7) THEN
+                ISYS1=-1
+                T1=NORM2(GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1)))
+                coordinate(isys1).c(1,:)=GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1))/T1
+                T1=NORM2(GNODE(:,ELEMENT(IENUM).NODE2(2))-GNODE(:,ELEMENT(IENUM).NODE2(1)))
+                coordinate(isys1).c(2,:)=GNODE(:,ELEMENT(IENUM).NODE2(2))-GNODE(:,ELEMENT(IENUM).NODE2(1))/T1
+                v1(:,1)=coordinate(isys1).c(1,:);v1(:,2)=coordinate(isys1).c(2,:);v1(:,3)=0.d0
+                coordinate(isys1).c(3,:)=NORMAL_TRIFACE(v1)
+                coordinate(isys1).c(3,:)=coordinate(isys1).c(3,:)/norm2(coordinate(isys1).c(3,:))
+                coordinate(isys1).c=transpose(coordinate(isys1).c)
+            ENDIF            
 			if(isys1/=0) then
 				element(ienum).d(1:nd1,1:nd1)=matmul(matmul(coordinate(isys1).c(1:nd1,1:nd1), &
 													element(ienum).d(1:nd1,1:nd1)),transpose(coordinate(isys1).c(1:nd1,1:nd1)))
@@ -1367,7 +1423,7 @@ subroutine xygp(ienum)
 		
 		do k=1,ndimension
 			element(ienum).xygp(k,j)=dot_product(ecp(element(ienum).et).lshape(:,j),node(element(ienum).node).coord(k))
-			IF(ELEMENT(IENUM).ET==ZT4_SPG) element(ienum).xygp(k,j)=dot_product(ecp(element(ienum).et).lshape(:,j),Gnode(K,element(ienum).node2))
+			IF(ELEMENT(IENUM).ET==ZT4_SPG.OR.ELEMENT(IENUM).ET==ZT6_SPG) element(ienum).xygp(k,j)=dot_product(ecp(element(ienum).et).lshape(:,j),Gnode(K,element(ienum).node2))
 		end do
 	end do
 
@@ -1385,7 +1441,7 @@ subroutine cal_epsilon(ienum)
 	nup2=maxloc(node(element(ienum).node).coord(ndimension),1)
 	coord_low1=node(element(ienum).node(nlow1)).coord
 	coord_up2=node(element(ienum).node(nup2)).coord
-	IF(ELEMENT(IENUM).ET==ZT4_SPG) THEN
+	IF(ELEMENT(IENUM).ET==ZT4_SPG.OR.ELEMENT(IENUM).ET==ZT6_SPG) THEN
 		nlow1=minloc(Gnode(NDIMENSION,element(ienum).node2),1)
 		nup2=maxloc(Gnode(NDIMENSION,element(ienum).node2),1)
 		coord_low1=Gnode(:,element(ienum).node2(nlow1))

@@ -387,9 +387,11 @@ subroutine kwcommand(term,unit)
                             xy1(2,1:3)=node(element(n1).node(1:3)).xy(2)
                             xy1(3,1:3)=node(element(n1).node(1:3)).xy(3)
                             if(.not.isacw(xy1(1,1),xy1(2,1),xy1(3,1),xy1(1,2),xy1(2,2),xy1(3,2),xy1(1,3),xy1(2,3),xy1(3,3))) then
-                                print *, 'Please reverse the normal direction of geometrical entity=',element(n1).tag(2)
-                                pause
-                                
+                                !print *, 'Please reverse the normal direction of geometrical entity=',element(n1).tag(2)
+                                !pause
+                                element(n1).node(1:3)=[1,3,2]
+                                if(element(n1).et==9) element(n1).node(4:6)=[6,5,4]
+                                if(element(n1).et==23) element(n1).node(4:15)=[12:4:-1,13,15,14]
                             end if
                         end if
                         if(element(n1).et==23) then

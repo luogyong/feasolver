@@ -602,6 +602,8 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 	    IPILE=SOILPROFILE(I).BEAM
 
 		!防止竖向失稳，在底部生成1坚向弹簧单元
+        neset=neset+1
+        ISET1=ESET_GETFREEID()
 		CALL enlarge_element(ELEMENT,ENUM,1,N1)
 		element(n1).et=springy
 		element(n1).nnum=1
@@ -613,19 +615,33 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		element(n1).ngp=ngp1
 		element(n1).nd=nd1
 		element(n1).ec=ec1
-		
+		element(n1).set=iset1
+        
 		element(n1).property(1)=0.d0
 		element(n1).property(2)=-1.d20
 		element(n1).property(3)=1.d20
 		element(n1).property(4)=1.0d7
-		
+
+        esetid(NESET)=ISET1
+		!eset(ISET1).num=NESET
+		eset(ISET1).stype=stype
+		eset(ISET1).grouptitle="soilspring"
+		eset(ISET1).et=springy
+		eset(ISET1).ec=ec1
+		eset(ISET1).system=0  !!!!!
+		eset(ISET1).enums=N1
+	    eset(ISET1).enume=N1
+        eset(ISET1).coupleset=ISET1
+        
+        
 		
 		n1=pile(ipile).node(pile(ipile).nnode)
 		allocate(pile(ipile).element_sp(2,pile(ipile).node(1):n1))
 		pile(ipile).element_sp=0
 		nel1=2*pile(ipile).nnode
 		CALL enlarge_element(ELEMENT,ENUM,NEL1,N1)
-		
+		neset=neset+1
+        ISET1=ESET_GETFREEID()
 		et1=SOILSPRINGX
 		call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1)
 		element(N1:).nnum=1
@@ -635,6 +651,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		element(N1:).nd=nd1
 		element(N1:).ec=ec1
 		element(N1:).isactive=0
+        element(N1:).set=iset1
 		do j=1,pile(ipile).nnode						
 			allocate(element(N1-1+2*j-1).node(1),element(N1-1+2*j).node(1))
 			element(N1-1+2*j-1).node(1)=pile(ipile).node(j)			
@@ -643,9 +660,8 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 			pile(ipile).element_sp(2,pile(ipile).node(j))=N1-1+2*j   !!!!
 		enddo
 		
-		neset=neset+1
-        ISET1=ESET_GETFREEID()
-		esetid(ISET1)=ISET1
+
+		esetid(NESET)=ISET1
 		!eset(ISET1).num=NESET
 		eset(ISET1).stype=stype
 		eset(ISET1).grouptitle="soilspring"
@@ -719,6 +735,8 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		
 		select case(action(IAC1).TYPE) 
 			case(2) !生成弹簧单元
+                neset=neset+1
+                ISET1=ESET_GETFREEID()
 				NEL1=NNODE1
 				CALL enlarge_element(ELEMENT,ENUM,NEL1,N1)
 				action(iac1).istiffelement=n1
@@ -756,6 +774,18 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 				element(N1:).ngp=ngp1
 				element(N1:).nd=nd1
 				element(N1:).ec=ec1
+                ELEMENT(N1:).SET=ISET1
+                
+                esetid(neset)=ISET1
+		        !eset(ISET1).num=NESET
+		        eset(ISET1).stype=stype
+		        eset(ISET1).grouptitle="ACTION_SPRING"
+		        eset(ISET1).et=et1
+		        eset(ISET1).ec=ec1
+		        eset(ISET1).system=0  !!!!!
+		        eset(ISET1).enums=N1
+	            eset(ISET1).enume=enum
+                eset(ISET1).coupleset=ISET1
 				
 			case(1) !生成位移边界
 
@@ -792,6 +822,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 				forall (k=n1:bL_num) action(iac1).node2bcload(bc_load(k).node)=k
 				BC_LOAD(N1:).dof=action(iac1).dof
 				BC_LOAD(N1:).ISINCREMENT=1
+                
 				!BC_LOAD(N1:).sf=action(iac1).sf  !在此其bc_load的值已经是每一步的增量了。
 
 		end select	
@@ -802,7 +833,9 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 	CALL enlarge_element(ELEMENT,ENUM,NSTRUT,N1)	
             
 	DO J=1,NSTRUT
-		
+    
+		neset=neset+1
+        ISET1=ESET_GETFREEID()
 				
 		IF(STRUT(J).ISBAR==0) THEN
 			ET1=SPRINGX
@@ -824,10 +857,23 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		element(N1+J-1).ngp=ngp1
 		element(N1+J-1).nd=nd1
 		element(N1+J-1).ec=ec1				
-				
+		ELEMENT(N1+J-1).SET=ISET1
+        
+        esetid(neset)=ISET1
+		!eset(ISET1).num=NESET
+		eset(ISET1).stype=stype
+		eset(ISET1).grouptitle="STRUCT"
+		eset(ISET1).et=et1
+		eset(ISET1).ec=ec1
+		eset(ISET1).system=0  !!!!!
+		eset(ISET1).enums=N1+J-1
+	    eset(ISET1).enume=N1+J-1
+        eset(ISET1).coupleset=ISET1 
+        
+        
 	ENDDO				
 
-	
+
 	
     call checkdata()
    

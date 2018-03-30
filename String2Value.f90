@@ -222,6 +222,8 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 			value=cax8r_spg
 		case('prm6_spg')	
 			value=prm6_spg
+        CASE('zt6_spg')
+            VALUE=ZT6_SPG
 		case('prm15_spg')	
 			value=prm15_spg
 		case('cpe3_cpl')

@@ -106,7 +106,10 @@ subroutine assemble_km(istep)
 				if(solver_control.ismkl) loc=adrn(loc) !非对称默认的求解为mkl solver.
 				
 				km(loc)=km(loc)+t1*element(i).km(j,k)
-                
+                if(isnan(km(loc))) then
+                    print *, 'NAN VALUE IN ELEMENT(I).KM(J,K),I,J,K',I,J,K
+                    STOP
+                endif
                 if(.not.stepinfo(istep).issteady) then !目前仅考虑为渗流问题，每个节点只有一个自由度。
 					if(element(i).ec==spg.or.element(i).ec==spg2d.or.element(i).ec==cax_spg) then
 						

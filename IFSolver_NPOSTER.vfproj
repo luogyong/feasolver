@@ -26,7 +26,7 @@
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug|x64">
 				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" HeapArrays="0" AdditionalIncludeDirectories="lib\f90gl-1.2.12\lib-Intel64\" FPS4Filenames="true" DebugParameter="debugParameterAll" WarnInterfaces="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtQuickWinDebug" UseMkl="mklParallel"/>
-				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemWindowsXP"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemWindows"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -35,7 +35,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|x64">
-				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc" SuppressStartupBanner="true" Parallelization="true" HeapArrays="0" MatrixLibrary="mlYes" AdditionalIncludeDirectories="lib\f90gl-1.2.12\lib-Intel64\" PreprocessorDefinitions="POST" FPS4Filenames="true" DebugParameter="debugParameterAll" RealKIND="realKIND8" LocalSavedScalarsZero="true" OutputCarriageControl="outputCCNone" BoundsCheck="true" RuntimeLibrary="rtQuickWin" UseMkl="mklParallel"/>
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc" SuppressStartupBanner="true" Parallelization="true" HeapArrays="0" MatrixLibrary="mlYes" AdditionalIncludeDirectories="lib\f90gl-1.2.12\lib-Intel64\" FPS4Filenames="true" DebugParameter="debugParameterAll" RealKIND="realKIND8" LocalSavedScalarsZero="true" OutputCarriageControl="outputCCNone" BoundsCheck="true" RuntimeLibrary="rtQuickWin" UseMkl="mklParallel"/>
 				<Tool Name="VFLinkerTool" SuppressStartupBanner="true" SubSystem="subSystemWindows"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -71,30 +71,6 @@
 		<File RelativePath="Maths\rk4.for"/>
 		<File RelativePath="Maths\rkck.for"/>
 		<File RelativePath="Maths\rkqs.for"/></Filter>
-		<Filter Name="meshgeometry">
-		<File RelativePath="opengl\MeshAdjacency.f90"/>
-		<File RelativePath="meshgeo.f90"/>
-		<File RelativePath="gmsh2solver\modulus_hashtable.f90"/></Filter>
-		<Filter Name="OPENGL">
-		<Filter Name="lib">
-		<File RelativePath="lib\f90gl-1.2.12\lib-Intel64\f90GL.lib"/>
-		<File RelativePath="lib\f90gl-1.2.12\lib-Intel64\f90GLU.lib"/>
-		<File RelativePath="lib\f90gl-1.2.12\lib-Intel64\f90GLUT.lib"/>
-		<File RelativePath=".\lib\f90gl-1.2.12\lib-Intel64\glut32.lib"/></Filter>
-		<File RelativePath="opengl\contour.f90"/>
-		<File RelativePath="opengl\definedColor.f90"/>
-		<File RelativePath="opengl\drawModel.f90"/>
-		<File RelativePath="opengl\DrawNodalValue.f90"/>
-		<File RelativePath="opengl\DRAWSLICE.f90"/>
-		<File RelativePath="opengl\drawvector.f90"/>
-		<File RelativePath="opengl\femmeshshow.f90"/>
-		<File RelativePath="opengl\outputfont.f90"/>
-		<File RelativePath="opengl\ShowProbeValue.f90"/>
-		<File RelativePath="opengl\someutilities.f90"/>
-		<File RelativePath="opengl\streamline.f90"/>
-		<File RelativePath="opengl\tecplot_read.f90"/>
-		<File RelativePath="opengl\trackball.f90"/>
-		<File RelativePath="opengl\ViewModifier.f90"/></Filter>
 		<Filter Name="SCIPLOT">
 		<File RelativePath="D:\Program Files (x86)\IntelSWTools\samples_2016\en\compiler_f\psxe\QuickWin\Scigraph\SCIGRAPH.F90"/>
 		<File RelativePath="SCIPLOT.f90"/>

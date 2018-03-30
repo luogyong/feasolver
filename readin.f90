@@ -34,10 +34,13 @@
     inquire(1,name=nme)
     length = SPLITPATHQQ(nme, drive, dir, name, ext)
     CALL LOWCASE(EXT)
+   
     IF(TRIM(ADJUSTL(EXT))=='.plot') THEN
         CALL plot_func(nme)
         STOP
-    ENDIF
+    ENDIF        
+   
+
     
     print *, 'Begin to read in data...'
 	call read_execute(unit,itype,keyword,solvercommand)
@@ -235,7 +238,7 @@
     end if
     
 	if(ncoord==0) then
-		allocate(coordinate(0:0))
+		allocate(coordinate(-1:0))
 		coordinate(0).c=0.0
 		coordinate(0).c(1,1)=1.0
 		coordinate(0).c(2,2)=1.0
@@ -1252,7 +1255,7 @@ subroutine solvercommand(term,unit)
 			deallocate(Nseep1)
 			
 			Nseep.dof=4
-			Nseep.isdead=1
+			Nseep.isdead=0
 
 			Nseep.value=Node(Nseep.node).coord(ndimension)
 !			node(Nseep.node).property=1
@@ -1451,6 +1454,8 @@ subroutine solvercommand(term,unit)
                         solver_control.caseid=int(property(i).value)
                     case('slidedirection')
                         solver_control.slidedirection=int(property(i).value)
+                    case('slope_kscale')
+                        solver_control.slope_kscale=property(i).value
 					!case('ispostcal')
 					!	solver_control.ispostcal=int(property(i).value)
 					case default
@@ -1837,15 +1842,18 @@ subroutine solvercommand(term,unit)
 							call Err_msg(property(i).name)
 					end select
 				end do
-				allocate(coordinate(0:ncoord))
+                
+				allocate(coordinate(-1:ncoord))
 				
+                !-1 IS FOR ZT4_SPG,ZT6_SPG, WHICH C IS DETERMINED FROM ELEMENT GEOMETRY.
 				do i=1,ncoord
 					call skipcomment(unit)
 					read(unit,*) ((coordinate(i).c(j,k),k=1,3),j=1,3)
 				end do
-				coordinate(0).c(1,1)=1.0d0
-				coordinate(0).c(2,2)=1.0d0
-				coordinate(0).c(3,3)=1.0d0
+                coordinate(-1).C=0.0D0;coordinate(0).C=0.0D0
+				coordinate(-1:0).c(1,1)=1.0d0
+				coordinate(-1:0).c(2,2)=1.0d0
+				coordinate(-1:0).c(3,3)=1.0d0
 		case('origin_of_syscylinder')
 			print *, 'Reading the origin of a cylinder system...'
 			call skipcomment(unit)
@@ -2810,13 +2818,13 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			EC1=CAX_CPL;NDOF1=45;nd1=4           
 			ENDIF			
 			call EL_SFR2(ET1)
-		case(PRM6_SPG,PRM6,PRM6_CPL)
+		case(PRM6_SPG,PRM6,PRM6_CPL,ZT6_SPG)
 			nnum1=6
 			!ndof1=6
 			ngp1=2
 			!nd1=3
 			stype='FETETRAHEDRON'
-			IF(ET1==PRM6_SPG) THEN
+			IF(ET1==PRM6_SPG.OR.ET1==ZT6_SPG) THEN
 			EC1=SPG;NDOF1=6;nd1=3
 			ENDIF
             IF(ET1==PRM6) THEN

@@ -252,7 +252,7 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
         
         
 
-    FAC1=MAX((ABS(SFR1(1)))**2,1.D-8)
+    FAC1=MAX((ABS(SFR1(1)))**solver_control.slope_kscale,1.D-9)
     SITA1=-SFR1(2)/180.*PI()
     !element(ienum).kr(IGP)=element(ienum).kr(IGP)*fac1
     

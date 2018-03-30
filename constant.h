@@ -90,6 +90,7 @@
 	integer,parameter::tet4_spg=127 !4-noded tetrahedron element
 	integer,parameter::tet10_spg=128 !10-noded tetrahedron element
 	integer,parameter::ZT4_SPG=129 !4-NODED ZEROTHICKNESS 2D SEEPAGE ELEMENT,SIMULATING A 2D CUT-OFF WALL.
+	integer, parameter::ZT6_SPG=130 !6-NODED ZEROTHICKNESS 3D SEEPAGE ELEMENT,SIMLATING A 3D CUT-OFF WALL.
 	!pipe flow
 	integer,parameter::pipe2=401 !2-noded line element for pipe flow simulation
 	integer,parameter::ppipe2=402 !2-noded line element for perforated wellbore inflow simulation
@@ -121,6 +122,7 @@
 	integer,parameter::tet4_cpl=227 !4-noded tetrahedron element
 	integer,parameter::tet10_cpl=228 !10-noded tetrahedron element	
 	
+
 	integer,parameter::LBZT4=47	!4-node discontinuite element for low bound analysis
 	integer,parameter::LB3=48	!3-node triangular element for low bound analysis 	
 	integer,parameter::UBZT4=49     ! zero thickness discontinuite elements for upper bound analysis, the active dofs are vx vy

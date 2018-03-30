@@ -1,7 +1,7 @@
 ﻿MODULE MESHADJ
     
 USE MESHGEO
-
+USE quicksort
 INTERFACE SETUP_EDGE_ADJL
     MODULE PROCEDURE SETUP_EDGE_ADJL_MODEL,SETUP_EDGE_ADJL_TET
 END INTERFACE
@@ -66,31 +66,42 @@ SUBROUTINE SETUP_EDGE_ADJL_MODEL(EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NODE_L,NNODE_L,E
 	REAL(8),INTENT(IN)::NODE_L(3,NNODE_L)
     TYPE(ESET_TYDEF),INTENT(IN)::ESET(NESET)
     INTEGER,PARAMETER::MAXADJL1=30
-    INTEGER::ADJL1(MAXADJL1,NNODE_L),E_ADJL1(MAXADJL1,NNODE_L) 
-    INTEGER::VMAX1,VMIN1,IEDGE1,ET1,NEDGE1,N1,N2
+    INTEGER::ADJL1(MAXADJL1,NNODE_L),E_ADJL1(MAXADJL1,NNODE_L),NADJL1(NNODE_L) 
+    INTEGER::VMAX1,VMIN1,IEDGE1,ET1,NEDGE1,N1,N2,V1(2)
     INTEGER::I,J
     
 	IF(ALLOCATED(EDGE_L)) DEALLOCATE(EDGE_L)
 	ALLOCATE(EDGE_L(NNODE_L))
     
-    ADJL1=0;E_ADJL1=0
+    ADJL1=0;E_ADJL1=0;NADJL1=0
 	DO I=1,NEL_L
 		ET1=GETGMSHET(ESET(ELEMENT_L(I).ISET).ET)
 		NEDGE1=ELTTYPE(ET1).NEDGE
         ELEMENT_L(I).NEDGE=NEDGE1
         ALLOCATE(ELEMENT_L(I).EDGE(NEDGE1))
 		DO J=1,NEDGE1
-            VMAX1=MAXVAL(ELEMENT_L(I).NODE(ELTTYPE(ET1).EDGE(:,J)))    
-            VMIN1=MINVAL(ELEMENT_L(I).NODE(ELTTYPE(ET1).EDGE(:,J)))  
-            N2=MINLOC(ADJL1(:,VMAX1),MASK=ADJL1(:,VMAX1)==0,DIM=1)-1
-            IF(N2<0) THEN
-                 STOP 'ERROR IN SUB SETUP_EDGE_TBLI2. THE SIZE OF ADJL1 MAY BE TOO SMALL.'
+            V1=ELEMENT_L(I).NODE(ELTTYPE(ET1).EDGE(:,J))
+            IF(V1(1)>V1(2)) THEN
+                VMAX1=V1(1);VMIN1=V1(2)
+            ELSE
+                VMAX1=V1(2);VMIN1=V1(1)
             ENDIF
+            !VMAX1=MAXVAL(ELEMENT_L(I).V(ELTTYPE(ET1).EDGE(:,J)))    
+            !VMIN1=MINVAL(ELEMENT_L(I).V(ELTTYPE(ET1).EDGE(:,J)))   
+            N2=NADJL1(VMAX1)
+            !N2=MINLOC(ADJL1(:,VMAX1),MASK=ADJL1(:,VMAX1)==0,DIM=1)-1
+            !IF(N2<0) THEN
+            !     STOP 'ERROR IN SUB SETUP_EDGE_TBLI2. THE SIZE OF ADJL1 MAY BE TOO SMALL.'
+            !ENDIF
             
             N1=MINLOC(ABS(ADJL1(1:N2,VMAX1)-VMIN1),MASK=ADJL1(1:N2,VMAX1)-VMIN1==0,DIM=1)
             if(N1>0) THEN
                 IEDGE1=E_ADJL1(N1,VMAX1)            
-            ELSE                
+            ELSE
+                NADJL1(VMAX1)=N2+1
+                IF(N2+1>MAXADJL1) THEN
+                     STOP 'ERROR IN SUB SETUP_EDGE_TBLI2. THE SIZE OF ADJL1 MAY BE TOO SMALL.'
+                ENDIF             
                 ADJL1(N2+1,VMAX1)=VMIN1
                 NEDGE_L=NEDGE_L+1
                 IEDGE1=NEDGE_L
@@ -134,30 +145,41 @@ SUBROUTINE SETUP_EDGE_ADJL_TET(EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NODE_L,NNODE_L,ESE
 	REAL(8),INTENT(IN)::NODE_L(3,NNODE_L)
     TYPE(ESET_TYDEF),INTENT(IN)::ESET(NESET)
     INTEGER,PARAMETER::MAXADJL1=30
-    INTEGER::ADJL1(MAXADJL1,NNODE_L),E_ADJL1(MAXADJL1,NNODE_L) 
-    INTEGER::VMAX1,VMIN1,IEDGE1,ET1,NEDGE1,N1,N2
+    INTEGER::ADJL1(MAXADJL1,NNODE_L),E_ADJL1(MAXADJL1,NNODE_L),NADJL1(NNODE_L)
+    INTEGER::VMAX1,VMIN1,IEDGE1,ET1,NEDGE1,N1,N2,V1(2)
     INTEGER::I,J
     
     IF(ALLOCATED(EDGE_L)) DEALLOCATE(EDGE_L)
 	ALLOCATE(EDGE_L(NNODE_L))
-    ADJL1=0;E_ADJL1=0
+    ADJL1=0;E_ADJL1=0;NADJL1=1
 	DO I=1,NEL_L
 		ET1=ELEMENT_L(I).GMET
 		NEDGE1=ELTTYPE(ET1).NEDGE
         ELEMENT_L(I).NE=NEDGE1
         
 		DO J=1,NEDGE1
-            VMAX1=MAXVAL(ELEMENT_L(I).V(ELTTYPE(ET1).EDGE(:,J)))    
-            VMIN1=MINVAL(ELEMENT_L(I).V(ELTTYPE(ET1).EDGE(:,J)))            
-            N2=MINLOC(ADJL1(:,VMAX1),MASK=ADJL1(:,VMAX1)==0,DIM=1)-1
-            IF(N2<0) THEN
-                 STOP 'ERROR IN SUB SETUP_EDGE_TBLI2. THE SIZE OF ADJL1 MAY BE TOO SMALL.'
+            V1=ELEMENT_L(I).V(ELTTYPE(ET1).EDGE(:,J))
+            IF(V1(1)>V1(2)) THEN
+                VMAX1=V1(1);VMIN1=V1(2)
+            ELSE
+                VMAX1=V1(2);VMIN1=V1(1)
             ENDIF
+            !VMAX1=MAXVAL(ELEMENT_L(I).V(ELTTYPE(ET1).EDGE(:,J)))    
+            !VMIN1=MINVAL(ELEMENT_L(I).V(ELTTYPE(ET1).EDGE(:,J))) 
+            N2=NADJL1(VMAX1)
+            !N2=MINLOC(ADJL1(:,VMAX1),MASK=ADJL1(:,VMAX1)==0,DIM=1)-1
+            !IF(N2<0) THEN
+            !     STOP 'ERROR IN SUB SETUP_EDGE_TBLI2. THE SIZE OF ADJL1 MAY BE TOO SMALL.'
+            !ENDIF
             
             N1=MINLOC(ABS(ADJL1(1:N2,VMAX1)-VMIN1),MASK=ADJL1(1:N2,VMAX1)-VMIN1==0,DIM=1)
             if(N1>0) THEN
                 IEDGE1=E_ADJL1(N1,VMAX1)            
-            ELSE                
+            ELSE
+                NADJL1(VMAX1)=N2+1
+                IF(N2+1>MAXADJL1) THEN
+                     STOP 'ERROR IN SUB SETUP_EDGE_TBLI2. THE SIZE OF ADJL1 MAY BE TOO SMALL.'
+                ENDIF             
                 ADJL1(N2+1,VMAX1)=VMIN1
                 NEDGE_L=NEDGE_L+1
                 IEDGE1=NEDGE_L
@@ -203,10 +225,10 @@ SUBROUTINE SETUP_FACE_ADJL_TET(FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NOD
 	type(TET_TYDEF)::ELEMENT_L(NEL_L)
     REAL(8),INTENT(IN)::NODE_L(3,NNODE_L)
     TYPE(ESET_TYDEF),INTENT(IN)::ESET(NESET)
-    INTEGER::I,J,N1,ET1,NFACE1,N2,K,NV1,IFACE1,N2ORDER1(10),NODE1(10),O2NODE1(10),ORDER1(10)
+    INTEGER::I,J,N1,ET1,NFACE1,N2,K,K1,NV1,IFACE1,N2ORDER1(10),NODE1(10),O2NODE1(10),ORDER1(10),NODE_SORT1(10),N2ORDER2(10)
     REAL(8)::V1(3),V2(3),NORMAL1(3),T1
     INTEGER,PARAMETER::MAXADJL1=100
-    INTEGER::ADJL1(3,MAXADJL1,NNODE_L),F_ADJL1(MAXADJL1,NNODE_L) 
+    INTEGER::ADJL1(3,MAXADJL1,NNODE_L),F_ADJL1(MAXADJL1,NNODE_L),NADJL1(NNODE_L) 
 
     
     IF(.NOT.ISINI_GMSHET) THEN
@@ -217,18 +239,30 @@ SUBROUTINE SETUP_FACE_ADJL_TET(FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NOD
 
 	IF(ALLOCATED(FACE_L)) DEALLOCATE(FACE_L)
 	ALLOCATE(FACE_L(NNODE_L))
-    ADJL1=0;F_ADJL1=0
+    ADJL1=0;F_ADJL1=0;NADJL1=0
 	DO I=1,NEL_L
 		ET1=ELEMENT_L(I).GMET
 		NFACE1=ELTTYPE(ET1).NFACE
 		ELEMENT_L(I).NF=NFACE1
         NV1=ELTTYPE(ET1).NNODE
-        NODE1(1:NV1)=ELEMENT_L(I).V(1:NV1)        
-        DO J=1,NV1
-            N1=MINLOC(NODE1(1:NV1),MASK=NODE1(1:NV1)>0,DIM=1)
-            N2ORDER1(N1)=J;NODE1(N1)=-1
-            O2NODE1(J)=N1
+        NODE1(1:NV1)=ELEMENT_L(I).V(1:NV1)
+        !NODE_SORT1(1:NV1)=NODE1(1:NV1)
+        O2NODE1(1:NV1)=[1:NV1]
+        DO J=1,NV1-1
+            !N1=MINLOC(NODE1(1:NV1),MASK=NODE1(1:NV1)>0,DIM=1)
+            DO K=J+1,NV1
+                IF(NODE1(K)<NODE1(J)) THEN
+                    N1=NODE1(J);NODE1(J)=NODE1(K);NODE1(K)=N1;
+                    N1=O2NODE1(J);O2NODE1(J)=O2NODE1(K);O2NODE1(K)=N1
+                    !N2ORDER1(J)=O2NODE1(J);
+                    !N2ORDER1(N1)=J;NODE1(N1)=-1
+                    !O2NODE1(J)=N1
+                ENDIF
+            ENDDO
         ENDDO
+        N2ORDER1(O2NODE1(1:NV1))=[1:NV1]
+        !N2ORDER2(1:NV1)=[1:NV1]
+        !CALL QUICK_SORT(NODE_SORT1(1:NV1),N2ORDER2(1:NV1))
         
  		DO J=1,NFACE1
             N2=ELTTYPE(ET1).FACE(0,J)            
@@ -242,22 +276,30 @@ SUBROUTINE SETUP_FACE_ADJL_TET(FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NOD
                     IF(N1<K) NODE1(N1)=NODE1(K)
                 ENDIF
             ENDDO
-            N1=MINLOC(F_ADJL1(:,NODE1(N2)),MASK=F_ADJL1(:,NODE1(N2))==0,DIM=1)-1
-            IF(N1<0) THEN                
-                STOP "PLEASE ENLARGE ARRAY SIZE. SUB=SETUP_FACE_ADJL_TET"
-            ENDIF
+            !N1=MINLOC(F_ADJL1(:,NODE1(N2)),MASK=F_ADJL1(:,NODE1(N2))==0,DIM=1)-1
+            !IF(N1<0) THEN                
+            !    STOP "PLEASE ENLARGE ARRAY SIZE. SUB=SETUP_FACE_ADJL_TET"
+            !ENDIF
+            N1=NADJL1(NODE1(N2))
             !N2<=4
             IFACE1=0
             !if(i==23.and.j==3) then
             !    print *,i
             !endif
             DO K=1,N1
-                if(SUM(ABS(ADJL1(1:N2-1,K,NODE1(N2))-NODE1(1:N2-1)))==0) THEN
+                DO K1=1,N2-1
+                    if(ADJL1(K1,K,NODE1(N2))-NODE1(K1)/=0) EXIT
+                ENDDO
+                IF(K1==N2) THEN
                     IFACE1=F_ADJL1(K,NODE1(N2))
                     EXIT
-                ENDIF                
+                ENDIF 
             ENDDO
             IF(IFACE1==0) THEN
+                NADJL1(NODE1(N2))=N1+1
+                IF(N1+1>MAXADJL1) THEN                
+                    STOP "PLEASE ENLARGE ARRAY SIZE. SUB=SETUP_FACE_ADJL_TET"
+                ENDIF
                 ADJL1(1:N2-1,N1+1,NODE1(N2))=NODE1(1:N2-1)
                 NFACE_L=NFACE_L+1
                 F_ADJL1(N1+1,NODE1(N2))=NFACE_L
@@ -278,14 +320,14 @@ SUBROUTINE SETUP_FACE_ADJL_TET(FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NOD
 				DO K=1,FACE_L(IFACE1).SHAPE
 					IF(EDGE_L(FACE_L(IFACE1).EDGE(K)).V(1)/=FACE_L(IFACE1).V(K)) FACE_L(IFACE1).EDGE(K)=-FACE_L(IFACE1).EDGE(K)
 				ENDDO
-                V1=NODE_L(:,FACE_L(IFACE1).V(2))-NODE_L(:,FACE_L(IFACE1).V(1))
-                V2=NODE_L(:,FACE_L(IFACE1).V(3))-NODE_L(:,FACE_L(IFACE1).V(1))
-                call r8vec_cross_3d ( v1, v2, NORMAL1(1:3) )
-                T1 = sqrt ( sum ( ( NORMAL1 )**2 ) )
-                if ( T1 /= 0.0D+00 ) then
-                  NORMAL1 = NORMAL1/T1
-                end if
-                FACE_L(IFACE1).UNORMAL=NORMAL1
+                !V1=NODE_L(:,FACE_L(IFACE1).V(2))-NODE_L(:,FACE_L(IFACE1).V(1))
+                !V2=NODE_L(:,FACE_L(IFACE1).V(3))-NODE_L(:,FACE_L(IFACE1).V(1))
+                !call r8vec_cross_3d ( v1, v2, NORMAL1(1:3) )
+                !T1 = sqrt ( sum ( ( NORMAL1 )**2 ) )
+                !if ( T1 /= 0.0D+00 ) then
+                !  NORMAL1 = NORMAL1/T1
+                !end if
+                !FACE_L(IFACE1).UNORMAL=NORMAL1
                 FACE_L(IFACE1).ISINI=.TRUE.
                 NFACE_L=IFACE1
 				DO K=1,3
@@ -337,10 +379,10 @@ SUBROUTINE SETUP_FACE_ADJL_MODEL(FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,N
 	type(ELEMENT_TYDEF)::ELEMENT_L(NEL_L)    
     REAL(8),INTENT(IN)::NODE_L(3,NNODE_L)
     TYPE(ESET_TYDEF),INTENT(IN)::ESET(NESET)
-    INTEGER::I,J,N1,ET1,NFACE1,N2,K,NV1,IFACE1,N2ORDER1(10),NODE1(10),O2NODE1(10),ORDER1(10)
+    INTEGER::I,J,N1,ET1,NFACE1,N2,K,K1,NV1,IFACE1,N2ORDER1(10),NODE1(10),O2NODE1(10),ORDER1(10)
     REAL(8)::V1(3),V2(3),NORMAL1(3),T1
     INTEGER,PARAMETER::MAXADJL1=100
-    INTEGER::ADJL1(3,MAXADJL1,NNODE_L),F_ADJL1(MAXADJL1,NNODE_L) 
+    INTEGER::ADJL1(3,MAXADJL1,NNODE_L),F_ADJL1(MAXADJL1,NNODE_L),NADJL1(NNODE_L) 
 
     
     IF(.NOT.ISINI_GMSHET) THEN
@@ -351,7 +393,7 @@ SUBROUTINE SETUP_FACE_ADJL_MODEL(FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,N
 
 	IF(ALLOCATED(FACE_L)) DEALLOCATE(FACE_L)
 	ALLOCATE(FACE_L(NNODE_L))
-    ADJL1=0;F_ADJL1=0
+    ADJL1=0;F_ADJL1=0;NADJL1=0
 	DO I=1,NEL_L
 		ET1=GETGMSHET(ESET(ELEMENT_L(I).ISET).ET)
 		NFACE1=ELTTYPE(ET1).NFACE
@@ -359,11 +401,25 @@ SUBROUTINE SETUP_FACE_ADJL_MODEL(FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,N
         NV1=ELTTYPE(ET1).NNODE
         NODE1(1:NV1)=ELEMENT_L(I).NODE(1:NV1)
         ALLOCATE(ELEMENT_L(I).FACE(NFACE1))
-        DO J=1,NV1
-            N1=MINLOC(NODE1(1:NV1),MASK=NODE1(1:NV1)>0,DIM=1)
-            N2ORDER1(N1)=J;NODE1(N1)=-1
-            O2NODE1(J)=N1
+        !DO J=1,NV1
+        !    N1=MINLOC(NODE1(1:NV1),MASK=NODE1(1:NV1)>0,DIM=1)
+        !    N2ORDER1(N1)=J;NODE1(N1)=-1
+        !    O2NODE1(J)=N1
+        !ENDDO
+        O2NODE1(1:NV1)=[1:NV1]
+        DO J=1,NV1-1
+            !N1=MINLOC(NODE1(1:NV1),MASK=NODE1(1:NV1)>0,DIM=1)
+            DO K=J+1,NV1
+                IF(NODE1(K)<NODE1(J)) THEN
+                    N1=NODE1(J);NODE1(J)=NODE1(K);NODE1(K)=N1;
+                    N1=O2NODE1(J);O2NODE1(J)=O2NODE1(K);O2NODE1(K)=N1
+                    !N2ORDER1(J)=O2NODE1(J);
+                    !N2ORDER1(N1)=J;NODE1(N1)=-1
+                    !O2NODE1(J)=N1
+                ENDIF
+            ENDDO
         ENDDO
+        N2ORDER1(O2NODE1(1:NV1))=[1:NV1]
         
  		DO J=1,NFACE1
             N2=ELTTYPE(ET1).FACE(0,J)            
@@ -379,19 +435,40 @@ SUBROUTINE SETUP_FACE_ADJL_MODEL(FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,N
             ENDDO
 
             
-            N1=MINLOC(F_ADJL1(:,NODE1(N2)),MASK=F_ADJL1(:,NODE1(N2))==0,DIM=1)-1
-            IF(N1<0) THEN                
-                STOP "PLEASE ENLARGE ARRAY SIZE. SUB=SETUP_FACE_ADJL_MODEL"
-            ENDIF
+            !N1=MINLOC(F_ADJL1(:,NODE1(N2)),MASK=F_ADJL1(:,NODE1(N2))==0,DIM=1)-1
+            !IF(N1<0) THEN                
+            !    STOP "PLEASE ENLARGE ARRAY SIZE. SUB=SETUP_FACE_ADJL_MODEL"
+            !ENDIF
+            !!N2<=4
+            !IFACE1=0
+            !DO K=1,N1
+            !    if(SUM(ABS(ADJL1(1:N2-1,K,NODE1(N2))-NODE1(1:N2-1)))==0) THEN
+            !        IFACE1=F_ADJL1(K,NODE1(N2))
+            !        EXIT
+            !    ENDIF                
+            !ENDDO
+            !IF(IFACE1==0) THEN
+
+            N1=NADJL1(NODE1(N2))
             !N2<=4
             IFACE1=0
+            !if(i==23.and.j==3) then
+            !    print *,i
+            !endif
             DO K=1,N1
-                if(SUM(ABS(ADJL1(1:N2-1,K,NODE1(N2))-NODE1(1:N2-1)))==0) THEN
+                DO K1=1,N2-1
+                    if(ADJL1(K1,K,NODE1(N2))-NODE1(K1)/=0) EXIT
+                ENDDO
+                IF(K1==N2) THEN
                     IFACE1=F_ADJL1(K,NODE1(N2))
                     EXIT
-                ENDIF                
+                ENDIF 
             ENDDO
             IF(IFACE1==0) THEN
+                NADJL1(NODE1(N2))=N1+1
+                IF(N1+1>MAXADJL1) THEN                
+                    STOP "PLEASE ENLARGE ARRAY SIZE. SUB=SETUP_FACE_ADJL_TET"
+                ENDIF
                 ADJL1(1:N2-1,N1+1,NODE1(N2))=NODE1(1:N2-1)
                 NFACE_L=NFACE_L+1
                 F_ADJL1(N1+1,NODE1(N2))=NFACE_L
@@ -415,14 +492,14 @@ SUBROUTINE SETUP_FACE_ADJL_MODEL(FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,N
 				DO K=1,FACE_L(IFACE1).SHAPE
 					IF(EDGE_L(FACE_L(IFACE1).EDGE(K)).V(1)/=FACE_L(IFACE1).V(K)) FACE_L(IFACE1).EDGE(K)=-FACE_L(IFACE1).EDGE(K)
 				ENDDO
-                V1=NODE_L(:,FACE_L(IFACE1).V(2))-NODE_L(:,FACE_L(IFACE1).V(1))
-                V2=NODE_L(:,FACE_L(IFACE1).V(3))-NODE_L(:,FACE_L(IFACE1).V(1))
-                call r8vec_cross_3d ( v1, v2, NORMAL1(1:3) )
-                T1 = sqrt ( sum ( ( NORMAL1 )**2 ) )
-                if ( T1 /= 0.0D+00 ) then
-                  NORMAL1 = NORMAL1/T1
-                end if
-                FACE_L(IFACE1).UNORMAL=NORMAL1
+                !V1=NODE_L(:,FACE_L(IFACE1).V(2))-NODE_L(:,FACE_L(IFACE1).V(1))
+                !V2=NODE_L(:,FACE_L(IFACE1).V(3))-NODE_L(:,FACE_L(IFACE1).V(1))
+                !call r8vec_cross_3d ( v1, v2, NORMAL1(1:3) )
+                !T1 = sqrt ( sum ( ( NORMAL1 )**2 ) )
+                !if ( T1 /= 0.0D+00 ) then
+                !  NORMAL1 = NORMAL1/T1
+                !end if
+                !FACE_L(IFACE1).UNORMAL=NORMAL1
                 FACE_L(IFACE1).ISINI=.TRUE.
                 NFACE_L=IFACE1
 				DO K=1,3

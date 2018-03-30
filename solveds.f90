@@ -29,7 +29,7 @@ module solverds
 	type element_tydef
 		integer::nnum,NEDGE=0,NFACE=0,NTET=0 !node numbers of this element
 		integer,allocatable::node(:),EDGE(:),FACE(:),TET(:) !单元的节点,TET为单元的细分单元组的下标。
-        integer,allocatable::node2(:) !为方便Bar和Beam单元的后处理，为单元集内的节点编号，将其转换成实体六面体单元后输出。
+        integer,allocatable::node2(:) !为方便Bar和Beam单元的后处理，为单元集内的节点编号，将其转换成实体六面体单元后输出,当单元为zt4_spg,或zt6_spg时，node2指向gnode。
 		integer::et  !单元类型
 		integer::mat,mattype  !material id and material type.the paramters is got from material(mat)
 		!for et=soilspring, mat=-1,主动侧单元，mat=-2,被动侧单元
@@ -240,7 +240,7 @@ module solverds
 !		integer::isPostCal=0 !所有的未知量均为已知（由边界条件输入），仅进行后处理计算。
         !REAL(KIND=DPN),ALLOCATABLE::ETA(:),RATIO(:)
         integer::slidedirection=right
-        
+        real(kind=DPN)::slope_kscale=2.D0
 	end type
 	type(solver_tydef)::solver_control
 	

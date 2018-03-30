@@ -531,7 +531,7 @@ CONTAINS
     
     END SUBROUTINE
 
-    subroutine read_execute(TECDATA,UNIT,COMMAND_READ)
+    subroutine read_execute1(TECDATA,UNIT,COMMAND_READ)
         
 	    implicit none
         TYPE(TECDATA_TYDEF)::TECDATA
@@ -606,7 +606,7 @@ CONTAINS
         
         UNIT=10
         OPEN(UNIT,FILE=FILE,STATUS='OLD')
-        CALL read_execute(TECDATA,UNIT,TECFILE_PARSER)
+        CALL read_execute1(TECDATA,UNIT,TECFILE_PARSER)
     
         CLOSE(UNIT)
     

@@ -59,6 +59,9 @@
 !	property(11)=sita_s !饱和体积含水量
 !   property(12)=sita_r !残余体积含水量
 !   property(13)=rw !水的重度
+!	property(14)=zerothickness element thickness,the default value is 1.
+!	Note that, for zt4_spg and zt6_spg, element k1 k2 and k3 is the ktx and kty and knz in local element system,which ,kn
+!   is normal to element face and kt is tangent.k1=k2 is assuming ,which means the premeability is transverse-anisotropty	
 !case(bar)
 !	property(1)=E
 !	property(2)=A
@@ -82,8 +85,6 @@
 !	property(2)=lamda !管壁摩阻系数
 !	property(3)=epslon !管壁的绝对粗糙度
 !	property(4)=v  !运动粘滞系数
-!Case(zt4_spg)
-!	property(1)=k;(2)=calculation thickness;
 !3 element.type
 !	1,=conduct1d
 !	-23,=ubtri2dl
