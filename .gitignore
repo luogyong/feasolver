@@ -32,5 +32,9 @@
 *.doc
 *.docx
 *.pdf
+*.vfproj
+*.sln
+*.suo
+*.u2d
 [Dd]ebug*/
 [Rr]elease*/
