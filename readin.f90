@@ -2349,11 +2349,11 @@ end subroutine
 		strL=len_trim(string)
 		if(strL==0) cycle
 
-		 if(string(1:1)/='/'.and.string(1:1)/='#') then
+		 if(string(1:2)/='//'.and.string(1:1)/='#') then
 			
 			!每行后面以'/'开始的后面的字符是无效的。
-			if(index(string,'/')/=0) then
-				strL=index(string,'/')-1
+			if(index(string,'//')/=0) then
+				strL=index(string,'//')-1
 				string=string(1:strL)
 				strL=len_trim(string)
 			end if
@@ -2456,8 +2456,8 @@ subroutine translatetoproperty(term)
 	integer::ns,ne,nc
 	character(128)::str(50)
 	
-	if(index(term,'/')/=0) then !每一行‘/’后面的内容是无效的。
-		strL=index(term,'/')-1
+	if(index(term,'//')/=0) then !每一行‘/’后面的内容是无效的。
+		strL=index(term,'//')-1
 		term=term(1:strL)
 	end if
 	

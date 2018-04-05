@@ -124,7 +124,7 @@ subroutine kwcommand(term,unit)
 	integer::n1,n2,n3,nacw=0,ALLC_ERR
 	integer::en1(50)=0
 	logical,external::isacw
-    logical::ischeckacw=.false.
+    logical::ischeckacw=.false.,isacw1=.false.
 	integer::strL1,inode,i,J
 	real(8)::at1(100),xy1(3,3)=0
 	CHARACTER(512)::STR1
@@ -385,15 +385,21 @@ subroutine kwcommand(term,unit)
                         if(ischeckacw) then
                             xy1(1,1:3)=node(element(n1).node(1:3)).xy(1)
                             xy1(2,1:3)=node(element(n1).node(1:3)).xy(2)
-                            xy1(3,1:3)=node(element(n1).node(1:3)).xy(3)
+                            xy1(3,1:3)=node(element(n1).node(1:3)).xy(3)                            
                             if(.not.isacw(xy1(1,1),xy1(2,1),xy1(3,1),xy1(1,2),xy1(2,2),xy1(3,2),xy1(1,3),xy1(2,3),xy1(3,3))) then
                                 !print *, 'Please reverse the normal direction of geometrical entity=',element(n1).tag(2)
                                 !pause
-                                element(n1).node(1:3)=[1,3,2]
-                                if(element(n1).et==9) element(n1).node(4:6)=[6,5,4]
-                                if(element(n1).et==23) element(n1).node(4:15)=[12:4:-1,13,15,14]
+                                isacw1=.false.
+                            else
+                                isacw1=.true.
                             end if
                         end if
+                        if(.not.isacw1) then
+                            element(n1).node(1:3)=[1,3,2]
+                            if(element(n1).et==9) element(n1).node(4:6)=[6,5,4]
+                            if(element(n1).et==23) element(n1).node(4:15)=[12:4:-1,13,15,14]
+                        endif
+                        
                         if(element(n1).et==23) then
                             en1(4)=element(n1).node(5)
 						    en1(5)=element(n1).node(8)
