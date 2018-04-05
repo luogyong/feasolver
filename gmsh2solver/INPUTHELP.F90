@@ -3,7 +3,7 @@ subroutine write_readme_gmsh2sinp()
 	use ifport
 	implicit none
 	integer::i,j,item
-	LOGICAL(4)::tof,pressed
+	LOGICAL(4)::tof,pressed,MSG
 	!integer,external::ipp
 	character(512)::readme(1024)
 	

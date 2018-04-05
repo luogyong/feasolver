@@ -3,6 +3,7 @@
     use ds_hyjump
     use ExcaDS
 	use dflib
+    use ifport
 	implicit none
 	integer:: itype,unit,i,j,k
 	LOGICAL(4)::tof
@@ -34,7 +35,8 @@
     inquire(1,name=nme)
     length = SPLITPATHQQ(nme, drive, dir, name, ext)
     CALL LOWCASE(EXT)
-   
+    msg = CHDIR(trim(drive)//trim(dir)//trim(name))
+    
     IF(TRIM(ADJUSTL(EXT))=='.plot') THEN
         CALL plot_func(nme)
         STOP

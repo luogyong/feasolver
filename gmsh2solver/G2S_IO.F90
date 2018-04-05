@@ -1,6 +1,7 @@
 subroutine readin()
 	use DS_Gmsh2Solver
 	use dflib
+    USE IFPORT
 	implicit none
 	integer:: unit1,i
 	
@@ -34,11 +35,12 @@ subroutine readin()
 			length = SPLITPATHQQ(INCLUDEFILE(I), drive, dir, name, ext)
 			title=trim(name)
             FILEPATH=trim(drive)//trim(dir)//trim(name)
+            msg = CHDIR(FILEPATH)
 			resultfile=TRIM(FILEPATH)//'.sinp'
             meshstructurefile=TRIM(FILEPATH)//'_meshstructure'//'.dat'
 		ELSE
 			open(UNIT1,file=INCLUDEFILE(I),status='old' )
-			length = SPLITPATHQQ(INCLUDEFILE(I), drive, dir, name, ext)
+			!length = SPLITPATHQQ(INCLUDEFILE(I), drive, dir, name, ext)
 		ENDIF
 		
 		call read_execute(unit1,ext)
