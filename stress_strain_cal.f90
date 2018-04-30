@@ -41,7 +41,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
 	
 	integer::i
 	real(8)::ss1(6),pss1(4),t1,t2,C1,phi1,PI1,sin1,cos1,t3,t4,t5,ta1(4),A,B
-	real(8)::sigmaC1,R1,sita1
+	real(8)::sigmaC1,R1,sita1,YF1
     
 	PI1=dATAN(1.0)*4.0
 	C1=cohesion
@@ -58,27 +58,35 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
         T1=1E-7
         IF(PHI1>1E-7) T1=TAN(PHI1) 
         if(pss1(1)<MIN(TensileS,C1/T1)) then
-        !if(sigmaC1<=0) then
+            !CHECK YIELD
+            YF1=SIGMAC1*SIN(PHI1)+T2-C1*COS(PHI1)
+        
             
-            B=-tan(phi1)
-            A=(C1+sigmaC1*B)/R1
-            !最大破坏面与主应力面的夹角的2倍
-            !if(r1<=C1*cos(phi1)-sigmaC1*sin(phi1)) then
-            if(abs(A)>=abs(B)) then
-                sita1=asin((1.d0-(B/A)**2)**0.5)
-            else
+            IF(YF1<0.D0) THEN
+            
+                B=-tan(phi1)
+                A=(C1+sigmaC1*B)/R1
+                !最大破坏面与主应力面的夹角的2倍
+                !if(r1<=C1*cos(phi1)-sigmaC1*sin(phi1)) then
+                if(abs(A)>=abs(B)) then
+                    sita1=asin((1.d0-(B/A)**2)**0.5)
+                else
+                    sita1=pi1/2.0-phi1
+                endif
+                sfr(1)=sin(sita1)/(A+B*cos(sita1)) !sfr for stress failure ratio
+            ELSE
                 sita1=pi1/2.0-phi1
-            endif
-            sfr(1)=sin(sita1)/(A+B*cos(sita1)) !sfr for stress failure ratio
+                SFR(1)=1.0D0
+            ENDIF
             !if(sfr(1)>1.d0) sfr(1)=1.0d0
         else
             !tension
             sfr(1)=-1.            
             sita1=pi1/2.0
         endif
-        !if(isnan(sfr(1))) then
-        !    pause
-        !endif
+    !if(isnan(sfr(1))) then
+    !    pause
+    !endif
     else
         sfr(1)=0.d0
         sita1=0.d0

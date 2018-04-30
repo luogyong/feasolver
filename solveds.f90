@@ -240,7 +240,7 @@ module solverds
 !		integer::isPostCal=0 !所有的未知量均为已知（由边界条件输入），仅进行后处理计算。
         !REAL(KIND=DPN),ALLOCATABLE::ETA(:),RATIO(:)
         integer::slidedirection=right
-        real(kind=DPN)::slope_kscale=2.D0
+        real(kind=DPN)::slope_kscale=1.D0
 	end type
 	type(solver_tydef)::solver_control
 	
