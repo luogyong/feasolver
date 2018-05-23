@@ -24,10 +24,10 @@ SUBROUTINE STREAMLINE_PLOT()
     use function_plotter
 
     implicit none
-    integer :: i,j,k,n1
+    integer :: i,j,k,n1,DIRECTION1=1
     REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1,DEG2,MAX1
     CHARACTER(16)::STR1
-    REAL(GLFLOAT)::COLOR1(4)
+    REAL(GLFLOAT)::COLOR1(4),COLOR2(4)
 
     call glDeleteLists(STREAMLINELIST, 1_glsizei)
     call reset_view    
@@ -39,20 +39,22 @@ SUBROUTINE STREAMLINE_PLOT()
     
     
     DO I=1,NSTREAMLINE
+
         IF((.NOT.STREAMLINE(I).SHOW).AND.STREAMLINE(I).ISINPUTSLIP==0) CYCLE !INPUT SLIPS ARE ALWAYS SHOWN 
         IF(STREAMLINE(I).NV<2) CYCLE
         CALL glLineWidth(2.0_glfloat)
         !IF(ISSTREAMLINESLOPE) THEN
         !    CALL get_rainbow(STREAMLINE(I).SF_SLOPE,STREAMLINE(SF_SLOPE(1)).SF_SLOPE,MAX1,COLOR1)
         !ELSE
-            COLOR1=mycolor(:,BLUE)
+        COLOR1=mycolor(:,BLUE)
         !ENDIF
-        CALL glcolor4fv(COLOR1)
+       
         !INPUTSLIPS ARE ALWAYS PLOTTED.
         IF(ISSTREAMLINESLOPE.AND.STREAMLINE(I).ISINPUTSLIP==0) THEN        
             N1=MINLOC(ABS(SF_SLOPE(1:10)-I),DIM=1)
             IF(SF_SLOPE(N1)==I)  THEN
-                CALL glcolor4fv(mycolor(:,COLOR_TOP_TEN(N1)))
+                COLOR1=mycolor(:,COLOR_TOP_TEN(N1))
+                !CALL glcolor4fv()
                 CALL glLineWidth(3.0_glfloat)            
             ENDIF
             !IF(.NOT.IS_SHOW_ALL_SLOPE) THEN                
@@ -71,10 +73,22 @@ SUBROUTINE STREAMLINE_PLOT()
             !ENDIF            
         ENDIF
         
+        DIRECTION1=1 !SLIDE LEFE
+        IF(ISSTREAMLINESLOPE) THEN
+            IF((STREAMLINE(I).V(2,STREAMLINE(I).NV)-STREAMLINE(I).V(2,1))/(STREAMLINE(I).V(1,STREAMLINE(I).NV)-STREAMLINE(I).V(1,1))<0.D0) DIRECTION1=-1 !SLIDE RIGHT      
+        ENDIF
         
+         
         
 	    call glBegin(gl_LINE_STRIP)
 		DO J=1,STREAMLINE(I).NV
+            COLOR2=COLOR1
+            IF(ALLOCATED(STREAMLINE(I).PARA_SFCAL)) THEN
+                IF(DIRECTION1*STREAMLINE(I).PARA_SFCAL(2,J)<0.D0) THEN
+                    COLOR2=mycolor(:,WHITE)
+                ENDIF
+            ENDIF
+            CALL glcolor4fv(COLOR2)
 			call glvertex3dv(STREAMLINE(I).V(:,J)) 
 		ENDDO
 	    CALL GLEND()
@@ -206,7 +220,7 @@ subroutine slopestability_streamline(islip)
         SIGMA_TF1=0.D0;SIGMA_T1=0.D0        
         DO j=1,streamline(i).nv-1
             IF(ALLOCATED(STREAMLINE(I).PARA_SFCAL)) DEALLOCATE(STREAMLINE(I).PARA_SFCAL)
-            ALLOCATE(STREAMLINE(I).PARA_SFCAL(7,streamline(i).nv))
+            ALLOCATE(STREAMLINE(I).PARA_SFCAL(8,streamline(i).nv))
             STREAMLINE(I).PARA_SFCAL(:,streamline(i).nv)=0.d0
             SS(1)=(STREAMLINE(I).VAL(POSDATA.ISXX,J)+STREAMLINE(I).VAL(POSDATA.ISXX,J+1))/2.0
             SS(2)=(STREAMLINE(I).VAL(POSDATA.ISYY,J)+STREAMLINE(I).VAL(POSDATA.ISYY,J+1))/2.0
@@ -224,14 +238,17 @@ subroutine slopestability_streamline(islip)
                 RAD1=SIGN(PI/2.0,DY1)
             ENDIF
             CALL stress_in_inclined_plane(SS,RAD1,SNT1)
-            T2=(C1-SNT1(1)*DTAN(PHI1/180.0*PI)) !TAUF
+            
+            T2=(C1-MIN(SNT1(1),0.D0)*DTAN(PHI1/180.0*PI)) !TAUF
             IF(SNT1(1)<0.D0.AND.SFR1>=0.D0) THEN
             !IF(SNT1(1)<0.D0) THEN
                 SIGMA_TF1=SIGMA_TF1+T2*T1
                 SIGMA_T1=SIGMA_T1+SNT1(2)*T1
+            ELSE
+                T2=0.D0;SNT1(2)=0.D0
             ENDIF
             !SIGN,SIGT,RAD1,TAUF,DIS,C,PHI
-            STREAMLINE(I).PARA_SFCAL(:,J)=[SNT1,RAD1,T2,T1,C1,PHI1]
+            STREAMLINE(I).PARA_SFCAL(:,J)=[SNT1,RAD1,T2,T1,C1,PHI1,SFR1]
         ENDDO
         IF(ABS(SIGMA_T1)>1E-10) THEN
             STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1) 
@@ -619,7 +636,7 @@ SUBROUTINE OUT_SHOWN_STREAMLINE()
             IF(ALLOCATED(STREAMLINE(I).PARA_SFCAL)) THEN
                 WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J),STREAMLINE(I).PARA_SFCAL(:,J)
             ELSE
-                WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J),0,0,0,0,0,0,0
+                WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J),0,0,0,0,0,0,0,0
             ENDIF
             IF(J==STREAMLINE(I).NV) WRITE(20,'(I5)') I
         ENDDO        
@@ -633,9 +650,9 @@ SUBROUTINE OUT_SHOWN_STREAMLINE()
 
     
 10  FORMAT('ILINE',1X,'  INODE',1X,22X,'FOS',1X,<POSDATA.NVAR>(A24,1X),&
-        1X,'SLIPSEG_SN',1X,'SLIPSEG_TAU',1X,'SLIPSEG_ANGLE_IN_RAD',1X,'SLIPSEG_TANF',&
-        1X,'SLIPSEG_DIS',1X,'SLIPSEG_C',1X,'SLIPSEG_PHI')
-20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR+8>(EN24.15,1X))
+        1X,'SLIPSEG_SN',1X,'SLIPSEG_TAU',1X,'SLIPSEG_ANGLE_IN_RAD',1X,'SLIPSEG_TAUF',&
+        1X,'SLIPSEG_DIS',1X,'SLIPSEG_C',1X,'SLIPSEG_PHI',1X,'SLIPSEG_SFR')
+20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR+9>(EN24.15,1X))
          
 30  FORMAT(I5,1X,I7,1X,<POSDATA.NDIM>(EN24.15,1X),'*THE POINT IS OUT OF MODEL ZONE.*')
 

@@ -1099,7 +1099,7 @@ subroutine Initialization()
 	do i=1,neset
         iset1=esetid(i)
 		if(eset(iset1).ec==stru) then
-			if(eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam2d.or.eset(iset1).et==beam.or.eset(iset1).et==ssp2d)	call generate_brickelement_bar_beam(i)
+			if(eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam2d.or.eset(iset1).et==beam.or.eset(iset1).et==ssp2d)	call generate_brickelement_bar_beam(iset1)
 		end if
 	end do
 	

@@ -34,8 +34,9 @@ subroutine readin()
 			inquire(UNIT1,name=INCLUDEFILE(I))
 			length = SPLITPATHQQ(INCLUDEFILE(I), drive, dir, name, ext)
 			title=trim(name)
-            FILEPATH=trim(drive)//trim(dir)//trim(name)
+            FILEPATH=trim(drive)//trim(dir)
             msg = CHDIR(FILEPATH)
+            FILEPATH=trim(drive)//trim(dir)//trim(name)
 			resultfile=TRIM(FILEPATH)//'.sinp'
             meshstructurefile=TRIM(FILEPATH)//'_meshstructure'//'.dat'
 		ELSE
@@ -396,10 +397,12 @@ subroutine kwcommand(term,unit)
                                 isacw1=.true.
                             end if
                         end if
+                        
                         if(.not.isacw1) then
-                            element(n1).node(1:3)=[1,3,2]
-                            if(element(n1).et==9) element(n1).node(4:6)=[6,5,4]
-                            if(element(n1).et==23) element(n1).node(4:15)=[12:4:-1,13,15,14]
+                            en1(1:element(n1).nnode)=element(n1).node(1:element(n1).nnode)                            
+                            element(n1).node(1:3)=en1([1,3,2])
+                            if(element(n1).et==9) element(n1).node(4:6)=en1([6,5,4])
+                            if(element(n1).et==23) element(n1).node(4:15)=en1([12:4:-1,13,15,14])
                         endif
                         
                         if(element(n1).et==23) then

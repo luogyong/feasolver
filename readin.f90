@@ -35,7 +35,7 @@
     inquire(1,name=nme)
     length = SPLITPATHQQ(nme, drive, dir, name, ext)
     CALL LOWCASE(EXT)
-    msg = CHDIR(trim(drive)//trim(dir)//trim(name))
+    msg = CHDIR(trim(drive)//trim(dir))
     
     IF(TRIM(ADJUSTL(EXT))=='.plot') THEN
         CALL plot_func(nme)
@@ -626,7 +626,10 @@ subroutine solvercommand(term,unit)
                 WATERLEVEL.H(1,:)=KPOINT(WATERLEVEL.VAR,WATERLEVEL.POINT)
                 WATERLEVEL.H(2,:)=KPOINT(NDIMENSION,WATERLEVEL.POINT)
             ELSE
-                READ(UNIT,*) WATERLEVEL.H
+                DO J=1,WATERLEVEL.NPOINT
+                    call skipcomment(unit)
+                    READ(UNIT,*) WATERLEVEL.H(:,J)
+                ENDDO
             ENDIF
 			
         case('right turn point','rtpoint','rtp')
@@ -1494,6 +1497,7 @@ subroutine solvercommand(term,unit)
             bfgm_step=int(ar(1:n1))
         CASE('slopeparameter')
             print *,'Reading SLOPE PARAMETER data...'
+            n1=0
             do i=1,pro_num
 				select case(property(i).name)
                 case('slopemthod','sm')
@@ -1511,9 +1515,25 @@ subroutine solvercommand(term,unit)
                 case('downwardzone')
                     slopeparameter.ISYDWZ=.TRUE.
                     slopeparameter.ydownwardzone=property(i).value
-                    
+                case('toezone')
+                    IF(INT(property(i).value)/=0) N1=1
                 endselect
             enddo
+            IF(N1/=0) THEN
+                call skipcomment(unit)
+                READ(UNIT,*) AR(1:4)
+                T1=AR(3)-AR(1) !X2-X1
+                IF(ABS(T1)>1.E-7) THEN
+                    slopeparameter.TOEZONE(1)=(AR(4)-AR(2))/T1
+                    slopeparameter.TOEZONE(2)=-1.D0
+                    slopeparameter.TOEZONE(3)=AR(2)-slopeparameter.TOEZONE(1)*AR(1)
+                ELSE
+                    slopeparameter.TOEZONE(1)=1.D0
+                    slopeparameter.TOEZONE(2)=0.D0
+                    slopeparameter.TOEZONE(3)=AR(1)
+                ENDIF
+
+            ENDIF
 		case('ueset')
 			print *, 'Reading USER DEFINED ELEMENT SET data'
 			if(nueset==1) then !intialize ueset(0)
@@ -3019,7 +3039,7 @@ subroutine skipcomment(unit,EF)
 		strL=len_trim(string)
 		if(strL==0) cycle
 
-		if(string(1:1)/='/'.and.string(1:1)/='#') then
+		if(string(1:2)/='//'.and.string(1:1)/='#') then
 			backspace(unit)
 			exit
 		end if

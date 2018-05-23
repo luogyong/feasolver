@@ -25,7 +25,7 @@ subroutine stree_failure_ratio_cal(ienum,ISTEP)
 		!disg1(1:ndim1)=matmul(dis1(1:ndim1,1:nsh1),ecp(et1).Lshape(:,i))		
 
 		call stress_in_failure_surface(element(ienum).sfr(:,i),ss1,ecp(element(ienum).et).ndim,c1,Phi1,solver_control.slidedirection,&
-                                    element(ienum).xygp(ndimension,i),tensilestrength1)
+                                    element(ienum).xygp(1:ndimension,i),tensilestrength1)
 		
         
 	enddo
@@ -36,7 +36,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     USE DS_SlopeStability
 	implicit none
 	integer,intent(in)::ndim,slidedirection
-	real(8),intent(in)::stress(6),cohesion,PhiD,Y,TensileS
+	real(8),intent(in)::stress(6),cohesion,PhiD,Y(NDIM),TensileS
 	real(8),intent(inout)::sfr(6)
 	
 	integer::i
@@ -59,10 +59,10 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
         IF(PHI1>1E-7) T1=TAN(PHI1) 
         if(pss1(1)<MIN(TensileS,C1/T1)) then
             !CHECK YIELD
-            YF1=SIGMAC1*SIN(PHI1)+T2-C1*COS(PHI1)
+            !YF1=SIGMAC1*SIN(PHI1)+R1-C1*COS(PHI1)
         
             
-            IF(YF1<0.D0) THEN
+            !IF(YF1<0.D0) THEN
             
                 B=-tan(phi1)
                 A=(C1+sigmaC1*B)/R1
@@ -74,10 +74,10 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
                     sita1=pi1/2.0-phi1
                 endif
                 sfr(1)=sin(sita1)/(A+B*cos(sita1)) !sfr for stress failure ratio
-            ELSE
-                sita1=pi1/2.0-phi1
-                SFR(1)=1.0D0
-            ENDIF
+            !ELSE
+            !    sita1=pi1/2.0-phi1
+            !    SFR(1)=R1/(R1-YF1)
+            !ENDIF
             !if(sfr(1)>1.d0) sfr(1)=1.0d0
         else
             !tension
@@ -88,8 +88,8 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     !    pause
     !endif
     else
-        sfr(1)=0.d0
-        sita1=0.d0
+        sfr(1)=0.001
+        sita1=pi1/2.0-phi1
     endif      
     
     !if((pss1(1)+pss1(2))<0.d0) then 
@@ -114,15 +114,27 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     t1=slidedirection
     !一般在坡顶和坡脚，会出现sxx<syy(水平方向的压力大于竖向)的情况，按下面的方法计算，其破坏面的夹角与x轴的夹角大于0
     !这时，当slidedirection=right时，坡顶会出现不相容的破坏面方向(sfr(2)>0),这时令其取另一个方向。
-    IF(slidedirection==1.and.SLOPEPARAMETER.ISYDWZ.AND.Y>SLOPEPARAMETER.YDOWNWARDZONE.AND.stress(2)>stress(1)) THEN
+    IF(slidedirection==1.and.SLOPEPARAMETER.ISYDWZ.AND.Y(NDIM)>SLOPEPARAMETER.YDOWNWARDZONE.AND.stress(2)>stress(1)) THEN
         T1=-T1
     ENDIF
 
     IF(sfr(1)>=0.d0) then
-        if(stress(2)>stress(1)) then !sigmax<sigmay         
+        if(stress(2)>stress(1)) then !sigmax<sigmay,passive zone         
             sfr(2)=pss1(4)+(sita1)/2.0*T1
         else
-            sfr(2)=pss1(4)-(PI1-sita1)/2.0*T1
+            sfr(2)=pss1(4)-(PI1-sita1)/2.0*T1 !active zone
+            !调整坡脚主动区的局部最大滑动面方向
+            IF(ABS(SLOPEPARAMETER.TOEZONE(2))/=0.D0) THEN
+                T3=-(SLOPEPARAMETER.TOEZONE(1)*Y(1)+SLOPEPARAMETER.TOEZONE(3))/SLOPEPARAMETER.TOEZONE(2)
+                T3=Y(2)-T3
+                IF(T3<=0.D0) THEN
+                    sfr(2)=pss1(4)+(PI1-sita1)/2.0*T1
+                ENDIF
+            ELSEIF(ABS(SLOPEPARAMETER.TOEZONE(1))/=0.D0) THEN
+                T3=-SLOPEPARAMETER.TOEZONE(3)/SLOPEPARAMETER.TOEZONE(1)
+                T3=Y(1)-T3
+                IF(T3*slidedirection>=0) sfr(2)=pss1(4)+(PI1-sita1)/2.0*T1
+            ENDIF
         endif
         !sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(PI1/2-phi1)
         !sfr(4)=-t2*sin(PI1/2-phi1)*t1 
@@ -593,7 +605,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 	use solverds
 	implicit none
 	integer::i,j,k,n1,n2,ISTEP,isubts
-	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3),T2,ts1
+	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3),T2,ts1,SFR_MAX1=-1.D20
 
     if(isubts==1) call NodalWeight(ISTEP) !同一步中单元的生死不发生改变
     
@@ -706,7 +718,8 @@ subroutine E2N_stress_strain(ISTEP,isubts)
                 ENDIF
                 !dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
 			    NODE(I).SFR(7)=C1;NODE(I).SFR(8)=PHI1;
-			    call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection,node(i).coord(ndimension),TS1)
+			    call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection,node(i).coord(1:ndimension),TS1)
+                IF(NODE(I).SFR(1)>SFR_MAX1) SFR_MAX1=NODE(I).SFR(1)
 			ENDIF
 		end if
 		!total generalized shear stain
@@ -732,7 +745,14 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 		
 		
 	end do
-	
+    
+	DO i=1,nnum
+		
+        if(node(i).isactive==0) cycle
+        IF(OUTVAR(SFR).VALUE>0) THEN
+            IF(NODE(I).SFR(1)<0.D0) NODE(I).SFR(1)=-SFR_MAX1
+        ENDIF
+	ENDDO
 end subroutine
 
 

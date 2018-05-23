@@ -38,3 +38,5 @@
 *.u2d
 [Dd]ebug*/
 [Rr]elease*/
+*.vfproj
+*.u2d

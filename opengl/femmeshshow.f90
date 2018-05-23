@@ -71,7 +71,7 @@ TYPE STREAMLINE_TYDEF
     LOGICAL::SHOW=.TRUE.,ISLOCALSMALL=.FALSE.
     REAL(8)::PTstart(3),SF_SLOPE=HUGE(1.d0)
     REAL(8),ALLOCATABLE::V(:,:),VAL(:,:)
-    REAL(8),ALLOCATABLE::PARA_SFCAL(:,:) !SIGN,SIGT,RAD1,SIGTA,DIS,C,PHI
+    REAL(8),ALLOCATABLE::PARA_SFCAL(:,:) !SIGN,SIGT,RAD1,SIGTA,DIS,C,PHI,SFR
     
 ENDTYPE
 INTEGER::MAXNSTREAMLINE=0
@@ -578,7 +578,7 @@ subroutine slope_handler(selection)
     INTEGER::NSLIP1,I,IEL1,J,K,n1=0,N2=0,OFFSET1
     INTEGER,SAVE::TRYIEL1=0
     INTEGER,EXTERNAL::POINTlOC_BC
-    real(8)::AR2D1(2,500),AR2D2(2,2000)
+    real(8)::AR2D1(2,2000),AR2D2(2,2000)
     INTEGER::unit,NAR1=100,NTOREAD1=100,NSET1=10
     INTEGER::NREADIN1,NSETREADIN1,NNODE1,EF
     REAL(8)::AR1(100),DT1
@@ -1633,8 +1633,8 @@ case (ZOOM)
    
    
 case (PAN)
-   shift%x = shift%x + .01*(x - begin%x)
-   shift%y = shift%y - .01*(y - begin%y)
+   shift%x = shift%x + .1*(x - begin%x)
+   shift%y = shift%y - .1*(y - begin%y)
 case (ROTATE)
    angle%x = angle%x + (x - begin%x)
    angle%y = angle%y + (y - begin%y)
@@ -1700,13 +1700,13 @@ select case(glutGetModifiers())
 case(GLUT_ACTIVE_CTRL) !PAN
    select case(key)
    case(GLUT_KEY_LEFT)
-      shift%x = shift%x - .02
+      shift%x = shift%x - .2
    case(GLUT_KEY_RIGHT)
-      shift%x = shift%x + .02
+      shift%x = shift%x + .2
    case(GLUT_KEY_DOWN)
-      shift%y = shift%y - .02
+      shift%y = shift%y - .2
    case(GLUT_KEY_UP)
-      shift%y = shift%y + .02
+      shift%y = shift%y + .2
    end select
 case(GLUT_ACTIVE_SHIFT) !ROTATE
     select case(key)
