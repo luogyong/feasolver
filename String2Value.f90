@@ -31,7 +31,9 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
         CASE('mc_c')
             value=mc_c
         CASE('mc_phi')
-            value=mc_phi            
+            value=mc_phi 
+        CASE('slope_sd')
+            value=slope_sd
         CASE('felineseg') 
             VALUE=FELINESEG
         CASE('fetriangle') 

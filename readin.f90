@@ -379,11 +379,11 @@ subroutine read_execute(unit,itype,keyword,COMMAND_PARSER)
 			if(ef<0) exit	
 			term2=adjustL(term2)
 			strL=len_trim(term2)
-			if(strL==0.or.term2(1:1)=='/'.or.term2(1:1)=='#') cycle		
+			if(strL==0.or.term2(1:2)=='//'.or.term2(1:1)=='#') cycle		
 
 			!每行后面以'/'开始的后面的字符是无效的。
-			if(index(term2,'/')/=0) then
-				strL=index(term2,'/')-1
+			if(index(term2,'//')/=0) then
+				strL=index(term2,'//')-1
 				term2=term2(1:strL)
 				strL=len_trim(term2)
 			end if			
@@ -409,7 +409,7 @@ subroutine read_execute(unit,itype,keyword,COMMAND_PARSER)
 		strL=len_trim(term)
 		if(strL==0) cycle		
 		write(ch,'(a1)') term
-		if(ch/='/'.and.ch/='#') then
+		if(TERM(1:2)/='//'.and.TERM(1:1)/='#') then
 			!backspace(unit)
 			!read(unit,999) term
 			call lowcase(term)
@@ -2166,6 +2166,14 @@ subroutine solvercommand(term,unit)
                         outvar(MC_C).VALUE=MC_C
                         OUTVAR(MC_PHI).NAME='MC_PHI'
                         OUTVAR(MC_PHI).VALUE=MC_PHI
+                        !OUTVAR(SLOPE_SD).NAME='SlideDirection'
+                        !OUTVAR(SLOPE_SD).VALUE=SLOPE_SD
+                        !OUTVAR(SFR_ALPHA).NAME='PSIGMASURFACE'
+                        !OUTVAR(SFR_ALPHA).VALUE=SFR_ALPHA
+                        !OUTVAR(SFR_PSITA).NAME='SFRMAX_ANGLE_WITH_PSS'
+                        !OUTVAR(SFR_PSITA).VALUE=SFR_PSITA
+                        !OUTVAR(SFR_MCSITA).NAME='MC_FAILURESURFACE_WITH_PSS'
+                        !OUTVAR(SFR_MCSITA).VALUE=SFR_MCSITA                        
 						!outvar(SFR).nval=6
 					case('spg')
 						outvar(Gradx).name='Ix'
@@ -2240,7 +2248,15 @@ subroutine solvercommand(term,unit)
 						outvar(sxy).value=sxy
 						outvar(SXX:SXY).system=property(i).value
 						outvar(sigma_mises).name='mises'
-						outvar(sigma_mises).value=sigma_mises						
+						outvar(sigma_mises).value=sigma_mises
+						OUTVAR(PSIGMA1).VALUE=PSIGMA1
+						OUTVAR(PSIGMA1).NAME='PSIGMA1'
+						OUTVAR(PSIGMA3).VALUE=PSIGMA3
+						OUTVAR(PSIGMA3).NAME='PSIGMA3'						
+						OUTVAR(PSIGMA2).VALUE=PSIGMA2
+						OUTVAR(PSIGMA2).NAME='PSIGMA2'
+						OUTVAR(APSIGMA1).VALUE=APSIGMA1
+						OUTVAR(APSIGMA1).NAME='APSIGMA1'						
 						IF(NDIMENSION>2) THEN
 							outvar(syz).name='syz'  
 							outvar(syz).value=syz

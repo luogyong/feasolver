@@ -689,7 +689,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                 ELTTYPE(ET).NNODE=3
 				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1;Elttype(ET).NTET=1;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
-						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(3,Elttype(ET).NTET))
+						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1],(/2,3/))
 				Elttype(ET).FACE(:,1)=[3,1,2,3,0]
 				Elttype(ET).FACEEDGE=Elttype(ET).FACE
@@ -698,7 +698,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                 ELTTYPE(ET).NNODE=3
 				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1;Elttype(ET).NTET=4;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
-						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(3,Elttype(ET).NTET))
+						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
 				
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1],(/2,3/))
 				Elttype(ET).FACE(:,1)=[3,1,2,3,0]
@@ -712,7 +712,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                 ELTTYPE(ET).NNODE=3
 				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1;Elttype(ET).NTET=16;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
-						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(3,Elttype(ET).NTET))
+						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1],(/2,3/))
 				Elttype(ET).FACE(:,1)=[3,1,2,3,0]
 				Elttype(ET).FACEEDGE=Elttype(ET).FACE
@@ -742,7 +742,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                 ELTTYPE(ET).NNODE=4
 				Elttype(ET).NEDGE=4;Elttype(ET).NFACE=1;Elttype(ET).NTET=2;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
-						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(3,Elttype(ET).NTET))
+						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1],(/2,4/))                
 				Elttype(ET).FACE(:,:)=RESHAPE([4,1,2,3,4],&
 											  (/5,1/))
@@ -754,7 +754,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                 ELTTYPE(ET).NNODE=4
 				Elttype(ET).NEDGE=4;Elttype(ET).NFACE=1;Elttype(ET).NTET=6;ELTTYPE(ET).DIM=2				
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
-						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(3,Elttype(ET).NTET))
+						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1],(/2,4/))                
 				Elttype(ET).FACE(:,:)=RESHAPE([4,1,2,3,4],&
 											  (/5,1/))

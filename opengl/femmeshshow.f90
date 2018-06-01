@@ -220,7 +220,7 @@ TYPE TIMESTEPINFO_TYDEF
     REAL(8),ALLOCATABLE::TIME(:)
 	!INTEGER,ALLOCATABLE::CALSTEP(:) !当前步对应的计算步，注意，计算步与绘图步往往不一致。
     LOGICAL::ISSHOWN=.TRUE.
-	REAL(8)::VSCALE(4)=1.0D0,VMIN(4),VMAX(4)
+	REAL(8)::VSCALE(10)=1.0D0,VMIN(10),VMAX(10)
     CHARACTER(256)::INFO=''
     CONTAINS
     PROCEDURE::INITIALIZE=>STEP_INITIALIZE
@@ -354,7 +354,28 @@ SUBROUTINE STEP_INITIALIZE(STEPINFO,ISTEP,NSTEP,TIME)
         
     ENDIF
 	
+	IF(POSDATA.ISIGMA1>0) THEN
+		DO I=1,STEPPLOT.NSTEP
+			VEC1(1,:,I)=POSDATA.NODALQ(:,POSDATA.ISIGMA1,I)
+			VEC1(2,:,I)=0
+			VEC1(3,:,I)=0
+		ENDDO
 
+		STEPINFO.VMAX(5)=MAX(MAXVAL(NORM2(VEC1,DIM=1)),1.0E-8)
+		STEPINFO.VMIN(5)=MINVAL(NORM2(VEC1,DIM=1))
+		STEPINFO.VSCALE(5)=POSDATA.modelr/40./STEPINFO.VMAX(5)
+		
+		DO I=1,STEPPLOT.NSTEP
+			VEC1(1,:,I)=POSDATA.NODALQ(:,POSDATA.ISIGMA3,I)
+			VEC1(2,:,I)=0
+			VEC1(3,:,I)=0
+		ENDDO
+
+		STEPINFO.VMAX(6)=MAX(MAXVAL(NORM2(VEC1,DIM=1)),1.0E-8)
+		STEPINFO.VMIN(6)=MINVAL(NORM2(VEC1,DIM=1))
+		STEPINFO.VSCALE(6)=POSDATA.modelr/40./STEPINFO.VMAX(6)		
+        STEPINFO.VSCALE(5:6)=maxval(STEPINFO.VSCALE(5:6))
+    ENDIF
 	
 	
 	DEALLOCATE(VEC1)
@@ -848,7 +869,7 @@ END SUBROUTINE
 
 
 SUBROUTINE SHOW_NodalValue_HANDLER(selection)
-integer(kind=glcint), intent(in) :: selection
+integer(kind=glcint), intent(in out) :: selection
 
 select case (selection)
 
@@ -881,7 +902,7 @@ RETURN
 END SUBROUTINE
 
 subroutine Contour_handler(selection)
-integer(kind=glcint), intent(in) :: selection
+integer(kind=glcint), intent(in out) :: selection
 select case (selection)
 
 case (Contour_surfsolid_toggle)
@@ -910,7 +931,7 @@ end select
 endsubroutine
 
 subroutine Vector_handler(selection)
-integer(kind=glcint), intent(in) :: selection
+integer(kind=glcint), intent(in out) :: selection
 select case (selection)
 
 
@@ -927,7 +948,7 @@ call drawvector()
 endsubroutine
 
 subroutine Model_handler(selection)
-integer(kind=glcint), intent(in) :: selection
+integer(kind=glcint), intent(in out) :: selection
 select case (selection)
 
 
@@ -1200,10 +1221,10 @@ integer :: winid, menuid, submenuid
 !real(gldouble)::r1
 interface
     subroutine myreshape(w,h)
-        integer::w,h
+        integer,intent(in out)::w,h
     end subroutine
     subroutine keyboardCB(key,  x,  y)
-        integer,intent(in)::key,x,y
+        integer,intent(in out)::key,x,y
     end subroutine
     subroutine arrows(key, x, y)
        integer,intent(in out) :: key, x, y

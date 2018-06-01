@@ -226,7 +226,8 @@ MODULE POS_IO
                 IVX=0,IVY=0,IVZ=0,IHEAD=0,&
                 IGRADX=0,IGRADY=0,IGRADZ=0,&
                 ISFR_SFRX=0,ISFR_SFRY=0,IMC_C=0,IMC_PHI=0,&
-                ISXX=0,ISYY=0,ISXY=0,ISFR=0,IH_BC=0,IQ=0
+                ISXX=0,ISYY=0,ISXY=0,ISFR=0,IH_BC=0,IQ=0,ISLOPE_SD=0,&
+                ISIGMA1,ISIGMA3
         real(8)::modelr,minx,miny,minz,maxx,maxy,maxz !模型外接圆半径
         type(outvar_tydef),ALLOCATABLE::OUTVAR(:)
         TYPE(NODE_TYDEF),ALLOCATABLE::NODE(:)        
@@ -554,7 +555,7 @@ CONTAINS
 			    if(ef<0) exit	
 			    term2=adjustL(term2)
 			    strL=len_trim(term2)
-			    if(strL==0.or.term2(1:1)=='/'.or.term2(1:1)=='#') cycle		
+			    if(strL==0.or.term2(1:2)=='//'.or.term2(1:1)=='#') cycle		
 
 			    !每行后面以'/'开始的后面的字符是无效的。
 			    if(index(term2,'/')/=0) then
@@ -584,7 +585,7 @@ CONTAINS
 		    strL=len_trim(term)
 		    if(strL==0) cycle		
 		    write(ch,'(a1)') term
-		    if(ch/='/'.and.ch/='#') then
+		    if(TERM(1:2)/='//'.and.TERM(1:1)/='#') then
 
 			    call lowcase(term)
 			    call COMMAND.PARSER(term)			
@@ -665,7 +666,9 @@ CONTAINS
         CASE('h_bc')
             POSDATA.IH_BC=IVAL 
         CASE('q') 
-            POSDATA.IQ=IVAL 
+            POSDATA.IQ=IVAL
+        CASE('slope_sd')
+            POSDATA.ISLOPE_SD=IVAL
         END SELECT
         
     ENDSUBROUTINE

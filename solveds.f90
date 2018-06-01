@@ -11,7 +11,7 @@ module solverds
 		real(kind=DPN)::coord(3)=0.0D0 !coordinates (x,y,z)
 		integer::ndof=0 !节点的自由度个数
 		integer::dof(MNDOF)=inactive !-9999999,inactive dof; >0:active dof. if dof()>0, then it indexes the dof number.						 		
-		real(kind=DPN),allocatable::stress(:),strain(:),pstrain(:),SFR(:)  !SFR=应力破坏比
+		real(kind=DPN),allocatable::stress(:),strain(:),pstrain(:),SFR(:),PSIGMA(:)  !SFR=应力破坏比
 		real(kind=DPN),allocatable::FQ(:),M(:) !nodal shear forces and nodal bending moments.
 		real(kind=DPN),allocatable::igrad(:),velocity(:)	!for spg element, gradients,velocities.
 		real(kind=DPN)::angle=0.0D0 !the angle around the vertex.

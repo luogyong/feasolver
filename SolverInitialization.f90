@@ -1240,7 +1240,11 @@ subroutine el_alloc_room(ienum)
 					allocate(node(element(ienum).node(i)).stress(6))
 					allocate(node(element(ienum).node(i)).strain(6))
 					allocate(node(element(ienum).node(i)).pstrain(6))
-					IF(OUTVAR(SFR).VALUE>0) allocate(node(element(ienum).node(i)).sfr(8))
+					IF(OUTVAR(SFR).VALUE>0) then
+                        allocate(node(element(ienum).node(i)).sfr(9))
+                        !node(element(ienum).node(i)).sfr(9)=SOLVER_CONTROL.slidedirection
+                    endif
+					IF(OUTVAR(PSIGMA).VALUE>0) allocate(node(element(ienum).node(i)).PSIGMA(4))
 				end if				
 			end do			
 	end select

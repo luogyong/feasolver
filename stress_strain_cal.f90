@@ -50,7 +50,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
    
 	call principal_stress_cal(pss1,stress,ndim)
 	
-	t2=(pss1(1)-pss1(2))/2.0
+	t2=(pss1(1)-pss1(3))/2.0
     
     sigmaC1=(stress(1)+stress(2))/2.0
     R1=t2
@@ -138,7 +138,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
         endif
         !sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(PI1/2-phi1)
         !sfr(4)=-t2*sin(PI1/2-phi1)*t1 
-        sfr(3)=(pss1(1)+pss1(2))/2+t2*cos(sita1)
+        sfr(3)=(pss1(1)+pss1(3))/2+t2*cos(sita1)
         sfr(4)=-t2*sin(sita1)*t1 
         sfr(5)=sign(sfr(1),-sfr(4))*dcos(sfr(2)) !输出归一化的剪应力
         sfr(6)=sign(sfr(1),-sfr(4))*dsin(sfr(2))
@@ -157,37 +157,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     
     sfr(2)=sfr(2)/PI1*180.0 !to degree
     
-    
-    !t1=0.5*(stress(1)+stress(2))
-    !t2=0.5*(stress(1)-stress(2))	
-    !t3=2*PI1
-    !do i=1,2
-    !    !找出破坏面上的剪应力与位移矢量较小的破坏面
-    !    if(i==1) then
-    !        t5=dasin(dsin(pss1(4)-pi1/2.-(pi1/4.+phi1/2.)))
-    !    else
-    !        t5=dasin(dsin(pss1(4)-pi1/2.+(pi1/4.+phi1/2.)))
-    !    endif
-    !
-    !    sin1=dsin(2*(t5+PI1/2.));cos1=dcos(2.*(t5+PI1/2.))
-    !    ta1(1)=t1+t2*cos1+stress(4)*sin1
-	   ! ta1(2)=-t2*sin1+stress(4)*cos1
-    !    ta1(3)=-ta1(2)*dcos(t5)
-	   ! ta1(4)=-ta1(2)*dsin(t5)    
-    !    t4=dacos(dot_product(dis(1:2),ta1(3:4))/(norm2(dis(1:2))*norm2(ta1(3:4))))
-    !    if(t4<t3) then
-    !        sfr(2)=t5
-    !        sfr(3:6)=ta1
-    !        t3=t4
-    !    endif
-    !
-    !enddo 
-    
-    
-    
-	
-	
-
+ 
 endsubroutine
 
 subroutine principal_stress_cal(pstress,stress,ndim)
@@ -207,8 +177,8 @@ subroutine principal_stress_cal(pstress,stress,ndim)
 		t1=(stress(1)+stress(2))/2.0d0
 		t2=(stress(1)-stress(2))/2.0d0
 		pstress(1)=t1+(t2**2+stress(4)**2)**0.5		
-		pstress(2)=t1-(t2**2+stress(4)**2)**0.5
-		Pstress(3)=stress(3)
+		pstress(3)=t1-(t2**2+stress(4)**2)**0.5
+		Pstress(2)=stress(3)
 		!默认z方向为应力为中应力。
         IF(ABS(stress(1)-stress(2))>1E-14) THEN 
 		    sita=0.5*atan(2*stress(4)/(stress(1)-stress(2)))
@@ -624,7 +594,9 @@ subroutine E2N_stress_strain(ISTEP,isubts)
         if(allocated(node(i).sfr)) then
             node(i).sfr=0.0d0
             node(i).sfr(1)=-1.0d6
+			node(i).sfr(9)=SOLVER_CONTROL.slidedirection
         endif
+		IF(ALLOCATED(NODE(I).PSIGMA)) NODE(I).PSIGMA=0.D0
 		node(i).q=0.0d0
         !node(i).sfr(1)=-1.0d6
 	end do
@@ -752,7 +724,19 @@ subroutine E2N_stress_strain(ISTEP,isubts)
         IF(OUTVAR(SFR).VALUE>0) THEN
             IF(NODE(I).SFR(1)<0.D0) NODE(I).SFR(1)=-SFR_MAX1
         ENDIF
+		
+		IF(OUTVAR(PSIGMA).VALUE>0) THEN
+			IF(NDIMENSION==2) THEN
+				call principal_stress_cal(node(i).psigma,node(i).stress,ndimension)
+				IF(node(i).stress(1)>node(i).stress(2)) THEN
+					node(i).psigma(4)=node(i).psigma(4)+1.570796326794897/2.0D0
+				ENDIF
+			ENDIF
+		ENDIF
 	ENDDO
+	
+	
+	
 end subroutine
 
 
