@@ -227,12 +227,12 @@ MODULE POS_IO
                 IGRADX=0,IGRADY=0,IGRADZ=0,&
                 ISFR_SFRX=0,ISFR_SFRY=0,IMC_C=0,IMC_PHI=0,&
                 ISXX=0,ISYY=0,ISXY=0,ISFR=0,IH_BC=0,IQ=0,ISLOPE_SD=0,&
-                ISIGMA1,ISIGMA3
+                IPSIGMA1=0,IPSIGMA3=0
         real(8)::modelr,minx,miny,minz,maxx,maxy,maxz !模型外接圆半径
         type(outvar_tydef),ALLOCATABLE::OUTVAR(:)
         TYPE(NODE_TYDEF),ALLOCATABLE::NODE(:)        
         REAL(8),ALLOCATABLE::STEPTIME(:)
-        REAL(8),ALLOCATABLE::NODALQ(:,:,:),VEC(:,:)        
+        REAL(8),ALLOCATABLE::NODALQ(:,:,:),VEC(:,:,:)        
         TYPE(ESET_TYDEF),ALLOCATABLE::ESET(:)
         TYPE(ELEMENT_TYDEF),ALLOCATABLE::ELEMENT(:)
         !TYPE(TET_TYDEF),ALLOCATABLE::TET(:)
@@ -669,6 +669,10 @@ CONTAINS
             POSDATA.IQ=IVAL
         CASE('slope_sd')
             POSDATA.ISLOPE_SD=IVAL
+		CASE('psigma1')
+			POSDATA.ipsigma1=IVAL
+		CASE('psigma3')
+			POSDATA.ipsigma3=IVAL			
         END SELECT
         
     ENDSUBROUTINE

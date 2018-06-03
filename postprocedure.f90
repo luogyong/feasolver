@@ -503,7 +503,7 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 				end do  
 			case(szz)
 				do j=1,nnum
-					NodalQ(:,i,NnodalQ)=node(j).stress(3)
+					NodalQ(j,i,NnodalQ)=node(j).stress(3)
 				end do
 			case(sxy)
 				do j=1,nnum

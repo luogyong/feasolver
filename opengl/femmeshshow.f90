@@ -94,16 +94,24 @@ TYPE VECTOR_PLOT_TYDEF
 	REAL(8),POINTER::VEC(:,:)=>NULL()
 ENDTYPE
 
-INTEGER,PARAMETER:: VECTOR_GROUP_DIS=1,&
+INTEGER,PARAMETER:: NVECTORPAIR=10,&
+					VECTOR_GROUP_DIS=1,&
                     VECTOR_GROUP_SEEPAGE_VEC=2,&
                     VECTOR_GROUP_SEEPAGE_GRAD=3,&
-                    VECTOR_GROUP_SFR=4
+                    VECTOR_GROUP_SFR=4,&
+					VECTOR_GROUP_PSIGMA1=5,&
+					VECTOR_GROUP_PSIGMA3=6					
 integer,parameter::Vector_toggle= 1, &
                    Vector_lengthen=2,&
-                   Vector_shorten=3                   
+                   Vector_shorten=3,&
+                   Vector_Unify=4,&
+                   Vector_Less=5,&
+                   Vector_More=6
                    
 real(8),public::Scale_Vector_Len=1.0,VabsMax,VabsMin,Vscale                    
-character(128)::VectorPairName
+character(128)::VectorPairName(NVECTORPAIR)=['DIS.','SEEP.V','SEEP.I','SFR','PSIGMA1','PSIGMA3','','','','']
+integer::VectorFrequency=1
+logical::IsVectorUnify=.False.
 !model
 integer, parameter :: surfgrid_toggle = 1, &
                       quit_selected = 4,&
@@ -193,7 +201,8 @@ logical :: draw_surface_grid = init_draw_surface_grid, &
 real(GLDOUBLE), allocatable :: actual_contours(:)
 real(GLDOUBLE) :: minv,maxv
 
-integer::CONTOUR_PLOT_VARIABLE=0,VECTOR_PLOT_GROUP=VECTOR_GROUP_DIS,SLICE_PLOT_VARIABLE=0
+integer::CONTOUR_PLOT_VARIABLE=0,VECTOR_PLOT_GROUP=VECTOR_GROUP_DIS,SLICE_PLOT_VARIABLE=0,STREAMLINE_VECTOR=VECTOR_GROUP_SEEPAGE_VEC
+LOGICAL::ACTIVE_VECTOR_GROUP(NVECTORPAIR)=.FALSE.
 
 integer,parameter,public::ContourList=1,&
                           VectorList=2,&
@@ -220,7 +229,7 @@ TYPE TIMESTEPINFO_TYDEF
     REAL(8),ALLOCATABLE::TIME(:)
 	!INTEGER,ALLOCATABLE::CALSTEP(:) !当前步对应的计算步，注意，计算步与绘图步往往不一致。
     LOGICAL::ISSHOWN=.TRUE.
-	REAL(8)::VSCALE(10)=1.0D0,VMIN(10),VMAX(10)
+	REAL(8)::VSCALE(NVECTORPAIR)=1.0D0,VMIN(NVECTORPAIR),VMAX(NVECTORPAIR)
     CHARACTER(256)::INFO=''
     CONTAINS
     PROCEDURE::INITIALIZE=>STEP_INITIALIZE
@@ -276,7 +285,7 @@ SUBROUTINE STEP_INITIALIZE(STEPINFO,ISTEP,NSTEP,TIME)
     IF(ALLOCATED(POSDATA.NODE)) DEALLOCATE(POSDATA.NODE)    
     ALLOCATE(POSDATA.NODE(POSDATA.NNODE))
     IF(ALLOCATED(POSDATA.VEC)) DEALLOCATE(POSDATA.VEC)    
-    ALLOCATE(POSDATA.VEC(3,POSDATA.NNODE))
+    ALLOCATE(POSDATA.VEC(3,POSDATA.NNODE,NVECTORPAIR))
     POSDATA.VEC=0.D0
     
     POSDATA.NODE.COORD(3)=0.D0
@@ -354,9 +363,9 @@ SUBROUTINE STEP_INITIALIZE(STEPINFO,ISTEP,NSTEP,TIME)
         
     ENDIF
 	
-	IF(POSDATA.ISIGMA1>0) THEN
+	IF(POSDATA.IPSIGMA1>0) THEN
 		DO I=1,STEPPLOT.NSTEP
-			VEC1(1,:,I)=POSDATA.NODALQ(:,POSDATA.ISIGMA1,I)
+			VEC1(1,:,I)=POSDATA.NODALQ(:,POSDATA.IPSIGMA1,I)
 			VEC1(2,:,I)=0
 			VEC1(3,:,I)=0
 		ENDDO
@@ -366,7 +375,7 @@ SUBROUTINE STEP_INITIALIZE(STEPINFO,ISTEP,NSTEP,TIME)
 		STEPINFO.VSCALE(5)=POSDATA.modelr/40./STEPINFO.VMAX(5)
 		
 		DO I=1,STEPPLOT.NSTEP
-			VEC1(1,:,I)=POSDATA.NODALQ(:,POSDATA.ISIGMA3,I)
+			VEC1(1,:,I)=POSDATA.NODALQ(:,POSDATA.IPSIGMA3,I)
 			VEC1(2,:,I)=0
 			VEC1(3,:,I)=0
 		ENDDO
@@ -470,7 +479,7 @@ if(isProbeState.AND.glIsList(ProbeValuelist)) call glCallList(ProbeValuelist)
 if(glIsList(slicelist).AND.ISPLOTSLICE) call glcalllist(slicelist)
 if(ISPLOTSTREAMLINE.AND.glIsList(STREAMLINElist)) call glcalllist(STREAMLINElist)
 call drawAxes()
-if(IsDrawVector) call drawVectorLegend2(VabsMax,VabsMin,Vscale,VectorPairName)
+if(IsDrawVector) call drawVectorLegend2(STEPPLOT.VMAX,STEPPLOT.VMin,STEPPLOT.VSCALE,ACTIVE_VECTOR_GROUP,VectorPairName,NVECTORPAIR)
 if ((surface_color==rainbow_surface.and.(draw_surface_solid.or.draw_Contour)).OR.ISPLOTSLICESURFACE) then
     call Color_Bar()
 endif
@@ -551,7 +560,8 @@ subroutine streamline_handler(selection)
     INTEGER::I
     
     select case (selection)
-
+	
+	
     case(streamline_location_click)
         isPickforstreamline=.true.
         IsFilterLocalMinimalMode=.false.
@@ -885,6 +895,7 @@ SUBROUTINE SET_VECTOR_PLOT_GROUP(VALUE)
 integer(kind=glcint), intent(in out) :: value 
 
 VECTOR_PLOT_GROUP=VALUE
+ACTIVE_VECTOR_GROUP(VALUE)=.NOT.ACTIVE_VECTOR_GROUP(VALUE)
 
 IsDrawVector=.true.
 
@@ -892,14 +903,31 @@ CALL VEC_PLOT_DATA()
 
 CALL drawvector()
 
-IF(isPlotStreamLine) THEN
-	
-	CALL streamline_update()
+!IF(isPlotStreamLine) THEN
+!	
+!	CALL streamline_update()
 
+!ENDIF
+
+RETURN
+END SUBROUTINE
+
+SUBROUTINE SET_STREAMLINE_VECTOR_GROUP(VALUE)
+integer(kind=glcint), intent(in out) :: value 
+
+
+
+IF(isPlotStreamLine) THEN
+	IF(VALUE/=STREAMLINE_VECTOR) THEN
+		STREAMLINE_VECTOR=VALUE
+		CALL streamline_update()
+	ENDIF
 ENDIF
 
 RETURN
 END SUBROUTINE
+
+
 
 subroutine Contour_handler(selection)
 integer(kind=glcint), intent(in out) :: selection
@@ -941,6 +969,12 @@ case(Vector_lengthen)
    Scale_Vector_len=Scale_Vector_len*2.0
 case(Vector_shorten)
    Scale_Vector_len=Scale_Vector_len/2.0
+case(Vector_Unify)
+    IsVectorUnify=.not.IsVectorUnify
+case(Vector_Less)
+    VectorFrequency=max(VectorFrequency-1,1)
+case(Vector_More)
+    VectorFrequency=max(VectorFrequency+1,1)    
 end select
 
 call drawvector()
@@ -1064,7 +1098,8 @@ INTEGER::VSHOW_SPG_ID,VSHOW_STRESS_ID,VSHOW_STRAIN_ID,VSHOW_PSTRAIN_ID,&
         SLICESHOW_DIS_ID,&
         SLICESHOW_FORCE_ID,&
         STREAMLINE_PLOT_ID,&
-        SLOPE_ID,Probe_ID
+        SLOPE_ID,Probe_ID,&
+		STREAMLINE_VECTOR_ID
 
         
 contour_color_menu = glutCreateMenu(contour_color_handler)
@@ -1114,12 +1149,21 @@ ENDIF
 IF(POSDATA.ISFR_SFRX>0.AND.POSDATA.ISFR_SFRY>0) THEN
     CALL GLUTADDMENUENTRY ("STRESS_FAILUE_FACE",VECTOR_GROUP_SFR)
 ENDIF
+IF(POSDATA.IPSIGMA1>0) THEN
+    CALL GLUTADDMENUENTRY ("PSIGMA1",VECTOR_GROUP_PSIGMA1)
+ENDIF
+IF(POSDATA.IPSIGMA3>0) THEN
+    CALL GLUTADDMENUENTRY ("PSIGMA3",VECTOR_GROUP_PSIGMA3)
+ENDIF
 
 VECTOR_PLOT_ID=glutCreateMenu(VECTOR_HANDLER)
 call glutAddMenuEntry("toggle Vector Plot",Vector_toggle)
 call glutAddMenuEntry("Lengthen Vector",Vector_Lengthen)
 call glutAddMenuEntry("Shorten Vector",Vector_Shorten)
-call glutAddSubMenu("VectorPair",VECTOR_PAIR_ID)
+call glutAddMenuEntry("VectorFrequency++",Vector_More)
+call glutAddMenuEntry("VectorFrequency--",Vector_Less)
+call glutAddMenuEntry("UnifyingVector",Vector_unify)
+call glutAddSubMenu("Toggle VectorPair",VECTOR_PAIR_ID)
 
 Model_ID=glutCreateMenu(Model_HANDLER)
 call glutAddMenuEntry("ShowMesh",surfgrid_toggle)
@@ -1156,7 +1200,28 @@ call glutAddMenuEntry("SliceIsoLinePlot toggle",PLOTSLICEISOLINE_CLICK)
 call glutAddSubMenu("SHOW_VARS",SLICESHOW_SPG_ID)
 
 
+STREAMLINE_VECTOR_ID=glutCreateMenu(SET_STREAMLINE_VECTOR_GROUP)
+IF(POSDATA.IDISX>0.AND.POSDATA.IDISY>0) THEN
+    CALL GLUTADDMENUENTRY ("DISPLACE",VECTOR_GROUP_DIS)   
+ENDIF
+IF(POSDATA.IVX>0.AND.POSDATA.IVY>0) THEN
+    CALL GLUTADDMENUENTRY ("SEEPAGE_VELOCITY",VECTOR_GROUP_SEEPAGE_VEC)
+ENDIF
+IF(POSDATA.IGRADX>0.AND.POSDATA.IGRADY>0) THEN
+    CALL GLUTADDMENUENTRY ("SEEPAGE_GRADIENT",VECTOR_GROUP_SEEPAGE_GRAD)
+ENDIF
+IF(POSDATA.ISFR_SFRX>0.AND.POSDATA.ISFR_SFRY>0) THEN
+    CALL GLUTADDMENUENTRY ("STRESS_FAILUE_FACE",VECTOR_GROUP_SFR)
+ENDIF
+IF(POSDATA.IPSIGMA1>0) THEN
+    CALL GLUTADDMENUENTRY ("PSIGMA1",VECTOR_GROUP_PSIGMA1)
+ENDIF
+IF(POSDATA.IPSIGMA3>0) THEN
+    CALL GLUTADDMENUENTRY ("PSIGMA3",VECTOR_GROUP_PSIGMA3)
+ENDIF
+
 STREAMLINE_PLOT_ID=glutCreateMenu(STREAMLINE_handler)
+call glutAddSubMenu("SetStreamlineVector",STREAMLINE_VECTOR_ID)
 call glutAddMenuEntry("PICK START POINT",STREAMLINE_LOCATION_CLICK)
 call glutAddMenuEntry("PlotStreamLine toggle",Plot_streamline_CLICK)
 call glutAddMenuEntry("OutPutShownStreamline",OUTPUT_SHOWNSTREAMLINE_CLICK)
