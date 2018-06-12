@@ -147,7 +147,7 @@ MODULE POS_IO
 
     type node_tydef
 		real(8)::coord(3)=0.0D0 !coordinates (x,y,z)
-        INTEGER::ISDEAD=0
+        INTEGER::ISDEAD=0,IEL=0 !IEL FOR GRIDNODE, MARK ITS LOCATION,AT WHICH ELEMENT.
     END TYPE
     
     
@@ -219,7 +219,7 @@ MODULE POS_IO
     
     
     TYPE POSDATA_TYDEF
-        INTEGER::NNODE=0,NEL=0,NESET=0,NSTEP=1,NVAR=0,NDIM=2 
+        INTEGER::NNODE=0,NEL=0,NESET=0,NSTEP=1,NVAR=0,NDIM=2,NGRIDNODE=0 
         !INTEGER::NTET=0,NFACE=0,NEDGE=0,NMEDGE=0,NMFACE=0
         CHARACTER(512)::TITLE=''
         INTEGER,PUBLIC::IX=0,IY=0,IZ=0,IDISX=0,IDISY=0,IDISZ=0, &  !SPECIALL VARIABLE FOR VECTOR PAIR
@@ -227,12 +227,12 @@ MODULE POS_IO
                 IGRADX=0,IGRADY=0,IGRADZ=0,&
                 ISFR_SFRX=0,ISFR_SFRY=0,IMC_C=0,IMC_PHI=0,&
                 ISXX=0,ISYY=0,ISXY=0,ISFR=0,IH_BC=0,IQ=0,ISLOPE_SD=0,&
-                IPSIGMA1=0,IPSIGMA3=0
+                IPSIGMA1=0,IPSIGMA3=0,IAPSIGMA1=0
         real(8)::modelr,minx,miny,minz,maxx,maxy,maxz !模型外接圆半径
         type(outvar_tydef),ALLOCATABLE::OUTVAR(:)
-        TYPE(NODE_TYDEF),ALLOCATABLE::NODE(:)        
+        TYPE(NODE_TYDEF),ALLOCATABLE::NODE(:),GRIDNODE(:)        
         REAL(8),ALLOCATABLE::STEPTIME(:)
-        REAL(8),ALLOCATABLE::NODALQ(:,:,:),VEC(:,:,:)        
+        REAL(8),ALLOCATABLE::NODALQ(:,:,:),VEC(:,:,:),GRIDDATA(:,:),GRIDVEC(:,:,:)        
         TYPE(ESET_TYDEF),ALLOCATABLE::ESET(:)
         TYPE(ELEMENT_TYDEF),ALLOCATABLE::ELEMENT(:)
         !TYPE(TET_TYDEF),ALLOCATABLE::TET(:)
@@ -672,7 +672,9 @@ CONTAINS
 		CASE('psigma1')
 			POSDATA.ipsigma1=IVAL
 		CASE('psigma3')
-			POSDATA.ipsigma3=IVAL			
+			POSDATA.ipsigma3=IVAL
+		CASE('apsigma1')
+			POSDATA.iapsigma1=IVAL            
         END SELECT
         
     ENDSUBROUTINE

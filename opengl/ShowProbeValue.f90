@@ -43,8 +43,8 @@ subroutine ProbeatPhyscialspace(pt,val,iel)
     real(8),intent(in out)::val(POSDATA.NVAR)    
     INTEGER,EXTERNAL::PTINTRIlOC,POINTlOC
    
-    iel=0
-    iel=POINTlOC(pt,0)
+    !iel=0
+    iel=POINTlOC(pt,iel)
 	val=0.d0
     IF(iel>0) then
         call getval(Pt,iel,val)
@@ -70,6 +70,7 @@ SUBROUTINE ProbeShow(Pt1,iel)
     
     NTI1=0
     call getval(Pt1,iel,val1)
+    VAL_PROBE(1:POSDATA.NVAR)=VAL1
 	NTI1=NTI1+1
 	WRITE(CWORD1,*) STEPPLOT.ISTEP
 	WRITE(CWORD2,*) STEPPLOT.NSTEP

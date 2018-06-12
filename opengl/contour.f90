@@ -432,7 +432,7 @@ subroutine initialize_contourplot(IVARPLOT)
     allocate(contourbar.VAL(contourbar.nval),contourbar.color(4,contourbar.nval))
     do i=1,contourbar.nval
         contourbar.VAL(i)=graphmin+(i-1)*graphstep
-        call get_rainbow(contourbar.VAL(i),graphmin,graphmax,contourbar.color(:,i))            
+        !call get_rainbow(contourbar.VAL(i),graphmin,graphmax,contourbar.color(:,i))            
     enddo
 end subroutine
 
@@ -486,6 +486,8 @@ subroutine Color_Bar()
     call glPolygonMode(gl_front_and_back, gl_fill)
     CALL glBegin(GL_QUAD_STRIP)
         do i = 1,contourbar.nval
+            call get_rainbow(contourbar.VAL(i),contourbar.VAL(1),contourbar.VAL(contourbar.nval),&
+                            contourbar.color(:,i))  
             CALL glColor3fv(contourbar.color(:,i));
             CALL glVertex2Dv(left1(:,i));
             CALL glVertex2Dv(right1(:,i));
@@ -544,39 +546,45 @@ end subroutine
 
 subroutine get_rainbow(val,minval,maxval,c)
 use opengl_gl
+use COLORMAP
 implicit none
 real(GLDOUBLE), intent(in) :: val,maxval,minval
 real(GLFLOAT), intent(out) :: c(4)
 
 real(GLFLOAT) :: f
 
-if (maxval > minval) then
-   f = (val-minval)/(maxval-minval)
-else ! probably maxval==minval
-   f = 0.5_glfloat
-endif
+call GetValueColor(val,minval,maxval,c(1:3),ICOLORMAP)
+c(4)=1.0
 
-if (f < .25) then
-   c(1) = 0.0_glfloat
-   c(2) = 4.0_glfloat * f
-   c(3) = 1.0_glfloat
-   c(4) = 1.0_glfloat
-elseif (f < .5) then
-   c(1) = 0.0_glfloat
-   c(2) = 1.0_glfloat
-   c(3) = 2.0_glfloat - 4.0_glfloat*f
-   c(4) = 1.0_glfloat
-elseif (f < .75) then
-   c(1) = 4.0_glfloat * f - 2.0_glfloat
-   c(2) = 1.0_glfloat
-   c(3) = 0.0_glfloat
-   c(4) = 1.0_glfloat
-else
-   c(1) = 1.0_glfloat
-   c(2) = 4.0_glfloat - 4.0_glfloat*f
-   c(3) = 0.0_glfloat
-   c(4) = 1.0_glfloat
-endif
+!
+!if (maxval > minval) then
+!   f = (val-minval)/(maxval-minval)
+!else ! probably maxval==minval
+!   f = 0.5_glfloat
+!endif
+!
+!if (f < .25) then
+!   c(1) = 0.0_glfloat
+!   c(2) = 4.0_glfloat * f
+!   c(3) = 1.0_glfloat
+!   c(4) = 1.0_glfloat
+!elseif (f < .5) then
+!   c(1) = 0.0_glfloat
+!   c(2) = 1.0_glfloat
+!   c(3) = 2.0_glfloat - 4.0_glfloat*f
+!   c(4) = 1.0_glfloat
+!elseif (f < .75) then
+!   c(1) = 4.0_glfloat * f - 2.0_glfloat
+!   c(2) = 1.0_glfloat
+!   c(3) = 0.0_glfloat
+!   c(4) = 1.0_glfloat
+!else
+!   c(1) = 1.0_glfloat
+!   c(2) = 4.0_glfloat - 4.0_glfloat*f
+!   c(3) = 0.0_glfloat
+!   c(4) = 1.0_glfloat
+!endif
+
 
 end subroutine get_rainbow
 

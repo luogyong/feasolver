@@ -5,6 +5,7 @@ use opengl_gl
 use opengl_glut
 use view_modifier
 use MESHGEO
+use COLORMAP
 implicit none
 !private
 !public :: display,menu_handler,make_menu,CONTOUR_PLOT_VARIABLE,VECTOR_PLOT_GROUP
@@ -82,8 +83,10 @@ LOGICAL::IS_JUST_SHOW_TOP_TEN_SLOPE=.FALSE.,IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.
         IS_SHOW_ALL_SLOPE=.TRUE.
 
 
-!TYPE SLOPE_TYDEF
+!TYPE SLOPE_STATE_PARA_SHOW
 !    
+!CONTAINS
+!    PROCEDURE::SHOW=>SLOPE_SFR_STATE_PARAMETER_SHOW()
 !ENDTYPE
 
 
@@ -106,12 +109,13 @@ integer,parameter::Vector_toggle= 1, &
                    Vector_shorten=3,&
                    Vector_Unify=4,&
                    Vector_Less=5,&
-                   Vector_More=6
+                   Vector_More=6,Arrow_toggle=7,Vector_Base_Orig=8,Vector_Base_End=9,Vector_Base_Cent=10
                    
 real(8),public::Scale_Vector_Len=1.0,VabsMax,VabsMin,Vscale                    
 character(128)::VectorPairName(NVECTORPAIR)=['DIS.','SEEP.V','SEEP.I','SFR','PSIGMA1','PSIGMA3','','','','']
-integer::VectorFrequency=1
-logical::IsVectorUnify=.False.
+INTEGER,PARAMETER::VECTORLOC_NODE=1,VECTORLOC_GRID=2
+integer::VectorFrequency=1,VectorBase=1,VECTORLOC=VECTORLOC_GRID !AT STRUTRAL GRID.
+logical::IsVectorUnify=.False.,IsArrow=.True.
 !model
 integer, parameter :: surfgrid_toggle = 1, &
                       quit_selected = 4,&
@@ -211,12 +215,14 @@ integer,parameter,public::ContourList=1,&
                           ProbeValueList=5,&
 						  SLICELIST=6,&
                           StreamLineList=7,&
-						  STEPSTATUSLIST=8
+						  STEPSTATUSLIST=8,&
+                          SFS_ProbeValuelist=9
                           
 integer,parameter::STREAMLINE_SLOPE_CLICK=1,ShowTopTen_SLOPE_CLICK=2,ShowMinimal_SLOPE_CLICK=3,&
-                    ShowAll_SLOPE_CLICK=4,ReadSlipSurface_slope_click=5,ShowLocalMinimal_Slope_Click=6,&
-                    SEARCH_SLOPE_CLICK=7,FilterLocalMinimal_Slope_Click=8
-LOGICAL::ISSTREAMLINESLOPE=.FALSE.,IsFilterLocalMinimalMode=.false.
+ShowAll_SLOPE_CLICK=4,ReadSlipSurface_slope_click=5,ShowLocalMinimal_Slope_Click=6,&
+                    SEARCH_SLOPE_CLICK=7,FilterLocalMinimal_Slope_Click=8,&
+                    SFS_Slope_Click=9
+LOGICAL::ISSTREAMLINESLOPE=.FALSE.,IsFilterLocalMinimalMode=.false.,isProbeState_SFS=.FALSE.
 
 !real(GLFLOAT) :: red(4) = (/1.0,0.0,0.0,1.0/), &
 !                 black(4) = (/0.0,0.0,0.0,1.0/), &
@@ -238,12 +244,107 @@ TYPE TIMESTEPINFO_TYDEF
 ENDTYPE
 TYPE(TIMESTEPINFO_TYDEF),PUBLIC::STEPPLOT
 
-REAL(8)::PT_PROBE(3)=0.0D0
+REAL(8)::PT_PROBE(3)=0.0D0,VAL_PROBE(150)
 INTEGER::IEL_PROBE=0
+
 
 INTEGER::NODALID_SHOW=-1,ELEMENTID_SHOW=-2
 
+
+
+!TYPE COLORMAP_TYPDEF
+!    CHARACTER(128)::NAME=''
+!    INTEGER::IMAP,NCP=0
+!    REAL(8),ALLOCATABLE::COTROL_COLOR(:) !R,G,B,VAL
+!CONTAINS
+!    !PROCEDURE::
+!END TYPE
+
 contains
+
+SUBROUTINE getHeatMapColor(value,VMIN,VMAX,VCOLOR,BCOLORI)
+!!http://andrewnoske.com/wiki/Code_-_heatmaps_and_color_gradients
+  !int aR = 0;   int aG = 0; int aB=255;  ! RGB for our 1st color (blue in this case).
+  !int bR = 255; int bG = 0; int bB=0;    ! RGB for our 2nd color (red in this case).
+  !
+  !red   = (float)(bR - aR) * value + aR;      ! Evaluated as -255*value + 255.
+  !green = (float)(bG - aG) * value + aG;      ! Evaluates as 0.
+  !blue  = (float)(bB - aB) * value + aB;      ! Evaluates as 255*value + 0.   REAL(8),INTENT(IN)::VALUE,VMIN,VMAX
+    REAL(8),INTENT(IN)::VALUE,VMIN,VMAX   
+    REAL(GLFLOAT),INTENT(OUT)::VCOLOR(3)
+    INTEGER,INTENT(IN),OPTIONAL::BCOLORI(:)
+    INTEGER::NBCOLOR
+    INTEGER,ALLOCATABLE::DEFAULTBCOLORI(:)
+    INTEGER:: IDX1,IDX2,I
+    REAL(8)::FRACTBETWEEN=0,V1,T1
+   
+   
+    IF(PRESENT(BCOLORI)) THEN
+        ALLOCATE(DEFAULTBCOLORI,SOURCE=BCOLORI)
+        NBCOLOR=SIZE(BCOLORI)
+    ELSE
+        ALLOCATE(DEFAULTBCOLORI(4))
+        NBCOLOR=5
+        DEFAULTBCOLORI=[blue,  Cyan, green,  yellow,  red]
+    ENDIF
+   
+    IF(ABS(VMAX-VMIN)>1E-8) THEN
+        V1=(VALUE-VMIN)/(VMAX-VMIN)
+    ELSE
+        V1=0.5D0
+    ENDIF
+    
+    IF(V1<=0.D0) THEN
+        IDX1=1;IDX2=1
+    ELSEIF(V1>=1.D0) THEN
+        IDX1=NBCOLOR;IDX2=IDX1
+    ELSE
+ !    value = value * (NUM_COLORS-1);        // Will multiply value by 3.
+!    idx1  = floor(value);                  // Our desired color will be after this index.
+!    idx2  = idx1+1;                        // ... and before this index (inclusive).
+!    fractBetween = value - float(idx1);    // Distance between the two indexes (0-1).
+        V1=V1*(NBCOLOR-1)+1
+        IDX1=FLOOR(V1)
+        IDX2=IDX1+1
+        FRACTBETWEEN=(V1-REAL(IDX1))
+    ENDIF
+
+!  *red   = (color[idx2][0] - color[idx1][0])*fractBetween + color[idx1][0];
+!  *green = (color[idx2][1] - color[idx1][1])*fractBetween + color[idx1][1];
+!  *blue  = (color[idx2][2] - color[idx1][2])*fractBetween + color[idx1][2];
+    DO I=1,3
+        VCOLOR(I)=(MYCOLOR(I,DEFAULTBCOLORI(IDX2))-MYCOLOR(I,DEFAULTBCOLORI(IDX1)))*FRACTBETWEEN+MYCOLOR(I,DEFAULTBCOLORI(IDX1))
+    ENDDO
+   
+   
+
+ENDSUBROUTINE
+
+!bool getHeatMapColor(float value, float *red, float *green, float *blue)
+!{
+!  const int NUM_COLORS = 4;
+!  static float color[NUM_COLORS][3] = { {0,0,1}, {0,1,0}, {1,1,0}, {1,0,0} };
+!    // A static array of 4 colors:  (blue,   green,  yellow,  red) using {r,g,b} for each.
+! 
+!  int idx1;        // |-- Our desired color will be between these two indexes in "color".
+!  int idx2;        // |
+!  float fractBetween = 0;  // Fraction between "idx1" and "idx2" where our value is.
+! 
+!  if(value <= 0)      {  idx1 = idx2 = 0;            }    // accounts for an input <=0
+!  else if(value >= 1)  {  idx1 = idx2 = NUM_COLORS-1; }    // accounts for an input >=0
+!  else
+!  {
+!    value = value * (NUM_COLORS-1);        // Will multiply value by 3.
+!    idx1  = floor(value);                  // Our desired color will be after this index.
+!    idx2  = idx1+1;                        // ... and before this index (inclusive).
+!    fractBetween = value - float(idx1);    // Distance between the two indexes (0-1).
+!  }
+! 
+!  *red   = (color[idx2][0] - color[idx1][0])*fractBetween + color[idx1][0];
+!  *green = (color[idx2][1] - color[idx1][1])*fractBetween + color[idx1][1];
+!  *blue  = (color[idx2][2] - color[idx1][2])*fractBetween + color[idx1][2];
+!}
+
 
 !ENLARGE STREAMLINE SF_slope by 100
 SUBROUTINE ENLARGE_STREAMLINE()
@@ -267,6 +368,56 @@ SUBROUTINE ENLARGE_STREAMLINE()
 
 ENDSUBROUTINE
 
+SUBROUTINE VECTORGRIDGEN()
+	IMPLICIT NONE
+	 
+	INTEGER,PARAMETER::NDIV1=100
+	REAL(8)::DX1=0.0D0,X1(NDIV1+1),Y1(NDIV1+1),Z1(NDIV1+1),T1=0.D0
+	INTEGER::I,J,K,NX1=0,NY1=0,NZ1=0,N1=0,IEL1=0
+	
+
+	IF(ALLOCATED(POSDATA.GRIDDATA)) DEALLOCATE(POSDATA.GRIDDATA)
+	IF(ALLOCATED(POSDATA.GRIDNODE)) DEALLOCATE(POSDATA.GRIDNODE)
+	IF(ALLOCATED(POSDATA.GRIDVEC)) DEALLOCATE(POSDATA.GRIDVEC)
+	DX1=MAXVAL([POSDATA.maxx-POSDATA.minx,POSDATA.maxy-POSDATA.miny,POSDATA.maxz-POSDATA.minz])/NDIV1
+	DO I=1,NDIV1+1
+		T1=POSDATA.minx+DX1*(I-1)
+		IF(T1<=POSDATA.MAXX) THEN
+			X1(I)=T1
+			NX1=I
+		ENDIF
+		T1=POSDATA.minY+DX1*(I-1)
+		IF(T1<=POSDATA.MAXY) THEN
+			Y1(I)=T1
+			NY1=I
+		ENDIF		
+		T1=POSDATA.minZ+DX1*(I-1)
+		IF(T1<=POSDATA.MAXZ) THEN
+			Z1(I)=T1
+			NZ1=I
+		ENDIF		
+	ENDDO
+	NX1=MAX(NX1,1);NY1=MAX(NY1,1);NZ1=MAX(NZ1,1);
+	POSDATA.NGRIDNODE=NX1*NY1*NZ1
+	ALLOCATE(POSDATA.GRIDVEC(3,POSDATA.NGRIDNODE,NVECTORPAIR), &
+			 POSDATA.GRIDNODE(POSDATA.NGRIDNODE), &
+			 POSDATA.GRIDDATA(POSDATA.NVAR,POSDATA.NGRIDNODE))
+    N1=0
+	DO I=1,NZ1
+		DO J=1,NY1
+			DO K=1,NX1				
+				N1=N1+1
+				POSDATA.GRIDNODE(N1).COORD=[X1(K),Y1(J),Z1(I)]				
+			ENDDO
+		ENDDO
+	ENDDO
+
+	POSDATA.GRIDDATA=0.0d0
+	POSDATA.GRIDVEC=0.0d0
+	!POSDATA.VEC=0.D0
+	
+ENDSUBROUTINE
+
 SUBROUTINE STEP_INITIALIZE(STEPINFO,ISTEP,NSTEP,TIME)
     IMPLICIT NONE    
     CLASS(TIMESTEPINFO_TYDEF),INTENT(in out):: STEPINFO
@@ -284,10 +435,11 @@ SUBROUTINE STEP_INITIALIZE(STEPINFO,ISTEP,NSTEP,TIME)
 	
     IF(ALLOCATED(POSDATA.NODE)) DEALLOCATE(POSDATA.NODE)    
     ALLOCATE(POSDATA.NODE(POSDATA.NNODE))
-    IF(ALLOCATED(POSDATA.VEC)) DEALLOCATE(POSDATA.VEC)    
-    ALLOCATE(POSDATA.VEC(3,POSDATA.NNODE,NVECTORPAIR))
-    POSDATA.VEC=0.D0
-    
+	
+	IF(ALLOCATED(POSDATA.VEC)) DEALLOCATE(POSDATA.VEC)
+	ALLOCATE(POSDATA.VEC(3,POSDATA.NNODE,NVECTORPAIR))
+	POSDATA.VEC=0.D0
+	
     POSDATA.NODE.COORD(3)=0.D0
     DO I=1,POSDATA.NNODE
         IF(POSDATA.IX>0) POSDATA.NODE(I).COORD(1)=POSDATA.NODALQ(I,POSDATA.IX,ISTEP)
@@ -299,6 +451,7 @@ SUBROUTINE STEP_INITIALIZE(STEPINFO,ISTEP,NSTEP,TIME)
     POSDATA.miny=minval(POSDATA.NODE.COORD(2));POSDATA.maxy=maxval(POSDATA.NODE.COORD(2))
     POSDATA.minz=minval(POSDATA.NODE.COORD(3));POSDATA.maxz=maxval(POSDATA.NODE.COORD(3))
     POSDATA.MODELR=((POSDATA.minx-POSDATA.maxx)**2+(POSDATA.miny-POSDATA.maxy)**2+(POSDATA.minz-POSDATA.maxz)**2)**0.5/2.0
+    CALL VECTORGRIDGEN()
 	
 	!SET UP VECSCALE
 	IF(POSDATA.IDISX>0.AND.POSDATA.IDISY>0) THEN
@@ -486,6 +639,10 @@ endif
 IF(ISSHOWNODALVALUE) CALL DRAW_NADAL_VALUE()
 IF(LEN_TRIM(ADJUSTL(INFO.STR))>0) CALL SHOWINFO(INFO.COLOR)
 IF(LINE_TEMP.SHOW) CALL LINE_TEMP.DRAW()
+if(isProbeState_SFS.AND.glIsList(SFS_ProbeValuelist)) THEN
+    CALL SLOPE_SFR_STATE_PARAMETER_SHOW()
+    call glCallList(SFS_ProbeValuelist) 
+ENDIF
 
 call glutSwapBuffers
 
@@ -617,6 +774,9 @@ subroutine slope_handler(selection)
     REAL(IWP),ALLOCATABLE::NODE1(:,:)
     
     select case (selection)
+    
+    case(SFS_SLOPE_CLICK)
+        isProbeState_SFS=.not.isProbeState_SFS
        
     case(STREAMLINE_SLOPE_CLICK)
         ISSTREAMLINESLOPE=.NOT.ISSTREAMLINESLOPE
@@ -958,6 +1118,31 @@ end select
 
 endsubroutine
 
+subroutine Vector_Location_handler(selection)
+integer(kind=glcint), intent(in out) :: selection
+
+vectorloc=selection
+call VEC_PLOT_DATA()
+call drawvector()
+end subroutine
+
+subroutine Vector_Base_handler(selection)
+integer(kind=glcint), intent(in out) :: selection
+
+vectorbase=selection-7
+
+call drawvector()
+end subroutine
+
+subroutine Vector_Format_handler(selection)
+integer(kind=glcint), intent(in out) :: selection
+select case (selection)
+case(Arrow_toggle)
+    IsArrow=.not.IsArrow 
+end select
+call drawvector()
+end subroutine
+
 subroutine Vector_handler(selection)
 integer(kind=glcint), intent(in out) :: selection
 select case (selection)
@@ -974,7 +1159,8 @@ case(Vector_Unify)
 case(Vector_Less)
     VectorFrequency=max(VectorFrequency-1,1)
 case(Vector_More)
-    VectorFrequency=max(VectorFrequency+1,1)    
+    VectorFrequency=max(VectorFrequency+1,1)
+   
 end select
 
 call drawvector()
@@ -1075,6 +1261,17 @@ call DrawSurfaceContour()
 
 end subroutine surface_color_handler
 
+subroutine Color_Map_handler(selection)
+integer(kind=glcint), intent(in out) :: selection
+
+iCOLORMAP=selection
+surface_color=rainbow_surface
+call Color_Bar()
+call DrawSurfaceContour()
+
+end subroutine Color_Map_handler
+
+
 subroutine make_menu(submenuid)
 integer, intent(in) :: submenuid
 integer :: menuid, param_id, contour_color_menu, surface_color_menu,I
@@ -1099,16 +1296,35 @@ INTEGER::VSHOW_SPG_ID,VSHOW_STRESS_ID,VSHOW_STRAIN_ID,VSHOW_PSTRAIN_ID,&
         SLICESHOW_FORCE_ID,&
         STREAMLINE_PLOT_ID,&
         SLOPE_ID,Probe_ID,&
-		STREAMLINE_VECTOR_ID
+		STREAMLINE_VECTOR_ID,Vector_Format_ID,Vector_Base_ID,Vector_LOC_ID,&
+        ColorMap_ID
 
         
 contour_color_menu = glutCreateMenu(contour_color_handler)
 call glutAddMenuEntry("black",black_contour)
 call glutAddMenuEntry("contour value",rainbow_contour)
 
+ColorMap_ID=glutCreateMenu(Color_Map_handler)
+Call glutAddMenuEntry("Rainbow",CM_Rainbow)
+Call glutAddMenuEntry("Gray",CM_Gray)
+Call glutAddMenuEntry("RainBow_DarkEnds",CM_RainBow_DarkEnds)
+Call glutAddMenuEntry("HotMetal",CM_HotMetal)
+Call glutAddMenuEntry("Doppler",CM_Doppler)
+Call glutAddMenuEntry("Magma",CM_Magma)
+Call glutAddMenuEntry("Elevation",CM_Elevation)
+Call glutAddMenuEntry("Accent",CM_Accent)
+Call glutAddMenuEntry("Red",CM_Red)
+Call glutAddMenuEntry("Blue",CM_Blue)
+Call glutAddMenuEntry("Green",CM_Green)
+Call glutAddMenuEntry("BlueRed",CM_BlueRed)
+Call glutAddMenuEntry("BlueYellowRed",CM_BlueYellowRed)
+
+
+
+
 surface_color_menu = glutCreateMenu(surface_color_handler)
 call glutAddMenuEntry("white",white_surface)
-call glutAddMenuEntry("rainbow",rainbow_surface)
+call glutAddSubMenu("ColorMap",ColorMap_ID)
 call glutAddMenuEntry("Set/Material",color_by_set)
 call glutAddMenuEntry("transparency",transparency)
 
@@ -1156,13 +1372,28 @@ IF(POSDATA.IPSIGMA3>0) THEN
     CALL GLUTADDMENUENTRY ("PSIGMA3",VECTOR_GROUP_PSIGMA3)
 ENDIF
 
+Vector_Base_ID=glutCreateMenu(VECTOR_Base_HANDLER)
+CALL glutAddMenuEntry("OrigBase",Vector_Base_Orig)
+CALL glutAddMenuEntry("EndBase",Vector_Base_End)
+CALL glutAddMenuEntry("CentBase",Vector_Base_Cent)
+
+Vector_Format_ID=glutCreateMenu(VECTOR_FORMAT_HANDLER)
+CALL glutAddMenuEntry("ToggleArrow",Arrow_toggle)
+call glutAddSubMenu("VectorBase",Vector_Base_ID)
+
+Vector_LOC_ID=glutCreateMenu(VECTOR_LOCATION_HANDLER)
+CALL glutAddMenuEntry("NODES",VECTORLOC_NODE)
+CALL glutAddMenuEntry("UniformGrid",VECTORLOC_Grid)
+
 VECTOR_PLOT_ID=glutCreateMenu(VECTOR_HANDLER)
+call glutAddSubMenu("VectorLocation",Vector_LOC_ID)
 call glutAddMenuEntry("toggle Vector Plot",Vector_toggle)
 call glutAddMenuEntry("Lengthen Vector",Vector_Lengthen)
 call glutAddMenuEntry("Shorten Vector",Vector_Shorten)
 call glutAddMenuEntry("VectorFrequency++",Vector_More)
 call glutAddMenuEntry("VectorFrequency--",Vector_Less)
 call glutAddMenuEntry("UnifyingVector",Vector_unify)
+call glutAddSubMenu("VectorFormat",Vector_Format_ID)
 call glutAddSubMenu("Toggle VectorPair",VECTOR_PAIR_ID)
 
 Model_ID=glutCreateMenu(Model_HANDLER)
@@ -1234,6 +1465,7 @@ SLOPE_ID=glutCreateMenu(SLOPE_handler)
 call glutAddMenuEntry("Search...",SEARCH_SLOPE_CLICK)
 call glutAddMenuEntry("JustShowTopTenSlips",ShowTopTen_SLOPE_CLICK)
 call glutAddMenuEntry("JustShowMinimalSlip",ShowMinimal_SLOPE_CLICK)
+call glutAddMenuEntry("StressFailureState",SFS_SLOPE_CLICK)
 call glutAddMenuEntry("ShowAllSlips",ShowAll_SLOPE_CLICK)
 call glutAddMenuEntry("FilterLocalSmallSlip(DelectLocalLarger)",filterLocalMinimal_Slope_Click)
 call glutAddMenuEntry("ShowLocalMinimalSlip",ShowLocalMinimal_Slope_Click)
@@ -1573,7 +1805,7 @@ real(8)::Pt1(3)
         SELECT CASE(glutGetModifiers())
         CASE(GLUT_ACTIVE_CTRL)
             call ProbeatPoint(x,y)
-            
+            IF(isProbeState_SFS) CALL SLOPE_SFR_STATE_PARAMETER_SHOW( )
         CASE(GLUT_ACTIVE_SHIFT)
             call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
             begin_left = cart2D(x,y)

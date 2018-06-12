@@ -670,6 +670,231 @@ END
 !
 !ENDSUBROUTINE
 
+SUBROUTINE SLOPE_SFR_STATE_PARAMETER_SHOW()
+
+    USE function_plotter
+	!USE INDEXCOLOR
+    implicit none
+    
+	
+    real(8)::pt1(3)
+    integer::iel=0
+
+    INTEGER,EXTERNAL::POINTlOC
+    
+    integer(kind=glcint)::  x, y
+    integer(glCint),dimension(4)::viewport1
+    real(gldouble)::len1,ppm1,W1,H1
+    real(gldouble)::t1,orig(3),dest(3),winp1(3)
+    character(128)::str1,str2,STR3
+	INTEGER::I,J,K,N1,ICOLOR1
+    REAL(8),PARAMETER::PI1=3.141592653589793
+    REAL(8)::SS1(6),PSS1(4),C1,PHI1,ALPHA1,ALPHA2,A1,B1,SR1,SC1,DT1=0,SFRM1,SFR1,R2=0.75,ALPHA3,ALPHA4,&
+    SITA1,SITA2
+    REAL(GLFLOAT)::COLOR1(4)
+    
+    
+   
+    
+    isProbeState_SFS=.TRUE.
+    call glutSetCursor(GLUT_CURSOR_CROSSHAIR) 
+    
+    IF(IEL_PROBE>0) THEN
+        SS1=0.D0;PSS1=0.D0
+        SS1(1)=VAL_PROBE(POSDATA.ISXX)
+        SS1(2)=VAL_PROBE(POSDATA.ISYY)
+        SS1(4)=VAL_PROBE(POSDATA.ISXY)
+        C1=VAL_PROBE(POSDATA.IMC_C)
+        PHI1=VAL_PROBE(POSDATA.IMC_PHI)
+        T1=SS1(1)-SS1(2)
+        IF(ABS(T1)>1E-7) THEN
+            ALPHA1=0.5*ATAN(2*SS1(4)/T1)
+        ELSE
+            ALPHA1=0.0D0
+        ENDIF
+
+        SC1=(SS1(1)+SS1(2))/2.0
+        SR1=(((SS1(1)-SS1(2))/2.0)**2+SS1(4)**2)**0.5        
+        B1=-DTAN(PHI1/180.*PI1)
+        A1=(C1+SC1*B1)/SR1
+        SFRM1=1/(A1**2-B1**2)**0.5
+        T1=ASIN((1-(B1/A1)**2)**0.5)
+        IF(SS1(1)<SS1(2)) THEN
+            ALPHA2=ALPHA1-PI1/2.0D0 !TAU>0
+            SITA1=0.5*T1
+            SITA2=0.5*(PI1/2.0-PHI1/180.*PI1)
+        ELSE
+            ALPHA2=ALPHA1+PI1/2.0D0
+            SITA1=0.5*(PI1-T1)
+            SITA2=0.5*(PI1/2.0+PHI1/180*PI1)
+        ENDIF        
+        
+        
+        CALL GetWinXYZ(PT_PROBE(1),PT_PROBE(2),PT_PROBE(3),WinP1) 
+    ELSE
+        RETURN    
+    ENDIF
+    
+
+    !call GetOGLPos(x, y,Pt1)
+    !
+    !iel=POINTlOC(pt1,IEL)    
+    
+
+    
+    !! Set up coordinate system to position color bar near bottom of window
+    call glDeleteLists(SFS_ProbeValuelist, 1_glsizei)  
+
+    call glNewList(SFS_ProbeValuelist, gl_compile_and_execute) 
+    
+    
+    
+    
+    
+    
+    call glPushAttrib(GL_ALL_ATTRIB_BITS)
+    call glgetintegerv(gl_viewport,viewport1)
+    CALL glMatrixMode(GL_PROJECTION);
+    CALL glPushMatrix()
+    CALL glLoadIdentity();
+    
+    N1=glutget(GLUT_WINDOW_WIDTH)/40;
+    call glViewport(NINT(WINP1(1))-N1,NINT(WINP1(2))-N1,2*N1,2*N1)
+    !call glViewport(X-N1,(glutget(GLUT_WINDOW_HEIGHT)-Y)-N1,2*N1,2*N1);
+    
+    CALL glUOrtho2D(-1., 1., -1., 1.);
+    CALL glMatrixMode(GL_MODELVIEW);
+    CALL glPushMatrix()    
+    CALL glLoadIdentity();
+    
+    
+	!call glPushAttrib(GL_LIGHTING_BIT .or. GL_CURRENT_BIT); ! lighting and color mask
+	!call glDisable(GL_LIGHTING);     ! need to disable lighting for proper text color
+	call glDisable(GL_TEXTURE_2D);
+    call glDisable(GL_CULL_FACE);
+	call glDepthFunc(GL_ALWAYS);    
+    
+    DT1=(ALPHA2-ALPHA1)/18
+    R2=0.5
+    ALPHA3=ALPHA1;ALPHA4=ALPHA2
+    call glLineWidth(1.0_glfloat);
+    CALL GLCOLOR4FV(MYCOLOR(:,BLACK))
+    call glBegin(GL_LINE_STRIP)
+        DO I=0,36            
+            CALL glVertex2D(cos(PI1/18*I), sin(PI1/18*I))
+        ENDDO
+    call glend()
+    
+    DO J=1,4
+        ALPHA1=ALPHA3+PI1/2.0*(J-1)
+        ALPHA2=ALPHA4+PI1/2.0*(J-1)
+
+
+        call glPolygonMode(gl_front_and_back, GL_LINE)
+  
+        call glLineWidth(3.0_glfloat)
+            
+	    call glBegin(GL_LINE_STRIP)
+            
+            DO i = 0, 18
+
+                IF(MOD(J-1,2)==1) THEN !ÓÒ»¬
+                    ICOLOR1=CM_GREEN
+                    IF(SS1(1)>=SS1(2)) THEN
+                        SFR1=ABS(SIN(2*DT1*I)/(A1+B1*COS(2*DT1*I)))
+                    ELSE
+                        SFR1=ABS(SIN(PI1-2*DT1*I)/(A1+B1*COS(PI1-2*DT1*I)))
+                    ENDIF
+                ELSE !×ó»¬
+                    ICOLOR1=CM_RED
+                    IF(SS1(1)<SS1(2)) THEN
+                        SFR1=ABS(SIN(2*DT1*I)/(A1+B1*COS(2*DT1*I)))
+                    ELSE
+                        SFR1=ABS(SIN(PI1-2*DT1*I)/(A1+B1*COS(PI1-2*DT1*I)))
+                    ENDIF                        
+                ENDIF
+
+                    
+                CALL getvaluecolor(SFR1,0.0,SFRM1,COLOR1(1:3),ICOLOR1)
+                COLOR1(4)=1.
+
+                CALL GLCOLOR4FV(COLOR1) 
+                
+		        CALL glVertex2D(SFR1/SFRM1*cos(ALPHA1+DT1*I), SFR1/SFRM1*sin(ALPHA1+DT1*I))
+                !CALL glVertex2D(cos(ALPHA1+DT1*I), sin(ALPHA1+DT1*I))	        
+ 
+            ENDDO
+        
+        call glEnd();
+        
+        call glBegin(GL_LINES)
+            call glLineWidth(1.0_glfloat);
+            CALL GLCOLOR4FV(MYCOLOR(:,GRAY))
+            CALL glVertex2D(0.,0.)
+            CALL glVertex2D(cos(ALPHA1), sin(ALPHA1))
+            !CALL glVertex2D(0.,0.)
+            !CALL glVertex2D(R2*cos(ALPHA2), R2*sin(ALPHA2))
+            call glLineWidth(3.0_glfloat)
+            IF(MOD(J-1,2)==1) THEN !ÓÒ»¬
+                CALL GLCOLOR4FV(MYCOLOR(:,GREEN))
+                CALL glVertex2D(0.,0.)    
+                IF(SS1(1)<SS1(2)) THEN
+                    CALL glVertex2D(cos(ALPHA1+SITA1-PI1/2.0), sin(ALPHA1+SITA1-PI1/2.0))
+                ELSE
+                    CALL glVertex2D(cos(ALPHA1-SITA1-PI1/2.0), sin(ALPHA1-SITA1-PI1/2.0))
+                ENDIF
+                !MC FAILURE SURFACE
+                CALL GLCOLOR4FV(MYCOLOR(:,BLUE))
+                CALL glVertex2D(0.,0.)    
+                IF(SS1(1)<SS1(2)) THEN
+                    CALL glVertex2D(cos(ALPHA1+SITA2-PI1/2.0), sin(ALPHA1+SITA2-PI1/2.0))
+                ELSE
+                    CALL glVertex2D(cos(ALPHA1-SITA2-PI1/2.0), sin(ALPHA1-SITA2-PI1/2.0))
+                ENDIF                
+            ELSE !×ó»¬
+                CALL GLCOLOR4FV(MYCOLOR(:,RED))
+                CALL glVertex2D(0.,0.)
+                IF(SS1(1)<SS1(2)) THEN
+                    CALL glVertex2D(cos(ALPHA1-SITA1), sin(ALPHA1-SITA1))
+                ELSE
+                    CALL glVertex2D(cos(ALPHA1+SITA1), sin(ALPHA1+SITA1))
+                ENDIF
+                !MC FAILURE SURFACE
+                CALL GLCOLOR4FV(MYCOLOR(:,ORANGE))
+                CALL glVertex2D(0.,0.)
+                IF(SS1(1)<SS1(2)) THEN
+                    CALL glVertex2D(cos(ALPHA1-SITA2), sin(ALPHA1-SITA2))
+                ELSE
+                    CALL glVertex2D(cos(ALPHA1+SITA2), sin(ALPHA1+SITA2))
+                ENDIF                
+            ENDIF
+
+            
+
+	    call glEnd();
+        
+	ENDDO
+	!//flush the buffer so the circle displays
+	!//immediately
+	!glFlush(); 
+
+
+    CALL glPopMatrix()
+    CALL glMatrixMode(GL_PROJECTION)
+    CALL glPopMatrix()
+	CALL glPopAttrib();
+    
+    CALL GLENDLIST()
+    
+        	!// Restore viewport, projection and modelview matrices
+	call glViewport(viewport1(1),viewport1(2),viewport1(3),viewport1(4));
+    
+    call glutPostRedisplay
+    
+END SUBROUTINE
+
+
+
 SUBROUTINE OUT_SHOWN_STREAMLINE()
     USE function_plotter
     IMPLICIT NONE

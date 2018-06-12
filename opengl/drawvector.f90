@@ -3,10 +3,18 @@ subroutine DrawVector()
 use opengl_gl
 use function_plotter
 implicit none 
+
+INTEGER::NNODE
+TYPE(node_tydef),ALLOCATABLE::NODE(:)
+REAL(8),ALLOCATABLE::NODEDATA(:,:),VECTOR(:,:,:)
+
+
 INTEGER::I,J
 REAL(8)::GRIDSCALE1,SCALE1,MAXV1,minv1,V1(3),V2(3),T1
 REAL(8),EXTERNAL::Vector_SCALE
 REAL(8),ALLOCATABLE::VEC1(:,:)
+
+
 
 !MAXV1=MAXVAL(NORM2(VEC,DIM=1))
 !scale1=modelr/40./maxv1*Scale_Vector_len
@@ -15,14 +23,29 @@ REAL(8),ALLOCATABLE::VEC1(:,:)
 call glDeleteLists(VectorList, 1_glsizei)
 
 if(IsDrawVector) then
-	ALLOCATE(VEC1(3,POSDATA.NNODE))
+	IF(VECTORLOC==VECTORLOC_NODE) THEN
+		NNODE=POSDATA.NNODE
+		ALLOCATE(NODE,SOURCE=POSDATA.NODE)
+		ALLOCATE(NODEDATA(POSDATA.NVAR,NNODE))
+		DO I=1,NNODE
+			NODEDATA(:,I)=POSDATA.NODALQ(I,:,STEPPLOT.ISTEP)
+		ENDDO
+		ALLOCATE(VECTOR,SOURCE=POSDATA.VEC)
+	ELSE
+		NNODE=POSDATA.NGRIDNODE
+		ALLOCATE(NODE,SOURCE=POSDATA.GRIDNODE)
+		ALLOCATE(NODEDATA,SOURCE=POSDATA.GRIDDATA)
+		ALLOCATE(VECTOR,SOURCE=POSDATA.GRIDVEC)		
+	ENDIF
+	
+
+	ALLOCATE(VEC1(3,NNODE))
     GRIDSCALE1=1.D0;VEC1=0.D0
     IF(ISDEFORMEDMESH.AND.POSDATA.IDISX>0.AND.POSDATA.IDISY>0) THEN
 
-		VEC1(1,:)=POSDATA.NODALQ(:,POSDATA.IDISX,STEPPLOT.ISTEP)
-		VEC1(2,:)=POSDATA.NODALQ(:,POSDATA.IDISY,STEPPLOT.ISTEP)
-		IF(POSDATA.NDIM>2) VEC1(3,:)=POSDATA.NODALQ(:,POSDATA.IDISZ,STEPPLOT.ISTEP)
-
+		VEC1(1,:)=NODEDATA(POSDATA.IDISX,:)
+		VEC1(2,:)=NODEDATA(POSDATA.IDISY,:)
+		IF(POSDATA.NDIM>2) VEC1(3,:)=NODEDATA(POSDATA.IDISZ,:)		
         GRIDSCALE1=STEPPLOT.VSCALE(1)*Scale_Deformed_Grid
     ENDIF
 
@@ -35,9 +58,9 @@ if(IsDrawVector) then
 		IF(ACTIVE_VECTOR_GROUP(J)) THEN
 			SCALE1=Scale_Vector_len*STEPPLOT.VSCALE(J)
             IF(ISVECTORUNIFY) 	SCALE1=SCALE1*STEPPLOT.VMAX(J)		
-			DO I=1,POSDATA.NNODE,VectorFrequency
-				IF(POSDATA.NODE(I).ISDEAD==1) CYCLE
-                V2=POSDATA.VEC(:,I,J)
+			DO I=1,NNODE,VectorFrequency
+				IF(NODE(I).ISDEAD==1) CYCLE
+                V2=VECTOR(:,I,J)
                 IF(ISVECTORUNIFY) THEN
                     T1=NORM2(V2)                    
                     IF(ABS(T1)>1.D-10) THEN
@@ -46,8 +69,8 @@ if(IsDrawVector) then
                         CYCLE
                     ENDIF                    
                 ENDIF
-				V1=POSDATA.node(i).coord+VEC1(:,I)*GRIDSCALE1
-				call drawArrow(V1,V1+V2*scale1,MYCOLOR(:,COLOR_TOP_TEN(J)))    
+				V1=node(i).coord+VEC1(:,I)*GRIDSCALE1
+				call drawArrow(V1,V1+V2*scale1,MYCOLOR(:,COLOR_TOP_TEN(J)),isarrow,vectorbase)    
 			ENDDO
 		ENDIF
     ENDDO
@@ -60,9 +83,14 @@ endif
 
 call glEndList
 
-IF(ALLOCATED(VEC1)) DEALLOCATE(VEC1)
-
 call glutPostRedisplay
+
+IF(ALLOCATED(VEC1)) DEALLOCATE(VEC1)
+IF(ALLOCATED(NODE))	DEALLOCATE(NODE)
+IF(ALLOCATED(NODEDATA))	DEALLOCATE(NODEDATA)
+IF(ALLOCATED(VECTOR))	DEALLOCATE(VECTOR)	
+
+
 
 endsubroutine
 
@@ -70,59 +98,153 @@ SUBROUTINE VEC_PLOT_DATA()
 	!USE POS_IO
 	USE function_plotter
 	IMPLICIT NONE
-	INTEGER::I
+	INTEGER::I,J,N1,N2,IEL1
+    REAL(8)::PI1=3.141592653589793,T1,VAL1(POSDATA.NVAR),PT(3)
+	INTEGER,EXTERNAL::POINTlOC
+	
+	IF(VECTORLOC==2) THEN
+		IEL1=0
+		DO I=1,POSDATA.NGRIDNODE
+			PT=POSDATA.GRIDNODE(I).COORD
+			IF(POSDATA.GRIDNODE(I).IEL<1) THEN
+				iel1=POINTlOC(PT,iel1)
+			ELSE
+                IEL1=POSDATA.GRIDNODE(I).IEL
+				IF(TET(IEL1).ISDEAD==1) IEL1=0				
+			ENDIF
+			POSDATA.GRIDDATA(:,I)=0.d0
+			IF(iel1>0) then
+				call getval(Pt,iel1,POSDATA.GRIDDATA(:,I))
+				POSDATA.GRIDNODE(I).ISDEAD=0				
+			else        
+				POSDATA.GRIDNODE(I).ISDEAD=1
+			endif
+		ENDDO
+	
+	ENDIF
 	
 	DO I=1,NVECTORPAIR
-	
-		IF (ACTIVE_VECTOR_GROUP(I)) THEN
-		select case(I)
+		IF(VECTORLOC==1) THEN !AT NODES
+			IF (ACTIVE_VECTOR_GROUP(I)) THEN
+				select case(I)
+					
+				case(VECTOR_GROUP_DIS)
+					
+					POSDATA.VEC(1,:,I)=POSDATA.NODALQ(:,POSDATA.IDISX,STEPPLOT.ISTEP)
+					POSDATA.VEC(2,:,I)=POSDATA.NODALQ(:,POSDATA.IDISY,STEPPLOT.ISTEP)
+					IF(POSDATA.NDIM>2) THEN
+						POSDATA.VEC(3,:,I)=POSDATA.NODALQ(:,POSDATA.IDISZ,STEPPLOT.ISTEP)
+					ELSE
+						POSDATA.VEC(3,:,I)=0.D0
+					ENDIF	
+					!VectorPairName='DIS.'
+				case(VECTOR_GROUP_SEEPAGE_VEC)       
+					POSDATA.VEC(1,:,I)=POSDATA.NODALQ(:,POSDATA.IVX,STEPPLOT.ISTEP)
+					POSDATA.VEC(2,:,I)=POSDATA.NODALQ(:,POSDATA.IVY,STEPPLOT.ISTEP)
+					IF(POSDATA.NDIM>2) THEN
+						POSDATA.VEC(3,:,I)=POSDATA.NODALQ(:,POSDATA.IVZ,STEPPLOT.ISTEP)
+					ELSE
+						POSDATA.VEC(3,:,I)=0.D0
+					ENDIF
+					!VectorPairName='SEEP.V'
+				case(VECTOR_GROUP_SEEPAGE_GRAD)
 
-			case(VECTOR_GROUP_DIS)
-				POSDATA.VEC(1,:,I)=POSDATA.NODALQ(:,POSDATA.IDISX,STEPPLOT.ISTEP)
-				POSDATA.VEC(2,:,I)=POSDATA.NODALQ(:,POSDATA.IDISY,STEPPLOT.ISTEP)
-				IF(POSDATA.NDIM>2) THEN
-					POSDATA.VEC(3,:,I)=POSDATA.NODALQ(:,POSDATA.IDISZ,STEPPLOT.ISTEP)
-				ELSE
-					POSDATA.VEC(3,:,I)=0.D0
-				ENDIF	
-				!VectorPairName='DIS.'
-			case(VECTOR_GROUP_SEEPAGE_VEC)       
-				POSDATA.VEC(1,:,I)=POSDATA.NODALQ(:,POSDATA.IVX,STEPPLOT.ISTEP)
-				POSDATA.VEC(2,:,I)=POSDATA.NODALQ(:,POSDATA.IVY,STEPPLOT.ISTEP)
-				IF(POSDATA.NDIM>2) THEN
-					POSDATA.VEC(3,:,I)=POSDATA.NODALQ(:,POSDATA.IVZ,STEPPLOT.ISTEP)
-				ELSE
-					POSDATA.VEC(3,:,I)=0.D0
-				ENDIF
-				!VectorPairName='SEEP.V'
-			case(VECTOR_GROUP_SEEPAGE_GRAD)
+					POSDATA.VEC(1,:,I)=POSDATA.NODALQ(:,POSDATA.IGRADX,STEPPLOT.ISTEP)
+					POSDATA.VEC(2,:,I)=POSDATA.NODALQ(:,POSDATA.IGRADY,STEPPLOT.ISTEP)
+					IF(POSDATA.NDIM>2) THEN
+						POSDATA.VEC(3,:,I)=POSDATA.NODALQ(:,POSDATA.IGRADZ,STEPPLOT.ISTEP)
+					ELSE
+						POSDATA.VEC(3,:,I)=0.D0
+					ENDIF    
+					!VectorPairName='SEEP.I'
+				case(VECTOR_GROUP_SFR)
 
-				POSDATA.VEC(1,:,I)=POSDATA.NODALQ(:,POSDATA.IGRADX,STEPPLOT.ISTEP)
-				POSDATA.VEC(2,:,I)=POSDATA.NODALQ(:,POSDATA.IGRADY,STEPPLOT.ISTEP)
-				IF(POSDATA.NDIM>2) THEN
-					POSDATA.VEC(3,:,I)=POSDATA.NODALQ(:,POSDATA.IGRADZ,STEPPLOT.ISTEP)
-				ELSE
+					POSDATA.VEC(1,:,I)=POSDATA.NODALQ(:,POSDATA.ISFR_SFRX,STEPPLOT.ISTEP)
+					POSDATA.VEC(2,:,I)=POSDATA.NODALQ(:,POSDATA.ISFR_SFRY,STEPPLOT.ISTEP)
+					POSDATA.VEC(3,:,I)=0.D0       
+					!VectorPairName='SFR'
+				case(VECTOR_GROUP_PSIGMA1,VECTOR_GROUP_PSIGMA3)
+					IF(I==VECTOR_GROUP_PSIGMA1) THEN
+						N1=POSDATA.IPSIGMA1;N2=1
+					ELSE
+						N1=POSDATA.IPSIGMA3;N2=2
+					ENDIF
+					DO J=1,POSDATA.NNODE
+						T1=POSDATA.NODALQ(J,POSDATA.IAPSIGMA1,STEPPLOT.ISTEP)+PI1/2.*N2
+						POSDATA.VEC(1,J,I)=POSDATA.NODALQ(J,N1,STEPPLOT.ISTEP)*COS(T1)
+						POSDATA.VEC(2,J,I)=POSDATA.NODALQ(J,N1,STEPPLOT.ISTEP)*SIN(T1)
+					ENDDO
 					POSDATA.VEC(3,:,I)=0.D0
-				ENDIF    
-				!VectorPairName='SEEP.I'
-			case(VECTOR_GROUP_SFR)
-
-				POSDATA.VEC(1,:,I)=POSDATA.NODALQ(:,POSDATA.ISFR_SFRX,STEPPLOT.ISTEP)
-				POSDATA.VEC(2,:,I)=POSDATA.NODALQ(:,POSDATA.ISFR_SFRY,STEPPLOT.ISTEP)
-				POSDATA.VEC(3,:,I)=0.D0       
-				!VectorPairName='SFR'
-			case(VECTOR_GROUP_PSIGMA1)
+				end select
 				
-			CASE(VECTOR_GROUP_PSIGMA3)
-			
-			end select
-		
+			ELSE
+				POSDATA.VEC(:,:,I)=0.D0
+			ENDIF
 		ELSE
-			POSDATA.VEC(:,:,I)=0.D0
+			!AT STRUCTURAL GRIDS
+			IF (ACTIVE_VECTOR_GROUP(I)) THEN
+				
+				select case(I)
+					
+				case(VECTOR_GROUP_DIS)
+					
+					POSDATA.GRIDVEC(1,:,I)=POSDATA.GRIDDATA(POSDATA.IDISX,:)
+					POSDATA.GRIDVEC(2,:,I)=POSDATA.GRIDDATA(POSDATA.IDISY,:)
+					IF(POSDATA.NDIM>2) THEN
+						POSDATA.GRIDVEC(3,:,I)=POSDATA.GRIDDATA(POSDATA.IDISZ,:)
+					ELSE
+						POSDATA.GRIDVEC(3,:,I)=0.D0
+					ENDIF	
+					!VectorPairName='DIS.'
+				case(VECTOR_GROUP_SEEPAGE_VEC)       
+					POSDATA.GRIDVEC(1,:,I)=POSDATA.GRIDDATA(POSDATA.IVX,:)
+					POSDATA.GRIDVEC(2,:,I)=POSDATA.GRIDDATA(POSDATA.IVY,:)
+					IF(POSDATA.NDIM>2) THEN
+						POSDATA.GRIDVEC(3,:,I)=POSDATA.GRIDDATA(POSDATA.IVZ,:)
+					ELSE
+						POSDATA.GRIDVEC(3,:,I)=0.D0
+					ENDIF
+					!VectorPairName='SEEP.V'
+				case(VECTOR_GROUP_SEEPAGE_GRAD)
+
+					POSDATA.GRIDVEC(1,:,I)=POSDATA.GRIDDATA(POSDATA.IGRADX,:)
+					POSDATA.GRIDVEC(2,:,I)=POSDATA.GRIDDATA(POSDATA.IGRADY,:)
+					IF(POSDATA.NDIM>2) THEN
+						POSDATA.GRIDVEC(3,:,I)=POSDATA.GRIDDATA(POSDATA.IGRADZ,:)
+					ELSE
+						POSDATA.GRIDVEC(3,:,I)=0.D0
+					ENDIF    
+					!VectorPairName='SEEP.I'
+				case(VECTOR_GROUP_SFR)
+
+					POSDATA.GRIDVEC(1,:,I)=POSDATA.GRIDDATA(POSDATA.ISFR_SFRX,:)
+					POSDATA.GRIDVEC(2,:,I)=POSDATA.GRIDDATA(POSDATA.ISFR_SFRY,:)
+					POSDATA.GRIDVEC(3,:,I)=0.D0       
+					!VectorPairName='SFR'
+				case(VECTOR_GROUP_PSIGMA1,VECTOR_GROUP_PSIGMA3)
+					IF(I==VECTOR_GROUP_PSIGMA1) THEN
+						N1=POSDATA.IPSIGMA1;N2=1
+					ELSE
+						N1=POSDATA.IPSIGMA3;N2=2
+					ENDIF
+					DO J=1,POSDATA.NGRIDNODE
+						T1=POSDATA.GRIDDATA(POSDATA.IAPSIGMA1,J)+PI1/2.*N2
+						POSDATA.GRIDVEC(1,J,I)=POSDATA.GRIDDATA(N1,J)*COS(T1)
+						POSDATA.GRIDVEC(2,J,I)=POSDATA.GRIDDATA(N1,J)*SIN(T1)
+					ENDDO
+					POSDATA.GRIDVEC(3,:,I)=0.D0
+				end select
+				
+
+			ELSE
+				POSDATA.GRIDVEC(:,:,I)=0.D0
+			ENDIF
+		
 		ENDIF
-	
 	ENDDO
 ENDSUBROUTINE
+
+
 
 !subroutine drawVectorLegend(Vtmax,Vtmin,Scale,VTITLE)
 !use opengl_gl
@@ -263,7 +385,7 @@ subroutine drawVectorLegend2(Vtmax,Vtmin,Scale,ACTIVE_VECTOR_PAIR,VTITLE,NVG)
 		call glLineWidth(3.0_glfloat);
 		call glColor4FV(MYCOLOR(:,COLOR_TOP_TEN(I)));
 		!call glScaled(xscale_factor,yscale_factor,zscale_factor)
-		call drawArrow(orig,dest,MYCOLOR(:,COLOR_TOP_TEN(I)))
+		call drawArrow(orig,dest,MYCOLOR(:,COLOR_TOP_TEN(I)),.true.,1)
 		
 
 
@@ -384,41 +506,63 @@ real(glfloat),dimension(3)::axesOrigin=[0.0,0.0,0.0];
     
 end subroutine
 
-subroutine drawArrow(orig,dest,color)
+subroutine drawArrow(orig,dest,color,isarrow,base)
 use opengl_gl
 use opengl_glut
 implicit none
+logical,intent(in)::isarrow
+integer,intent(in)::base !=1 orig,=2,dest,=3,center
 real(gldouble),intent(in)::orig(3),dest(3)
-real(gldouble)::radius,height,length,PI,angle,rot(3),v1(3)
+real(gldouble)::radius,height,length,PI,angle,rot(3),v1(3),orig1(3),dest1(3)
 REAL(GLFLOAT)::color(4)
 integer(glint)::slices=8, stacks=1
+
 
 v1=dest-orig
 length=norm2(v1)
 IF(LENGTH<1E-10) RETURN
+
+select case(base)
+case(2)
+    orig1=orig-v1
+    dest1=dest-v1
+case(3)
+    orig1=orig-v1/2.
+    dest1=dest-v1/2.
+case default
+    orig1=orig;dest1=dest
+endselect
+
+
+
+
 PI=ATAN(1.0D0)*4.0D0
 call glPushAttrib(GL_ALL_ATTRIB_BITS)
 call glColor4FV(color);
 !call glColor3d(1.,0.,0.);
 CALL GLLINEWIDTH(1._GLFLOAT)
 call glbegin(gl_lines)
-call glvertex3dv(orig)
-call glvertex3dv(dest)
+call glvertex3dv(orig1)
+call glvertex3dv(dest1)
 call glend()
 
-!cone
-height=length/4.0
-radius=height*tan(30/180.*PI)
-call r8vec_cross_3d ( [0.,0.,1.0],v1,rot )
-angle=asin(norm2(rot)/length)/PI*180.
-CALL glPolygonMode(gl_front_and_back, gl_fill)
-!call glColor4d(1.,0.,0.,0.8);
-CALL glMatrixMode(GL_MODELVIEW);
-CALL glPushMatrix()
-CALL GLTRANSLATED(DEST(1),DEST(2),DEST(3))
-CALL GLROTATED(ANGLE,ROT(1),ROT(2),ROT(3))
-CALL glutSolidCone(radius,height,slices,stacks)
-CALL glPopMatrix() 
+if(isarrow) then
+    !cone
+    height=length/4.0
+    radius=height*tan(30/180.*PI)
+
+    call r8vec_cross_3d ( [0.,0.,1.0],v1,rot )
+    angle=asin(norm2(rot)/length)/PI*180.
+    CALL glPolygonMode(gl_front_and_back, gl_fill)
+    !call glColor4d(1.,0.,0.,0.8);
+    CALL glMatrixMode(GL_MODELVIEW);
+    CALL glPushMatrix()
+    CALL GLTRANSLATED(dest1(1),dest1(2),dest1(3))
+    CALL GLROTATED(ANGLE,ROT(1),ROT(2),ROT(3))
+    CALL glutSolidCone(radius,height,slices,stacks)
+    CALL glPopMatrix() 
+endif
+
 call glPopAttrib()
     
 endsubroutine
