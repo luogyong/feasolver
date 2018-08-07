@@ -166,7 +166,7 @@ SUBROUTINE EQUDIVIDE(X1,X2,DT,NODE,NNODE)
             ALLOCATE(NODE(N1,NNODE))
             DT1(1:N1)=(X2-X1)/(NNODE-1)
             DO I=1,NNODE
-                NODE(:,I)=X1+DT1*(I-1)
+                NODE(:,I)=X1+DT1(1:N1)*(I-1)
             ENDDO
         ENDIF
         

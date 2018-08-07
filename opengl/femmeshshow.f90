@@ -80,7 +80,7 @@ TYPE(STREAMLINE_TYDEF),ALLOCATABLE::STREAMLINE(:)
 INTEGER,ALLOCATABLE::SF_SLOPE(:)
 INTEGER::NSTREAMLINE=0,NINPUTSLIP=0,INPUTSLIP(100)=0
 LOGICAL::IS_JUST_SHOW_TOP_TEN_SLOPE=.FALSE.,IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.,&
-        IS_SHOW_ALL_SLOPE=.TRUE.
+        IS_SHOW_ALL_SLOPE=.TRUE.,SLOPE_CHECK_ADMISSIBILITY=.FALSE.
 
 
 !TYPE SLOPE_STATE_PARA_SHOW
@@ -221,8 +221,9 @@ integer,parameter,public::ContourList=1,&
 integer,parameter::STREAMLINE_SLOPE_CLICK=1,ShowTopTen_SLOPE_CLICK=2,ShowMinimal_SLOPE_CLICK=3,&
 ShowAll_SLOPE_CLICK=4,ReadSlipSurface_slope_click=5,ShowLocalMinimal_Slope_Click=6,&
                     SEARCH_SLOPE_CLICK=7,FilterLocalMinimal_Slope_Click=8,&
-                    SFS_Slope_Click=9
-LOGICAL::ISSTREAMLINESLOPE=.FALSE.,IsFilterLocalMinimalMode=.false.,isProbeState_SFS=.FALSE.
+                    SFS_Slope_Click=9,CHECKADMISSIBILITY=10,ShowReadinSlip_Slope_CLICK=11
+LOGICAL::ISSTREAMLINESLOPE=.FALSE.,IsFilterLocalMinimalMode=.false.,isProbeState_SFS=.FALSE.,&
+         IsShowReadinSlip=.false.
 
 !real(GLFLOAT) :: red(4) = (/1.0,0.0,0.0,1.0/), &
 !                 black(4) = (/0.0,0.0,0.0,1.0/), &
@@ -730,15 +731,7 @@ subroutine streamline_handler(selection)
     CASE(SHOW_STREAMLINE_NODE_CLICK)
         SHOW_STREAMLINE_NODE=.NOT.SHOW_STREAMLINE_NODE
     case(Reset_streamline_CLICK)
-        DO I=1,NSTREAMLINE
-            IF(ALLOCATED(STREAMLINE(I).V)) THEN
-                DEALLOCATE(STREAMLINE(I).V,STREAMLINE(I).VAL)
-            ENDIF
-            IF(ALLOCATED(STREAMLINE(I).PARA_SFCAL)) DEALLOCATE(STREAMLINE(I).PARA_SFCAL)
-            STREAMLINE(I).ISINPUTSLIP=0
-            STREAMLINE(I).SHOW=.TRUE.
-        ENDDO
-        nstreamline=0
+        CALL RESET_STREAMLINE()
      CASE(OUTPUT_SHOWNSTREAMLINE_CLICK)
         CALL OUT_SHOWN_STREAMLINE()
      CASE(Enlarger_StrokeFontSize_CLICK) 
@@ -759,11 +752,26 @@ subroutine streamline_handler(selection)
 	
 end subroutine
 
+SUBROUTINE RESET_STREAMLINE()
+    INTEGER::I
+    
+    DO I=1,NSTREAMLINE
+        IF(ALLOCATED(STREAMLINE(I).V)) THEN
+            DEALLOCATE(STREAMLINE(I).V,STREAMLINE(I).VAL)
+        ENDIF
+        IF(ALLOCATED(STREAMLINE(I).PARA_SFCAL)) DEALLOCATE(STREAMLINE(I).PARA_SFCAL)
+        STREAMLINE(I).ISINPUTSLIP=0
+        STREAMLINE(I).SHOW=.TRUE.
+    ENDDO
+    nstreamline=0
+
+ENDSUBROUTINE
+
 subroutine slope_handler(selection)
     USE SolverMath
     implicit none
     integer(kind=glcint), intent(in out) :: selection
-    INTEGER::NSLIP1,I,IEL1,J,K,n1=0,N2=0,OFFSET1
+    INTEGER::NSLIP1,I,IEL1,J,K,n1=0,N2=0,OFFSET1,N3=0
     INTEGER,SAVE::TRYIEL1=0
     INTEGER,EXTERNAL::POINTlOC_BC
     real(8)::AR2D1(2,2000),AR2D2(2,2000)
@@ -777,12 +785,22 @@ subroutine slope_handler(selection)
     
     case(SFS_SLOPE_CLICK)
         isProbeState_SFS=.not.isProbeState_SFS
-       
+    case(ShowReadinSlip_Slope_CLICK)
+        isShowReadinSlip=.not.isShowReadinSlip
+        DO I=1,NSTREAMLINE
+            IF(STREAMLINE(I).ISINPUTSLIP==1) THEN
+                STREAMLINE(I).SHOW=isShowReadinSlip
+            ENDIF
+        ENDDO
+        CALL STREAMLINE_PLOT()
+    CASE(CHECKADMISSIBILITY)
+        SLOPE_CHECK_ADMISSIBILITY=.NOT.SLOPE_CHECK_ADMISSIBILITY
     case(STREAMLINE_SLOPE_CLICK)
         ISSTREAMLINESLOPE=.NOT.ISSTREAMLINESLOPE
         IF(ISSTREAMLINESLOPE) THEN
             call slopestability_streamline(0) 
         ENDIF
+        CALL STREAMLINE_PLOT()
     CASE(ShowTopTen_SLOPE_CLICK)
         IS_JUST_SHOW_TOP_TEN_SLOPE=.TRUE.
         !IF(IS_JUST_SHOW_TOP_TEN_SLOPE) THEN
@@ -839,6 +857,7 @@ subroutine slope_handler(selection)
         info.color=red;info.qkey=.true.
         info.str='Searching.Please Wait...'
         call glutPostRedisplay
+        CALL RESET_STREAMLINE()
         CALL SEARCH_MINIMAL_SF_SLOPE()
         CALL STREAMLINE_PLOT()
         
@@ -883,15 +902,22 @@ subroutine slope_handler(selection)
             ALLOCATE(STREAMLINE(NSTREAMLINE).VAL(1:POSDATA.NVAR,STREAMLINE(NSTREAMLINE).NV))
             STREAMLINE(NSTREAMLINE).VAL=0.D0
             STREAMLINE(NSTREAMLINE).V(3,:)=0.d0
+            N3=0
             DO J=1,STREAMLINE(NSTREAMLINE).NV
                 !READ(10,*) STREAMLINE(NSTREAMLINE).V(1:2,J)
                 STREAMLINE(NSTREAMLINE).V(1:2,J)=AR2D2(:,J)
                 IEL1=POINTlOC_BC(STREAMLINE(NSTREAMLINE).V(:,j),TRYIEL1)
                 TRYIEL1=IEL1
-                IF(IEL1>0) call getval(STREAMLINE(NSTREAMLINE).V(:,J),iel1,STREAMLINE(NSTREAMLINE).VAL(:,J))
+                IF(IEL1>0) THEN !输入的滑线头尾可能在区域外，去掉。
+                    N3=N3+1
+                    call getval(STREAMLINE(NSTREAMLINE).V(:,J),iel1,STREAMLINE(NSTREAMLINE).VAL(:,N3))
+                    IF(J/=N3) STREAMLINE(NSTREAMLINE).V(:,N3)=STREAMLINE(NSTREAMLINE).V(:,J)
+                ENDIF
             ENDDO
+            STREAMLINE(NSTREAMLINE).NV=N3
             CALL slopestability_streamline(NSTREAMLINE)
             STREAMLINE(NSTREAMLINE).ISINPUTSLIP=1
+            isShowReadinSlip=.TRUE.
             STREAMLINE(NSTREAMLINE).SHOW=.TRUE.
             NINPUTSLIP=NINPUTSLIP+1
             INPUTSLIP(NINPUTSLIP)=NSTREAMLINE
@@ -1306,20 +1332,27 @@ call glutAddMenuEntry("contour value",rainbow_contour)
 
 ColorMap_ID=glutCreateMenu(Color_Map_handler)
 Call glutAddMenuEntry("Rainbow",CM_Rainbow)
-Call glutAddMenuEntry("Gray",CM_Gray)
 Call glutAddMenuEntry("RainBow_DarkEnds",CM_RainBow_DarkEnds)
+Call glutAddMenuEntry("RainBowLight",CM_RainBowLight)
+Call glutAddMenuEntry("RainBowPastel",CM_RainBowPastel)
+Call glutAddMenuEntry("Terrain",CM_Terrain)
+Call glutAddMenuEntry("Gray",CM_Gray)
 Call glutAddMenuEntry("HotMetal",CM_HotMetal)
 Call glutAddMenuEntry("Doppler",CM_Doppler)
-Call glutAddMenuEntry("Magma",CM_Magma)
 Call glutAddMenuEntry("Elevation",CM_Elevation)
+Call glutAddMenuEntry("Magma",CM_Magma)
 Call glutAddMenuEntry("Accent",CM_Accent)
 Call glutAddMenuEntry("Red",CM_Red)
 Call glutAddMenuEntry("Blue",CM_Blue)
 Call glutAddMenuEntry("Green",CM_Green)
 Call glutAddMenuEntry("BlueRed",CM_BlueRed)
 Call glutAddMenuEntry("BlueYellowRed",CM_BlueYellowRed)
-
-
+Call glutAddMenuEntry("HighPoint",CM_HighPoint)
+Call glutAddMenuEntry("HighPoint2",CM_HighPoint2)
+Call glutAddMenuEntry("YellowHigh",CM_YellowHigh)
+Call glutAddMenuEntry("Soil",CM_Soil)
+Call glutAddMenuEntry("Geology",CM_Geology)
+Call glutAddMenuEntry("Land",CM_Land)
 
 
 surface_color_menu = glutCreateMenu(surface_color_handler)
@@ -1462,13 +1495,15 @@ call glutAddMenuEntry("++StrokeFontSize",Enlarger_StrokeFontSize_CLICK)
 call glutAddMenuEntry("--StrokeFontSize",Smaller_StrokeFontSize_CLICK)
 
 SLOPE_ID=glutCreateMenu(SLOPE_handler)
+CALL glutAddMenuEntry("CheckAdmissiblity Toggle",CHECKADMISSIBILITY)
 call glutAddMenuEntry("Search...",SEARCH_SLOPE_CLICK)
 call glutAddMenuEntry("JustShowTopTenSlips",ShowTopTen_SLOPE_CLICK)
 call glutAddMenuEntry("JustShowMinimalSlip",ShowMinimal_SLOPE_CLICK)
-call glutAddMenuEntry("StressFailureState",SFS_SLOPE_CLICK)
 call glutAddMenuEntry("ShowAllSlips",ShowAll_SLOPE_CLICK)
+call glutAddMenuEntry("ShowReadinSlips",ShowReadinSlip_Slope_CLICK)
 call glutAddMenuEntry("FilterLocalSmallSlip(DelectLocalLarger)",filterLocalMinimal_Slope_Click)
 call glutAddMenuEntry("ShowLocalMinimalSlip",ShowLocalMinimal_Slope_Click)
+call glutAddMenuEntry("StressFailureState",SFS_SLOPE_CLICK)
 Call glutAddMenuEntry('ReadSlips',ReadSlipSurface_slope_click)
 call glutAddMenuEntry("STREAMLINE_METHOD",STREAMLINE_SLOPE_CLICK)
 
@@ -1594,9 +1629,9 @@ PRINT *, 'Group element to subzones...',char_time
 CALL SETUP_SUBZONE_TET()
 
 CALL TIME(char_time)
-PRINT *, 'Begin to Render...',char_time
-
-call glutInit
+PRINT *, 'Begin to Render...Stage=glutInit',char_time
+call glutInit()
+PRINT *, 'Begin to Render...Stage=glutInitDisplayMode',char_time
 call glutInitDisplayMode(ior(GLUT_DOUBLE,ior(GLUT_RGB,GLUT_DEPTH)))
 call glutInitWindowPosition(10_glcint,10_glcint)
 
@@ -1607,7 +1642,8 @@ call glutInitWindowSize(800_glcint,600_glcint)
 
 
 !winid = glutCreateWindow(trim(adjustl(POSDATA.title)))
-winid = glutCreateWindow("IFSOLVER")
+PRINT *, 'Begin to Render...Stage=glutCreateWindow',char_time
+winid = glutCreateWindow('IFSOLVER')
 PRINT *, 'Create Window Successfully.'
 
 model_radius=POSDATA.MODELR

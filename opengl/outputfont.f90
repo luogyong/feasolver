@@ -9,7 +9,7 @@ subroutine output(x,y,s)
   integer :: i,lenc
   
   call glrasterpos2f(x,y)
-  lenc = len(s)
+  lenc = len(trim(adjustl(s)))
   do i=1,lenc
      c = s(i:i)
      call glutbitmapcharacter(GLUT_BITMAP_HELVETICA_10, &

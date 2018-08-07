@@ -1461,6 +1461,10 @@ subroutine solvercommand(term,unit)
                         solver_control.slidedirection=int(property(i).value)
                     case('slope_kscale')
                         solver_control.slope_kscale=property(i).value
+                    case('slope_kbase')
+                        solver_control.slope_kbase=property(i).value
+                    case('slope_istensioncrack')
+                        solver_control.slope_isTensionCrack=int(property(i).value)
 					!case('ispostcal')
 					!	solver_control.ispostcal=int(property(i).value)
 					case default
@@ -2166,8 +2170,8 @@ subroutine solvercommand(term,unit)
                         outvar(MC_C).VALUE=MC_C
                         OUTVAR(MC_PHI).NAME='MC_PHI'
                         OUTVAR(MC_PHI).VALUE=MC_PHI
-                        !OUTVAR(SLOPE_SD).NAME='SlideDirection'
-                        !OUTVAR(SLOPE_SD).VALUE=SLOPE_SD
+                        OUTVAR(SLOPE_SD).NAME='SlideDirection'
+                        OUTVAR(SLOPE_SD).VALUE=SLOPE_SD
                         !OUTVAR(SFR_ALPHA).NAME='PSIGMASURFACE'
                         !OUTVAR(SFR_ALPHA).VALUE=SFR_ALPHA
                         !OUTVAR(SFR_PSITA).NAME='SFRMAX_ANGLE_WITH_PSS'

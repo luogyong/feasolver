@@ -44,7 +44,7 @@ SUBROUTINE STREAMLINE_PLOT()
     
     DO I=1,NSTREAMLINE
 
-        IF((.NOT.STREAMLINE(I).SHOW).AND.STREAMLINE(I).ISINPUTSLIP==0) CYCLE !INPUT SLIPS ARE ALWAYS SHOWN 
+        IF((.NOT.STREAMLINE(I).SHOW)) CYCLE 
         IF(STREAMLINE(I).NV<2) CYCLE
         CALL glLineWidth(2.0_glfloat)
         !IF(ISSTREAMLINESLOPE) THEN
@@ -226,6 +226,7 @@ subroutine slopestability_streamline(islip)
         ALLOCATE(STREAMLINE(I).PARA_SFCAL(8,streamline(i).nv))
         STREAMLINE(I).PARA_SFCAL(:,streamline(i).nv)=0.d0        
         DO j=1,streamline(i).nv-1
+            !IF(ALL(STREAMLINE(I).VAL,))
             SS(1)=(STREAMLINE(I).VAL(POSDATA.ISXX,J)+STREAMLINE(I).VAL(POSDATA.ISXX,J+1))/2.0
             SS(2)=(STREAMLINE(I).VAL(POSDATA.ISYY,J)+STREAMLINE(I).VAL(POSDATA.ISYY,J+1))/2.0
 		    SS(3)=(STREAMLINE(I).VAL(POSDATA.ISXY,J)+STREAMLINE(I).VAL(POSDATA.ISXY,J+1))/2.0
@@ -244,8 +245,9 @@ subroutine slopestability_streamline(islip)
             CALL stress_in_inclined_plane(SS,RAD1,SNT1)
             
             T2=(C1-MIN(SNT1(1),0.D0)*DTAN(PHI1/180.0*PI)) !TAUF
-            IF(SNT1(1)<0.D0.AND.SFR1>=0.D0) THEN
-            !IF(SNT1(1)<0.D0) THEN
+            !IF(SNT1(1)<0.D0.AND.SFR1>=0.D0) THEN
+            IF(SNT1(1)<0.D0) THEN
+                !IF(SFR1>=0.D0.OR.(SFR1<0.D0.AND.SOLVER_CONTROL.SLOPE_ISTENSIONCRACK==1))
                 SIGMA_TF1=SIGMA_TF1+T2*T1
                 SIGMA_T1=SIGMA_T1+SNT1(2)*T1
             ELSE
@@ -464,7 +466,7 @@ subroutine streamline_integration(istreamline)
     implicit none
     integer,intent(in)::istreamline  
     INTEGER::N1=3,IEL,I,J,NUP1
-    INTEGER,PARAMETER::MAXSTEP1=10000
+    INTEGER,PARAMETER::MAXSTEP1=20000
     REAL(8)::V1(3),V2(3),Y(3),EPS,YSCAL(3),Hdid,Hnext,T,Htry,direction1,IPT1(3)=0.D0,IPT2(3)=0.D0
     REAL(8)::YSAV(1:POSDATA.NDIM,MAXSTEP1),YSAV_UP(1:POSDATA.NDIM,MAXSTEP1),&
             VAL1(1:POSDATA.NVAR,0:MAXSTEP1), VAL2(1:POSDATA.NVAR,0:MAXSTEP1)
@@ -542,29 +544,29 @@ subroutine streamline_integration(istreamline)
         !endif
         
         IF(I>=MAXSTEP1) THEN
-            pause 'Too many steps in streamline'
-        else
-            IF(J==1) THEN
-                NUP1=I
-                YSAV_UP(:,1:NUP1)=YSAV(:,NUP1:1:-1)
-                VAL2(1:POSDATA.NVAR,1:NUP1)=VAL1(1:POSDATA.NVAR,NUP1:1:-1)
-            ELSE
-                STREAMLINE(istreamline).NV=I+NUP1+1
-                IF(ALLOCATED(STREAMLINE(istreamline).V)) DEALLOCATE(STREAMLINE(istreamline).V)                
-                ALLOCATE(STREAMLINE(istreamline).V(3,STREAMLINE(istreamline).NV))
-                IF(ALLOCATED(STREAMLINE(ISTREAMLINE).VAL)) DEALLOCATE(STREAMLINE(ISTREAMLINE).VAL)
-                ALLOCATE(STREAMLINE(ISTREAMLINE).VAL(1:POSDATA.NVAR,STREAMLINE(istreamline).NV))
-                STREAMLINE(ISTREAMLINE).VAL=0.D0
-                STREAMLINE(istreamline).V(3,:)=0.d0
-                STREAMLINE(istreamline).V(1:POSDATA.NDIM,1:NUP1)=YSAV_UP(:,1:NUP1)                
-                STREAMLINE(istreamline).V(1:POSDATA.NDIM,NUP1+1)=STREAMLINE(ISTREAMLINE).PTstart(1:POSDATA.NDIM)
-                STREAMLINE(istreamline).V(1:POSDATA.NDIM,2+NUP1:I+1+NUP1)=YSAV(:,1:I)
-                STREAMLINE(ISTREAMLINE).VAL(:,1:NUP1)=VAL2(1:POSDATA.NVAR,1:NUP1)
-                STREAMLINE(ISTREAMLINE).VAL(:,NUP1+1:NUP1+I+1)=VAL1(1:POSDATA.NVAR,0:I)
-                CALL slopestability_streamline(ISTREAMLINE)
-
-            ENDIF
+            Print *, 'Too many steps in streamline,istreamline=',istreamline
         ENDIF
+        IF(J==1) THEN
+            NUP1=I
+            YSAV_UP(:,1:NUP1)=YSAV(:,NUP1:1:-1)
+            VAL2(1:POSDATA.NVAR,1:NUP1)=VAL1(1:POSDATA.NVAR,NUP1:1:-1)
+        ELSE
+            STREAMLINE(istreamline).NV=I+NUP1+1
+            IF(ALLOCATED(STREAMLINE(istreamline).V)) DEALLOCATE(STREAMLINE(istreamline).V)                
+            ALLOCATE(STREAMLINE(istreamline).V(3,STREAMLINE(istreamline).NV))
+            IF(ALLOCATED(STREAMLINE(ISTREAMLINE).VAL)) DEALLOCATE(STREAMLINE(ISTREAMLINE).VAL)
+            ALLOCATE(STREAMLINE(ISTREAMLINE).VAL(1:POSDATA.NVAR,STREAMLINE(istreamline).NV))
+            STREAMLINE(ISTREAMLINE).VAL=0.D0
+            STREAMLINE(istreamline).V(3,:)=0.d0
+            STREAMLINE(istreamline).V(1:POSDATA.NDIM,1:NUP1)=YSAV_UP(:,1:NUP1)                
+            STREAMLINE(istreamline).V(1:POSDATA.NDIM,NUP1+1)=STREAMLINE(ISTREAMLINE).PTstart(1:POSDATA.NDIM)
+            STREAMLINE(istreamline).V(1:POSDATA.NDIM,2+NUP1:I+1+NUP1)=YSAV(:,1:I)
+            STREAMLINE(ISTREAMLINE).VAL(:,1:NUP1)=VAL2(1:POSDATA.NVAR,1:NUP1)
+            STREAMLINE(ISTREAMLINE).VAL(:,NUP1+1:NUP1+I+1)=VAL1(1:POSDATA.NVAR,0:I)
+            CALL slopestability_streamline(ISTREAMLINE)
+
+        ENDIF
+        !ENDIF
     ENDDO
   
     
@@ -594,8 +596,8 @@ SUBROUTINE derivs(T,PT,V)
     IMPLICIT NONE
     REAL(8),INTENT(IN)::T,PT(3)
     REAL(8),INTENT(OUT)::V(3)
-    INTEGER::IEL
-    REAL(8)::VAL1(100)    
+    INTEGER::IEL,SSD1
+    REAL(8)::VAL1(100),SS1(3)   
     INTEGER,EXTERNAL::POINTlOC,POINTlOC_BC
     INTEGER,SAVE::TRYIEL=0
     
@@ -613,6 +615,12 @@ SUBROUTINE derivs(T,PT,V)
         V(1:2)=VAL1(IVO(1:2))
         IF(IVO(3)>0) V(3)=VAL1(IVO(3))
         RKINFO.LASTIEL=IEL
+        
+        IF(SLOPE_CHECK_ADMISSIBILITY) THEN
+            SS1=[VAL1(POSDATA.ISXX),VAL1(POSDATA.ISYY),VAL1(POSDATA.ISXY)] 
+            SSD1=VAL1(POSDATA.ISLOPE_SD)
+            CALL CHECK_ADMISSIBILITY(V,SS1,SSD1)            
+        ENDIF
     ELSE
         RKINFO.VAL(1:POSDATA.NVAR)=0.D0
         RKINFO.ISOUTOFRANGE=.TRUE.
@@ -620,55 +628,52 @@ SUBROUTINE derivs(T,PT,V)
 
 
 END
-!
-!SUBROUTINE CHECK_ADMISSIBILITY(V,SS,SDIRECTION,C,PHI)
-!
-!!跟据速度方向的切应力的正负及滑动方向，判断应力是否相容：
-!!1)对于左滑边坡，如果速度方向的应力是正的(CCW),则认为应力相容；
-!!2)对于右滑边坡，如果速度方向的应力是负的(CW),则认为应力相容；
-!IMPLICIT NONE
-!REAL(8),INTENT(IN)::V(3),SS(3),C,PHI
-!INTEGER,INTENT(IN)::SDIRECTION
-!
-!REAL(8)::RAD1,SNT1(2),A1,ALPHA1(2),THETA1
-!REAL(8),PARAMETER::PI1=3.141592653589793
-!INTEGER::FLAG1,N1,N2
-!
-!IF(ABS(V(1))>1E-7) THEN
-!    RAD1=ATAN(V(2)/V(1))
-!ELSE
-!    RAD1=SIGN(PI/2.0,V(2))
-!ENDIF
-!CALL stress_in_inclined_plane(SS,RAD1,SNT1)
-!
-!IF(SNT1(1)>=0) SNT1(2)=0.D0
-!!SDIRECTION=1 RIGHT, =-1,LEFT
-!IF(SDIRECTION*SNT1(2)>0.D0) THEN !不相容,要给出相容方向
-!    A1=0.5*ATAN(2*SS(3)/(SS(1)-SS(2)))
-!    
-!    IF(SDIRECTION=LEFT) THEN
-!        
-!    ELSE
-!    
-!    ENDIF
-!    IF(V(2)>0) THEN !
-!    
-!    ELSE
-!    
-!    ENDIF
-!    FLAG1=SIGN(1,SS(1)-SS(2))*SIGN(1,-SDIRECTION)
-!    N1=1;N2=2
-!    IF(FLAG1<0) THEN
-!        N1=2;N2=1
-!    ENDIF
-!    ALPHA1(N1)=A1
-!    ALPHA1(N2)=ALPHA1(N1)+FLAG1*PI1/2.0
-!    
-!ENDIF
-!
-!
-!
-!ENDSUBROUTINE
+
+SUBROUTINE CHECK_ADMISSIBILITY(V,SS,SDIRECTION)
+
+!跟据速度方向的切应力的正负及滑动方向，判断应力是否相容：
+!1)对于左滑边坡，如果速度方向的剪应力是正的(CCW),则认为应力相容；
+!2)对于右滑边坡，如果速度方向的剪应力是负的(CW),则认为应力相容；
+IMPLICIT NONE
+REAL(8),INTENT(IN OUT)::V(3)
+REAL(8),INTENT(IN)::SS(3)
+INTEGER,INTENT(IN)::SDIRECTION
+
+REAL(8)::RAD1,SNT1(2),A1,ALPHA1(2),THETA1,T1
+REAL(8),PARAMETER::PI1=3.141592653589793
+INTEGER::FLAG1,N1,N2
+
+IF(ABS(V(1))>1E-7) THEN
+    RAD1=ATAN(V(2)/V(1))
+ELSE
+    RAD1=SIGN(PI1/2.0,V(2))
+ENDIF
+CALL stress_in_inclined_plane(SS,RAD1,SNT1)
+
+
+IF(SNT1(1)>=0) SNT1(2)=0.D0
+!SDIRECTION=1 RIGHT, =-1,LEFT
+IF(SDIRECTION*SNT1(2)>0.D0) THEN !不相容,要给出相容方向
+    !!假定沿着大主应力作用面滑动
+    !A1=0.5*ATAN(2*SS(3)/(SS(1)-SS(2)))
+    !IF(SS(1)<SS(2)) THEN
+    !    A1=A1+PI1/2.0    
+    !ENDIF
+    
+    T1=(V(1)**2+V(2)**2)**0.5
+    
+    !假定Vy的正负是对的。
+    IF(T1*SIN(A1)*V(2)<0.0d0) THEN
+        A1=A1+PI1    
+    ENDIF
+    V(1)=T1*COS(A1);V(2)=T1*SIN(A1)  
+    
+    
+ENDIF
+
+
+
+ENDSUBROUTINE
 
 SUBROUTINE SLOPE_SFR_STATE_PARAMETER_SHOW()
 
@@ -687,10 +692,10 @@ SUBROUTINE SLOPE_SFR_STATE_PARAMETER_SHOW()
     real(gldouble)::len1,ppm1,W1,H1
     real(gldouble)::t1,orig(3),dest(3),winp1(3)
     character(128)::str1,str2,STR3
-	INTEGER::I,J,K,N1,ICOLOR1
+	INTEGER::I,J,K,N1,ICOLOR1,IC2,IC3
     REAL(8),PARAMETER::PI1=3.141592653589793
     REAL(8)::SS1(6),PSS1(4),C1,PHI1,ALPHA1,ALPHA2,A1,B1,SR1,SC1,DT1=0,SFRM1,SFR1,R2=0.75,ALPHA3,ALPHA4,&
-    SITA1,SITA2
+    SITA1,SITA2,X1,Y1,X2,Y2
     REAL(GLFLOAT)::COLOR1(4)
     
     
@@ -758,11 +763,11 @@ SUBROUTINE SLOPE_SFR_STATE_PARAMETER_SHOW()
     CALL glPushMatrix()
     CALL glLoadIdentity();
     
-    N1=glutget(GLUT_WINDOW_WIDTH)/40;
+    N1=glutget(GLUT_WINDOW_WIDTH)/30;
     call glViewport(NINT(WINP1(1))-N1,NINT(WINP1(2))-N1,2*N1,2*N1)
     !call glViewport(X-N1,(glutget(GLUT_WINDOW_HEIGHT)-Y)-N1,2*N1,2*N1);
-    
-    CALL glUOrtho2D(-1., 1., -1., 1.);
+    t1=1.2
+    CALL glUOrtho2D(-T1, T1, -T1, T1);
     CALL glMatrixMode(GL_MODELVIEW);
     CALL glPushMatrix()    
     CALL glLoadIdentity();
@@ -828,50 +833,88 @@ SUBROUTINE SLOPE_SFR_STATE_PARAMETER_SHOW()
         call glEnd();
         
         call glBegin(GL_LINES)
-            call glLineWidth(1.0_glfloat);
-            CALL GLCOLOR4FV(MYCOLOR(:,GRAY))
-            CALL glVertex2D(0.,0.)
-            CALL glVertex2D(cos(ALPHA1), sin(ALPHA1))
+            call glLineWidth(3.0_glfloat);
+            
+            IF(MOD(J-1,2)==0) THEN                
+                IF(SS1(1)<SS1(2)) THEN
+                    CALL GLCOLOR4FV(MYCOLOR(:,YELLOW))
+                    STR1="|S1";IC2=YELLOW
+                ELSE
+                    CALL GLCOLOR4FV(MYCOLOR(:,BLUE))
+                    STR1="|S3";IC2=BLUE
+                ENDIF
+            ELSE
+                IF(SS1(1)<SS1(2)) THEN
+                    CALL GLCOLOR4FV(MYCOLOR(:,BLUE))
+                    STR1="|S3";IC2=BLUE
+                ELSE
+                    CALL GLCOLOR4FV(MYCOLOR(:,YELLOW))
+                    STR1="|S1";IC2=YELLOW
+                ENDIF            
+            ENDIF
+            CALL glVertex2D(0.,0.) 
+            X1=cos(ALPHA1);Y1=sin(ALPHA1)
+            CALL glVertex2D(X1,Y1)
+            
+            
             !CALL glVertex2D(0.,0.)
             !CALL glVertex2D(R2*cos(ALPHA2), R2*sin(ALPHA2))
             call glLineWidth(3.0_glfloat)
             IF(MOD(J-1,2)==1) THEN !右滑
+                STR2="RS"
                 CALL GLCOLOR4FV(MYCOLOR(:,GREEN))
-                CALL glVertex2D(0.,0.)    
+                IC3=GREEN  
                 IF(SS1(1)<SS1(2)) THEN
-                    CALL glVertex2D(cos(ALPHA1+SITA1-PI1/2.0), sin(ALPHA1+SITA1-PI1/2.0))
+                    X2=cos(ALPHA1+SITA1-PI1/2.0);Y2=sin(ALPHA1+SITA1-PI1/2.0)
+                    !CALL glVertex2D(X2,Y2)
+                    !CALL output(REAL(cos(ALPHA1+SITA1-PI1/2.0),GLFLOAT), REAL(sin(ALPHA1+SITA1-PI1/2.0),GLFLOAT),TRIM(ADJUSTL(STR1)))
                 ELSE
-                    CALL glVertex2D(cos(ALPHA1-SITA1-PI1/2.0), sin(ALPHA1-SITA1-PI1/2.0))
+                    X2=cos(ALPHA1-SITA1-PI1/2.0);Y2=sin(ALPHA1-SITA1-PI1/2.0)                  
+                    !CALL output(REAL(cos(ALPHA1-SITA1-PI1/2.0),GLFLOAT), REAL(sin(ALPHA1-SITA1-PI1/2.0),GLFLOAT),TRIM(ADJUSTL(STR1)))
                 ENDIF
                 !MC FAILURE SURFACE
-                CALL GLCOLOR4FV(MYCOLOR(:,BLUE))
-                CALL glVertex2D(0.,0.)    
-                IF(SS1(1)<SS1(2)) THEN
-                    CALL glVertex2D(cos(ALPHA1+SITA2-PI1/2.0), sin(ALPHA1+SITA2-PI1/2.0))
-                ELSE
-                    CALL glVertex2D(cos(ALPHA1-SITA2-PI1/2.0), sin(ALPHA1-SITA2-PI1/2.0))
-                ENDIF                
+                !CALL GLCOLOR4FV(MYCOLOR(:,BLUE))
+                !CALL glVertex2D(0.,0.)    
+                !IF(SS1(1)<SS1(2)) THEN
+                !    CALL glVertex2D(cos(ALPHA1+SITA2-PI1/2.0), sin(ALPHA1+SITA2-PI1/2.0))
+                !ELSE
+                !    CALL glVertex2D(cos(ALPHA1-SITA2-PI1/2.0), sin(ALPHA1-SITA2-PI1/2.0))
+                !ENDIF                
             ELSE !左滑
+                STR2="LS"
                 CALL GLCOLOR4FV(MYCOLOR(:,RED))
-                CALL glVertex2D(0.,0.)
+                IC3=RED  
+                !CALL glVertex2D(0.,0.)
                 IF(SS1(1)<SS1(2)) THEN
-                    CALL glVertex2D(cos(ALPHA1-SITA1), sin(ALPHA1-SITA1))
+                    X2=cos(ALPHA1-SITA1);Y2=sin(ALPHA1-SITA1)
+                    !CALL glVertex2D(, )
+                    !CALL output(REAL(cos(ALPHA1-SITA1),GLFLOAT), REAL(sin(ALPHA1-SITA1),GLFLOAT),TRIM(ADJUSTL(STR1)))
                 ELSE
-                    CALL glVertex2D(cos(ALPHA1+SITA1), sin(ALPHA1+SITA1))
-                ENDIF
+                    X2=cos(ALPHA1+SITA1);Y2=sin(ALPHA1+SITA1)
+                    !CALL glVertex2D(cos(ALPHA1+SITA1), sin(ALPHA1+SITA1))
+                    !CALL output(REAL(cos(ALPHA1+SITA1),GLFLOAT), REAL(sin(ALPHA1+SITA1),GLFLOAT),TRIM(ADJUSTL(STR1)))
+                ENDIF                   
+                
                 !MC FAILURE SURFACE
-                CALL GLCOLOR4FV(MYCOLOR(:,ORANGE))
-                CALL glVertex2D(0.,0.)
-                IF(SS1(1)<SS1(2)) THEN
-                    CALL glVertex2D(cos(ALPHA1-SITA2), sin(ALPHA1-SITA2))
-                ELSE
-                    CALL glVertex2D(cos(ALPHA1+SITA2), sin(ALPHA1+SITA2))
-                ENDIF                
+                !CALL GLCOLOR4FV(MYCOLOR(:,ORANGE))
+                !CALL glVertex2D(0.,0.)
+                !IF(SS1(1)<SS1(2)) THEN
+                !    CALL glVertex2D(cos(ALPHA1-SITA2), sin(ALPHA1-SITA2))
+                !ELSE
+                !    CALL glVertex2D(cos(ALPHA1+SITA2), sin(ALPHA1+SITA2))
+                !ENDIF                
             ENDIF
-
+            CALL glVertex2D(0.,0.) 
+            CALL glVertex2D(X2,Y2)
             
 
 	    call glEnd();
+        
+        T1=1.1
+        CALL GLCOLOR4FV(MYCOLOR(:,IC3))
+        CALL output(REAL(T1*X2,GLFLOAT), REAL(T1*Y2,GLFLOAT),TRIM(ADJUSTL(STR2)))
+        CALL GLCOLOR4FV(MYCOLOR(:,IC2))
+        CALL output(REAL(T1*X1,GLFLOAT), REAL(T1*Y1,GLFLOAT),TRIM(ADJUSTL(STR1)))
         
 	ENDDO
 	!//flush the buffer so the circle displays

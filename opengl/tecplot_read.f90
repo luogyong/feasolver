@@ -667,7 +667,7 @@ CONTAINS
             POSDATA.IH_BC=IVAL 
         CASE('q') 
             POSDATA.IQ=IVAL
-        CASE('slope_sd')
+        CASE('slidedirection')
             POSDATA.ISLOPE_SD=IVAL
 		CASE('psigma1')
 			POSDATA.ipsigma1=IVAL

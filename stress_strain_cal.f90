@@ -17,7 +17,7 @@ subroutine stree_failure_ratio_cal(ienum,ISTEP)
 	c1=material(element(ienum).mat).GET(3,ISTEP)
 	tensilestrength1=material(element(ienum).mat).GET(5,ISTEP)
     IF(material(element(ienum).mat).TYPE==MC) THEN
-        tensilestrength1=1.D6 !NO TENSION CUT OFF
+        tensilestrength1=C1/MAX(tan(phi1/180*PI1),1E-7) 
     ENDIF
 	do i=1,element(ienum).ngp
 		ss1=element(ienum).stress(:,i)
@@ -34,6 +34,7 @@ end subroutine
 
 subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirection,Y,TensileS)
     USE DS_SlopeStability
+    USE solverds, ONLY: SOLVER_CONTROL
 	implicit none
 	integer,intent(in)::ndim,slidedirection
 	real(8),intent(in)::stress(6),cohesion,PhiD,Y(NDIM),TensileS
@@ -57,12 +58,13 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     if(R1>0) then
         T1=1E-7
         IF(PHI1>1E-7) T1=TAN(PHI1) 
-        if(pss1(1)<MIN(TensileS,C1/T1)) then
+        if(pss1(1)<MIN(TensileS,C1/T1).or.Solver_control.slope_isTensionCrack/=1) then
+        !if(pss1(1)<TensileS) then
             !CHECK YIELD
             !YF1=SIGMAC1*SIN(PHI1)+R1-C1*COS(PHI1)
-        
-            
-            !IF(YF1<0.D0) THEN
+            !
+            !
+            !IF(YF1<0.D0.OR.Solver_control.slope_isTensionCrack==1) THEN
             
                 B=-tan(phi1)
                 A=(C1+sigmaC1*B)/R1
