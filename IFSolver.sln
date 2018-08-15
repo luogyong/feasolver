@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2026
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "IFSolver", "IFSolver.vfproj", "{F0E3B5A5-F4A3-4234-B2A0-5E57C8CD72A3}"
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "GmshToSolver", "gmsh2solver\GmshToSolver.vfproj", "{A82F6117-A05E-4379-9357-ACC475182740}"
+EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "TryArray", "..\..\TryArray\TryArray.vfproj", "{EC94330D-D137-4AB6-9484-DD93C77F9EDB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,8 +33,19 @@ Global
 		{A82F6117-A05E-4379-9357-ACC475182740}.Release|x64.Build.0 = Release|x64
 		{A82F6117-A05E-4379-9357-ACC475182740}.Release|x86.ActiveCfg = Release|Win32
 		{A82F6117-A05E-4379-9357-ACC475182740}.Release|x86.Build.0 = Release|Win32
+		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Debug|x64.ActiveCfg = Debug|x64
+		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Debug|x64.Build.0 = Debug|x64
+		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Debug|x86.ActiveCfg = Debug|Win32
+		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Debug|x86.Build.0 = Debug|Win32
+		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Release|x64.ActiveCfg = Release|x64
+		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Release|x64.Build.0 = Release|x64
+		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Release|x86.ActiveCfg = Release|Win32
+		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7EAC45B3-3731-465F-B1F3-BA1A5073FEC3}
 	EndGlobalSection
 EndGlobal

@@ -1538,6 +1538,8 @@ subroutine solvercommand(term,unit)
                 ENDIF
 
             ENDIF
+        CASE('slope_pso_para')
+            
 		case('ueset')
 			print *, 'Reading USER DEFINED ELEMENT SET data'
 			if(nueset==1) then !intialize ueset(0)

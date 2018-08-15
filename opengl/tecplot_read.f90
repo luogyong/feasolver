@@ -22,6 +22,7 @@ MODULE INPUT_PARSER
 
 CONTAINS
 
+
     subroutine translatetoproperty(COMMAND,TERM)
 
         CLASS(COMMAND_TYDEF)::COMMAND

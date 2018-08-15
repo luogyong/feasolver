@@ -31,7 +31,7 @@ RECURSIVE SUBROUTINE quick_sort_REAL(list, order)
 implicit none
 
 REAL(8), DIMENSION (:), INTENT(INOUT)  :: list
-INTEGER, DIMENSION (:), INTENT(INOUT)  :: order
+INTEGER, OPTIONAL,DIMENSION (:), INTENT(INOUT)  :: order
 
 ! Local variable
 INTEGER :: i
@@ -76,7 +76,9 @@ ELSE
     IF (i < j) THEN
       ! Swap two out-of-order elements
       temp = list(i); list(i) = list(j); list(j) = temp
-      itemp = order(i); order(i) = order(j); order(j) = itemp
+      IF(PRESENT(ORDER)) THEN
+        itemp = order(i); order(i) = order(j); order(j) = itemp
+      ENDIF
     ELSE IF (i == j) THEN
       i = i + 1
       EXIT
@@ -106,7 +108,9 @@ DO i = left_end, right_end - 1
   DO j = i+1, right_end
     IF (list(i) > list(j)) THEN
       temp = list(i); list(i) = list(j); list(j) = temp
-      itemp = order(i); order(i) = order(j); order(j) = itemp
+      IF(PRESENT(ORDER)) THEN
+        itemp = order(i); order(i) = order(j); order(j) = itemp
+      ENDIF
     END IF
   END DO
 END DO
@@ -120,7 +124,7 @@ RECURSIVE SUBROUTINE quick_sort_INT(list, order)
 implicit none
 
 INTEGER, DIMENSION (:), INTENT(INOUT)  :: list
-INTEGER, DIMENSION (:), INTENT(INOUT)  :: order
+INTEGER, OPTIONAL,DIMENSION (:), INTENT(INOUT)  :: order
 
 ! Local variable
 INTEGER :: i
@@ -165,7 +169,9 @@ ELSE
     IF (i < j) THEN
       ! Swap two out-of-order elements
       temp = list(i); list(i) = list(j); list(j) = temp
-      itemp = order(i); order(i) = order(j); order(j) = itemp
+      IF(PRESENT(ORDER)) THEN
+        itemp = order(i); order(i) = order(j); order(j) = itemp
+      ENDIF
     ELSE IF (i == j) THEN
       i = i + 1
       EXIT
@@ -195,7 +201,9 @@ DO i = left_end, right_end - 1
   DO j = i+1, right_end
     IF (list(i) > list(j)) THEN
       temp = list(i); list(i) = list(j); list(j) = temp
-      itemp = order(i); order(i) = order(j); order(j) = itemp
+      IF(PRESENT(ORDER)) THEN
+        itemp = order(i); order(i) = order(j); order(j) = itemp
+      ENDIF
     END IF
   END DO
 END DO

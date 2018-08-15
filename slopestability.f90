@@ -412,17 +412,23 @@ subroutine GenSliceLine()
     use ifport
     use Geometry
     use DS_SlopeStability
+    USE quicksort
     implicit none
     
     include 'double.h'
     
     integer::i,j,n1,n2,IminX1,JmaxX1,sizeX1,sizeX2,N3,N4
     real(DPN),allocatable::X1(:),X2(:)
+    INTEGER,ALLOCATABLE::ORDER1(:)
     
     allocate(x1,source=kpoint(1,1:nkp))
     sizeX1=size(x1)
-    call sortqq(loc(x1),sizeX1,SRT$REAL8)
-    if(sizeX1/=size(x1)) stop "Error in sortqq.sub=GenSliceLine1"
+    !ALLOCATE(ORDER1(NKP))
+    
+    !ORDER1=[1:NKP]
+    CALL quick_sort(X1)
+    !call sortqq(loc(x1),sizeX1,SRT$REAL8)
+    !if(sizeX1/=size(x1)) stop "Error in sortqq.sub=GenSliceLine1"
     
     n1=int((maxX-minX)/SLOPEPARAMETER.SLICEWIDTH)
     
@@ -445,8 +451,12 @@ subroutine GenSliceLine()
         x2(sizeX2+1:sizeX2+sizeX1)=x1
         sizeX2=sizeX2+sizeX1
         n2=sizeX2
-        call sortqq(loc(x2),n2,SRT$REAL8)
-        if(sizeX2/=n2) stop "Error in sortqq.sub=GenSliceLine2."
+        !IF(ALLOCATED(ORDER1)) DEALLOCATE(ORDER1)
+        !ALLOCATE(ORDER1(SIZEX2))
+        !ORDER1=[1:SIZEX2:1]
+        CALL quick_sort(X2)
+        !call sortqq(loc(x2),n2,SRT$REAL8)
+        !if(sizeX2/=n2) stop "Error in sortqq.sub=GenSliceLine2."
         !remove diplicated element
         j=1
         do i=2,sizeX2            
@@ -1110,4 +1120,84 @@ SUBROUTINE ARROW_PLOT(X1,Y1,X2,Y2,WXY)
     !CALL GETVIEWCOORD_W(UARROW1(1,2),UARROW1(2,2),POLY1(3))
     
     status=POLYGON($GFILLINTERIOR,POLY1,3)
+END SUBROUTINE
+
+SUBROUTINE GEN_ADMISSIBLE_SLIP_SURFACE(XT,XC,NSEG,GX,NGX,RX,NRX,RDF,IFLAG,X,Y,ISERROR)
+!REFERRENC: Cheng YM, Li L, Chi SC. Performance studies on six heuristic global optimization methods in the
+! location of critical slip surface. Computers and Geotechnics. 2007;34(6):462-484.
+!GIVEN:
+!THE TOE AND CREST POINT LOCATIONS OF THE SLIP SURFACE: XT(2),XC(2)
+!NUMBER OF SUBDIVISION: NSEG>1
+!GROUND SURFACE: GX(2,NGX)
+!BEDROCK SURFACE: RX(2,NRX)
+!(RADOM) FACTOR: RDF(NSEG-1), 0<=RDF(I)<=1
+!IFLAG:
+!=1 USE RDF TO GENERATE A SLIP SURFACE
+!/=1, USE RADOM FACTOR TO GENERATE A SLIP SURFACE, AND RETURN THE FACTOR IN RDF.
+!RETURN: 
+!THE X COMPONENT OF THE VETEX OF THE SLIP LINE:X(NSEG+1)
+!THE Y COMPONENT : Y(NSEG+1)
+!ISERROR=0,SUCCESSFULLY GENERATE A SLIP SURFACE.
+!/=0, NO ADMISSIBLE SLIP SURFACE FOUND.
+
+IMPLICIT NONE
+INTEGER,INTENT(IN)::NGX,NRX,NSEG,IFLAG
+REAL(8),INTENT(IN)::XT(2),XC(2),GX(2,NGX),RX(2,NRX)
+REAL(8),INTENT(INOUT)::RDF(2:NSEG)
+REAL(8),INTENT(OUT)::X(NSEG+1),Y(NSEG+1) 
+INTEGER,INTENT(OUT)::ISERROR
+
+INTEGER::I,J,NX,K1
+REAL(8)::DX1,YU1,YL1
+REAL(8),EXTERNAL::INTERPOLATION
+
+ISERROR=0
+
+IF(ABS(XT(1)-XC(1))<1.D-7) THEN
+    ISERROR=1 
+    RETURN
+ENDIF
+
+IF(NSEG==1) THEN
+    X=[XT(1),XC(1)];
+    Y=[XT(2),XC(2)];
+    RETURN
+ENDIF
+
+NX=NSEG+1
+DX1=(XC(1)-XT(1))/NSEG
+
+!ALLOCATE(X(NX),YU(NX),YL(NX))
+
+DO I=1,NX
+    X(I)=XT(1)+DX1*(I-1)
+ENDDO
+Y(1)=XT(2);Y(NX)=XC(2)
+
+IF(IFLAG/=1) THEN
+    call random_seed()
+    call random_number(RDF)
+ENDIF
+
+DO I=2,NSEG
+    YU1=INTERPOLATION(GX(1,:),GX(2,:),NGX,X(I))
+    YL1=INTERPOLATION(RX(1,:),RX(2,:),NRX,X(I))
+    IF(I>2) THEN 
+        
+        K1=(Y(I-1)-Y(I-2))/(X(I-1)-X(I-2))
+        YL1=MAX(K1*(X(I)-X(I-1))+Y(I-1),YL1)
+        K1=(Y(I-1)-Y(NX))/(X(I-1)-X(NX))
+        YU1=MIN(K1*(X(I)-X(I-1))+Y(I-1),YU1)
+        
+        IF(YU1<YL1) THEN
+            ISERROR=1
+            RETURN
+        ENDIF
+        
+    ENDIF
+    Y(I)=YL1+(YU1-YL1)*RDF(I)
+ENDDO
+
+    
+
 END SUBROUTINE

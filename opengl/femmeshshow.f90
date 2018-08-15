@@ -72,7 +72,7 @@ TYPE STREAMLINE_TYDEF
     LOGICAL::SHOW=.TRUE.,ISLOCALSMALL=.FALSE.
     REAL(8)::PTstart(3),SF_SLOPE=HUGE(1.d0)
     REAL(8),ALLOCATABLE::V(:,:),VAL(:,:)
-    REAL(8),ALLOCATABLE::PARA_SFCAL(:,:) !SIGN,SIGT,RAD1,SIGTA,DIS,C,PHI,SFR
+    REAL(8),ALLOCATABLE::PARA_SFCAL(:,:) !SIGN,SIGT,RAD1,SIGTA,DIS,C,PHI,SFR	
     
 ENDTYPE
 INTEGER::MAXNSTREAMLINE=0
@@ -81,7 +81,7 @@ INTEGER,ALLOCATABLE::SF_SLOPE(:)
 INTEGER::NSTREAMLINE=0,NINPUTSLIP=0,INPUTSLIP(100)=0
 LOGICAL::IS_JUST_SHOW_TOP_TEN_SLOPE=.FALSE.,IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.,&
         IS_SHOW_ALL_SLOPE=.TRUE.,SLOPE_CHECK_ADMISSIBILITY=.FALSE.
-
+REAL(8),ALLOCATABLE::SLOPESURFACE(:,:)
 
 !TYPE SLOPE_STATE_PARA_SHOW
 !    
@@ -216,12 +216,14 @@ integer,parameter,public::ContourList=1,&
 						  SLICELIST=6,&
                           StreamLineList=7,&
 						  STEPSTATUSLIST=8,&
-                          SFS_ProbeValuelist=9
+                          SFS_ProbeValuelist=9,&
+                          PSO_SLIP_PLOT_LIST=9
+                          
                           
 integer,parameter::STREAMLINE_SLOPE_CLICK=1,ShowTopTen_SLOPE_CLICK=2,ShowMinimal_SLOPE_CLICK=3,&
 ShowAll_SLOPE_CLICK=4,ReadSlipSurface_slope_click=5,ShowLocalMinimal_Slope_Click=6,&
                     SEARCH_SLOPE_CLICK=7,FilterLocalMinimal_Slope_Click=8,&
-                    SFS_Slope_Click=9,CHECKADMISSIBILITY=10,ShowReadinSlip_Slope_CLICK=11
+                    SFS_Slope_Click=9,CHECKADMISSIBILITY=10,ShowReadinSlip_Slope_CLICK=11,SEARCH_BY_PSO=12
 LOGICAL::ISSTREAMLINESLOPE=.FALSE.,IsFilterLocalMinimalMode=.false.,isProbeState_SFS=.FALSE.,&
          IsShowReadinSlip=.false.
 
@@ -632,6 +634,8 @@ if(glIsList(GridList)) call glCallList(GridList)
 if(isProbeState.AND.glIsList(ProbeValuelist)) call glCallList(ProbeValuelist)
 if(glIsList(slicelist).AND.ISPLOTSLICE) call glcalllist(slicelist)
 if(ISPLOTSTREAMLINE.AND.glIsList(STREAMLINElist)) call glcalllist(STREAMLINElist)
+if(glIsList(PSO_SLIP_PLOT_LIST)) call glcalllist(PSO_SLIP_PLOT_LIST)
+
 call drawAxes()
 if(IsDrawVector) call drawVectorLegend2(STEPPLOT.VMAX,STEPPLOT.VMin,STEPPLOT.VSCALE,ACTIVE_VECTOR_GROUP,VectorPairName,NVECTORPAIR)
 if ((surface_color==rainbow_surface.and.(draw_surface_solid.or.draw_Contour)).OR.ISPLOTSLICESURFACE) then
@@ -769,6 +773,7 @@ ENDSUBROUTINE
 
 subroutine slope_handler(selection)
     USE SolverMath
+    USE SLOPE_PSO, ONLY:SLOPE_OPTIM
     implicit none
     integer(kind=glcint), intent(in out) :: selection
     INTEGER::NSLIP1,I,IEL1,J,K,n1=0,N2=0,OFFSET1,N3=0
@@ -777,12 +782,13 @@ subroutine slope_handler(selection)
     real(8)::AR2D1(2,2000),AR2D2(2,2000)
     INTEGER::unit,NAR1=100,NTOREAD1=100,NSET1=10
     INTEGER::NREADIN1,NSETREADIN1,NNODE1,EF
-    REAL(8)::AR1(100),DT1
+    REAL(8)::AR1(100),DT1,FA1,FM1
     CHARACTER(32)::SET1(10)
     REAL(IWP),ALLOCATABLE::NODE1(:,:)
     
     select case (selection)
-    
+    CASE(SEARCH_BY_PSO)
+        CALL SLOPE_OPTIM()
     case(SFS_SLOPE_CLICK)
         isProbeState_SFS=.not.isProbeState_SFS
     case(ShowReadinSlip_Slope_CLICK)
@@ -921,6 +927,10 @@ subroutine slope_handler(selection)
             STREAMLINE(NSTREAMLINE).SHOW=.TRUE.
             NINPUTSLIP=NINPUTSLIP+1
             INPUTSLIP(NINPUTSLIP)=NSTREAMLINE
+            
+            !CALL POLYLINE_FOS_CAL(STREAMLINE(NSTREAMLINE).V,STREAMLINE(NSTREAMLINE).NV,0.5,FM1,FA1)
+            !
+            !PRINT *, "FM1,FA1,FOS=",FM1,FA1,FA1/FM1
             
         ENDDO
         
@@ -1497,6 +1507,7 @@ call glutAddMenuEntry("--StrokeFontSize",Smaller_StrokeFontSize_CLICK)
 SLOPE_ID=glutCreateMenu(SLOPE_handler)
 CALL glutAddMenuEntry("CheckAdmissiblity Toggle",CHECKADMISSIBILITY)
 call glutAddMenuEntry("Search...",SEARCH_SLOPE_CLICK)
+CALL glutAddMenuEntry("SearchByPSO...",SEARCH_BY_PSO)
 call glutAddMenuEntry("JustShowTopTenSlips",ShowTopTen_SLOPE_CLICK)
 call glutAddMenuEntry("JustShowMinimalSlip",ShowMinimal_SLOPE_CLICK)
 call glutAddMenuEntry("ShowAllSlips",ShowAll_SLOPE_CLICK)
@@ -1634,7 +1645,6 @@ call glutInit()
 PRINT *, 'Begin to Render...Stage=glutInitDisplayMode',char_time
 call glutInitDisplayMode(ior(GLUT_DOUBLE,ior(GLUT_RGB,GLUT_DEPTH)))
 call glutInitWindowPosition(10_glcint,10_glcint)
-
 call glutInitWindowSize(800_glcint,600_glcint)
 
 ! Create a window
