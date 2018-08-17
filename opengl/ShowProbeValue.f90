@@ -41,10 +41,10 @@ subroutine ProbeatPhyscialspace(pt,val,iel)
     real(8),intent(in)::pt(3)
     integer,intent(in out)::iel
     real(8),intent(in out)::val(POSDATA.NVAR)    
-    INTEGER,EXTERNAL::PTINTRIlOC,POINTlOC
+    INTEGER,EXTERNAL::PTINTRIlOC,POINTlOC,POINTlOC_BC
    
     !iel=0
-    iel=POINTlOC(pt,iel)
+    iel=POINTlOC_BC(pt,iel)
 	val=0.d0
     IF(iel>0) then
         call getval(Pt,iel,val)
