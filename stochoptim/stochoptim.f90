@@ -9,7 +9,7 @@
 !=======================================================================
 
 module stochoptim
-  
+  USE, INTRINSIC :: ISO_FORTRAN_ENV
   use forlab, only: IPRE, RPRE, progress_perc, num2str, randu, randn, &
     randi, randperm, norm, argsort, zeros, ones, eye, prctile, mean, &
     median, diag, signum, argsort, triu, eig, savebin
@@ -38,7 +38,8 @@ module stochoptim
   type EvolutionaryKeywords
     integer(kind = IPRE) :: popsize = 30, max_iter = 1000, verbose = 0
     real(kind = RPRE) :: eps1 = 1d-4, eps2 = 1d-3, w = 0.7298, c1 = 1.49618, &
-      c2 = 1.49618, gamma = 1., F = 0.5, CR = 0.1, sigma = 0.5, mu_perc = 0.5
+      c2 = 1.49618, gamma = 1., F = 0.5, CR = 0.1, sigma = 0.5, mu_perc = 0.5,&
+      eps3=1.d-3
     logical :: constrain = .true., snap = .false.
     character(len = 5) :: solver, strategy
   contains
@@ -61,7 +62,7 @@ module stochoptim
     procedure(optifunc), pointer, nopass :: func
     real(kind = RPRE), dimension(:), allocatable :: lower, upper
     integer(kind = IPRE) :: n_dim, popsize = 30, max_iter = 1000, verbose = 0
-    real(kind = RPRE) :: eps1 = 1e-4, eps2 = 1e-3
+    real(kind = RPRE) :: eps1 = 1e-4, eps2 = 1e-4,eps3=1e-4
     logical :: constrain = .true., snap = .false.
     character(len = 5) :: solver, strategy
 
@@ -69,7 +70,7 @@ module stochoptim
     real(kind = RPRE) :: gfit
     integer(kind = IPRE) :: iflag, n_iter, n_eval, n_restart
     real(kind = RPRE), dimension(:,:,:), allocatable :: models
-    real(kind = RPRE), dimension(:,:), allocatable :: energy, means
+    real(kind = RPRE), dimension(:,:), allocatable :: energy, means !,bestmodel(:,:)
     real(kind = RPRE), dimension(:), allocatable :: fitness, mu_scale, std_scale
     real(kind = RPRE) :: w, c1, c2, gamma, F, CR, sigma, mu_perc
 
@@ -134,11 +135,11 @@ module stochoptim
 
 contains
 
-  function init_EvolutionaryKeywords(popsize, max_iter, eps1, eps2, constrain, snap, solver, &
+  function init_EvolutionaryKeywords(popsize, max_iter, eps1, eps2, eps3,constrain, snap, solver, &
                                      w, c1, c2, gamma, F, CR, strategy, sigma, mu_perc, verbose) result(evo_kws)
     type(EvolutionaryKeywords) :: evo_kws
     integer(kind = IPRE), intent(in), optional :: popsize, max_iter, verbose
-    real(kind = RPRE), intent(in), optional :: eps1, eps2, w, c1, c2, gamma, &
+    real(kind = RPRE), intent(in), optional :: eps1, eps2, eps3,w, c1, c2, gamma, &
       F, CR, sigma, mu_perc
     logical, intent(in), optional :: constrain, snap
     character(len = *), intent(in), optional :: solver, strategy
@@ -147,6 +148,7 @@ contains
     if ( present(max_iter) ) evo_kws % max_iter = max_iter
     if ( present(eps1) ) evo_kws % eps1 = eps1
     if ( present(eps2) ) evo_kws % eps2 = eps2
+    if ( present(eps3) ) evo_kws % eps2 = eps3
     if ( present(constrain) ) evo_kws % constrain = constrain
     if ( present(snap) ) evo_kws % snap = snap
     if ( present(w) ) evo_kws % w = w
@@ -171,39 +173,44 @@ contains
     return
   end function init_EvolutionaryKeywords
 
-  subroutine print_EvolutionaryKeywords(self)
+  subroutine print_EvolutionaryKeywords(self,UNIT)
     class(EvolutionaryKeywords), intent(inout) :: self
     character(len = 18) :: attributes
+    INTEGER,INTENT(IN),OPTIONAL::UNIT    
+    INTEGER::UNIT1
+    
+    UNIT1=OUTPUT_UNIT
+    IF(PRESENT(UNIT)) UNIT1=UNIT
 
     attributes = "solver:"
-    print *, adjustr(attributes) // " '" // trim(self % solver) // "'"
+    WRITE(UNIT1,*)  adjustr(attributes) // " '" // trim(self % solver) // "'"
     attributes = "parameters:"
     select case(trim(self % solver))
     case("pso")
-      print *, adjustr(attributes) &
+      WRITE(UNIT1,*)  adjustr(attributes) &
         // " w = " // num2str(self % w, "(F5.2)") &
         // ", c1 = " // num2str(self % c1, "(F5.2)") &
         // ", c2 = " // num2str(self % c2, "(F5.2)")
     case("cpso")
-      print *, adjustr(attributes) &
+      WRITE(UNIT1,*)  adjustr(attributes) &
         // " w = " // num2str(self % w, "(F5.2)") &
         // ", c1 = " // num2str(self % c1, "(F5.2)") &
         // ", c2 = " // num2str(self % c2, "(F5.2)") &
         // ", gamma = " // num2str(self % gamma, "(F5.2)")
     case("de")
-      print *, adjustr(attributes) &
+      WRITE(UNIT1,*)  adjustr(attributes) &
         // " F = " // num2str(self % F, "(F5.2)") &
         // ", CR = " // num2str(self % CR, "(F5.2)") &
         // ", strategy = '" // trim(self % strategy) // "'"
     case("cmaes")
-      print *, adjustr(attributes) &
+      WRITE(UNIT1,*)  adjustr(attributes) &
         // " sigma = " // num2str(self % sigma, "(F5.2)") &
         // ", mu_perc = " // num2str(self % mu_perc, "(F5.2)")
     end select
     attributes = "popsize:"
-    print *, adjustr(attributes) // " " // num2str(self % popsize)
+    WRITE(UNIT1,*)  adjustr(attributes) // " " // num2str(self % popsize)
     attributes = "max_iter:"
-    print *, adjustr(attributes) // " " // num2str(self % max_iter)
+    WRITE(UNIT1,*)  adjustr(attributes) // " " // num2str(self % max_iter)
     return
   end subroutine print_EvolutionaryKeywords
 
@@ -242,13 +249,13 @@ contains
     return
   end subroutine print_MonteCarloKeywords
 
-  function init_Evolutionary(func, lower, upper, popsize, max_iter, eps1, eps2, &
+  function init_Evolutionary(func, lower, upper, popsize, max_iter, eps1, eps2,eps3, &
                              constrain, snap, verbose) result(ea)
     type(Evolutionary) :: ea
     procedure(optifunc) :: func
     real(kind = RPRE), dimension(:), intent(in) :: lower, upper
     integer(kind = IPRE), intent(in), optional :: popsize, max_iter, verbose
-    real(kind = RPRE), intent(in), optional :: eps1, eps2
+    real(kind = RPRE), intent(in), optional :: eps1, eps2,eps3
     logical, intent(in), optional :: constrain, snap
 
     ea % func => func
@@ -301,15 +308,21 @@ contains
     end if
 
     if ( present(eps2) ) ea % eps2 = eps2
+    if ( present(eps3) ) ea % eps3 = eps3
     if ( present(constrain) ) ea % constrain = constrain
     if ( present(snap) ) ea % snap = snap
     return
   end function init_Evolutionary
 
-  subroutine print_Evolutionary_parameters(self)
+  subroutine print_Evolutionary_parameters(self,UNIT)
     class(Evolutionary), intent(inout) :: self
     character(len = 18) :: attributes
     type(EvolutionaryKeywords) :: evo_kws
+    INTEGER,INTENT(IN),OPTIONAL::UNIT    
+    INTEGER::UNIT1
+    
+    UNIT1=OUTPUT_UNIT
+    IF(PRESENT(UNIT)) UNIT1=UNIT
 
     if ( self % mpi_rank .eq. 0 ) then
       if ( allocated(self % xopt) ) then
@@ -326,7 +339,7 @@ contains
           strategy = self % strategy, &
           sigma = self % sigma, &
           mu_perc = self % mu_perc)
-        call evo_kws % print()
+        call evo_kws % print(UNIT1)
         attributes = "n_dim:"
         print *, adjustr(attributes) // " " // num2str(self % n_dim)
       end if
@@ -334,40 +347,50 @@ contains
     return
   end subroutine print_Evolutionary_parameters
 
-  subroutine print_Evolutionary_result(self)
+  subroutine print_Evolutionary_result(self,UNIT)
     class(Evolutionary), intent(inout) :: self
     integer(kind = IPRE) :: i
     character(len = 18) :: attributes
-
+    INTEGER,INTENT(IN),OPTIONAL::UNIT    
+    INTEGER::UNIT1
+    
+    UNIT1=OUTPUT_UNIT
+    IF(PRESENT(UNIT)) UNIT1=UNIT
+    
     if ( self % mpi_rank .eq. 0 ) then
       if ( allocated(self % xopt) ) then
         attributes = "solution:"
-        print *, adjustr(attributes)
+        WRITE(UNIT1,*)  adjustr(attributes)
         do i = 1, self % n_dim
-          print *, char(9), char(9), char(9), self % xopt(i)
+          WRITE(UNIT1,*)  char(9), char(9), char(9), self % xopt(i)
         end do
         attributes = "fitness:"
-        print *, adjustr(attributes) // " " // num2str(self % gfit)
+        WRITE(UNIT1,*)  adjustr(attributes) // " " // num2str(self % gfit)
         attributes = "n_iter:"
-        print *, adjustr(attributes) // " " // num2str(self % n_iter)
+        WRITE(UNIT1,*)  adjustr(attributes) // " " // num2str(self % n_iter)
         attributes = "n_eval:"
-        print *, adjustr(attributes) // " " // num2str(self % n_eval)
+        WRITE(UNIT1,*)  adjustr(attributes) // " " // num2str(self % n_eval)
         if ( trim(self % solver) .eq. "cpso" ) then
           attributes = "n_restart:"
-          print *, adjustr(attributes) // " " // num2str(self % n_restart)
+          WRITE(UNIT1,*)  adjustr(attributes) // " " // num2str(self % n_restart)
         end if
         attributes = "flag:"
-        print *, adjustr(attributes) // " " // self % flag()
+        WRITE(UNIT1,*)  adjustr(attributes) // " " // self % flag()
       end if
     end if
     return
   end subroutine print_Evolutionary_result
 
-  subroutine print_Evolutionary(self)
+  subroutine print_Evolutionary(self,UNIT)
     class(Evolutionary), intent(inout) :: self
-
-    call self % print_parameters()
-    call self % print_result()
+    INTEGER,INTENT(IN),OPTIONAL::UNIT    
+    INTEGER::UNIT1
+    
+    UNIT1=OUTPUT_UNIT
+    IF(PRESENT(UNIT)) UNIT1=UNIT
+    
+    call self % print_parameters(UNIT1)
+    call self % print_result(UNIT1)
     return
   end subroutine print_Evolutionary
 
@@ -494,9 +517,9 @@ contains
     case(8)
       str = "TolX"
     case(101)
-      str = "fitness is improved less than 0.1% [(gold-gnew)/gold] every 100 iter." 
+      str = "fitness is improved less than eps3("//num2str(self % eps3)//",[(gold-gnew)/gold]) every 100 iter." 
     case(201)
-      str = "fitness is improved less than 0.1% [(gold-gnew)/gold] every 200 iter."  
+      str =  "fitness is improved less than eps3("//num2str(self % eps3)//",[(gold-gnew)/gold]) every 200 iter."
     end select
     return
   end function flag
@@ -616,7 +639,7 @@ contains
     end if
     if ( present(mu_perc) ) then
       if ( mu_perc .le. 1. / self % popsize .or. mu_perc .gt. 1. ) then
-        print *, "Error: mu_perc must be a scalar in ] " // num2str(1. / self % popsize) // ", 1 ]"
+        print *, "Error: mu_perc must be a scalar in [ " // num2str(1. / self % popsize) // ", 1 ]"
         stop
       else
         opt_mu_perc = mu_perc
@@ -899,6 +922,8 @@ contains
       self % energy(:,1) = pbestfit
       self % fitness(1) = gfit
     end if
+    !LGY
+    !self % bestmodel(:,:) = self % unstandardize(X) !bestmodel[popsize,ndim]
 
     ! Iterate until one of the termination criterion is satisfied
     it = 1
@@ -928,7 +953,10 @@ contains
       mask1 = pfit .lt. pbestfit
       pbestfit = merge(pfit, pbestfit, mask1)
       X = merge(U, X, spread(mask1, 2, self % n_dim))
-
+      !LGY
+      !self % bestmodel(:,:) = self % unstandardize(X) !bestmodel[popsize,ndim]
+      
+      
       ! Update best individual
       
       gbidx0 = MAXloc(pbestfit, dim = 1)
@@ -943,7 +971,7 @@ contains
         gfit = pbestfit(gbidx)
         self % iflag = 0
 
-      ! Stop if fitness is less than eps2
+      ! Stop if maxfitness and minfitness is less than eps2
       else if (  abs(pbestfit(gbidx)-pbestfit(gbidx0)) .lt. self % eps2  ) then
         converge = .true.
         xopt = self % unstandardize(X(gbidx,:))
@@ -951,8 +979,7 @@ contains
         self % iflag = 1
      !stop if fitness is improved less than 0.001 for each 100 iteration
       elseif(mod(it,100)==1) then
-        if(abs((pbestfit(gbidx)-gfith1(it-100))/gfith1(it-100)) .lt. 0.001 &
-        .and.abs((pbestfit(gbidx)-gfith1(it-50))/gfith1(it-50)) .lt. 0.001 ) then
+        if(abs((pbestfit(gbidx)-gfith1(it-100))/pbestfit(gbidx)) .lt. self.eps3 ) then
             converge = .true.
             xopt = self % unstandardize(X(gbidx,:))
             gfit = pbestfit(gbidx)
@@ -1044,6 +1071,8 @@ contains
       self % energy(:,1) = pbestfit
       self % fitness(1) = gfit
     end if
+    !LGY
+    !self % bestmodel(:,:) = self % unstandardize(X) !bestmodel[popsize,ndim]
 
     ! Swarm maximum radius
     delta = log(1. + 0.003 * self % popsize) / max(0.2, log(0.01*real(self % max_iter)))
@@ -1092,10 +1121,9 @@ contains
         xopt = self % unstandardize(pbest(gbidx,:))
         gfit = pbestfit(gbidx)
         self % iflag = 1
-      !stop if fitness is improved less than 0.001 for each 100 iteration
+      !stop if fitness is improved less than 0.001 for each 200 iteration
       elseif(mod(it,200)==1) then
-        if(abs((pbestfit(gbidx)-gfith1(it-200))/gfith1(it-200)) .lt. 0.001 &
-        .and.abs((pbestfit(gbidx)-gfith1(it-100))/gfith1(it-100)) .lt. 0.001  ) then
+        if(abs((pbestfit(gbidx)-gfith1(it-200))/pbestfit(gbidx)) .lt. self.eps3 ) then
             converge = .true.
             xopt = self % unstandardize(X(gbidx,:))
             gfit = pbestfit(gbidx)
@@ -1125,7 +1153,9 @@ contains
         self % energy(:,it) = pfit
         self % fitness(it) = gfit
       end if
-
+      !LGY
+      !self % bestmodel(:,:) = self % unstandardize(X) !bestmodel[popsize,ndim]
+      
       ! Competitive PSO algorithm
       if ( .not. converge .and. gamma .gt. 0. ) then
         swarm_radius = maxval([ ( norm(X(i,:) - gbest), i = 1, self % popsize ) ])

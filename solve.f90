@@ -326,13 +326,18 @@ end function
 subroutine bc(iincs,iiter,load1,stepdis,isubts)
 	use solverds
 	use ds_hyjump
+    use DS_SlopeStability, only:slopeparameter
+    USE quicksort
 	implicit none
 	integer,INTENT(in)::iincs,iiter,isubts
 	real(kind=dpn),intent(in)::stepdis(ndof)
 	REAL(kind=dpn),INTENT(IN OUT)::LOAD1(NDOF)
-	integer::i,j,dof1
+	integer::i,j,dof1,N1
 	real(kind=dpn)::t1=0,t2=0
 	real(kind=dpn),external::tsfactor
+    REAL(KIND=DPN),ALLOCATABLE::AR1(:)
+    INTEGER,ALLOCATABLE::IAR1(:)
+    type(bc_tydef),allocatable::BC1(:)
 	
 	if(iiter==1) then
 		do i=1,nhjump
@@ -346,6 +351,38 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 			end do
 		end do
 	end if
+    
+    !SORT BY X. just for slope bc pa
+    IF(solver_control.isslopepa==4.AND.iiter==1.and.iincs==1) THEN
+        IF(ALLOCATED(AR1)) DEALLOCATE(AR1,IAR1,BC1)
+        N1=COUNT(BC_DISP.DOF==4,DIM=1)
+        ALLOCATE(AR1(N1),IAR1(N1))
+        ALLOCATE(BC1(N1))
+        N1=0
+        DO I=1,BD_NUM
+            IF(BC_DISP(I).DOF/=4) CYCLE
+            N1=N1+1
+            AR1(N1)=NODE(BC_DISP(I).NODE).COORD(1)
+            IAR1(N1)=I
+        ENDDO
+        !SORT BY X
+        CALL QUICK_SORT(AR1(1:N1),IAR1(1:N1))
+        DO I=1,N1
+            BC1(I)=BC_DISP(IAR1(I))
+        ENDDO
+        !PUT DOF=4 TO THE TAIL
+        N1=0 
+        DO I=1,BD_NUM
+            IF(BC_DISP(I).DOF/=4) THEN
+                N1=N1+1
+                BC_DISP(N1)=BC_DISP(I)            
+            ENDIF  
+        ENDDO
+        BC_DISP(N1+1:)=BC1
+        
+        DEALLOCATE(BC1,AR1,IAR1)
+    ENDIF
+    
 	
 	do i=1,bd_num
         dof1=node(bc_disp(i).node).dof(bc_disp(i).dof)	
@@ -374,6 +411,53 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 					cycle
 				end if
 			end if
+            
+            !for slope bc PA only            
+            if(slopeparameter.NBCPA*slopeparameter.IBCPA>0 &
+            .AND.slopeparameter.NBCPA>=slopeparameter.IBCPA &            
+            .AND.bc_disp(i).dof==4) then
+                !TOE
+                
+                IF((NODE(BC_DISP(I).NODE).COORD(1)>=slopeparameter.BCEXIT(1,SLOPEPARAMETER.IBCPA) &
+                   .AND. NODE(BC_DISP(I).NODE).COORD(1)<=slopeparameter.BCEXIT(2,SLOPEPARAMETER.IBCPA)) &
+                   .OR.(NODE(BC_DISP(I).NODE).COORD(1)-slopeparameter.BCEXIT(1,SLOPEPARAMETER.IBCPA))* &  !前面已经排序，位于两节点之间，左节点也激活
+                       (NODE(BC_DISP(min(I+1,bd_num)).NODE).COORD(1)-slopeparameter.BCEXIT(1,SLOPEPARAMETER.IBCPA))<0 &
+                   .OR.(NODE(BC_DISP(I).NODE).COORD(1)-slopeparameter.BCEXIT(2,SLOPEPARAMETER.IBCPA))* &   !位于两节点之间，右节点也激活
+                       (NODE(BC_DISP(MAX(I-1,1)).NODE).COORD(1)-slopeparameter.BCEXIT(2,SLOPEPARAMETER.IBCPA))<0 ) THEN
+                   
+                   IF(abs(slopeparameter.BCEXIT(3,SLOPEPARAMETER.IBCPA)+999.d0)>1e-7) then
+                         IF(abs(slopeparameter.BCEXIT(3,SLOPEPARAMETER.IBCPA)+9999.d0)<1e-7) then
+                            BC_DISP(I).VALUE=slopeparameter.BCEXIT(4,SLOPEPARAMETER.IBCPA)*NODE(BC_DISP(I).NODE).COORD(1) &
+                            +slopeparameter.BCEXIT(5,SLOPEPARAMETER.IBCPA)*NODE(BC_DISP(I).NODE).COORD(2) &
+                            +slopeparameter.BCEXIT(6,SLOPEPARAMETER.IBCPA)                            
+                         ELSE
+                            bc_disp(i).value=slopeparameter.BCEXIT(3,SLOPEPARAMETER.IBCPA)                             
+                        ENDIF
+                   endif
+                !CREST   
+                ELSEIF((NODE(BC_DISP(I).NODE).COORD(1)>=slopeparameter.BCENTRY(1,SLOPEPARAMETER.IBCPA) &
+                   .AND. NODE(BC_DISP(I).NODE).COORD(1)<=slopeparameter.BCENTRY(2,SLOPEPARAMETER.IBCPA)) &
+                   .OR.(NODE(BC_DISP(I).NODE).COORD(1)-slopeparameter.BCENTRY(1,SLOPEPARAMETER.IBCPA))* &  !位于两节点之间，左节点也激活
+                       (NODE(BC_DISP(min(I+1,bd_num)).NODE).COORD(1)-slopeparameter.BCENTRY(1,SLOPEPARAMETER.IBCPA))<0 &
+                   .OR.(NODE(BC_DISP(I).NODE).COORD(1)-slopeparameter.BCENTRY(2,SLOPEPARAMETER.IBCPA))* & !位于两节点之间，右节点也激活
+                       (NODE(BC_DISP(MAX(I-1,1)).NODE).COORD(1)-slopeparameter.BCENTRY(2,SLOPEPARAMETER.IBCPA))<0 ) THEN
+                   
+                   IF(abs(slopeparameter.BCENTRY(3,SLOPEPARAMETER.IBCPA)+999.d0)>1e-7) then
+                         IF(abs(slopeparameter.BCENTRY(3,SLOPEPARAMETER.IBCPA)+9999.d0)<1e-7) then
+                            BC_DISP(I).VALUE=slopeparameter.BCENTRY(4,SLOPEPARAMETER.IBCPA)*NODE(BC_DISP(I).NODE).COORD(1) &
+                            +slopeparameter.BCENTRY(5,SLOPEPARAMETER.IBCPA)*NODE(BC_DISP(I).NODE).COORD(2) &
+                            +slopeparameter.BCENTRY(6,SLOPEPARAMETER.IBCPA)                            
+                         ELSE
+                            bc_disp(i).value=slopeparameter.BCENTRY(3,SLOPEPARAMETER.IBCPA)                             
+                        ENDIF
+                   endif
+                   
+                ELSE
+					bc_disp(i).isdead=1
+                    cycle                 
+                ENDIF
+            
+            endif
 			
 			bc_disp(i).isdead=0
         else

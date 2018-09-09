@@ -34,6 +34,7 @@
 	
     inquire(1,name=nme)
     length = SPLITPATHQQ(nme, drive, dir, name, ext)
+    INPUTFILE=TRIM(ADJUSTL(NAME))
     CALL LOWCASE(EXT)
     msg = CHDIR(trim(drive)//trim(dir))
     
@@ -1463,6 +1464,10 @@ subroutine solvercommand(term,unit)
                         solver_control.slope_kscale=property(i).value
                     case('slope_kbase')
                         solver_control.slope_kbase=property(i).value
+                    case('isslopepa')
+                        solver_control.isslopepa=int(property(i).value)
+                    case('slope_kratio')
+                        solver_control.slope_kratio=property(i).value                        
                     case('slope_istensioncrack')
                         solver_control.slope_isTensionCrack=int(property(i).value)
 					!case('ispostcal')
@@ -1521,6 +1526,20 @@ subroutine solvercommand(term,unit)
                     slopeparameter.ydownwardzone=property(i).value
                 case('toezone')
                     IF(INT(property(i).value)/=0) N1=1
+                CASE('ibcpa')
+                    slopeparameter.ibcpa=int(property(i).value)
+                !case('xcl')
+                !    slopeparameter.xcl=property(i).value
+                !case('xcr')
+                !    slopeparameter.xcr=property(i).value
+                !case('xcv')
+                !    slopeparameter.xcv=property(i).value    
+                !case('xtl')
+                !    slopeparameter.xtl=property(i).value
+                !case('xtr')
+                !    slopeparameter.xtr=property(i).value
+                !case('xtv')
+                !    slopeparameter.xtv=property(i).value                        
                 endselect
             enddo
             IF(N1/=0) THEN
@@ -1538,7 +1557,69 @@ subroutine solvercommand(term,unit)
                 ENDIF
 
             ENDIF
-        CASE('slope_pso_para')
+        CASE('slope_bc_pa')
+            print *, 'Reading slope_bc_pa data...'
+            n2=0
+            do i=1,pro_num
+				select case(property(i).name)
+                case('nbcpa')
+                    slopeparameter.nBCPA=int(property(i).value)
+                case('nnode')
+                    slopeparameter.nnode=int(property(i).value) 
+                CASE('fmt')
+                    !=0, input x directly,/=0,input id, x=node(1,id)
+                    n2=int(property(i).value)
+                case default
+                    call Err_msg(property(i).name)                    
+                endselect
+            enddo
+            IF(ALLOCATED(slopeparameter.BCENTRY)) DEALLOCATE(slopeparameter.BCENTRY)
+            IF(ALLOCATED(slopeparameter.BCEXIT)) DEALLOCATE(slopeparameter.BCEXIT)
+            IF(ALLOCATED(slopeparameter.NODE)) DEALLOCATE(slopeparameter.NODE)
+            IF(slopeparameter.NNODE>0) THEN
+                ALLOCATE(slopeparameter.NODE(2,slopeparameter.nBCPA))
+                DO I=1,slopeparameter.NNODE
+                    READ(UNIT,*) slopeparameter.NODE(:,I)
+                ENDDO
+            ENDIF
+            IF(slopeparameter.nBCPA>0) THEN
+                ALLOCATE(slopeparameter.BCENTRY(6,slopeparameter.nBCPA),slopeparameter.BCEXIT(6,slopeparameter.nBCPA))
+                DO I=1,slopeparameter.nBCPA
+                    call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+                    if(n2==0) then
+                        slopeparameter.BCEXIT(1:3,I)=AR(1:3)
+                    else
+                        slopeparameter.BCEXIT(1:3,I)=[slopeparameter.NODE(1,nint(AR(1:2))),AR(3)]
+                    endif
+                    IF(N1>3.AND.N1<=6) THEN
+                        slopeparameter.BCEXIT(4:N1,I)=AR(4:N1) !ENTRY(3,)=-9999,then its value is cal by A*x+B*y+C， and A B C  is input here.
+                        !slopeparameter.BCEXIT(3,I)=-9999.D0
+                    ENDIF
+                    call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+                    if(n2==0) then
+                        slopeparameter.BCENTRY(1:3,I)=AR(1:3)
+                    else
+                        slopeparameter.BCENTRY(1:3,I)=[slopeparameter.NODE(1,nint(AR(1:2))),AR(3)]
+                    endif
+                    IF(N1>3.AND.N1<=6) THEN
+                        slopeparameter.BCENTRY(4:N1,I)=AR(4:N1)
+                        !slopeparameter.BCENTRY(3,I)=-9999.D0
+                    ENDIF
+                  
+                ENDDO
+                
+            ENDIF
+            !call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+            !slopeparameter.xcl=ar(1)
+            !slopeparameter.xcr=ar(2) 
+            !slopeparameter.xcv=ar(3) !-999,按原值，不变
+            !call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+            !slopeparameter.xtl=ar(1)
+            !slopeparameter.xtr=ar(2) 
+            !slopeparameter.xtv=ar(3) !-999,按原值，不变           
+            !!if(n1>3) then
+            !!    slopeparameter.entry_fun=ar(4:6)
+            !!endif
             
 		case('ueset')
 			print *, 'Reading USER DEFINED ELEMENT SET data'
@@ -2554,6 +2635,9 @@ subroutine translatetoproperty(term)
 			ns=len_trim(adjustl(str(i)))-ne
             
 			call inp_ch_c_to_int_c(str(i)(ne+1:len_trim(adjustl(str(i)))),ns,property(i-1).value,property(i-1).cvalue)
+            
+
+            
 		else
 			property(i-1).name=str(i)(1:len_trim(str(i)))
 		end if

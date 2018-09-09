@@ -32,7 +32,9 @@ SUBROUTINE STREAMLINE_PLOT()
     REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1,DEG2,MAX1
     CHARACTER(16)::STR1
     REAL(GLFLOAT)::COLOR1(4),COLOR2(4)
-
+    
+    IF(NOPLOT) RETURN
+    
     call glDeleteLists(STREAMLINELIST, 1_glsizei)
     call reset_view    
     call glNewList(STREAMLINELIST, gl_compile_and_execute)
@@ -98,8 +100,8 @@ SUBROUTINE STREAMLINE_PLOT()
 	    CALL GLEND()
         
         IF(ISSTREAMLINESLOPE) THEN
-            DX1=STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV)-STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV-1)
-            DY1=STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV)-STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV-1)
+            DX1=STREAMLINE(I).V(1,STREAMLINE(I).NV)-STREAMLINE(I).V(1,STREAMLINE(I).NV-1)
+            DY1=STREAMLINE(I).V(2,STREAMLINE(I).NV)-STREAMLINE(I).V(2,STREAMLINE(I).NV-1)
 
             IF(ABS(DX1)>1E-7) THEN
                 DEG1=ATAN(DY1/DX1)/PI*180.
@@ -109,8 +111,8 @@ SUBROUTINE STREAMLINE_PLOT()
             
             IF(DEG1<0) DEG1=DEG1+180.
 
-            DX1=STREAMLINE(I).VAL(POSDATA.IX,1)-STREAMLINE(I).VAL(POSDATA.IX,2)
-            DY1=STREAMLINE(I).VAL(POSDATA.IY,1)-STREAMLINE(I).VAL(POSDATA.IY,2)
+            DX1=STREAMLINE(I).V(1,1)-STREAMLINE(I).V(1,2)
+            DY1=STREAMLINE(I).V(2,1)-STREAMLINE(I).V(2,2)
             !DEG1=ASIN(DY1/T1)/PI*180.0 
             IF(ABS(DX1)>1E-7) THEN
                 DEG2=ATAN(DY1/DX1)/PI*180.
@@ -131,13 +133,13 @@ SUBROUTINE STREAMLINE_PLOT()
             call glLineWidth(1.0_glfloat)
             
             CALL drawStrokeText(DEG1,&
-                                STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV), &
-                                STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV),0.0, &
+                                STREAMLINE(I).V(1,STREAMLINE(I).NV), &
+                                STREAMLINE(I).V(2,STREAMLINE(I).NV),0.0, &
                                 scale1,&
                                 STR1)
             CALL drawStrokeText(DEG2,&
-                                STREAMLINE(I).VAL(POSDATA.IX,1), &
-                                STREAMLINE(I).VAL(POSDATA.IY,1),0.0, &
+                                STREAMLINE(I).V(1,1), &
+                                STREAMLINE(I).V(2,1),0.0, &
                                 scale1,&
                                 STR1)                                
             !CALL output3D(STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV), &
@@ -202,6 +204,7 @@ end subroutine
 subroutine slopestability_streamline(islip)
     use function_plotter
     use quicksort
+    USE, INTRINSIC :: IEEE_ARITHMETIC
     implicit none
     integer,intent(in)::islip
     real(8)::pt1(3),VAL1(100)
@@ -227,20 +230,20 @@ subroutine slopestability_streamline(islip)
         ALLOCATE(STREAMLINE(I).PARA_SFCAL(8,streamline(i).nv))
         STREAMLINE(I).PARA_SFCAL(:,streamline(i).nv)=0.d0        
         DO j=1,streamline(i).nv-1
-            !PT1=(STREAMLINE(I).V(:,J)+STREAMLINE(I).V(:,J+1))/2.0
-            !CALL ProbeatPhyscialspace(PT1,VAL1(1:POSDATA.NVAR),iel1)
-            !IF(IEL1==0) THEN
-            !    WRITE(*,*) 'ERROR IN slopestability_streamline. POINT LOCATION FAILED.X=',PT1    
-            !ENDIF
-            !SS(1)=VAL1(POSDATA.ISXX);SS(2)=VAL1(POSDATA.ISYY);SS(3)=VAL1(POSDATA.ISXY);
-            !C1=VAL1(POSDATA.IMC_C);PHI1=VAL1(POSDATA.IMC_PHI);SFR1=VAL1(POSDATA.ISFR);
-
-            SS(1)=(STREAMLINE(I).VAL(POSDATA.ISXX,J)+STREAMLINE(I).VAL(POSDATA.ISXX,J+1))/2.0
-            SS(2)=(STREAMLINE(I).VAL(POSDATA.ISYY,J)+STREAMLINE(I).VAL(POSDATA.ISYY,J+1))/2.0
-		    SS(3)=(STREAMLINE(I).VAL(POSDATA.ISXY,J)+STREAMLINE(I).VAL(POSDATA.ISXY,J+1))/2.0
-            C1=(STREAMLINE(I).VAL(POSDATA.IMC_C,J)+STREAMLINE(I).VAL(POSDATA.IMC_C,J+1))/2.0
-            PHI1=(STREAMLINE(I).VAL(POSDATA.IMC_PHI,J)+STREAMLINE(I).VAL(POSDATA.IMC_PHI,J+1))/2.0
-            SFR1=(STREAMLINE(I).VAL(POSDATA.ISFR,J)+STREAMLINE(I).VAL(POSDATA.ISFR,J+1))/2.0
+            PT1=(STREAMLINE(I).V(:,J)+STREAMLINE(I).V(:,J+1))/2.0
+            CALL ProbeatPhyscialspace(PT1,VAL1(1:POSDATA.NVAR),iel1)
+            IF(IEL1==0) THEN
+                WRITE(*,*) 'ERROR IN slopestability_streamline. POINT LOCATION FAILED.X=',PT1    
+            ENDIF
+            SS(1)=VAL1(POSDATA.ISXX);SS(2)=VAL1(POSDATA.ISYY);SS(3)=VAL1(POSDATA.ISXY);
+            C1=VAL1(POSDATA.IMC_C);PHI1=VAL1(POSDATA.IMC_PHI);SFR1=VAL1(POSDATA.ISFR);
+      !
+      !      SS(1)=(STREAMLINE(I).VAL(POSDATA.ISXX,J)+STREAMLINE(I).VAL(POSDATA.ISXX,J+1))/2.0
+      !      SS(2)=(STREAMLINE(I).VAL(POSDATA.ISYY,J)+STREAMLINE(I).VAL(POSDATA.ISYY,J+1))/2.0
+		    !SS(3)=(STREAMLINE(I).VAL(POSDATA.ISXY,J)+STREAMLINE(I).VAL(POSDATA.ISXY,J+1))/2.0
+      !      C1=(STREAMLINE(I).VAL(POSDATA.IMC_C,J)+STREAMLINE(I).VAL(POSDATA.IMC_C,J+1))/2.0
+      !      PHI1=(STREAMLINE(I).VAL(POSDATA.IMC_PHI,J)+STREAMLINE(I).VAL(POSDATA.IMC_PHI,J+1))/2.0
+      !      SFR1=(STREAMLINE(I).VAL(POSDATA.ISFR,J)+STREAMLINE(I).VAL(POSDATA.ISFR,J+1))/2.0
             
 
             
@@ -256,17 +259,26 @@ subroutine slopestability_streamline(islip)
             
             T2=(C1-MIN(SNT1(1),0.D0)*DTAN(PHI1/180.0*PI)) !TAUF
             !IF(SNT1(1)<0.D0.AND.SFR1>=0.D0) THEN
-            IF(SNT1(1)<0.D0) THEN
-                !IF(SFR1>=0.D0.OR.(SFR1<0.D0.AND.SOLVER_CONTROL.SLOPE_ISTENSIONCRACK==1))
-                SIGMA_TF1=SIGMA_TF1+T2*T1
-                SIGMA_T1=SIGMA_T1+SNT1(2)*T1
+            !IF(SNT1(1)<0.D0) THEN
+            !    !IF(SFR1>=0.D0.OR.(SFR1<0.D0.AND.SOLVER_CONTROL.SLOPE_ISTENSIONCRACK==1))
+            !    SIGMA_TF1=SIGMA_TF1+T2*T1
+            !    SIGMA_T1=SIGMA_T1+SNT1(2)*T1
+            !ELSE
+            !    T2=0.D0;SNT1(2)=0.D0
+            !ENDIF
+            IF(SNT1(1)>0.D0) T2=0.D0
+            
+            SIGMA_TF1=SIGMA_TF1+T2*T1
+            SIGMA_T1=SIGMA_T1+SNT1(2)*T1   !FORCE MUST BE IN BALANCE AND CANNOT BE IGNORED EVEN SNT(1)>0
+            IF(T2>0.D0) THEN
+                SFR1=SNT1(2)/T2
             ELSE
-                T2=0.D0;SNT1(2)=0.D0
+                SFR1=IEEE_VALUE (1.0,IEEE_POSITIVE_INF)
             ENDIF
-            !SIGN,SIGT,RAD1,TAUF,DIS,C,PHI
+            !SIGN,SIGT,RAD1,TAUF,DIS,C,PHI,SFR1
             STREAMLINE(I).PARA_SFCAL(:,J)=[SNT1,RAD1,T2,T1,C1,PHI1,SFR1]
         ENDDO
-        IF(ABS(SIGMA_T1)>1E-10) THEN
+        IF(ABS(SIGMA_T1)>1E-10.AND.SIGMA_TF1>1.D-6) THEN
             STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1) 
         ELSE
             STREAMLINE(I).SF_SLOPE=HUGE(1.D0)
@@ -365,7 +377,7 @@ SUBROUTINE SEARCH_MINIMAL_SF_SLOPE()
     implicit none
     INTEGER::I,J,K,IA1(NNLBC),NH1,IA2(NNLBC),IMSF1,N1,NSTREAMLINE1,IMSF2,N2
     LOGICAL::L1,L2
-    REAL(8)::MSF1,PT1(3),MSF2,ASF1(NNLBC)
+    REAL(8)::MSF1,PT1(3),MSF2,ASF1(NNLBC),PT2(3)
     REAL(8),ALLOCATABLE::MAXTEM1(:,:),MINTEM1(:,:)
     character(16)::str1
     
@@ -381,7 +393,7 @@ SUBROUTINE SEARCH_MINIMAL_SF_SLOPE()
     DO I=1,NNLBC 
         IF(POSDATA.IH_BC>0) THEN
             L1=(POSDATA.NODALQ(NODE_LOOP_BC(I),POSDATA.IH_BC,stepplot.istep)+4.0D0)<1E-7
-            L2=POSDATA.NODALQ(NODE_LOOP_BC(I),POSDATA.IQ,stepplot.istep)>0.d0
+            L2=POSDATA.NODALQ(NODE_LOOP_BC(I),POSDATA.IQ,stepplot.istep)>0.d0            
             IF(L1.AND.L2) THEN                
              
                 PT1(3)=0.0D0
@@ -417,17 +429,23 @@ SUBROUTINE SEARCH_MINIMAL_SF_SLOPE()
         ENDIF
         L1=(POSDATA.NODALQ(NODE_LOOP_BC(N1),POSDATA.IH_BC,stepplot.istep)+4.0D0)<1E-7
         L2=POSDATA.NODALQ(NODE_LOOP_BC(N1),POSDATA.IQ,stepplot.istep)>0.d0
+            
         IF(L1.AND.L2) THEN        
-            DO J=2,10
-                PT1=POSDATA.NODE(NODE_LOOP_BC(N2)).COORD+(J-1)/10.0*(POSDATA.NODE(NODE_LOOP_BC(N1)).COORD-POSDATA.NODE(NODE_LOOP_BC(N2)).COORD)
-                call gen_new_streamline(PT1)
-                STREAMLINE(NSTREAMLINE).SHOW=.FALSE.
-                IF(STREAMLINE(NSTREAMLINE).SF_SLOPE<MSF2) THEN
-                    MSF2=STREAMLINE(NSTREAMLINE).SF_SLOPE
-                    IMSF2=NSTREAMLINE                  
-                ENDIF
-            ENDDO        
+            PT2=POSDATA.NODE(NODE_LOOP_BC(N1)).COORD
+        ELSE
+            PT2(1)=POSDATA.NODE(NODE_LOOP_BC(N1)).COORD(1)
+            PT2(2:3)=STREAMLINE(IMSF1).V(2:3,MIN(10,STREAMLINE(IMSF1).NV))            
         ENDIF
+        
+        DO J=2,10
+            PT1=POSDATA.NODE(NODE_LOOP_BC(N2)).COORD+(J-1)/10.0*(PT2-POSDATA.NODE(NODE_LOOP_BC(N2)).COORD)
+            call gen_new_streamline(PT1)
+            STREAMLINE(NSTREAMLINE).SHOW=.FALSE.
+            IF(STREAMLINE(NSTREAMLINE).SF_SLOPE<MSF2) THEN
+                MSF2=STREAMLINE(NSTREAMLINE).SF_SLOPE
+                IMSF2=NSTREAMLINE                  
+            ENDIF
+        ENDDO 
     
     ENDDO
     
@@ -685,24 +703,27 @@ ENDIF
 
 ENDSUBROUTINE
 
-SUBROUTINE SLIPSURFACE_OPTIMIZATION()
+SUBROUTINE Improve_StreamlineShowed_Admissiblity()
     
     USE function_plotter
     USE SLOPE_PSO
     IMPLICIT NONE
-    INTEGER::I,J,SD1,IV1=0,NPOINT1,N1,IFLAG1=1
+    INTEGER::I,J,SD1,IV1=0,NPOINT1,N1,IFLAG1=1,IEL1
     REAL(8)::OPTS(2),SIGMA_BASE1(2)
-	REAL(8)::TAU1,TAUF1
+	REAL(8)::TAU1,TAUF1,FM1,FA1
+    REAL(8),ALLOCATABLE::VAL1(:,:),VAL2(:,:)
 	   
-
+    
     DO I=1,NSTREAMLINE
         IF(.NOT.STREAMLINE(I).SHOW) CYCLE
         
 		SD1=STREAMLINE(I).VAL(POSDATA.ISLOPE_SD,1)
-		IV1=0
+		IV1=0;FM1=0.D0;FA1=0.D0
 		DO J=1,STREAMLINE(I).NV-1
 			SIGMA_BASE1=STREAMLINE(I).PARA_SFCAL(1:2,J)
-			
+			FM1=FM1+STREAMLINE(I).PARA_SFCAL(2,J)*STREAMLINE(I).PARA_SFCAL(5,J);
+            FA1=FA1+STREAMLINE(I).PARA_SFCAL(4,J)*STREAMLINE(I).PARA_SFCAL(5,J)
+            
 			IF(SIGMA_BASE1(1)>=0) SIGMA_BASE1(2)=0.D0
 			!SD1=1 RIGHT, =-1,LEFT
 			IF(SD1*SIGMA_BASE1(2)>0.D0) THEN !不相容,要给出相容方向
@@ -716,14 +737,31 @@ SUBROUTINE SLIPSURFACE_OPTIMIZATION()
         
         CALL SLOPE_OPTIM(IFLAG=IFLAG1,OPTS=OPTS)
         
+        STREAMLINE(I).SF_SLOPE=abs((PSO_SLIP.FA(PSO_SLIP.A2Z(1))+FA1)/(PSO_SLIP.FM(PSO_SLIP.A2Z(1))+FM1))
+        STREAMLINE(I).NV=IV1+PSO_SLIP.NX-1
+        IF(ALLOCATED(VAL1)) DEALLOCATE(VAL1,VAL2)
+        ALLOCATE(VAL1(3,STREAMLINE(I).NV),VAL2(POSDATA.NVAR,STREAMLINE(I).NV))
+        VAL1(:,1:IV1-1)=STREAMLINE(I).V(:,1:IV1-1)
+        VAL2(:,1:IV1-1)=STREAMLINE(I).VAL(:,1:IV1-1)
+        IEL1=0
+        DO J=IV1,IV1+PSO_SLIP.NX-1
+            N1=PSO_SLIP.NX-(J-IV1)
+            VAL1(1:2,J)=PSO_SLIP.X(1:2,N1,PSO_SLIP.A2Z(1))
+            VAL1(3,J)=0.D0
+            CALL ProbeatPhyscialspace(VAL1(:,J),VAL2(:,J),IEL1)
+        ENDDO        
+        DEALLOCATE(STREAMLINE(I).V,STREAMLINE(I).VAL)
+        ALLOCATE(STREAMLINE(I).V,SOURCE=VAL1)    
+        ALLOCATE(STREAMLINE(I).VAL,SOURCE=VAL2) 
         
-        
+        DEALLOCATE(VAL1,VAL2)
 		
 		
     ENDDO
 
+    CALL STREAMLINE_PLOT()
+    
 ENDSUBROUTINE
-
 
 
 SUBROUTINE SLOPE_SFR_STATE_PARAMETER_SHOW()
@@ -989,46 +1027,7 @@ END SUBROUTINE
 
 
 
-SUBROUTINE OUT_SHOWN_STREAMLINE()
-    USE function_plotter
-    IMPLICIT NONE
-    INTEGER::I,J,EF
-    
-    PRINT *, 'SELECT TO FILE TO SAVE THE STREAMLINE DATA...'
-    
-    open(20,file='',status='UNKNOWN',iostat=EF)
-    IF(EF/=0) RETURN
-    WRITE(20,10) (TRIM(POSDATA.OUTVAR(I).NAME),I=1,POSDATA.NVAR)
-        
-    
-    DO I=1,NSTREAMLINE
-       IF((.NOT.STREAMLINE(I).SHOW).OR.STREAMLINE(I).NV<2) CYCLE
-            
-        DO J=1,STREAMLINE(I).NV 
-            IF(ALLOCATED(STREAMLINE(I).PARA_SFCAL)) THEN
-                WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J),STREAMLINE(I).PARA_SFCAL(:,J)
-            ELSE
-                WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J),0,0,0,0,0,0,0,0
-            ENDIF
-            IF(J==STREAMLINE(I).NV) WRITE(20,'(I5)') I
-        ENDDO        
-    
-    END DO
-    
-    CLOSE(20)
-        
-    PRINT *, 'OUTDATA DONE!'
-    
 
-    
-10  FORMAT('ILINE',1X,'  INODE',1X,22X,'FOS',1X,<POSDATA.NVAR>(A24,1X),&
-        15X,'SLIPSEG_SN',14X,'SLIPSEG_TAU',5X,'SLIPSEG_ANGLE_IN_RAD',13X,'SLIPSEG_TAUF',&
-        14X,'SLIPSEG_DIS',16X,'SLIPSEG_C',14X,'SLIPSEG_PHI',14X,'SLIPSEG_SFR')
-20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR+9>(EN24.15,1X))
-         
-30  FORMAT(I5,1X,I7,1X,<POSDATA.NDIM>(EN24.15,1X),'*THE POINT IS OUT OF MODEL ZONE.*')
-
-ENDSUBROUTINE
 
 SUBROUTINE GET_BC_INTERSECTION(PT1,PT2,IPT1,IPT2,ISINTERCEPT)
     !USE solverds

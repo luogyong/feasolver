@@ -10,6 +10,7 @@ implicit none
 !private
 !public :: display,menu_handler,make_menu,CONTOUR_PLOT_VARIABLE,VECTOR_PLOT_GROUP
 !REAL(8),PARAMETER::PI=3.141592653589793
+LOGICAL::NOPLOT=.FALSE.
 real(8)::stroke_fontsize=1.0
 private::SET_VARIABLE_SHOW,SET_VECTOR_PLOT_GROUP
 ! symbolic constants
@@ -217,13 +218,14 @@ integer,parameter,public::ContourList=1,&
                           StreamLineList=7,&
 						  STEPSTATUSLIST=8,&
                           SFS_ProbeValuelist=9,&
-                          PSO_SLIP_PLOT_LIST=9
+                          PSO_SLIP_PLOT_LIST=10
                           
                           
 integer,parameter::STREAMLINE_SLOPE_CLICK=1,ShowTopTen_SLOPE_CLICK=2,ShowMinimal_SLOPE_CLICK=3,&
 ShowAll_SLOPE_CLICK=4,ReadSlipSurface_slope_click=5,ShowLocalMinimal_Slope_Click=6,&
                     SEARCH_SLOPE_CLICK=7,FilterLocalMinimal_Slope_Click=8,&
-                    SFS_Slope_Click=9,CHECKADMISSIBILITY=10,ShowReadinSlip_Slope_CLICK=11,SEARCH_BY_PSO=12
+                    SFS_Slope_Click=9,CHECKADMISSIBILITY=10,ShowReadinSlip_Slope_CLICK=11,SEARCH_BY_PSO=12,&
+                    ShowStreamline_AdmissiblityImprove_CLICK=13
 LOGICAL::ISSTREAMLINESLOPE=.FALSE.,IsFilterLocalMinimalMode=.false.,isProbeState_SFS=.FALSE.,&
          IsShowReadinSlip=.false.
 
@@ -773,22 +775,24 @@ ENDSUBROUTINE
 
 subroutine slope_handler(selection)
     USE SolverMath
-    USE SLOPE_PSO, ONLY:SLOPE_OPTIM
+    !USE SLOPE_PSO, ONLY:SLOPE_OPTIM,POLYLINE_FOS_CAL
     implicit none
     integer(kind=glcint), intent(in out) :: selection
     INTEGER::NSLIP1,I,IEL1,J,K,n1=0,N2=0,OFFSET1,N3=0
     INTEGER,SAVE::TRYIEL1=0
     INTEGER,EXTERNAL::POINTlOC_BC
     real(8)::AR2D1(2,2000),AR2D2(2,2000)
-    INTEGER::unit,NAR1=100,NTOREAD1=100,NSET1=10
+    INTEGER::unit,NAR1=100,NTOREAD1=100,NSET1=10,IERR
     INTEGER::NREADIN1,NSETREADIN1,NNODE1,EF
     REAL(8)::AR1(100),DT1,FA1,FM1
     CHARACTER(32)::SET1(10)
     REAL(IWP),ALLOCATABLE::NODE1(:,:)
     
     select case (selection)
-    CASE(SEARCH_BY_PSO)
-        CALL SLOPE_OPTIM()
+    !CASE(SEARCH_BY_PSO)
+    !    CALL SLOPE_OPTIM()
+    CASE(ShowStreamline_AdmissiblityImprove_CLICK)
+        CALL Improve_StreamlineShowed_Admissiblity()
     case(SFS_SLOPE_CLICK)
         isProbeState_SFS=.not.isProbeState_SFS
     case(ShowReadinSlip_Slope_CLICK)
@@ -877,7 +881,18 @@ subroutine slope_handler(selection)
             NSTREAMLINE=NSTREAMLINE+1
             CALL strtoint(10,AR1,NAR1,NREADIN1,NTOREAD1,SET1,NSET1,NSETREADIN1)
             N1=INT(AR1(1));AR2D1=0.d0;AR2D2=0.d0
-            READ(10,*) AR2D1(:,1:N1)
+            DO I=1,N1            
+                READ(10,*,IOSTAT=IERR) AR2D1(:,I)
+                IF (IERR > 0) THEN
+                    WRITE(*,*) 'Check input.  Something was wrong,N=',I
+                    CLOSE(10)
+                    RETURN
+                ELSE IF (IERR < 0) THEN
+                    WRITE(*,*)  'END_OF_FILE.,N=',I
+                    CLOSE(10)
+                    RETURN
+                ENDIF
+            ENDDO
             IF(NREADIN1>1.AND.AR1(2)>1.D-7) THEN
                 DT1=AR1(2)
                 N2=0
@@ -928,8 +943,8 @@ subroutine slope_handler(selection)
             NINPUTSLIP=NINPUTSLIP+1
             INPUTSLIP(NINPUTSLIP)=NSTREAMLINE
             
-            !CALL POLYLINE_FOS_CAL(STREAMLINE(NSTREAMLINE).V,STREAMLINE(NSTREAMLINE).NV,0.5,FM1,FA1)
-            !
+            !CALL POLYLINE_FOS_CAL(STREAMLINE(NSTREAMLINE).V(1:2,:),STREAMLINE(NSTREAMLINE).NV,0.5,FM1,FA1)
+            !!
             !PRINT *, "FM1,FA1,FOS=",FM1,FA1,FA1/FM1
             
         ENDDO
@@ -1309,6 +1324,7 @@ end subroutine Color_Map_handler
 
 
 subroutine make_menu(submenuid)
+USE SLOPE_PSO,ONLY:PSO_SLIP_PLOT_MENU
 integer, intent(in) :: submenuid
 integer :: menuid, param_id, contour_color_menu, surface_color_menu,I
 INTEGER::VSHOW_SPG_ID,VSHOW_STRESS_ID,VSHOW_STRAIN_ID,VSHOW_PSTRAIN_ID,&
@@ -1333,7 +1349,7 @@ INTEGER::VSHOW_SPG_ID,VSHOW_STRESS_ID,VSHOW_STRAIN_ID,VSHOW_PSTRAIN_ID,&
         STREAMLINE_PLOT_ID,&
         SLOPE_ID,Probe_ID,&
 		STREAMLINE_VECTOR_ID,Vector_Format_ID,Vector_Base_ID,Vector_LOC_ID,&
-        ColorMap_ID
+        ColorMap_ID,EA_SLOPE_ID
 
         
 contour_color_menu = glutCreateMenu(contour_color_handler)
@@ -1504,10 +1520,12 @@ call glutAddMenuEntry("ShowStreamlineNode",SHOW_STREAMLINE_NODE_CLICK)
 call glutAddMenuEntry("++StrokeFontSize",Enlarger_StrokeFontSize_CLICK)
 call glutAddMenuEntry("--StrokeFontSize",Smaller_StrokeFontSize_CLICK)
 
+EA_SLOPE_ID=PSO_SLIP_PLOT_MENU()
+
 SLOPE_ID=glutCreateMenu(SLOPE_handler)
 CALL glutAddMenuEntry("CheckAdmissiblity Toggle",CHECKADMISSIBILITY)
 call glutAddMenuEntry("Search...",SEARCH_SLOPE_CLICK)
-CALL glutAddMenuEntry("SearchByPSO...",SEARCH_BY_PSO)
+CALL glutAddSubMenu("SearchByEA",EA_SLOPE_ID)
 call glutAddMenuEntry("JustShowTopTenSlips",ShowTopTen_SLOPE_CLICK)
 call glutAddMenuEntry("JustShowMinimalSlip",ShowMinimal_SLOPE_CLICK)
 call glutAddMenuEntry("ShowAllSlips",ShowAll_SLOPE_CLICK)
@@ -1516,6 +1534,7 @@ call glutAddMenuEntry("FilterLocalSmallSlip(DelectLocalLarger)",filterLocalMinim
 call glutAddMenuEntry("ShowLocalMinimalSlip",ShowLocalMinimal_Slope_Click)
 call glutAddMenuEntry("StressFailureState",SFS_SLOPE_CLICK)
 Call glutAddMenuEntry('ReadSlips',ReadSlipSurface_slope_click)
+call glutAddMenuEntry("AdmissiblityImprove...",ShowStreamline_AdmissiblityImprove_CLICK)
 call glutAddMenuEntry("STREAMLINE_METHOD",STREAMLINE_SLOPE_CLICK)
 
 PROBE_ID=glutCreateMenu(PROBE_handler)
@@ -1541,6 +1560,78 @@ call glutAddMenuEntry("quit",quit_selected)
 call glutAttachMenu(GLUT_RIGHT_BUTTON)
 end subroutine make_menu
 
+SUBROUTINE OUT_SHOWN_STREAMLINE(FILE,OUTID,INFO)    
+    USE IFPORT
+    IMPLICIT NONE
+    CHARACTER(*),OPTIONAL,INTENT(IN)::FILE,INFO
+    INTEGER,OPTIONAL,INTENT(IN)::OUTID
+    INTEGER::I,J,EF,OUTID1=0
+    CHARACTER(1024)::FILE1
+    LOGICAL::EXIST
+    CHARACTER(8)::char_time
+    
+    PRINT *, 'SELECT TO FILE TO SAVE THE STREAMLINE DATA...'
+    
+    FILE1=""
+    OUTID1=0
+    IF(PRESENT(FILE)) FILE1=TRIM(ADJUSTL(FILE))
+    IF(PRESENT(OUTID)) OUTID1=OUTID
+  !logical :: exist
+  !
+  !inquire(file=TRIM(FILE1), exist=exist)
+  !if (exist) then
+  !  open(20, file=TRIM(FILE1), status="UNKNOWN", position="append", action="write")
+  !else
+  !  open(2O, file=TRIM(FILE1), status="new", action="write")
+  !end if
+    
+    open(20,file=TRIM(FILE1),status="UNKNOWN", position="append",iostat=EF)
+    IF(EF/=0) RETURN
+    call TIME(char_time)
+    WRITE(20,10) (TRIM(POSDATA.OUTVAR(I).NAME),I=1,POSDATA.NVAR),DATE(),char_time
+        
+    IF(OUTID1<1) THEN 
+        DO I=1,NSTREAMLINE
+           IF((.NOT.STREAMLINE(I).SHOW).OR.STREAMLINE(I).NV<2) CYCLE
+            
+            DO J=1,STREAMLINE(I).NV 
+                IF(ALLOCATED(STREAMLINE(I).PARA_SFCAL)) THEN
+                    WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J),STREAMLINE(I).PARA_SFCAL(:,J)
+                ELSE
+                    WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J),0,0,0,0,0,0,0,0
+                ENDIF
+                IF(J==STREAMLINE(I).NV) WRITE(20,'(I5)') I
+            ENDDO        
+    
+        END DO
+    
+    ELSE
+        I=OUTID1
+        DO J=1,STREAMLINE(I).NV 
+            IF(ALLOCATED(STREAMLINE(I).PARA_SFCAL)) THEN
+                WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J),STREAMLINE(I).PARA_SFCAL(:,J)
+            ELSE
+                WRITE(20,20) I,J,STREAMLINE(I).SF_SLOPE,STREAMLINE(I).VAL(1:POSDATA.NVAR,J),0,0,0,0,0,0,0,0
+            ENDIF
+            IF(J==STREAMLINE(I).NV) WRITE(20,'(I5)') I
+        ENDDO     
+    ENDIF
+    
+    CLOSE(20)
+        
+    PRINT *, 'OUTDATA DONE!'
+    
+
+    
+10  FORMAT('ILINE',1X,'  INODE',1X,22X,'FOS',1X,<POSDATA.NVAR>(A24,1X),&
+        15X,'SLIPSEG_SN',14X,'SLIPSEG_TAU',5X,'SLIPSEG_ANGLE_IN_RAD',13X,'SLIPSEG_TAUF',&
+        14X,'SLIPSEG_DIS',16X,'SLIPSEG_C',14X,'SLIPSEG_PHI',14X,'SLIPSEG_SFR',5X,'//DATE=',A8,',TIME=',A8)
+20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR+9>(EN24.15,1X))
+         
+30  FORMAT(I5,1X,I7,1X,<POSDATA.NDIM>(EN24.15,1X),'*THE POINT IS OUT OF MODEL ZONE.*')
+
+ENDSUBROUTINE
+
 end module function_plotter
 
 
@@ -1553,15 +1644,19 @@ subroutine plot_func(TECFILE)
 use function_plotter
 USE MESHADJ
 USE IFPORT
+USE solverds, ONLY: SOLVER_CONTROL,INPUTFILE
+USE SLOPE_PSO, ONLY:SLOPE_OPTIM
 !USE POS_IO
 implicit none
 CHARACTER(*),INTENT(IN)::TECFILE
 character*8 char_time
 INTEGER::I
 REAL(8),ALLOCATABLE::NODE1(:,:)
-
+CHARACTER(1024)::FILE1
+CHARACTER(2)::CH1
 integer :: winid, menuid, submenuid
-!real(gldouble)::r1
+logical :: exist
+
 interface
     subroutine myreshape(w,h)
         integer,intent(in out)::w,h
@@ -1639,6 +1734,37 @@ CALL TIME(char_time)
 PRINT *, 'Group element to subzones...',char_time
 CALL SETUP_SUBZONE_TET()
 
+IF(SOLVER_CONTROL.ISSLOPEPA/=0) THEN
+    NOPLOT=.TRUE.
+    PRINT *, 'DOING SLOPE PARAMETER ANALYSIS. NOPLOT WILL BE SHOW.'
+    
+    !EVOLUTION AOGORITHM PSO AND EA ETC...
+    IF(SOLVER_CONTROL.ISSLOPEPA>10) THEN    
+        CALL SLOPE_OPTIM()
+        RETURN
+    ENDIF
+    
+    CALL RESET_STREAMLINE()
+    IF(STEPPLOT.NSTEP>1) THEN
+        STEPPLOT.ISTEP=STEPPLOT.NSTEP
+        !CALL STEPPLOT.UPDATE()
+    ENDIF
+    CALL SEARCH_MINIMAL_SF_SLOPE()
+    WRITE(CH1,'(I2)') SOLVER_CONTROL.ISSLOPEPA
+    FILE1=TRIM(INPUTFILE)//'_SlopePA='//TRIM(ADJUSTL(CH1))//'.dat'    
+    CALL OUT_SHOWN_STREAMLINE(trim(file1),SF_SLOPE(1))
+      
+    FILE1=TRIM(INPUTFILE)//'_SlopePA='//TRIM(ADJUSTL(CH1))//'_FOS.dat'
+    inquire(file=TRIM(FILE1), exist=exist)
+    OPEN(UNIT=20,FILE=FILE1,STATUS='UNKNOWN',POSITION='APPEND')
+    IF(.NOT.EXIST) WRITE(20,10)
+    CALL TIME(char_time)
+    WRITE(20,20) SOLVER_CONTROL.ISSLOPEPA,SOLVER_CONTROL.SLOPE_KBASE,SOLVER_CONTROL.SLOPE_KSCALE, &
+                SOLVER_CONTROL.SLOPE_KRATIO,STREAMLINE(SF_SLOPE(1)).SF_SLOPE,CHAR_TIME,DATE()
+    CLOSE(20)
+    RETURN
+ENDIF
+
 CALL TIME(char_time)
 PRINT *, 'Begin to Render...Stage=glutInit',char_time
 call glutInit()
@@ -1648,6 +1774,7 @@ call glutInitWindowPosition(10_glcint,10_glcint)
 call glutInitWindowSize(800_glcint,600_glcint)
 
 ! Create a window
+
 
 
 
@@ -1726,6 +1853,9 @@ call glutMainLoop
 
 call POSDATA.FREE()
 
+
+10 FORMAT(1X,'PATYPE',3X,'KBASE',2X,'KSCALE',2X,'KRATIO',5X,'FOS',5X,'TIME',6X,'DATE')
+20 FORMAT(I7,4(1X,F7.3),2X,A8,2X,A8)
 
 end subroutine plot_func
 

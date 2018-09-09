@@ -58,13 +58,17 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     if(R1>0) then
         T1=1E-7
         IF(PHI1>1E-7) T1=TAN(PHI1) 
-        if(pss1(1)<MIN(TensileS,C1/T1).or.Solver_control.slope_isTensionCrack/=1) then
+        if(pss1(1)<MIN(TensileS,C1/T1).or.Solver_control.slope_isTensionCrack/=1) then  !c=0, sand, no tension crack
         !if(pss1(1)<TensileS) then
             !CHECK YIELD
             !YF1=SIGMAC1*SIN(PHI1)+R1-C1*COS(PHI1)
-            !
-            !
-            !IF(YF1<0.D0.OR.Solver_control.slope_isTensionCrack==1) THEN
+            IF(PHI1>0.D0) THEN
+                YF1=R1/((C1/TAN(PHI1)-SIGMAC1)*SIN(PHI1))
+            ELSE
+                YF1=R1/MAX(C1,1E-6)
+            ENDIF
+            
+            IF(YF1<1.D0.AND.YF1>0.D0) THEN
             
                 B=-tan(phi1)
                 A=(C1+sigmaC1*B)/R1
@@ -75,11 +79,12 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
                 else
                     sita1=pi1/2.0-phi1
                 endif
-                sfr(1)=sin(sita1)/(A+B*cos(sita1)) !sfr for stress failure ratio
-            !ELSE
-            !    sita1=pi1/2.0-phi1
-            !    SFR(1)=R1/(R1-YF1)
-            !ENDIF
+                sfr(1)=min(abs(sin(sita1)/(A+B*cos(sita1))),20.d0) !sfr for stress failure ratio,max is less than 20
+                
+            ELSE
+                sita1=pi1/2.0-phi1
+                SFR(1)=YF1
+            ENDIF
             !if(sfr(1)>1.d0) sfr(1)=1.0d0
         else
             !tension

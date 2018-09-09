@@ -7,6 +7,8 @@ module solverds
 	include 'double.h'
 	include 'constant.h'   
     
+    CHARACTER(1024)::INPUTFILE=''
+    
 	type node_tydef
 		real(kind=DPN)::coord(3)=0.0D0 !coordinates (x,y,z)
 		integer::ndof=0 !节点的自由度个数
@@ -239,15 +241,18 @@ module solverds
         integer::isParasys=0,CaseID=0 !isParasys,是否为参数敏感性分析(must start form 1)
 !		integer::isPostCal=0 !所有的未知量均为已知（由边界条件输入），仅进行后处理计算。
         !REAL(KIND=DPN),ALLOCATABLE::ETA(:),RATIO(:)
-        integer::slidedirection=right,slope_isTensionCrack=1
-        real(kind=DPN)::slope_kscale=1.D0,slope_kbase=1.D0
+        integer::slidedirection=right,slope_isTensionCrack=1,ISSLOPEPA=0
+        real(kind=DPN)::slope_kscale=1.D0,slope_kbase=1.D0,slope_kratio=10
 	end type
 	type(solver_tydef)::solver_control
 	
 	type property_tydef
 		character(128)::name=''
+        integer::nval=1
 		real(kind=DPN)::value=0.0
-		character(128)::cvalue=''	 !character value	
+		character(512)::cvalue=''	 !character value
+    contains
+        !procedure split
 	end type
 	type(property_tydef)::property(maxset) !one control line has MAXSET property value at most.
 	integer::pro_num 

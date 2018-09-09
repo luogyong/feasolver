@@ -162,7 +162,7 @@ SUBROUTINE EQUDIVIDE(X1,X2,DT,NODE,NNODE)
             ALLOCATE(NODE(N1,2))
             NODE(:,1)=X1;NODE(:,2)=X2;        
         ELSE
-            NNODE=MAX(INT(T1/DT),1)+1
+            NNODE=MAX(NINT(T1/DT),1)+1
             ALLOCATE(NODE(N1,NNODE))
             DT1(1:N1)=(X2-X1)/(NNODE-1)
             DO I=1,NNODE
