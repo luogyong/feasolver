@@ -1,7 +1,6 @@
 MODULE SLOPE_PSO
     USE stochoptim,ONLY: Evolutionary,EA_ITER
     USE solverds,ONLY:INPUTFILE
-    !USE IndexColor
     USE INPUT_PARSER
     IMPLICIT NONE
     
@@ -36,7 +35,7 @@ MODULE SLOPE_PSO
     
     TYPE SLOPE_PSO_PARAR
         !SLOPE PARAMETER
-        INTEGER::NGX,NRX,NSLICE=30,IS_SLOPEINIT=0
+        INTEGER::NGX,NRX,NSLICE=30,SHAPE=0 !SHAPE=0,NON-CIRCULAR,=1,CIRCULAR
         REAL(8)::XTU,XTL,XCU,XCL !ENTRY AND EXIT LIMITS
         REAL(8),ALLOCATABLE::GX(:,:),RX(:,:)
         !EA PARAMETER
@@ -45,11 +44,18 @@ MODULE SLOPE_PSO
             F=0.5,CR=0.1,DL=0.5D0,mu_perc=0.5,sigma=0.5  !DL=SLICE BASE STRESS SAMPLE DISTANCE
         character(len = 5) :: solver='de', strategy='rand1'
         
+        !trial slip surface generation method
+        INTEGER::SSGM=0 !slip =0，chen,=1,circular,=2circular+softband
+        INTEGER::NWSP=0
+        REAL(8),ALLOCATABLE::WSP(:,:)
+        
         !!FOR STREAMLINE ADMISSIBLITY REPAIR ONLY
         INTEGER::DIRECTION=-1 !=-1 TOE,=1,(DOWNHILL),CREST(UPHILL).
         REAL(8)::A=0,B=0,C=0 !REPAIRED RANGE LINE ,A*X+B*Y+C
         CONTAINS
         PROCEDURE::INIT=>FILEREADIN
+        PROCEDURE::GETY=>GET_BC_Y
+        
     ENDTYPE
     TYPE(SLOPE_PSO_PARAR)::SLOPE_PARA
     
@@ -63,7 +69,6 @@ MODULE SLOPE_PSO
 
 
 CONTAINS
-
 
 
 SUBROUTINE SLOPE_OPTIM(PARAFILE,IFLAG,OPTS)
@@ -128,15 +133,15 @@ SUBROUTINE SLOPE_OPTIM(PARAFILE,IFLAG,OPTS)
     
   ! Define search boundaries
     allocate(lower(SLOPE_PARA.NDIM), upper(SLOPE_PARA.NDIM))
-    allocate(X(SLOPE_PARA.NDIM,SLOPE_PARA.POPSIZE),Y(SLOPE_PARA.NDIM,SLOPE_PARA.POPSIZE),RDF(SLOPE_PARA.NDIM,SLOPE_PARA.POPSIZE))
+    allocate(X(SLOPE_PARA.NSLICE+1,SLOPE_PARA.POPSIZE),Y(SLOPE_PARA.NSLICE+1,SLOPE_PARA.POPSIZE),RDF(SLOPE_PARA.NDIM,SLOPE_PARA.POPSIZE))
     lower =0.D0
     upper =1.D0
     
-    CALL PSO_SLIP.INIT(SLOPE_PARA.NDIM,SLOPE_PARA.POPSIZE) !SAVE TOPTENSLIP
+    CALL PSO_SLIP.INIT(SLOPE_PARA.NSLICE+1,SLOPE_PARA.POPSIZE) !SAVE TOPTENSLIP
     
    CALL GEN_SLIP_SAMPLE(SLOPE_PARA.XTL,SLOPE_PARA.XTU,SLOPE_PARA.XCL,SLOPE_PARA.XCU, &
         SLOPE_PARA.NSLICE,SLOPE_PARA.popsize,SLOPE_PARA.GX,SLOPE_PARA.NGX,  & 
-        SLOPE_PARA.RX,SLOPE_PARA.NRX,X,Y,RDF)
+        SLOPE_PARA.RX,SLOPE_PARA.NRX,X,Y,RDF,SLOPE_PARA.SHAPE)
    PSO_SLIP.XSTART(1,:,:)=X;PSO_SLIP.XSTART(2,:,:)=Y
     
   ! Initialize evolutionary optimizer
@@ -190,20 +195,23 @@ REAL(8) FUNCTION SLOPE_FOS_CAL(UNS)
 !THE VARIABLES: UNKNOWNS=UNS
     USE,INTRINSIC :: ISO_FORTRAN_ENV
     real(kind = 8), dimension(:), intent(in) :: UNS
-    REAL(8)::XT1(2),XC1(2),X1(2,SIZE(UNS)),FM1,FA1,T1
+    REAL(8)::XT1(2),XC1(2),FM1,FA1,T1
+    REAL(8)::X1(2,SLOPE_PARA.NSLICE+1)
+    
     INTEGER::ISERROR=0,N1,N2
     INTEGER::IT1=0
     
     PSO_SLIP.NFOSCAL=PSO_SLIP.NFOSCAL+1
     IT1=PSO_SLIP.NFOSCAL
 
+       
     CALL UNKNOWN2SLIPS(UNS,X1,ISERROR)
     IF(ISERROR/=0) THEN
         PRINT *, "WARNING IN SLOPE_FOS_CAL.FAIL TO GET THE SLIP SURFACE WITH THE SOLUTION"
         SLOPE_FOS_CAL=1.D10
         FA1=-999;FM1=1
     ELSE
-        CALL POLYLINE_FOS_CAL(X1,SLOPE_PARA.NDIM,SLOPE_PARA.DL,FM1,FA1)
+        CALL POLYLINE_FOS_CAL(X1,SLOPE_PARA.NSLICE+1,SLOPE_PARA.DL,FM1,FA1)
         SLOPE_FOS_CAL=ABS(FA1/FM1)
     ENDIF
     
@@ -239,16 +247,21 @@ SUBROUTINE UNKNOWN2SLIPS(UNS,X1,ISERROR)
 !ERROR STATUS:ISERROR. =0,NO ERROR. 
 
     real(kind = 8), dimension(:), intent(IN) :: UNS
-    REAL(8),INTENT(OUT)::X1(2,SIZE(UNS))
+    REAL(8),INTENT(OUT)::X1(:,:)
     INTEGER,INTENT(OUT)::ISERROR
     REAL(8)::XT1(2),XC1(2),UNS1(SIZE(UNS))
-    INTEGER::IFLAG=1
+    INTEGER::IFLAG=1,N1
     
     UNS1=UNS
-    CALL GET_ENTRY_EXIT([UNS(1),UNS(SLOPE_PARA.NDIM)],XT1,XC1)
+    IF(SLOPE_PARA.SHAPE==0) THEN
+        N1=SLOPE_PARA.NDIM
+    ELSE
+        N1=2
+    ENDIF
+    CALL GET_ENTRY_EXIT([UNS(1),UNS(N1)],XT1,XC1)
     IFLAG=1;ISERROR=0
     CALL GEN_ADMISSIBLE_SLIP_SURFACE(XT1,XC1,SLOPE_PARA.NSLICE,SLOPE_PARA.GX,SLOPE_PARA.NGX,&
-        SLOPE_PARA.RX,SLOPE_PARA.NRX,UNS1,IFLAG,X1(1,:),X1(2,:),ISERROR)
+        SLOPE_PARA.RX,SLOPE_PARA.NRX,UNS1,IFLAG,X1(1,:),X1(2,:),ISERROR,ISHAPE=SLOPE_PARA.SHAPE)
     
 ENDSUBROUTINE
 
@@ -263,7 +276,7 @@ SUBROUTINE GET_ENTRY_EXIT(RAD1,XT1,XC1)
     IF(IFLAG_OPTIM/=1) THEN
         XC1(2)=INTERPOLATION(SLOPE_PARA.GX(1,:),SLOPE_PARA.GX(2,:),SLOPE_PARA.NGX,XC1(1))
     ELSE
-        XC1(2)=IFLAG_OPTIM_PARA(2)
+        XC1(2)=IFLAG_OPTIM_PARA(2) !STREAMLINE REPAIR
     ENDIF
 END SUBROUTINE
 
@@ -424,6 +437,22 @@ SUBROUTINE SLOPE_PARA_PARSER(INDATA,COMMAND,UNIT)
 					    call Err_msg(COMMAND.OPTION(i).name)                        
                 end select
             ENDDO
+        CASE('ssgm')
+            print *, 'Reading initial slip surface generation method data...'
+            DO i=1, COMMAND.NOPT
+			    select case(COMMAND.OPTION(i).NAME)
+				    case('method')
+					    INDATA.ssgm=int(COMMAND.OPTION(i).VALUE)
+				    case default
+					    call Err_msg(COMMAND.OPTION(i).name)                        
+                end select
+            ENDDO 
+            IF(INDATA.ssgm==2) THEN
+                READ(UNIT,*)  INDATA.NWSP
+                IF(ALLOCATED(INDATA.WSP)) DEALLOCATE(INDATA.WSP)
+                ALLOCATE(INDATA.WSP(2,INDATA.NWSP))
+                READ(UNIT,*)  INDATA.WSP
+            ENDIF
         CASE('optims','optimpara')
             print *, 'Reading SLOPE OPTIMPARAMETERS data...'
             N1=0
@@ -454,9 +483,8 @@ SUBROUTINE SLOPE_PARA_PARSER(INDATA,COMMAND,UNIT)
                         N1=1
                     case('max_iter','maxiter')
                         INDATA.max_iter=int(COMMAND.OPTION(i).VALUE)
-                    case('ndim')
-                        INDATA.ndim=int(COMMAND.OPTION(i).VALUE)
-                        INDATA.nslice=INDATA.ndim-1
+                    case('nslice')
+                        INDATA.nslice=int(COMMAND.OPTION(i).VALUE)                        
                     case('dl')
                         INDATA.dl=COMMAND.OPTION(i).VALUE
                     case('strategy')
@@ -465,12 +493,19 @@ SUBROUTINE SLOPE_PARA_PARSER(INDATA,COMMAND,UNIT)
                         INDATA.sigma=COMMAND.OPTION(i).VALUE
                     CASE('mu_perc')
                         INDATA.mu_perc=COMMAND.OPTION(i).VALUE
+                    CASE('shape')
+                        INDATA.shape=int(COMMAND.OPTION(i).VALUE)
 				    case default
 					    call Err_msg(COMMAND.OPTION(i).name)
 			    end select
 		    end do
-            IF(N1==0) INDATA.popsize=INDATA.ndim*2
             
+            IF(INDATA.shape==0) THEN
+                INDATA.ndim=INDATA.nslice+1                
+            ELSE
+                INDATA.ndim=3 !CIRCULAR SLIP SURFACE
+            ENDIF
+            IF(N1==0) INDATA.popsize=max(INDATA.ndim*2,60)
         CASE DEFAULT
              call Err_msg(COMMAND.KEYWORD)
         END SELECT
@@ -763,7 +798,7 @@ ENDFUNCTION
 
 
 
-SUBROUTINE GEN_SLIP_SAMPLE(XTL,XTU,XCL,XCU,NSEG,NSLIP,GX,NGX,RX,NRX,X,Y,RDF)
+SUBROUTINE GEN_SLIP_SAMPLE(XTL,XTU,XCL,XCU,NSEG,NSLIP,GX,NGX,RX,NRX,X,Y,RDF,ISHAPE)
 
 !GIVEN:
 !THE LIMITS OF THE SLOPE TOE: XTL,XTU
@@ -772,6 +807,7 @@ SUBROUTINE GEN_SLIP_SAMPLE(XTL,XTU,XCL,XCU,NSEG,NSLIP,GX,NGX,RX,NRX,X,Y,RDF)
 !GROUND SURFACE: GX(2,NGX)
 !BEDROCK SURFACE: RX(2,NRX)
 !NUMBER OF SUBDIVISION OF EACH SLIP LINE: NSEG>1
+!SLIP SURFACE SHAPE: ISHAPE,=0,NONCIRCULAR(BYDEFAULT),=1,CIRCULAR
 !RETURN:
 !THE SLIP NODES: X(NSEG+1,NSLIP),Y(NSEG+1,NSLIP)
 !(RADOM) FACTOR: RDF(NSEG+1)
@@ -779,12 +815,19 @@ SUBROUTINE GEN_SLIP_SAMPLE(XTL,XTU,XCL,XCU,NSEG,NSLIP,GX,NGX,RX,NRX,X,Y,RDF)
     IMPLICIT NONE
 
     INTEGER,INTENT(IN)::NSEG,NSLIP,NGX,NRX
+    INTEGER,OPTIONAL,INTENT(IN)::ISHAPE
     REAL(8),INTENT(IN)::XTL,XTU,XCL,XCU,GX(2,NGX),RX(2,NRX)
-    REAL(8),INTENT(OUT)::X(NSEG+1,NSLIP),Y(NSEG+1,NSLIP),RDF(NSEG+1,NSLIP)
+    REAL(8),INTENT(OUT)::X(NSEG+1,NSLIP),Y(NSEG+1,NSLIP),RDF(:,:)
+    
 
-    INTEGER::I,J,ISERROR=1,NITER=0,IFLAG=0,NITER2=0
+    INTEGER::I,J,ISERROR=1,NITER=0,IFLAG=0,NITER2=0,ISHAPE1
     REAL(8)::R1,R2,XT(2),XC(2),YL(NSEG+1),YU(NSEG+1)
 
+    IF(PRESENT(ISHAPE)) THEN
+        ISHAPE1=ISHAPE
+    ELSE
+        ISHAPE1=0
+    ENDIF
     
     CALL RANDOM_SEED()
     J=1;NITER2=0
@@ -803,8 +846,13 @@ SUBROUTINE GEN_SLIP_SAMPLE(XTL,XTU,XCL,XCU,NSEG,NSLIP,GX,NGX,RX,NRX,X,Y,RDF)
         ENDIF
         ISERROR=1;NITER=0;IFLAG=0
         DO WHILE(ISERROR/=0.AND.NITER<10)
-            CALL GEN_ADMISSIBLE_SLIP_SURFACE(XT,XC,NSEG,GX,NGX,RX,NRX,RDF(:,J),IFLAG,X(:,J),Y(:,J),ISERROR,YL,YU)
-            RDF(1,J)=R1;RDF(NSEG+1,J)=R2
+            CALL GEN_ADMISSIBLE_SLIP_SURFACE(XT,XC,NSEG,GX,NGX,RX,NRX,RDF(:,J),IFLAG,X(:,J),Y(:,J),ISERROR,YL,YU,ISHAPE1)
+            RDF(1,J)=R1;
+            IF(ISHAPE1==0) THEN
+                RDF(NSEG+1,J)=R2
+            ELSE
+                RDF(2,J)=R2
+            ENDIF
             IF(ISERROR/=0) THEN
                 NITER=NITER+1
             ENDIF            
@@ -824,7 +872,7 @@ SUBROUTINE GEN_SLIP_SAMPLE(XTL,XTU,XCL,XCU,NSEG,NSLIP,GX,NGX,RX,NRX,X,Y,RDF)
 
 ENDSUBROUTINE
     
-SUBROUTINE GEN_ADMISSIBLE_SLIP_SURFACE(XT,XC,NSEG,GX,NGX,RX,NRX,RDF,IFLAG,X,Y,ISERROR,YL,YU)
+SUBROUTINE GEN_ADMISSIBLE_SLIP_SURFACE(XT,XC,NSEG,GX,NGX,RX,NRX,RDF,IFLAG,X,Y,ISERROR,YL,YU,ISHAPE)
 !REFERRENC: Cheng YM, Li L, Chi SC. Performance studies on six heuristic global optimization methods in the
 ! location of critical slip surface. Computers and Geotechnics. 2007;34(6):462-484.
 !GIVEN:
@@ -836,6 +884,7 @@ SUBROUTINE GEN_ADMISSIBLE_SLIP_SURFACE(XT,XC,NSEG,GX,NGX,RX,NRX,RDF,IFLAG,X,Y,IS
 !IFLAG:
 !=1 USE RDF TO GENERATE A SLIP SURFACE
 !/=1, USE RADOM FACTOR TO GENERATE A SLIP SURFACE, AND RETURN THE FACTOR IN RDF.
+!ISHAPE: SHAPE OF SLIP SURFACE, =0(BYDEFAULT) NONCIRCULAR, =1, CIRCULAR
 !RETURN: 
 !THE X COMPONENT OF THE VETEX OF THE SLIP LINE:X(NSEG+1)
 !THE Y COMPONENT : Y(NSEG+1)
@@ -844,13 +893,15 @@ SUBROUTINE GEN_ADMISSIBLE_SLIP_SURFACE(XT,XC,NSEG,GX,NGX,RX,NRX,RDF,IFLAG,X,Y,IS
 IMPLICIT NONE
 INTEGER,INTENT(IN)::NGX,NRX,NSEG,IFLAG
 REAL(8),INTENT(IN)::XT(2),XC(2),GX(2,NGX),RX(2,NRX)
-REAL(8),INTENT(INOUT)::RDF(NSEG+1)
+REAL(8),INTENT(INOUT)::RDF(:)
 REAL(8),INTENT(OUT)::X(NSEG+1),Y(NSEG+1)
 REAL(8),OPTIONAL,INTENT(OUT)::YU(NSEG+1),YL(NSEG+1) 
 INTEGER,INTENT(OUT)::ISERROR
+INTEGER,OPTIONAL,INTENT(IN)::ISHAPE
 
-INTEGER::I,J,NX
+INTEGER::I,J,NX,ISHAPE1
 REAL(8)::DX1,YU1,YL1,K1,YCL1
+REAL(8)::RMIN,RMAX,CENTER(2,2),R1,CENT1(2),RA1(7)
 
 !REAL(8),EXTERNAL::INTERPOLATION
 
@@ -866,6 +917,14 @@ IF(NSEG==1) THEN
     Y=[XT(2),XC(2)];
     RETURN
 ENDIF
+
+IF(PRESENT(ISHAPE)) THEN
+    ISHAPE1=ISHAPE
+ELSE
+    ISHAPE1=0
+ENDIF
+
+
 
 NX=NSEG+1
 DX1=(XC(1)-XT(1))/NSEG
@@ -894,9 +953,47 @@ IF(IFLAG/=1) THEN
     call random_number(RDF)
 ENDIF
 
-DO I=2,NSEG    
+IF(ISHAPE/=0) THEN
+    CALL GEN_CIRCULAR_SLIP(XT(1),XC(1),RMIN,RMAX,CENTER)
+    IF(RMIN>RMAX) THEN
+        ISERROR=1
+        PRINT *, "UNADMISSIBILITY OCCURS IN GEN_ADMISSIBLE_SLIP_SURFACE. RMAX<RMIN" 
+        RETURN
+    ENDIF
+    !R1=RMIN+RDF(3)*(RMAX-RMIN)
+    CENT1=CENTER(:,1)+RDF(3)*(CENTER(:,2)-CENTER(:,1))
+    R1=NORM2(CENT1-XT)
+    !IF(ABS(R1-NORM2(CENT1-XC))>0.01) THEN
+    !    PRINT *, 'UNEXPECTED 1'
+    !    PAUSE
+    !ENDIF
+ENDIF
+
+
+DO I=2,NSEG
+    
+    
     YL1=INTERPOLATION(RX(1,:),RX(2,:),NRX,X(I))    
     YU1=INTERPOLATION(GX(1,:),GX(2,:),NGX,X(I))
+    
+    IF(ISHAPE1/=0) THEN
+        RA1=CIRCLE_LINE_INTERSECTION(CENT1,R1,[X(I),YU1],[X(I),-1.D10])
+        IF(NINT(RA1(1))>1.1) THEN
+            IF(RA1(4)<=1.D0.AND.RA1(4)>=0.D0) THEN
+                Y(I)=RA1(3)
+            ELSEIF(RA1(7)<=1.D0.AND.RA1(7)>=0.D0) THEN
+                Y(I)=RA1(6)
+            ELSE
+                PRINT *, 'SOMETHING WRONG IN GEN_ADMISSIBLE_SLIP_SURFACE.IT SHOULD NOT RUN INTO HERE.'
+            ENDIF
+        ELSE
+            PRINT *, 'SOMETHING WRONG IN GEN_ADMISSIBLE_SLIP_SURFACE.IT SHOULD HAVE TWO INTERSECTION POINTS.'            
+        ENDIF
+        IF(Y(I)<YL1) THEN
+            Y(I)=YL1
+        ENDIF
+        CYCLE
+    ENDIF
     
     !IMPROVED BY LGY
     K1=(Y(I-1)-Y(NX))/(X(I-1)-X(NX))
@@ -938,41 +1035,348 @@ ENDDO
 
 END SUBROUTINE    
 
-function interpolation(x,y,nx,xi)
-!x,y must be in order.
-	implicit none
-	INTEGER,PARAMETER::Double=KIND(1.0D0)
-    integer,intent(in)::nx
-	real(double),intent(in)::x(nx),y(nx),xi
-	real(double)::interpolation,t1
-	integer::i
-    
-    interpolation=0.D0
-    
-    if(nx==1.AND.ABS(XI-X(1))<1.D-6) then
-       interpolation=y(1)
-       return
-    endif
-    do i=1,nx-1
-        if((xi<=x(i+1).and.xi>=x(i)).or.(xi<=x(i).and.xi>=x(i+1))) then
-	        t1=x(i+1)-x(i)
-	        if(abs(t1)<1e-7) then
-		        print *, "Warning! 分母=0,function=Interpolation()"
-		        interpolation=(y(i)+y(i+1))/2.0d0
-	        else
-		        interpolation=(y(i+1)-y(i))/(t1)*(xi-x(i))+y(i)
-            endif
-            return
-        endif
-    enddo
-    if(i==nx) then
-        stop "xi is out of the range.function=Interpolation()"
-    endif
-    
-    
-endfunction
 
 
+SUBROUTINE GEN_CIRCULAR_SLIP(XT,XC,RMIN,RMAX,CENTER)
+!GIVEN:
+!X ORDINATE OF THE EXIT ANE ENTRY POINT: XT AND XC
+!RETURN:
+!RADIUS LIMITS OF ADMISSIBLE CIRCLAR SLIPS: RMIN,RMAX
+!CENTER(2,2):CENTER(:,1)=CENTER FOR RMIN,...
+!DEPENDS:
+!SLOPE_PARA:Gx,Rx
+
+REAL(8),INTENT(IN)::XT,XC
+REAL(8),INTENT(OUT)::RMIN,RMAX,CENTER(2,2)
+REAL(8)::YT,YC,TCL1,RA1(7),P1(2),P2(2),P3(2),R1,RA2(11),K1,T1,DX,DY
+INTEGER::I,J,K,SD1,ISACW1
+
+
+YT=SLOPE_PARA.GETY(XT)
+YC=SLOPE_PARA.GETY(XC)
+
+CENTER(:,1)=([XT,YT]+[XC,YC])/2.0
+RMIN=NORM2([XT,YT]-[XC,YC])/2.0
+
+
+RMAX=100*RMIN
+
+IF(ABS(YC-YT)<1.D-8) THEN
+    K1=1.D8
+ELSE
+    K1=-(XC-XT)/(YC-YT)
+ENDIF
+T1=(RMAX**2-RMIN**2)**0.5
+DY=T1/(1+(1/K1)**2)**0.5
+DX=DY/K1
+
+!RA1(1:4)=CIRCLE_3P([XT,YT,XC,YC,CENTER(1,1),CENTER(2,1)-0.001])
+!RMAX=RA1(4)
+CENTER(:,2)=CENTER(:,1)+[DX,DY]
+
+!CHECK ADMISSIBILITY
+
+IF(ABS(XC-XT)>1E-7) THEN
+    SD1=INT(SIGN(1.,(YC-YT)/(XC-XT))) !LEFT SLIDE SLOPE=1,RIGHT SLIDE SLOPE=-1
+ELSE
+    SD1=1
+ENDIF
+
+
+!Rmax
+!CHECK WHETHER THERE IS ANY POINT BETWEEN XT,XC ON THE GE OUTSIDE THE CIRCLE
+DO I=1,SLOPE_PARA.NGX
+    IF((SLOPE_PARA.GX(1,I)-XT)*(SLOPE_PARA.GX(1,I)-XC)<0.0D0) THEN
+        ISACW1=ISACW(XT,YT,0.D0,XC,YC,0.D0,SLOPE_PARA.GX(1,I),SLOPE_PARA.GX(2,I),0.D0)
+        IF(ISACW1>1) CYCLE !COLINEAR
+        IF(ISACW1*SD1>0) CYCLE 
+        RA1(1:4)=CIRCLE_3P([XT,YT,XC,YC,SLOPE_PARA.GX(:,I)])
+        IF(ABS(RA1(1))<1.E-7.AND.RA1(4)<RMAX) THEN !NO ERROR
+             CENTER(:,2)=RA1(2:3);RMAX=RA1(4)
+        ENDIF
+    ENDIF
+ENDDO
+!Rmin
+!DO I=0,SLOPE_PARA.NRX
+!    IF(I==0) THEN
+!        P1(1)=SLOPE_PARA.RX(1,1)
+!        P1(2)=SLOPE_PARA.GETY(P1(1))
+!    ELSE
+!        P1=SLOPE_PARA.RX(:,I)
+!    ENDIF
+!    IF(I==SLOPE_PARA.NRX) THEN
+!        P2(1)=SLOPE_PARA.RX(1,I)
+!        P2(2)=SLOPE_PARA.GETY(P2(1))
+!    ELSE
+!        P2=SLOPE_PARA.RX(:,I+1)
+!    ENDIF
+!    
+!    RA1=CIRCLE_LINE_INTERSECTION(CENTER(:,1),RMIN,P1,P2)
+!    
+!    
+!    
+!    IF(RA1(1)>1.1) THEN 
+!        IF((RA1(4)<0.D0.AND.RA1(7)<0.D0).OR.(RA1(4)>1.D0.AND.RA1(7)>1.D0)) CYCLE
+!        !P3=[(RA1(2)+RA1(5))/2.0,(RA1(3)+RA1(6))/2.0]
+!        !RA1(1:4)=CIRCLE_3P([XT,YT,XC,YC,P3])
+!        RA2(:11)=CIRCLE_2P_TANGENTLINE(RESHAPE([XT,YT,XC,YC,P1,P2],([2,4])))
+!        
+!        IF(ABS(RA2(1))<1E-7) THEN
+!            R1=RA2(6);P3=RA2(2:3)
+!        ELSEIF(RA2(1)>0.5) THEN
+!            IF(RA2(6)<=RA2(11)) THEN
+!                R1=RA2(6);P3=RA2(2:3)
+!            ELSE
+!                R1=RA2(11);P3=RA2(7:8)
+!            ENDIF
+!        ENDIF
+!        
+!                
+!        IF(R1>RMIN) THEN
+!            CENTER(:,1)=P3;RMIN=R1               
+!        ENDIF
+!        
+!        !IF(CENTER(2,1)-RMIN<19.999) THEN
+!        !    PRINT *, 'UNEXPECTED ERROR 3'
+!        !    PAUSE
+!        !ENDIF
+!       
+!    ENDIF 
+!    
+!ENDDO
+
+!MAX(X OF CIRCULAR SLIP) MUST <XC FOR LEFT SLOPE, AND >XC FOR RIGHT SLOPE.
+P1(1)=XC
+P1(2)=YC+0.01
+RA1(1:4)=CIRCLE_3P([XT,YT,XC,YC,P1])
+IF(RA1(4)>RMIN) THEN
+    CENTER(:,1)=RA1(2:3);RMIN=RA1(4)                
+ENDIF
+
+IF(RMAX<RMIN) THEN
+    WRITE(*,100)
+    WRITE(*,200) XT,YT,XC,YC,CENTER(:,1),RMIN,CENTER(:,2),RMAX
+    PAUSE
+ENDIF
+
+100 FORMAT('CANNOT FIND A COMPATABLE CIRCULAR SLIP.')
+200 FORMAT('[XT,YT,XC,YC,XMIN,YMIM,RMIN,XMAX,YMAX,RMAX]=',10(F10.4,1X))
+
+ENDSUBROUTINE
+
+FUNCTION CIRCLE_LINE_INTERSECTION(CENTER,R,P1,P2) RESULT(INTERSECT)
+!GIVEN:
+!CIRCLE:CENTER(2),R
+!LINE:P1,P2
+!RETURN
+!INTERSECTION:INTERSECT(0:4),INTERSECT(0)=-1,ERROR,INTERSECT(0)=0,NO INTERSECT,=1,ONE INTERSECT;=2,TWO INTERSECTS.
+REAL(8),INTENT(IN)::CENTER(2),R,P1(2),P2(2)
+REAL(8)::INTERSECT(0:6) 
+!INTERSECT(1:6)=[X1,Y1,U1,X2,Y2,U2] 
+!IF 0<=U<=1, THE INTERSECT POINT (IP) INSIDE [P1,P2],P1-IP-P2
+!IF U<0 IP-P1-P2
+!IF U>1 P1-P2-IP
+REAL(8)::A,B,C,T1,U
+
+!a = (x2 - x1)2 + (y2 - y1)2 + (z2 - z1)2
+!b = 2[ (x2 - x1) (x1 - x3) + (y2 - y1) (y1 - y3) + (z2 - z1) (z1 - z3) ]
+!c = x32 + y32 + z32 + x12 + y12 + z12 - 2[x3 x1 + y3 y1 + z3 z1] - r2
+
+A=SUM((P2-P1)**2)
+B=2*DOT_PRODUCT((P2-P1),(P1-CENTER))
+C=SUM(CENTER**2+P1**2)-2*DOT_PRODUCT(CENTER,P1)-R**2
+
+INTERSECT=-1.D0
+
+IF(ABS(A)<1.D-10) THEN
+    IF(IS_IN_CIRCLE(CENTER,R,P1)==0) THEN
+        INTERSECT(0)=1.0
+        INTERSECT(1:2)=P1
+        INTERSECT(3)=0.D0
+    ENDIF
+    RETURN
+ENDIF
+
+T1=B**2-4*A*C
+
+IF(T1>=0.D0) THEN
+    T1=SQRT(T1)
+    IF(T1<1.E-7) THEN
+        U=-B/(2*A)
+        INTERSECT(0)=1.0
+        INTERSECT(1:2)=P1+U*(P2-P1)
+        INTERSECT(3)=U
+    ELSE
+        INTERSECT(0)=2.0
+        U=(-B+T1)/(2*A)
+        INTERSECT(1:2)=P1+U*(P2-P1)
+        INTERSECT(3)=U
+        U=(-B-T1)/(2*A)
+        INTERSECT(4:5)=P1+U*(P2-P1)
+        INTERSECT(6)=U
+    ENDIF
+ENDIF
+
+
+
+END FUNCTION
+
+INTEGER FUNCTION IS_IN_CIRCLE(CENTER,R,P)
+!GIVEN:
+!CIRCLE:CENTER(2),R,
+!POINT P(2)
+!RETURN:
+!1,INSIDE,-1=OUSIDE,0=ON THE CIRCLE LINE
+
+REAL(8),INTENT(IN)::CENTER(2),R,P(2)
+REAL(8)::T1
+
+T1=R-NORM2(CENTER-P)
+
+IF(ABS(T1)<1.E-7) THEN
+    IS_IN_CIRCLE=0
+ELSE
+    IS_IN_CIRCLE=NINT(SIGN(1.D0,T1))
+ENDIF
+
+
+END FUNCTION
+
+REAL(8) FUNCTION GET_BC_Y(SELF,X,FLAG)
+!GIVEN:
+!X
+!FLAG, =0, GETY FROM GE,=1 GET Y FROM RE,=OTHERS,GET Y FROM WSP
+!RETURN:
+!Y
+
+CLASS(SLOPE_PSO_PARAR)::SELF
+REAL(8),INTENT(IN)::X
+INTEGER,OPTIONAL,INTENT(IN)::FLAG
+REAL(8),DIMENSION(:,:),ALLOCATABLE:: PLINE1
+INTEGER::IFLAG1
+
+IF(PRESENT(FLAG)) THEN
+    IFLAG1=FLAG    
+ELSE
+    IFLAG1=0
+ENDIF
+
+IF(IFLAG1==0) THEN
+    PLINE1=SELF.GX
+ELSEIF(IFLAG1==1) THEN
+    PLINE1=SELF.RX
+ELSE
+    PLINE1=SELF.WSP
+ENDIF
+
+GET_BC_Y=interpolation(PLINE1(1,:),PLINE1(2,:),SIZE(PLINE1,DIM=2),X)
+
+IF(ALLOCATED(PLINE1)) DEALLOCATE(PLINE1)
+
+END FUNCTION
+
+
+FUNCTION CIRCLE_3P(PT) RESULT(CR)
+!REF:https://www.qc.edu.hk/math/Advanced%20Level/circle%20given%203%20points.htm
+    !GIVEN:
+    !THREE POINTS(NOT COLINEAR),PT(2,3)
+    !RETURN:
+    !CENTER AND R IN CR(3)
+    REAL(8),INTENT(IN)::PT(2,3)
+    REAL(8)::CR(0:3) ![ERROR,CX,CY,R] ERROR=-1,COLINEAR
+    REAL(8)::K1,K2
+
+    CR=0.D0
+    !TEST WHETHER COLINEAR
+    IF(ISACW(PT(1,1),PT(2,1),0.D0,PT(1,2),PT(2,2),0.D0,PT(1,3),PT(2,3),0.D0)>1) THEN
+        PRINT *, 'THREE POINTS ARE COLINEAR.'
+        CR(0)=-1.    
+        RETURN
+    ENDIF
+
+    IF(ABS(PT(2,2)-PT(2,1))>1E-8) THEN
+        K1=-((PT(1,2)-PT(1,1)))/(PT(2,2)-PT(2,1))
+    ELSE
+        K1=1.D8
+    ENDIF
+
+    IF(ABS(PT(2,3)-PT(2,1))>1E-8) THEN
+        K2=-((PT(1,3)-PT(1,1)))/(PT(2,3)-PT(2,1))
+    ELSE
+        K2=1.D8
+    ENDIF
+    CR(1)=(-K1*PT(1,2)+K2*PT(1,3)+PT(2,2)-PT(2,3))/(K2-K1)
+    CR(2)=K1*(CR(1)-PT(1,2))+PT(2,2)
+    CR(3)=NORM2(PT(:,1)-CR(1:2))/2.0
+    CR(1:2)=(PT(:,1)+CR(1:2))/2.0
+
+END FUNCTION
+
+FUNCTION CIRCLE_2P_TANGENTLINE(PT) RESULT(CR)
+!REF:https://www.cut-the-knot.org/Curriculum/Geometry/GeoGebra/PPL.shtml#solution
+    !GIVEN:
+    !TWO POINTS,PT(2,1:2) AND LINE DEFINED BY PT(2,3:4)
+    !RETURN:
+    !CENTER, TANGENT POINT AND  R IN CR(0:10), CR(0)=ERROR CODE, =0, ONE CIRCLE,=1,TWO CIRCE.
+    REAL(8),INTENT(IN)::PT(2,4)
+    REAL(8)::CR(0:10) ![ERROR,CX1,CY1,PT1X,PT1Y,R1,CX2,CY2,PT2X,PT2Y,R2] ERROR=-1,COLINEAR
+    REAL(8)::K1,K2,PT5(2),DX1,DY1,PT6(2),PT7(2),XC1(2),T1
+
+    
+    CR(0)=0.D0
+    !INTERSECTION OF P1P2 AND P3P4
+
+    IF(ABS(PT(1,2)-PT(1,1))>1E-8) THEN
+        K1=(PT(2,2)-PT(2,1))/(PT(1,2)-PT(1,1))
+    ELSE
+        K1=1.D8
+    ENDIF
+
+    IF(ABS(PT(1,3)-PT(1,4))>1E-8) THEN
+        K2=((PT(2,3)-PT(2,4)))/(PT(1,3)-PT(1,4))
+    ELSE
+        K2=1.D8
+    ENDIF
+    XC1=(PT(:,1)+PT(:,2))/2.0
+
+    IF(ABS(K1-K2)<1E-7)THEN
+        IF(ABS(K1)<1E-7) K1=1E-7
+        K1=-1/K1
+        PT6(1)=(-K1*XC1(1)+K2*PT(1,3)+XC1(2)-PT(2,3))/(K2-K1)
+        PT6(2)=K1*(PT6(1)-XC1(1))+XC1(2)
+        CR(:3)=CIRCLE_3P([PT(:,1:2),PT6])
+        CR(3:4)=PT6
+        CR(5)=CR(3)
+        RETURN
+    ENDIF
+
+
+    PT5(1)=(-K1*PT(1,2)+K2*PT(1,3)+PT(2,2)-PT(2,3))/(K2-K1)
+    PT5(2)=K1*(PT5(1)-PT(1,2))+PT(2,2)
+
+    !Power of a Point Theorem
+    T1=NORM2(PT(:,1)-PT5)*NORM2(PT(:,2)-PT5)
+    DX1=(T1/(1+K2**2))**0.5
+    DY1=DX1*K2
+    PT6=PT5+[DX1,DY1];PT7=PT5-[DX1,DY1]
+
+    IF(ABS(K1)<1E-8) K1=1E-8
+    IF(ABS(K2)<1E-8) K2=1E-8
+
+    K1=-1/K1;K2=-1/K2
+
+    CR(0)=1.D0
+    CR(1)=(-K1*XC1(1)+K2*PT6(1)+XC1(2)-PT6(2))/(K2-K1)
+    CR(2)=K1*(CR(1)-XC1(1))+XC1(2)
+    CR(3:4)=PT6
+    CR(5)=NORM2(CR(1:2)-PT6)
+
+    CR(6)=(-K1*XC1(1)+K2*PT7(1)+XC1(2)-PT7(2))/(K2-K1)
+    CR(7)=K1*(CR(4)-XC1(1))+XC1(2)
+    CR(8:9)=PT7
+    CR(10)=NORM2(CR(6:7)-PT7)
+
+ENDFUNCTION
 
 SUBROUTINE POLYLINE_FOS_CAL(X,NX,DL,FM,FA)
 !GIVEN:
@@ -1072,7 +1476,9 @@ SUBROUTINE POINT_SFR_CAL(X,RAD,TAU,TAUF)
     
 	CALL ProbeatPhyscialspace([X,0.D0],VAL1(1:POSDATA.NVAR),iel1)
     IF(IEL1==0) THEN
-        PRINT *, 'POINT LOCATION FAILED.X=',X    
+        TAU=0.D10;TAUF=1.D10
+        PRINT *, 'POINT LOCATION FAILED.X=',X 
+        RETURN
     ENDIF
 			
 	SS(1:3)=[VAL1(POSDATA.ISXX),VAL1(POSDATA.ISYY),VAL1(POSDATA.ISXY)]
@@ -1089,5 +1495,83 @@ SUBROUTINE POINT_SFR_CAL(X,RAD,TAU,TAUF)
 
 END SUBROUTINE
 
+integer function isacw(x1,y1,z1,x2,y2,z2,x3,y3,z3)
+	implicit none
+	real(8),intent(in)::x1,y1,z1,x2,y2,z2,x3,y3,z3
+    real(8)::t1,yn2,xn2,zn2,yn3,xn3,zn3,norm1(3),t2
+	
+	isacw=0
+    !isacw=1,=2,onedge,=3,coline;
+    
+	yn2=y2-y1
+	xn2=x2-x1
+    zn2=z2-z1
+	yn3=y3-y1
+	xn3=x3-x1    
+    zn3=z3-z1
+    norm1=[yn2*zn3-zn2*yn3,-(xn2*zn3-zn2*xn3),xn2*yn3-yn2*xn3]
+    t2=norm2(norm1)
+    if(t2<1e-10) then !共线
+        ISACW=3
+        if(x1<min(x3,x2)) return
+        if(X1>max(x3,x2)) return
+        if(Y1<min(y3,y2)) return
+        if(Y1>max(y3,y2)) return 
+        if(Z1<min(z3,z2)) return
+        if(Z1>max(z3,z2)) return 
+        isacw=2 !on the edge
+    else
+        !t1=(xn2*yn3-yn2*xn3)+(yn2*zn3-zn2*yn3)-(xn2*zn3-zn2*xn3)
+        !if(abs(t1)<1.d-10) then 
+            !与(1,1,1)垂直            
+        if(abs(norm1(3))>1e-10) then
+            isacw=sign(1.,norm1(3)) !从+z看
+        elseif(abs(norm1(1))>1e-10) then
+            isacw=sign(1.,norm1(1)) !从+x看
+        elseif(abs(norm1(2))>1e-10) then
+            isacw=sign(1.,norm1(2)) !从+y看
+        endif
+        !else
+            !从(1,1,1)方向看
+        !    isacw=sign(1.,t1)
+        !endif
+    endif
+	
+
+end function
+
+function interpolation(x,y,nx,xi)
+!x,y must be in order.
+	implicit none
+	INTEGER,PARAMETER::Double=KIND(1.0D0)
+    integer,intent(in)::nx
+	real(double),intent(in)::x(nx),y(nx),xi
+	real(double)::interpolation,t1
+	integer::i
+    
+    interpolation=0.D0
+    
+    if(nx==1.AND.ABS(XI-X(1))<1.D-6) then
+       interpolation=y(1)
+       return
+    endif
+    do i=1,nx-1
+        if((xi<=x(i+1).and.xi>=x(i)).or.(xi<=x(i).and.xi>=x(i+1))) then
+	        t1=x(i+1)-x(i)
+	        if(abs(t1)<1e-7) then
+		        print *, "Warning! 分母=0,function=Interpolation()"
+		        interpolation=(y(i)+y(i+1))/2.0d0
+	        else
+		        interpolation=(y(i+1)-y(i))/(t1)*(xi-x(i))+y(i)
+            endif
+            return
+        endif
+    enddo
+    if(i==nx) then
+        stop "xi is out of the range.function=Interpolation()"
+    endif
+    
+    
+endfunction
 
 END MODULE
