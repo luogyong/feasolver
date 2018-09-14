@@ -404,6 +404,19 @@ SUBROUTINE SLOPE_PARA_PARSER(INDATA,COMMAND,UNIT)
             IF(ALLOCATED(INDATA.RX)) DEALLOCATE(INDATA.RX)
             ALLOCATE(INDATA.RX(2,INDATA.NRX))
             READ(UNIT,*)  INDATA.RX
+        CASE('wsp','ws','wsb')
+            print *, 'Reading Weak soil bottom data...'
+		    do i=1, COMMAND.NOPT
+			    select case(COMMAND.OPTION(i).NAME)
+				    case('num')
+					    INDATA.NWSP=COMMAND.OPTION(i).VALUE
+				    case default
+					    call Err_msg(COMMAND.OPTION(i).name)
+			    end select
+		    end do
+            IF(ALLOCATED(INDATA.wsp)) DEALLOCATE(INDATA.wsp)
+            ALLOCATE(INDATA.WSP(2,INDATA.nwsp))
+            READ(UNIT,*)  INDATA.wsp            
         CASE('x_e&e','xlimit','x_entry_and_exit','x_search_limits')
             print *, 'Reading SLOPE ENTRY AND EXIT LIMITS data...'
 		    do i=1, COMMAND.NOPT
@@ -900,7 +913,7 @@ INTEGER,INTENT(OUT)::ISERROR
 INTEGER,OPTIONAL,INTENT(IN)::ISHAPE
 
 INTEGER::I,J,NX,ISHAPE1
-REAL(8)::DX1,YU1,YL1,K1,YCL1
+REAL(8)::DX1,YU1,YL1,K1,YCL1,T1
 REAL(8)::RMIN,RMAX,CENTER(2,2),R1,CENT1(2),RA1(7)
 
 !REAL(8),EXTERNAL::INTERPOLATION
@@ -991,6 +1004,10 @@ DO I=2,NSEG
         ENDIF
         IF(Y(I)<YL1) THEN
             Y(I)=YL1
+        ENDIF
+        IF(SLOPE_PARA.NWSP>0) THEN
+            T1=SLOPE_PARA.GETY(X(I),2)
+            Y(I)=MAX(T1,Y(I))            
         ENDIF
         CYCLE
     ENDIF
@@ -1568,7 +1585,8 @@ function interpolation(x,y,nx,xi)
         endif
     enddo
     if(i==nx) then
-        stop "xi is out of the range.function=Interpolation()"
+        interpolation=-HUGE(1.0D0)
+        print *, "xi is out of the range.function=Interpolation()"
     endif
     
     
