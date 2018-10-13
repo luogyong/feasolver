@@ -446,7 +446,7 @@ module solverds
 	real(kind=DPN),allocatable::NodalQ(:,:,:),RTime(:) !NODALQ(INODE,IVO,NNODALQ) !NNODALQ=SUM(TEIMSTEP.nsubts)
 	INTEGER::NNODALQ=0
 	integer,allocatable::bfgm_step(:)
-    
+    integer::mpi_rank = 0, mpi_size = 1, mpi_ierr
     
     INTERFACE
          PURE subroutine INVARIANT(stress,inv)

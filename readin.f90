@@ -6,7 +6,7 @@
     use ifport
 	implicit none
 	integer:: itype,unit,i,j,k
-	LOGICAL(4)::tof
+	LOGICAL(4)::tof,FILE_EXIST1
 	character(1024) term,keyword
 	character(1024)::nme
 	CHARACTER(3)        drive
@@ -37,6 +37,16 @@
     INPUTFILE=TRIM(ADJUSTL(NAME))
     CALL LOWCASE(EXT)
     msg = CHDIR(trim(drive)//trim(dir))
+    
+    FILE_EXIST1=.FALSE.
+    inquire(file='Solver_Preinput.dat', exist=FILE_EXIST1)
+    IF(FILE_EXIST1) THEN
+        print *, 'Begin to read in Solver_Preinput data...'
+        open(11,file='Solver_Preinput.dat',status='old')
+        call read_execute(11,itype,keyword,solvercommand)
+        print *, 'Reading in Solver_Preinput data done.'
+        close(11)
+    ENDIF
     
     IF(TRIM(ADJUSTL(EXT))=='.plot') THEN
         CALL plot_func(nme)

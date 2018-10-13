@@ -367,10 +367,15 @@ integer function POINTlOC_BC(Pt,TRYiel)
     real(8),intent(in)::pt(3)
     integer,intent(in)::TRYiel
     real(8)::shpfun(4)
-    integer::IEL,n1,N2,I
+    integer::IEL,n1,N2,I,N3,IEL1
     INTEGER,EXTERNAL::POINTlOC
     integer::N2E1(1:4,3:4)=reshape([2,3,1,0,3,4,2,1],[4,2])
-  
+    
+    LOGICAL::ISSEARCHED(0:NTET)
+    
+    
+    ISSEARCHED=.FALSE.
+    ISSEARCHED(0)=.TRUE.
     N2=0
     POINTlOC_BC=0
     IEL=0
@@ -402,23 +407,26 @@ integer function POINTlOC_BC(Pt,TRYiel)
     ELSE
         IEL=TRYiel
     ENDIF
-    
-    do while(.true.)
-        !N2=N2+1
+    N3=0
+    ISSEARCHED(IEL)=.TRUE.
+    do while(N3<=NTET)
+        N3=N3+1
+        
         call tetshapefun(Pt,iel,shpfun)
         n2=tet(iel).nv
         
         n1=minloc(shpfun(1:n2),dim=1)
         if(shpfun(n1)<0.d0) then            
-            !iel=tet(iel).adjelt(mod(n1,3)+1)
+            IEL1=IEL
             iel=tet(iel).adjelt(N2E1(n1,n2))
-            !PRINT *, IEL,N2
-            if(iel==0) then
+            
+            !IF ISSEARCHED(IEL)=.TRUE. DEAD CYCLE.            
+            if(iel==0.OR.ISSEARCHED(IEL)) then
                 !RECHECK BY THE FINAL METHOD.
-                POINTlOC_BC=POINTlOC(PT,TRYiel)                
+                POINTlOC_BC=POINTlOC(PT,IEL1)                
                 exit
             endif
-            
+            ISSEARCHED(IEL)=.TRUE.
         else
             POINTlOC_BC=iel
             exit

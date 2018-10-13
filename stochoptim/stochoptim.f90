@@ -10,7 +10,7 @@
 
 module stochoptim
   USE, INTRINSIC :: ISO_FORTRAN_ENV
-  use forlab, only: IPRE, RPRE, progress_perc, num2str, randu, randn, &
+  use forlab, only: IPRE, RPRE, progress_perc, num2str,rng,randu, randn, &
     randi, randperm, norm, argsort, zeros, ones, eye, prctile, mean, &
     median, diag, signum, argsort, triu, eig, savebin
 !dec$ if defined( do_mpi )
@@ -22,10 +22,10 @@ module stochoptim
   
   private
   public :: optifunc, EvolutionaryKeywords, MonteCarloKeywords, &
-    Evolutionary, MonteCarlo,EA_ITER
+    Evolutionary, MonteCarlo,rng
 
     
-    INTEGER::EA_ITER=0
+    !INTEGER::EA_ITER=0
     
   abstract interface
     real(kind = RPRE) function optifunc(x)
@@ -36,10 +36,10 @@ module stochoptim
   end interface
 
   type EvolutionaryKeywords
-    integer(kind = IPRE) :: popsize = 30, max_iter = 1000, verbose = 0
+    integer(kind = IPRE) :: popsize = 60, max_iter = 3000, verbose = 0,PITER=100
     real(kind = RPRE) :: eps1 = 1d-4, eps2 = 1d-3, w = 0.7298, c1 = 1.49618, &
       c2 = 1.49618, gamma = 1., F = 0.5, CR = 0.1, sigma = 0.5, mu_perc = 0.5,&
-      eps3=1.d-3
+      eps3=1.D-4
     logical :: constrain = .true., snap = .false.
     character(len = 5) :: solver, strategy
   contains
@@ -61,14 +61,14 @@ module stochoptim
   type Evolutionary
     procedure(optifunc), pointer, nopass :: func
     real(kind = RPRE), dimension(:), allocatable :: lower, upper
-    integer(kind = IPRE) :: n_dim, popsize = 30, max_iter = 1000, verbose = 0
+    integer(kind = IPRE) :: n_dim, popsize = 30, max_iter = 1000, verbose = 0,PITER=100
     real(kind = RPRE) :: eps1 = 1e-4, eps2 = 1e-4,eps3=1e-4
     logical :: constrain = .true., snap = .false.
     character(len = 5) :: solver, strategy
 
     real(kind = RPRE), dimension(:), allocatable :: xopt
     real(kind = RPRE) :: gfit
-    integer(kind = IPRE) :: iflag, n_iter, n_eval, n_restart
+    integer(kind = IPRE) :: iflag, n_iter, n_eval, n_restart,it
     real(kind = RPRE), dimension(:,:,:), allocatable :: models
     real(kind = RPRE), dimension(:,:), allocatable :: energy, means !,bestmodel(:,:)
     real(kind = RPRE), dimension(:), allocatable :: fitness, mu_scale, std_scale
@@ -135,10 +135,10 @@ module stochoptim
 
 contains
 
-  function init_EvolutionaryKeywords(popsize, max_iter, eps1, eps2, eps3,constrain, snap, solver, &
+  function init_EvolutionaryKeywords(popsize, max_iter, eps1, eps2, eps3,PITER,constrain, snap, solver, &
                                      w, c1, c2, gamma, F, CR, strategy, sigma, mu_perc, verbose) result(evo_kws)
     type(EvolutionaryKeywords) :: evo_kws
-    integer(kind = IPRE), intent(in), optional :: popsize, max_iter, verbose
+    integer(kind = IPRE), intent(in), optional :: popsize, max_iter, verbose,PITER
     real(kind = RPRE), intent(in), optional :: eps1, eps2, eps3,w, c1, c2, gamma, &
       F, CR, sigma, mu_perc
     logical, intent(in), optional :: constrain, snap
@@ -149,6 +149,7 @@ contains
     if ( present(eps1) ) evo_kws % eps1 = eps1
     if ( present(eps2) ) evo_kws % eps2 = eps2
     if ( present(eps3) ) evo_kws % eps2 = eps3
+    if ( present(PITER) ) evo_kws % PITER = PITER
     if ( present(constrain) ) evo_kws % constrain = constrain
     if ( present(snap) ) evo_kws % snap = snap
     if ( present(w) ) evo_kws % w = w
@@ -249,12 +250,12 @@ contains
     return
   end subroutine print_MonteCarloKeywords
 
-  function init_Evolutionary(func, lower, upper, popsize, max_iter, eps1, eps2,eps3, &
+  function init_Evolutionary(func, lower, upper, popsize, max_iter, eps1, eps2,eps3, PITER,&
                              constrain, snap, verbose) result(ea)
     type(Evolutionary) :: ea
     procedure(optifunc) :: func
     real(kind = RPRE), dimension(:), intent(in) :: lower, upper
-    integer(kind = IPRE), intent(in), optional :: popsize, max_iter, verbose
+    integer(kind = IPRE), intent(in), optional :: popsize, max_iter, verbose,PITER
     real(kind = RPRE), intent(in), optional :: eps1, eps2,eps3
     logical, intent(in), optional :: constrain, snap
 
@@ -309,6 +310,7 @@ contains
 
     if ( present(eps2) ) ea % eps2 = eps2
     if ( present(eps3) ) ea % eps3 = eps3
+    if ( present(PITER) ) ea % PITER = PITER
     if ( present(constrain) ) ea % constrain = constrain
     if ( present(snap) ) ea % snap = snap
     return
@@ -516,10 +518,13 @@ contains
       str = "TolFun"
     case(8)
       str = "TolX"
+   
     case(101)
-      str = "fitness is improved less than eps3("//num2str(self % eps3)//",[(gold-gnew)/gold]) every 100 iter." 
+      str = "fitness is improved less than eps3("//num2str(self % eps3)//",[(gold-gnew)/gold]) every "//NUM2STR(SELF.PITER)//' iter' 
     case(201)
       str =  "fitness is improved less than eps3("//num2str(self % eps3)//",[(gold-gnew)/gold]) every 200 iter."
+    case(301)
+       str =  "fitness is improved less than eps3("//num2str(self % eps3)//",[(gold-gnew)/gold]) every 1 iter."
     end select
     return
   end function flag
@@ -701,6 +706,8 @@ contains
       self % mu_perc = opt_mu_perc
       call self % cmaes(sigma = opt_sigma, mu_perc = opt_mu_perc, xstart = opt_xstart)
     end select
+    
+   
     return
   end subroutine optimize
 
@@ -885,7 +892,7 @@ contains
     real(kind = RPRE), intent(in) :: CR, F
     character(len = *), intent(in) :: strategy
     real(kind = RPRE), dimension(:,:), allocatable, intent(in) :: xstart
-    integer(kind = IPRE) :: i, it, gbidx,gbidx0,IT0
+    integer(kind = IPRE) :: i, it=0, gbidx,gbidx0,IT0
     integer(kind = IPRE), dimension(:), allocatable :: irand
     real(kind = RPRE) :: gfit
     real(kind = RPRE), dimension(:), allocatable :: pfit, pbestfit, gbest, xopt,gfitH1
@@ -896,7 +903,7 @@ contains
 
     ! Verbosity
     if ( self % verbose .eq. 1 ) call progress_perc(0, self % max_iter, " Processing: ")
-
+    it=1;self.it=it;
     ! Population initial positions
     if ( allocated(xstart) ) then
       X = self % standardize(xstart)
@@ -904,7 +911,8 @@ contains
       X = 2. * randu(self % popsize, self % n_dim) - 1.
     end if
 
-    allocate(gfith1(self.max_iter))
+    
+    allocate(gfith1(0:self.max_iter))
     ! Compute fitness
     pfit = self % eval_models(X)
     pbestfit = pfit
@@ -926,12 +934,12 @@ contains
     !self % bestmodel(:,:) = self % unstandardize(X) !bestmodel[popsize,ndim]
 
     ! Iterate until one of the termination criterion is satisfied
-    it = 1
+    !it = 1
     gfith1(it)=gfit
     converge = .false.
     allocate(mask2(self % popsize, self % n_dim))
     do while ( .not. converge )
-      it = it + 1
+      it = it + 1;self.it=it;
       r1 = randu(self % popsize, self % n_dim)
 
       ! Mutation
@@ -963,30 +971,34 @@ contains
 
       gbidx = minloc(pbestfit, dim = 1)
 
-      ! Stop if best individual position changes less than eps1
-      if ( norm(gbest - X(gbidx,:)) .lt. self % eps1 &
-        .and.  abs(pbestfit(gbidx)-pbestfit(gbidx0)) .lt. self % eps2 ) then
-        converge = .true.
-        xopt = self % unstandardize(X(gbidx,:))
-        gfit = pbestfit(gbidx)
-        self % iflag = 0
-
-      ! Stop if maxfitness and minfitness is less than eps2
-      else if (  abs(pbestfit(gbidx)-pbestfit(gbidx0)) .lt. self % eps2  ) then
-        converge = .true.
-        xopt = self % unstandardize(X(gbidx,:))
-        gfit = pbestfit(gbidx)
-        self % iflag = 1
-     !stop if fitness is improved less than 0.001 for each 100 iteration
-      elseif(mod(it,100)==1) then
-        if(abs((pbestfit(gbidx)-gfith1(it-100))/pbestfit(gbidx)) .lt. self.eps3 ) then
+     ! ! Stop if best individual position changes less than eps1
+     ! if ( norm(gbest - X(gbidx,:)) .lt. self % eps1 &
+     !   .and.  abs(pbestfit(gbidx)-pbestfit(gbidx0)) .lt. self % eps2 ) then
+     !   converge = .true.
+     !   xopt = self % unstandardize(X(gbidx,:))
+     !   gfit = pbestfit(gbidx)
+     !   self % iflag = 0
+     !
+     ! ! Stop if maxfitness and minfitness is less than eps2
+     ! else if (  abs(pbestfit(gbidx)-pbestfit(gbidx0)) .lt. self % eps2  ) then
+     !   converge = .true.
+     !   xopt = self % unstandardize(X(gbidx,:))
+     !   gfit = pbestfit(gbidx)
+     !   self % iflag = 1
+     !!stop if fitness is improved less than 0.001 for each 100 iteration
+     ! else
+      
+      if(it>SELF.PITER) THEN
+        if(abs(pbestfit(gbidx)-gfith1(it-SELF.PITER))/max(abs(pbestfit(gbidx)),1.d-8) .lt. self.eps3 ) then
             converge = .true.
             xopt = self % unstandardize(X(gbidx,:))
             gfit = pbestfit(gbidx)
             self % iflag = 101
-        endif
+        ENDIF
+      
+      ENDIF
       ! Stop if maximum iteration is reached
-      else if ( it .ge. self % max_iter ) then
+      if ( it .ge. self % max_iter ) then
         converge = .true.
         xopt = self % unstandardize(X(gbidx,:))
         gfit = pbestfit(gbidx)
@@ -1000,7 +1012,6 @@ contains
 
       gfith1(it)=gfit
       self % n_iter = it
-      EA_ITER=IT
       ! Save models and energy
       if ( self % snap ) then
         self % models(:,:,it) = self % unstandardize(X)
@@ -1023,6 +1034,8 @@ contains
       call progress_perc(self % max_iter, self % max_iter, " Processing: ")
       print *
     end if
+    
+    deallocate(gfith1)
     return
   end subroutine de
 
@@ -1030,7 +1043,7 @@ contains
     class(Evolutionary), intent(inout) :: self
     real(kind = RPRE), intent(in) :: w, c1, c2, gamma
     real(kind = RPRE), dimension(:,:), allocatable, intent(in) :: xstart
-    integer(kind = IPRE) :: i, it, gbidx, nw,gbidx0 
+    integer(kind = IPRE) :: i, it=0, gbidx, nw,gbidx0 
     integer(kind = IPRE), dimension(:), allocatable :: idx
     real(kind = RPRE) :: gfit, delta, inorm, swarm_radius
     real(kind = RPRE), dimension(:), allocatable :: pfit, pbestfit, gbest, xopt,GFITH1
@@ -1052,7 +1065,7 @@ contains
     ! Initialize particle velocity
     allocate(V(self % popsize, self % n_dim))
     V = 0.
-
+    it=1;self.it=it
     ! Compute fitness
     pfit = self % eval_models(X)
     pbestfit = pfit
@@ -1078,12 +1091,11 @@ contains
     delta = log(1. + 0.003 * self % popsize) / max(0.2, log(0.01*real(self % max_iter)))
 
     ! Iterate until one of the termination criterion is satisfied
-    allocate(gfith1(self.max_iter))
-    it = 1
+    allocate(gfith1(self.max_iter))    
     converge = .false.
     gfith1(it)=gfit
     do while ( .not. converge )
-      it = it + 1
+      it = it + 1;self.it=it;
       r1 = randu(self % popsize, self % n_dim)
       r2 = randu(self % popsize, self % n_dim)
 
@@ -1108,30 +1120,31 @@ contains
 
       
       ! Stop if best individual position changes less than eps1
-      if ( norm(gbest - pbest(gbidx,:)) .lt. self % eps1 &
-        .and. abs(pbestfit(gbidx)-pbestfit(gbidx0)) .lt. self % eps2   ) then
-        converge = .true.
-        xopt = self % unstandardize(pbest(gbidx,:))
-        gfit = pbestfit(gbidx)
-        self % iflag = 0
-
-      ! Stop if fitness is less than eps2
-      else if ( abs(pbestfit(gbidx)-pbestfit(gbidx0)) .lt. self % eps2 ) then
-        converge = .true.
-        xopt = self % unstandardize(pbest(gbidx,:))
-        gfit = pbestfit(gbidx)
-        self % iflag = 1
-      !stop if fitness is improved less than 0.001 for each 200 iteration
-      elseif(mod(it,200)==1) then
-        if(abs((pbestfit(gbidx)-gfith1(it-200))/pbestfit(gbidx)) .lt. self.eps3 ) then
+      !if ( norm(gbest - pbest(gbidx,:)) .lt. self % eps1 &
+      !  .and. abs(pbestfit(gbidx)-pbestfit(gbidx0)) .lt. self % eps2   ) then
+      !  converge = .true.
+      !  xopt = self % unstandardize(pbest(gbidx,:))
+      !  gfit = pbestfit(gbidx)
+      !  self % iflag = 0
+      !
+      !! Stop if fitness is less than eps2
+      !else if ( abs(pbestfit(gbidx)-pbestfit(gbidx0)) .lt. self % eps2 ) then
+      !  converge = .true.
+      !  xopt = self % unstandardize(pbest(gbidx,:))
+      !  gfit = pbestfit(gbidx)
+      !  self % iflag = 1
+      !!stop if fitness is improved less than 0.001 for each 200 iteration
+      !else
+      if(it>SELF.PITER) then
+        if(abs(pbestfit(gbidx)-gfith1(it-SELF.PITER))/max(abs(pbestfit(gbidx)),1.d-8) .lt. self.eps3 ) then
             converge = .true.
             xopt = self % unstandardize(X(gbidx,:))
             gfit = pbestfit(gbidx)
-            self % iflag = 201
+            self % iflag = 101
         endif  
-
+      ENDIF
       ! Stop if maximum iteration is reached
-      else if ( it .ge. self % max_iter ) then
+      if ( it .ge. self % max_iter ) then
         converge = .true.
         xopt = self % unstandardize(pbest(gbidx,:))
         gfit = pbestfit(gbidx)
@@ -1145,7 +1158,6 @@ contains
       
       gfith1(it)=gfit
       self % n_iter = it
-      EA_ITER=IT
       
       ! Save models and energy
       if ( self % snap ) then
@@ -1196,6 +1208,7 @@ contains
       call progress_perc(self % max_iter, self % max_iter, " Processing: ")
       print *
     end if
+    deallocate(gfith1)
     return
   end subroutine cpso
 
@@ -1203,7 +1216,7 @@ contains
     class(Evolutionary), intent(inout) :: self
     real(kind = RPRE), intent(in) :: sigma, mu_perc
     real(kind = RPRE), dimension(:,:), allocatable, intent(in) :: xstart
-    integer(kind = IPRE) :: i, k, it, mu, eigeneval, ilim
+    integer(kind = IPRE) :: i, k, it=0, mu, eigeneval, ilim
     real(kind = RPRE) :: mueff, cc, cs, c1, cmu, damps, chind, hsig, perc(2), &
       delta, insigma
     integer(kind = IPRE), dimension(:), allocatable :: arindex
@@ -1214,6 +1227,9 @@ contains
     logical :: validfitval, iniphase, converge
     logical, dimension(:), allocatable :: ti, idx
 
+    
+    it = 0;self.it=it
+    
     ! Initialize saved outputs
     if ( self % snap ) then
       call self % init_models()
@@ -1259,7 +1275,7 @@ contains
     dfithist = [ real(1., RPRE) ]
 
     ! (opt_mu, opt_lambda)-CMA-ES
-    it = 0
+    
     eigeneval = 0
     arbestfitness = zeros(self % max_iter)
     ilim = int(10 + 30 * self % n_dim / self % popsize)
@@ -1270,7 +1286,7 @@ contains
 
     do while ( .not. converge )
       it = it + 1
-
+      self.it=IT
       ! Generate lambda offspring
       do k = 1, self % popsize
         arx(k,:) = xmean + insigma * matmul(B, D*randn(self % n_dim))
@@ -1395,17 +1411,24 @@ contains
         self % iflag = -1
       end if
 
-      ! Stop if mean position changes less than eps1
-      if ( .not. converge .and. norm(xold - xmean) .le. self % eps1 ) then
-        converge = .true.
-        self % iflag = 0
-      end if
-
-      ! Stop if fitness is less than eps2
-      if ( .not. converge .and. arfitness(arindex(1)) .le. self % eps2 ) then
-        converge = .true.
-        self % iflag = 1
-      end if
+      !! Stop if mean position changes less than eps1
+      !if ( .not. converge .and. norm(xold - xmean) .le. self % eps1 ) then
+      !  converge = .true.
+      !  self % iflag = 0
+      !end if
+      !
+      !! Stop if fitness is less than eps2
+      !if ( .not. converge .and. arfitness(arindex(1)) .le. self % eps2 ) then
+      !  converge = .true.
+      !  self % iflag = 1
+      !end if
+      
+      if ( .not. converge .and.  it > SELF.PITER) then
+           if (abs(arbestfitness(it)-arbestfitness(it-SELF.PITER))/MAX(abs(arbestfitness(it)),1.D-8) .lt. self % eps3 ) then
+            converge = .true.
+            self % iflag = 101
+            endif
+      end if      
 
       ! NoEffectAxis: stop if numerical precision problem
       i = floor( mod( real(it), real(self % n_dim) ) ) + 1
@@ -1443,8 +1466,8 @@ contains
 
       ! TolFun: stop if fun-changes smaller than 1e-12
       if ( .not. converge .and.  it .gt. 2 &
-           .and. maxval( [ arfitness, arbestfitness ] ) &
-                 - minval( [ arfitness, arbestfitness ] ) .lt. 1e-12 ) then
+           .and. (maxval( [ arfitness, arbestfitness ] ) &
+                 - minval( [ arfitness, arbestfitness ] )) .lt. 1e-12 ) then
         converge = .true.
         self % iflag = 7
       end if
