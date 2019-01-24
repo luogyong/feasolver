@@ -20,7 +20,8 @@ subroutine solve_SLD()
 	integer::kref=0,dof1,NC1
 	integer::nnslope=0,npslope=0
 	real(kind=dpn)::minrelax=0.1d0,maxrelax=1.0d0
-	
+    character*256 term
+    integer(4)::msg
 	logical::iscon=.false.,isfirstcall=.true.,isfirstcall2=.true.,isoscilated=.false.,ISTOCONV=.TRUE.
 	real(kind=dpn)::NormBL=0.0,resdis=0,t1,relax=1.0,convratio=0.0, &
                     normres=0.0,sumforce=0.0,TTime1=0.d0,R0,R1
@@ -380,8 +381,20 @@ subroutine solve_SLD()
         enddo
 		nc1 = setexitqq(QWIN$EXITNOPERSIST)
     else
-    
-        call plot_func('')
+ 
+
+		
+		term="Click Yes to Post-processing with tecplot.\N No to Exit and\N Cancel to Continue post-processing with the built-in PostProcessor."C
+	 	term=trim(term)
+     	msg = MESSAGEBOXQQ(trim(term),'SOLVE COMPLETED'C,MB$ICONINFORMATION.OR.MB$YESNOCANCEL.OR.MB$DEFBUTTON1)
+     	if(msg==MB$IDYES) then            
+            call SYSTEMQQ(resultfile2)
+            msg=clickmenuqq(loc(WINEXIT))
+        elseif(msg==MB$IDCANCEL) then
+            call plot_func('')
+        else
+            msg=clickmenuqq(loc(WINEXIT))
+        endif
 
     endif
     

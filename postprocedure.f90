@@ -186,7 +186,8 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 						write(file_unit,9999) element(j).node(13),element(j).node(8),element(j).node(9)
 						write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(2)
 				case(prm6,prm6_spg,prm6_cpl,ZT6_SPG)
-						nc=4	
+						nc=4
+                        
 						write(file_unit,9999) element(j).node([1,2,3,5])
                         write(file_unit,9999) element(j).node([1,3,6,5])
                         write(file_unit,9999) element(j).node([1,6,4,5])

@@ -85,7 +85,7 @@
         real(wp) :: pmutmn             = 0.0005_wp
         real(wp) :: pmutmx             = 0.25_wp
         real(wp) :: fdif               = 1.0_wp
-        integer  :: irep               = 2
+        integer  :: irep               = 3
         integer  :: ielite             = 1
         integer  :: ivrb               = 0
         real(wp) :: convergence_tol    = 0.0001_wp
@@ -213,7 +213,7 @@
                                                     !! is 0.005) (Note: the mutation rate is the probability
                                                     !! that any one gene locus will mutate in
                                                     !! any one generation.)
-    integer,intent(in),optional        :: imut      !! mutation mode; 1/2/3/4/5 (default is 2).
+    integer,intent(in),optional        :: imut      !! mutation mode; 1/2/3/4/5 (default for icga is 2).
                                                     !!  1=uniform mutation, fixed rate.
                                                     !!  2=uniform, adjustable rate based on fitness.
                                                     !!  3=uniform adjustable rate based on distance.
@@ -226,6 +226,7 @@
     integer,intent(in),optional        :: irep      !! reproduction plan; 1/2/3=Full generational
                                                     !! replacement/Steady-state-replace-random/Steady-
                                                     !! state-replace-worst (default is 3)
+                                                    !! elite tournament selection 
     integer,intent(in),optional        :: ielite    !! elitism flag; 0/1=off/on (default is 0)
                                                     !! (Applies only to reproduction plans 1 and 2)
     integer,intent(in),optional        :: ivrb      !! printed output 0/1/2=None/Minimal/Verbose
@@ -240,11 +241,11 @@
                                                              !! (none) to 1.0 (all). (default is 0.1 or 10%).
     integer,intent(in),optional        :: iseed              !! random seed value; must be > 0 (default is 999)
     integer,intent(in),optional        :: icode              !! codeing method. 0 for integer-coded. 1 for real-coded. default is 0
-    integer,intent(in),optional        :: icross             !! !0 for one-two point x. default for integer-coded.
-                                                             !1, for Simple Arithmetic Recombination, for real-coded only 
-                                                             !2, for single Arithmetic Recombination, for real-coded only 
-                                                             !3, for whole Arithmetic Recombination, for real-coded only
-                                                             !4, for blend-0.5 Recombination. for real-coded only, default 
+    integer,intent(in),optional        :: icross             !! 0 for one-two point x. default for integer-coded.
+                                                             !! 1, for Simple Arithmetic Recombination, for real-coded only 
+                                                             !! 2, for single Arithmetic Recombination, for real-coded only 
+                                                             !! 3, for whole Arithmetic Recombination, for real-coded only
+                                                             !! 4, for blend-0.5 Recombination. for real-coded only, default 
     integer(kind = 4) :: values(8)
 
     me%n = n
@@ -325,18 +326,26 @@
         case(4); write(output_unit,'(A)') '                  Mutation Mode: Uniform+Creep, Constant Rate'
         case(5); write(output_unit,'(A)') '                  Mutation Mode: Uniform+Creep, Variable Rate (F)'
         case(6); write(output_unit,'(A)') '                  Mutation Mode: Uniform+Creep, Variable Rate (D)'
+        case(7); write(output_unit,'(A)') '                  Mutation Mode: Non-uniform mutation for real-coded ga, Variable Rate (D)'       
         end select
         select case (me%irep)
         case(1); write(output_unit,'(A)') '              Reproduction Plan: Full generational replacement'
         case(2); write(output_unit,'(A)') '              Reproduction Plan: Steady-state-replace-random'
         case(3); write(output_unit,'(A)') '              Reproduction Plan: Steady-state-replace-worst'
+        case(4); write(output_unit,'(A)') '              Reproduction Plan: elite-tournament-selection'
         end select
+        select case (me%icross)
+        case(0); write(output_unit,'(A)') '              Cross Mode: 0,  one-two point x. default for integer-coded'
+        case(1); write(output_unit,'(A)') '              Cross Mode: 1, for Simple Arithmetic Recombination, for real-coded only'
+        case(2); write(output_unit,'(A)') '              Cross Mode: 2, for single Arithmetic Recombination, for real-coded only'
+        case(3); write(output_unit,'(A)') '              Cross Mode: 3, for whole Arithmetic Recombination, for real-coded only'
+        case(4); write(output_unit,'(A)') '              Cross Mode: 4, for blend-0.5,  Recombination, for real-coded only'
+        end select        
         write(output_unit,'(A)') '------------------------------------------------------------'
     end if
 
     !Check some control values
-    if (me%imut/=1 .and. me%imut/=2 .and. me%imut/=3 .and. &
-          me%imut/=4 .and. me%imut/=5 .and. me%imut/=6) then
+    if (.not.any([1:7]-me.imut==0)) then
        write(output_unit,'(A)') ' ERROR: illegal value for Mutation Mode.'
        status = 5
     end if
@@ -346,7 +355,7 @@
        status = 9
     end if
 
-    if (me%irep/=1 .and. me%irep/=2 .and. me%irep/=3) then
+    if (.not.any([1:3]-me.irep==0)) then
        write(output_unit,'(A)') ' ERROR: illegal value for Reproduction plan.'
        status = 10
     end if
@@ -572,7 +581,7 @@
             endif
 
             !5. insert into population
-            if (me%irep==1) then
+            if (me%irep==1.or.me%irep==4) then
                 call me%genrep(ip,ph,newph)
             else
                 call me%stdrep(ph,oldph,fitns,ifit,jfit,new)
@@ -582,7 +591,7 @@
         end do    !End of Main Population Loop
 
         !if running full generational replacement: swap populations
-        if (me%irep==1) call me%newpop(oldph,newph,ifit,jfit,fitns,newtot)
+        if (me%irep==1.or.me%irep==4) call me%newpop(oldph,newph,ifit,jfit,fitns,newtot)
 
         !adjust mutation rate?
         if (any(me%imut==[2,3,5,6,7])) call adjmut(me,oldph,fitns,ifit)
@@ -1523,35 +1532,96 @@
     integer,dimension(me%np),intent(out)         :: jfit
     real(wp),dimension(me%np),intent(out)        :: fitns
     integer,intent(out)                          :: nnew
-
-    integer  :: i
+    real(wp),dimension(me%n,2*me%np)             :: pool
+    real(wp),dimension(2*me%np)                  :: poolfitns
+    integer,dimension(2*me.np)                   :: isselect
+    integer  :: i,j,n1,n2,i1,i2,npool
     real(wp) :: f
 
     nnew = me%np
+    
+    if(me.irep==1) then
 
-    if (me%ielite==1) then
+        if (me%ielite==1) then
 
-        !if using elitism, introduce in new population fittest of old
-        !population (if greater than fitness of the individual it is
-        !to replace)
-        call me%ff(newph(:,1),f)
+            !if using elitism, introduce in new population fittest of old
+            !population (if greater than fitness of the individual it is
+            !to replace)
+            call me%ff(newph(:,1),f)
 
-        if (f<fitns(ifit(me%np))) then
-            newph(:,1)=oldph(:,ifit(me%np))
-            nnew = nnew-1
+            if (f<fitns(ifit(me%np))) then
+                newph(:,1)=oldph(:,ifit(me%np))
+                nnew = nnew-1
+            end if
+
         end if
 
-    end if
+        !replace population
+        do i=1,me%np
 
-    !replace population
-    do i=1,me%np
+            oldph(:,i)=newph(:,i)
 
-        oldph(:,i)=newph(:,i)
+            !get fitness using caller's fitness function
+            call me%ff(oldph(:,i),fitns(i))
 
-        !get fitness using caller's fitness function
-        call me%ff(oldph(:,i),fitns(i))
+        end do
+    
+    elseif(me.irep==4) then
+        !elite tournament select 
+        npool=2*me.np
+        pool(:,1:me.np)=oldph;pool(:,me.np+1:npool)=newph
+        poolfitns(:me.np)=fitns
+        isselect=0
+        do i=1,me.np
+            call me%ff(newph(:,i),poolfitns(i+me.np)) 
+        enddo
+        
+        n1=maxloc(poolfitns,dim=1)
+        oldph(:,1)=pool(:,n1)
+        fitns(1)=poolfitns(n1)
+        if(n1<=me.np) nnew=nnew-1
+        isselect(n1)=1 !=1 selected
+        do i=2,me.np
+            
+            !i1/=i2,one pop can only select once
+        
+            n1=int(urand()*npool)+1
+            do j=n1,n1+npool-1
+                i1=mod(j-1,npool)+1                
+                if(isselect(i1)/=1) then
+                    isselect(i1)=i !i1/=i2
+                    exit
+                endif
+            enddo
+            
+            
+            n1=int(urand()*npool)+1
+            do j=n1,n1+npool-1
+                i2=mod(j-1,npool)+1
+                if(isselect(i2)/=1.and.isselect(i2)/=i) then                    
+                    exit
+                endif
+            enddo
+            
 
-    end do
+            
+            if(poolfitns(i1)>poolfitns(i2)) then
+                n1=i1;n2=i2
+            else
+                n1=i2;n2=i1
+            endif
+            if(urand()<0.05) then !for diversity,the worse one has 10% percent to survive
+                n1=n2
+            endif
+            
+            oldph(:,i)=pool(:,n1)
+            fitns(i)=poolfitns(n1)
+            isselect(n1)=1
+            if(n1<=me.np) nnew=nnew-1
+        
+        enddo
+    
+    endif
 
     !compute new population fitness rank order
     call me%rnkpop(fitns,ifit,jfit)

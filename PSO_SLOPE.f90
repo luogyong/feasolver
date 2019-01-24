@@ -45,9 +45,9 @@ MODULE SLOPE_PSO
         REAL(8)::XTU,XTL,XCU,XCL !ENTRY AND EXIT LIMITS
         REAL(8),ALLOCATABLE::GX(:,:),RX(:,:)
         !EA PARAMETER
-        integer(kind = 4) :: popsize = 60, max_iter = 3000,ndim=31,PITER=100
+        integer(kind = 4) :: popsize = 60, max_iter = 3000,ndim=31,PITER=100,ICODE=1,IMUT=7,ICROSS=4,IREP=3
         REAL(8)::EPS1=1.D-4,EPS2=1.D-4,EPS3=1.D-4,w = 0.7298, c1 = 1.49618,c2 = 1.49618, gamma = 1., &
-            F=0.5,CR=0.1,DL=0.5D0,mu_perc=0.5,sigma=0.5  !DL=SLICE BASE STRESS SAMPLE DISTANCE
+            F=0.5,CR=0.1,DL=0.5D0,mu_perc=0.5,sigma=0.5,PCROSS=0.85  !DL=SLICE BASE STRESS SAMPLE DISTANCE
         character(len = 5) :: solver='de', strategy='rand1'
         
         !initial trial slip surface generation method
@@ -194,7 +194,10 @@ SUBROUTINE SLOPE_OPTIM(PARAFILE,IFLAG,OPTS)
                         convergence_tol     = slope_para.eps3,&
                         convergence_window  = SLOPE_PARA.PITER,&
                         NP                  = SLOPE_PARA.popsize,&
-                        icode               =1)
+                        icode               = SLOPE_PARA.icode,&
+                        initial_guess_frac  =1.d0/SLOPE_PARA.popsize,&
+                        icross=slope_para.icross,imut=slope_para.imut,irep=slope_para.irep,&
+                        pcross=slope_para.pcross)
                         !iseed               = seed)
 
             !Now call pikaia:
@@ -600,7 +603,17 @@ SUBROUTINE SLOPE_PARA_PARSER(INDATA,COMMAND,UNIT)
                     CASE('ncal','nrepeat')
                         INDATA.NREPEAT=int(COMMAND.OPTION(i).VALUE)
                     CASE('piter')
-                        INDATA.PITER=int(COMMAND.OPTION(i).VALUE)                        
+                        INDATA.PITER=int(COMMAND.OPTION(i).VALUE) 
+                    CASE('icode')
+                        INDATA.ICODE=int(COMMAND.OPTION(i).VALUE) 
+                    CASE('imut')
+                        INDATA.imut=int(COMMAND.OPTION(i).VALUE)
+                    CASE('icross')
+                        INDATA.icross=int(COMMAND.OPTION(i).VALUE)
+                    CASE('irep')
+                        INDATA.irep=int(COMMAND.OPTION(i).VALUE)
+                    CASE('pcross')
+                        INDATA.pcross=(COMMAND.OPTION(i).VALUE)
 				    case default
 					    call Err_msg(COMMAND.OPTION(i).name)
 			    end select

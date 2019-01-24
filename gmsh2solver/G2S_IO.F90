@@ -50,11 +50,15 @@ subroutine readin()
         I=I+1
 	END DO
 	
-	 
+	if(nnode<1.or.nel<1) then
+        print *, "NO MESH DATA.[NNODE,NEL]=",NNODE,NEL
+        stop
+    endif
 
 	do i=1, nmodelgroup
 		physicalgroup(modelgroup(i)).ismodel=.true.
     end do
+    !physicalgroup(wellbore.igp).ismodel=.true.
 	
     DO I=1,nphgp
 		PHYSICALGROUP(phgpnum(I)).COUPLESET=PHYSICALGROUP(phgpnum(I)).MAT(NLAYER+1)
@@ -617,9 +621,25 @@ subroutine kwcommand(term,unit)
 			call skipcomment(unit)
 			read(unit,*) IsoutMS
 		CASE("endoutmeshstructure")
-			strL1=10
+			strL1=LEN_trim("endoutmeshstructure")
 			write(*, 20) "endoutmeshstructure"  
-			
+		case("wellbore")
+            call skipcomment(unit)
+			read(unit,*) NWELLBORE
+			allocate(wellbore(NWELLBORE))
+			do i=1,NWELLBORE
+				call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
+				WELLBORE(I).IGP=INT(AR(1))
+				wellbore(I).bctype=INT(AR(2))
+                wellbore(I).wellnode=INT(AR(3))
+                wellbore(I).value=AR(4)
+                IF(nread>4) then
+                    WELLBORE(I).WELLBORELOC=INT(AR(5))                    
+                endif                
+			end do
+        CASE("endwellbore")
+			strL1=LEN_trim("endwellbore")
+			write(*, 20) "endwellbore"    
 		case default
 			strL1=len_trim(term)
 			write(*, 10) term
@@ -1030,11 +1050,11 @@ subroutine Tosolver()
 	item=len_trim(title)
 	write(unit,100) title
 	
-	write(unit,110) nnode,1,modeldimension
+	write(unit,110) gnnode,1,modeldimension
 	if(modeldimension==2) write(unit,112) "X","Y"
 	if(modeldimension==3) write(unit,112) "X","Y","Z"
-	do i=1,nnode
-		n1=Noutputorder(i)
+	do i=1,gnnode
+		n1=Noutputorder(i)        
 		write(unit,111) node(n1).xy(1:modeldimension)
 	end do
     nset=0
@@ -1474,13 +1494,13 @@ SUBROUTINE OUTMESHSTRUCTURE()
 
 	CLOSE(10)
 	
-10 FORMAT('EDGE,NUM=',I7,'\N//ID,V1,V2'C)
+10 FORMAT('EDGE,NUM=',I7,'\N//ID,V1,V2')
 11 FORMAT(3(I7,','))
-20 FORMAT('FACE,NUM=',I7,'\N//ID,V1,V2,V3,E1,E2,E3'C)
+20 FORMAT('FACE,NUM=',I7,'\N//ID,V1,V2,V3,E1,E2,E3')
 21 FORMAT(<1+2*FACE(I).SHAPE>(I7,','))
-50 FORMAT('ELEMENT,NUM=',I7,'\N//ID,V1-V4,F1-F4,E1-E6'C)
+50 FORMAT('ELEMENT,NUM=',I7,'\N//ID,V1-V4,F1-F4,E1-E6')
 51 FORMAT(<1+ELEMENT(I).NNODE+ELEMENT(I).NFACE+ELEMENT(I).NEDGE>(I7,','))
-30 FORMAT('NODE,NUM=',I7,'\N//ID,X,Y,Z'C)
+30 FORMAT('NODE,NUM=',I7,'\N//ID,X,Y,Z')
 31 FORMAT(I7,',',3(F24.14,','))
 40 FORMAT('//JUST FOR TET4.NOTE THAT THE OUTPUT IS IN ITS ORIGINAL NODAL ORDER, NO REORDER.')
 

@@ -25,6 +25,7 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I))="//NOTE THAT THE FINAL BC VALUE OF A NODE IS WHAT INPUT BY THE FIRST ELEMENT SHARING THE NODE."
 	README(IPP(I))= "//{NELT_BC} "
 	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE,[A,B,C,D]}  // NDIM=0,1,2,3 分别表示点、线、面、体的约束. 因为边界条件（如位移，水头等）不具叠加性，所以NDIM取值对边界条件无影响."
+    README(IPP(I)) = "//DOF=4(水头)，且VALUE=-999,表示节点的水头边界值为节点高程值。(模拟暴雨工况。)"
 	README(IPP(I))=  "//                                                      // DOF(I)=1,2,...,7,分别表示约束X,Y,Z,H,MX,MY,MZ "
     README(IPP(I))=  "//[A,B,C,D] IS FOR LINEAR FIELD FUNCTION CALCULATION. IF THEY ARE PRESENT THEN VALUE=A*X+B*Y+C*Z+D. "
     README(IPP(I))=  "//NOTE: FOR THE LAYERED MODEL, THE GROUP IDS OF EACH EXTRUDED LAYERED IS REFERED AS GROUP_BASEMESH*100+ILAYER.AS SHOWN BELOW." 
@@ -115,6 +116,15 @@ subroutine write_readme_gmsh2sinp()
 	!README(IPP(I)) = "//$ENDMODELGROUP"	
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//$WELLBORE"
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD WELLBORE IS USED TO DEFINE THE WELLBORE PARAMETERS."//'"'
+	README(IPP(I)) = "//{NWELLBORE}   // WELLBORE NUMBERS"
+    README(IPP(I)) = "//{WellLine_GROUPID,WELL_HEAD_BC_TYPE,WellNODE_GroupID,VALUE [,WELLBORE_GroupID]}"     
+    README(IPP(I)) = "//WELL_HEAD_BC_TYPE,WellNODE_GroupID and Value:井点的边界类型、施加边界的节点GROUDID及数值。WELL_HEAD_BC_TYPE=0,1分别表示：水头，流量边界;"
+    README(IPP(I)) = "//WELLBORE_GroupID,=0,默认全长均为滤管，=-1，没有滤管，管底透水，=GROUPID(>0),滤管的位置由PHYSICALGROUP中单元决定 "    
+	README(IPP(I)) = "//$ENDWELLBORE"	    
+    
+	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$MODELDIMENSION"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD MODELDIMENSION IS USED TO DEFINE THE MODEL DIMENSION."//'"'
 	README(IPP(I)) = "//{MODELDIMENSION}   // MODELDIMENSION=2, 3"  
@@ -157,7 +167,8 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//{NCOPYFILE}"  
 	README(IPP(I)) = "//{ABSOLUTED PATH OF THE FILES}*{NCOPYFILE(I)}  // 共NCOPYFILE行."
 	README(IPP(I)) = "//$ENDCOPYFILE" 
- 
+
+    
 
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$ELEVATION"

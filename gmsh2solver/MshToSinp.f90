@@ -4,7 +4,7 @@
 	use ifqwin
 	use DS_Gmsh2Solver
 	implicit none
-	integer::i
+	integer::i,n1
 	character(1)::key
 	type(qwinfo) winfo
 	LOGICAL(4)::tof,pressed
@@ -50,14 +50,23 @@
 		IF(ISOUTMS>0) CALL OUTMESHSTRUCTURE()
         STOP "DONE IN GENERATING TRISURFACE."
 	ENDIF
+    
+    
+    
+    DO I=1,NWELLBORE
+        CALL WELLBORE(I).INITIALIZE()
+    ENDDO
+    
 	! reordering nodal number
-	allocate(Noutputorder(nnode))
-	ALLOCATE(IPERM(nnode))
+    Call clear_model()
+	allocate(Noutputorder(gnnode))
+	ALLOCATE(IPERM(gnnode))
 	call setup_adjList()
-	call reorder_nodal_number(IPERM,nnode,adjL,maxadj)
-	do i=1,nnode
-		noutputorder(IPERM(i))=i	
-		node(i).inode=IPERM(i)		
+	call reorder_nodal_number(IPERM,gnnode,adjL,maxadj)
+	do i=1,gnnode
+        n1=g2n(IPERM(i))
+		noutputorder(IPERM(i))=n1	
+		node(n1).inode=IPERM(i)		
 	end do
 	DEALLOCATE(IPERM)
 	
@@ -79,6 +88,64 @@
     
 10 format("Press 'H' to write a keyword help file named 'D:\README_GMSH2SINP.TXT'. Any other key to read an Msh file.")		
 end program
+
+subroutine clear_model()
+
+!标识多余节点，不输出。
+!初始化node.element,即共享节点的单元表。
+    use DS_Gmsh2Solver
+    implicit none
+	integer::k,k1,iel,ipg1,i,n1
+		
+
+    
+    allocate(g2n(nnode))
+    g2n=0
+    node.isdead=1
+    gnnode=0
+	do k=1,nphgp
+		ipg1=phgpnum(k)			
+		if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD的单元组不输出
+        IF(physicalgroup(ipg1).nel==0) CYCLE
+        IF(.NOT.PHYSICALGROUP(IPG1).ISMASTER) CYCLE 
+        do k1=1,physicalgroup(ipg1).nel				
+			iel=physicalgroup(ipg1).element(k1)			
+			do i=1,element(iel).nnode
+                n1=element(iel).node(i)
+                if(node(n1).isdead==1) then
+                    node(n1).isdead=0
+                    gnnode=gnnode+1
+                    g2n(gnnode)=n1
+                    node(n1).inode=gnnode                    
+                endif
+                NODE(N1).NEL=NODE(N1).NEL+1                
+            enddo
+        enddo
+    enddo
+    
+    DO I=1,NNODE
+        IF(NODE(I).NEL>0) ALLOCATE(NODE(I).ELEMENT(NODE(I).NEL)) 
+        NODE(I).NEL=0
+    ENDDO
+    
+    
+    do k=1,nphgp
+		ipg1=phgpnum(k)			
+		if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD的单元组不输出
+        IF(physicalgroup(ipg1).nel==0) CYCLE
+        IF(.NOT.PHYSICALGROUP(IPG1).ISMASTER) CYCLE 
+        do k1=1,physicalgroup(ipg1).nel				
+			iel=physicalgroup(ipg1).element(k1)			
+			do i=1,element(iel).nnode
+                n1=element(iel).node(i)
+                NODE(N1).NEL=NODE(N1).NEL+1
+                NODE(N1).ELEMENT(NODE(N1).NEL)=IEL 
+            enddo
+        enddo
+    enddo
+
+endsubroutine
+
 
 SUBROUTINE SETUP_EDGE_TBL()
     USE DS_Gmsh2Solver
@@ -1364,31 +1431,36 @@ ENDSUBROUTINE
    subroutine setup_adjList()
 		use DS_Gmsh2Solver
 		implicit none
-		integer::i,j,iel,n1,ar(200),n2
+		integer::i,j,k,k1,iel,n1,ar(200),n2,ipg1
 		
-		allocate(adjL(maxadj,nnode))
-		adjL=0
-		do iel=1,nel
-	  	
-	  		n1=element(iel).nnode
-	  		ar(1:n1)=element(iel).node
-	  		!从大到小
-  			do i=1,n1
-			  do j=i+1,n1
-				 if(ar(i)<ar(j)) then
-					n2=ar(i)
-					ar(i)=ar(j)
-					ar(j)=n2
-				 end if
-			  end do
-			end do
+		allocate(adjL(maxadj,gnnode))
+		adjL=0        
+	    do k=1,nphgp
+		    ipg1=phgpnum(k)			
+		    if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD的单元组不输出
+            IF(physicalgroup(ipg1).nel==0) CYCLE
+            do k1=1,physicalgroup(ipg1).nel				
+			    iel=physicalgroup(ipg1).element(k1)	
+		    	
+                n1=element(iel).nnode
+	  		    ar(1:n1)=node(element(iel).node).inode
+	  		    !从大到小
+  			    do i=1,n1
+			      do j=i+1,n1
+				     if(ar(i)<ar(j)) then
+					    n2=ar(i)
+					    ar(i)=ar(j)
+					    ar(j)=n2
+				     end if
+			      end do
+			    end do
 			
-			do i=1,n1-1
-			  do j=i+1,n1
-				 call addtoadjL(ar(j),adjL(:,ar(i)),maxadj)
-			  end do
-			end do					
-
+			    do i=1,n1-1
+			      do j=i+1,n1
+				     call addtoadjL(ar(j),adjL(:,ar(i)),maxadj)
+			      end do
+			    end do					
+            enddo
 		end do
    end subroutine
 

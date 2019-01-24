@@ -1,5 +1,11 @@
 module DS_Gmsh2Solver
     
+
+    INTERFACE ENLARGE_AR
+        MODULE PROCEDURE I_ENLARGE_AR,R_ENLARGE_AR,NODE_ENLARGE_AR,ELEMENT_ENLARGE_AR,BCGROUP_ENLARGE_AR,&
+                        FACE_TYDEF_ENLARGE_AR,EDGE_TYDEF_ENLARGE_AR
+    END INTERFACE    
+    
     INTEGER::NLAYER=1
     INTEGER,ALLOCATABLE::SUBLAYER(:)
     LOGICAL::ISGENLAYER=.FALSE.
@@ -28,13 +34,15 @@ module DS_Gmsh2Solver
     INTEGER::NEDGE=0,NFACE=0,MAXNEDGE=10000,MAXNFACE=10000
     
 	type node_type
-		integer::inode=0
+		integer::inode=0,NEL=0
 		real(8)::xy(3)=0
-		!INTEGER::CHILD=0
+		INTEGER::ISDEAD=0
+        INTEGER::N1=0 !FOR TEMPORARY USE ONLY.
+        INTEGER,ALLOCATABLE::ELEMENT(:)
 	end type
 	type(node_type),allocatable::node(:)
-	integer::nnode=0,TNNODE=0
-	integer,allocatable::Noutputorder(:)
+	integer::nnode=0,TNNODE=0,gnnode=0
+	integer,allocatable::Noutputorder(:),g2n(:)
 
 	type element_type
         integer::et=-1
@@ -171,7 +179,19 @@ module DS_Gmsh2Solver
     TYPE(TRISURFACE_TYDEF),ALLOCATABLE::TRISURFACE(:)
     INTEGER::NTRISURFACE
     INTEGER::ISGENTRISURFACE=0,ISGEO=0,ISSTL=0,ISOFF=0
-	
+    
+    TYPE WELLBORE_TYDEF
+        INTEGER::IGP=0,WELLNODE=0,NWELLBORESEG=-1,BCTYPE=0,NWNODE=0,WELLBORELOC=0
+        REAL(8)::R,VALUE=0.D0
+        INTEGER,ALLOCATABLE::WNODE(:),WELT(:,:),NWELT(:)
+        INTEGER,ALLOCATABLE::WLELT(:),WVBELT(:) !WELL LINE ELEMENT,井轴线单元,虚拟旁路单元 Virtually branch element
+    CONTAINS
+        PROCEDURE::INITIALIZE=>WELLBORE_INITIALIZE
+        
+    ENDTYPE
+    TYPE(WELLBORE_TYDEF),ALLOCATABLE::WELLBORE(:)
+    INTEGER::NWELLBORE=0
+
     CONTAINS
     
     REAL(8) FUNCTION LINEARFILEDCAL(BCG,X,Y,Z)
@@ -182,6 +202,15 @@ module DS_Gmsh2Solver
         
         IF(BCG.ISFIELD==0) THEN
             LINEARFILEDCAL=BCG.VALUE
+            IF(BCG.DOF==4) THEN
+                IF(ABS(BCG.VALUE+999.0D0)<1.D-7) THEN
+                    IF(modeldimension==3) THEN
+                        LINEARFILEDCAL=Z
+                    ELSE
+                        LINEARFILEDCAL=Y
+                    ENDIF
+                ENDIF
+            ENDIF
         ELSE
             IF(PRESENT(X)) THEN
                 X1=X 
@@ -287,7 +316,103 @@ module DS_Gmsh2Solver
         AVAL(LB1:UB1)=VAL1
         !AVAL(UB1+1:UB1+10)=0
         DEALLOCATE(VAL1)
-    END SUBROUTINE   	
+    END SUBROUTINE
+    SUBROUTINE BCGROUP_ENLARGE_AR(AVAL,DSTEP)
+        TYPE(bcgroup_type),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+        INTEGER,INTENT(IN)::DSTEP
+        TYPE(bcgroup_type),ALLOCATABLE::VAL1(:)
+        INTEGER::LB1=0,UB1=0
+    
+        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+        ALLOCATE(VAL1,SOURCE=AVAL)
+        DEALLOCATE(AVAL)
+        ALLOCATE(AVAL(LB1:UB1+DSTEP))
+        AVAL(LB1:UB1)=VAL1
+        !AVAL(UB1+1:UB1+10)=0
+        DEALLOCATE(VAL1)
+    END SUBROUTINE    
+    SUBROUTINE WELLBORE_INITIALIZE(SELF)
+        CLASS(WELLBORE_TYDEF)::SELF
+        INTEGER::I,J,K,N1,N2,INODE1,IEL1
+        INTEGER::NODE1(10)
+        
+        
+        !generate four-noded well element
+        ! 1 +-----------+ 2
+        !   |           |
+        ! 4 +           + 3
+        ! Node 1 and 2: Line element simulating well flow along the well.
+        ! Element 1-4 and 2-3 : virtual branch element to simulate 
+        
+        
+        
+        NODE.N1=0
+        
+       
+        N1=SELF.IGP
+        !PHYSICALGROUP(N1).ET="WELLBORE"
+        N2=NNODE
+        DO J=1,PHYSICALGROUP(N1).NEL
+            
+            IEL1=PHYSICALGROUP(N1).ELEMENT(J)
+            
+            DO K=1,ELEMENT(IEL1).NNODE
+                INNODE1=ELEMENT(IEL1).NODE(K)
+                IF(NODE(INNODE1).N1==0) THEN
+                    NNODE=NNODE+1
+                    NODE(INNODE1).N1=NNODE
+                    IF(NNODE>UBOUND(NODE,DIM=1)) THEN
+                        CALL NODE_ENLARGE_AR(NODE,1000)       
+                    ENDIF
+                    NODE(NNODE)=NODE(INNODE1)
+                    NODE(NNODE).N1=INNODE1
+                ENDIF                
+            ENDDO
+            ELEMENT(IEL1).NODE=NODE(ELEMENT(IEL1).NODE).N1
+            IF(SELF.WELLBORELOC==0) THEN
+                SELF.WELLBORELOC=SELF.IGP
+            ELSEIF(SELF.WELLBORELOC<0) THEN
+                PRINT *, "SELF.WELLBORELOC<0.THE FUNCTION IS NOT FINISHED."
+            ENDIF
+            IF(ANY(PHYSICALGROUP(SELF.WELLBORELOC).ELEMENT-IEL1==0)) THEN
+                !滤管井单元
+                ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE
+                NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1]
+                DEALLOCATE(ELEMENT(IEL1).NODE)
+                ALLOCATE(ELEMENT(IEL1).NODE,SOURCE=NODE1([1,2,4,3]))
+            ENDIF          
+            
+            
+        ENDDO
+        !BC
+        N1=SELF.WELLNODE
+        
+        DO I=1,PHYSICALGROUP(N1).NEL !THE NEL IS ASSUMED TO BE 1
+            IEL1=PHYSICALGROUP(N1).ELEMENT(I)
+            ELEMENT(IEL1).NODE=NODE(ELEMENT(IEL1).NODE).N1
+        ENDDO
+        IF(SELF.BCTYPE==0) THEN
+            CALL ENLARGE_AR(ELT_BC,10)
+            NELT_BC=NELT_BC+1
+            ELT_BC(NELT_BC).GROUP=SELF.WELLNODE
+            ELT_BC(NELT_BC).NDIM=0
+            ELT_BC(NELT_BC).VALUE=SELF.VALUE
+        ELSE
+            CALL ENLARGE_AR(ELT_LOAD,10)
+            NELT_LOAD=NELT_LOAD+1
+            ELT_LOAD(NELT_LOAD).GROUP=SELF.WELLNODE
+            ELT_LOAD(NELT_LOAD).NDIM=0
+            ELT_LOAD(NELT_LOAD).VALUE=SELF.VALUE
+            
+        ENDIF
+        
+        
+        
+        
+        
+        
+    
+    ENDSUBROUTINE
     
   !  SUBROUTINE SET_ELEMENT_EDGE(THIS)
   !      CLASS(element_type)::THIS
