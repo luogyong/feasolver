@@ -705,10 +705,22 @@ subroutine Initialization()
                 CALL BARFAMILY_EXTREMEVALUE(I)
 			case(shell3_kjb)
 			
-			case(pipe2,ppipe2)
+			case(wellbore)
 				node(element(i).node(1:element(i).nnum)).dof(4)=0
-				allocate(element(i).km(2,2))
+				allocate(element(i).km(element(i).nnum,element(i).nnum))
 				element(i).km=0.0D0
+                if(abs(material(element(i).mat).property(2))>0.d0) then
+                    t1=material(element(i).mat).property(2)
+                else
+                    t1=1.1857521D-12
+                endif
+                element(i).property(1)=(2*material(element(i).mat).property(1))**2/t1/32
+                if(element(i).nnum>2) then
+                    
+                    !element(i).property(2)=
+                    
+                endif
+                
 			!CASE(ZT4_SPG) !assume no flow occurs in the diections parallel to element faces.
 			!	node(element(i).node(1:element(i).nnum)).dof(4)=0
 			!	allocate(element(i).km(4,4))
@@ -1010,7 +1022,7 @@ subroutine Initialization()
 				call fepv(i,dof1)
 				call dofbw(i)
 				
-			case(pipe2,ppipe2)
+			case(pipe2,wellbore)
 				dof1=0
 				dof1(4)=4
 				call fepv(i,dof1)

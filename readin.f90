@@ -860,17 +860,26 @@ subroutine solvercommand(term,unit)
 			
 			
 			
-			do i=1,enum1
-				element1(i).nnum=nnum1
-				allocate(element1(i).node(nnum1))
+			do i=1,enum1                
+
 				select case(et1)
 					!case(beam) !beam element, a local system must be input.
 					!	call skipcomment(unit)
 					!	read(unit,*) element1(i).node,element1(i).system
 					case(dkt3,shell3,shell3_KJB) !.h  is the thickness of the element.
+                        element1(i).nnum=nnum1
+				        allocate(element1(i).node(nnum1))
 						call skipcomment(unit)
 						read(unit,*) element1(i).node,element1(i).PROPERTY(3)
+                    case(wellbore)
+                        !wellbore 单元有两种情况，2节点和4节点
+                        call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+                        element1(i).nnum=n1
+                        allocate(element1(i).node(n1))
+                        element1(i).node=int(ar(1:n1))                        
 					case default
+                    	element1(i).nnum=nnum1
+				        allocate(element1(i).node(nnum1))
 						call skipcomment(unit)
 						read(unit,*) element1(i).node
 				end select
@@ -885,6 +894,10 @@ subroutine solvercommand(term,unit)
 				element1(i).ec=ec1
 				element1(i).sf=sf1
 				if(et1==beam) element1(i).system=system1
+                if(element1(i).et==wellbore) then  !wellbore 单元有两种情况，2节点和4节点
+				    element1(i).ndof=n1
+				    element1(i).nd=n1                    
+                endif
 			end do
 			!eset(set1).num=set1
 			eset(set1).stype=stype
@@ -3071,10 +3084,10 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ND1=3
 			STYPE='FETRIANGLE'
 			EC1=STRU
-		case(pipe2,ppipe2)
-			NNUM1=2
-			NDOF1=2
-			ND1=2
+		case(pipe2,wellbore)
+			NNUM1=4
+			NDOF1=4
+			ND1=4
 			STYPE='FELINESEG'
 			EC1=PIPE
 		case(springx,springy,springz,springmx,springmy,springmz)

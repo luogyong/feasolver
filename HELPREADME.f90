@@ -259,10 +259,10 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) ="//当为单元SSP2D指定材料，输入参数(A,Iz,minN,maxN,minMz,maxMz)均为单根钢板桩的参数,YC钢板桩形心轴距离锁口内沿的距离。"
 	README(IPP(I)) ="//hy,hz分别为梁截面在y'和z'轴方向(局部坐标)的高度，为后处理转化为六面体单元时所用. \N"C
 	README(IPP(I)) ="//当为支护桩时，hy,hz分别为桩径和桩距，计算作用于支护桩上的土压力和土弹簧的刚度用 \N"C
-	README(IPP(I)) ="//10. CASE(PIPE2,PPIPE2) : PROPERTY(1)=R(管半径,L)  .(2)=LAMDA(管壁摩阻系数)	.(3)=EPSLON(管壁的绝对粗糙度,L)	.(4)=V(运动粘滞系数L**2/T)"C
+	README(IPP(I)) ="//10. CASE(wellbore) : PROPERTY(1)=R(井半径)  .(2)C=V/g=u/gama(10度,v=1.5436036E-12 m.d (1.333673E-07m.s)), 20度,C=1.1857521E-12 m.d (1.024490E-07 m.s)),默认为C=1.1857521E-12 m.d"C
 	README(IPP(I)) ="//11. CASE(ExcavationSoil/SLOPESOIL) : PROPERTY(1:10)=黏聚力，摩擦角，天然/饱和重度，变形模量，泊松比,渗透系数，水平基床系数(F/L**3),墙土间摩擦角（度）,[层顶水压力PW1,层底水压力PW2]"C
 	README(IPP(I)) ="//PW1，PW2仅当土层的水压力为手动输入时有用（WPMETHOD=3）。"
-	README(IPP(I)) ="//12. CASE(spirng) : PROPERTY(1:3)=k,minV(发生负位移),maxV(发生正位移)，预加力，预加位移"C
+	README(IPP(I)) ="//12. CASE(spring) : PROPERTY(1:3)=k,minV(发生负位移),maxV(发生正位移)，预加力，预加位移"C
 	
 						
 	README(IPP(I)) ="\N//******************************************************************************************************"C

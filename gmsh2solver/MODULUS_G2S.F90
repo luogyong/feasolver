@@ -380,10 +380,9 @@ module DS_Gmsh2Solver
                 NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1]
                 DEALLOCATE(ELEMENT(IEL1).NODE)
                 ALLOCATE(ELEMENT(IEL1).NODE,SOURCE=NODE1([1,2,4,3]))
-            ENDIF          
-            
-            
+            ENDIF
         ENDDO
+        
         !BC
         N1=SELF.WELLNODE
         
