@@ -871,12 +871,12 @@ subroutine solvercommand(term,unit)
 				        allocate(element1(i).node(nnum1))
 						call skipcomment(unit)
 						read(unit,*) element1(i).node,element1(i).PROPERTY(3)
-                    case(wellbore)
-                        !wellbore 单元有两种情况，2节点和4节点
-                        call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
-                        element1(i).nnum=n1
-                        allocate(element1(i).node(n1))
-                        element1(i).node=int(ar(1:n1))                        
+                    !case(wellbore)
+                    !    !wellbore 单元有两种情况，2节点和4节点
+                    !    call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+                    !    element1(i).nnum=n1
+                    !    allocate(element1(i).node(n1))
+                    !    element1(i).node=int(ar(1:n1))                        
 					case default
                     	element1(i).nnum=nnum1
 				        allocate(element1(i).node(nnum1))
@@ -894,10 +894,11 @@ subroutine solvercommand(term,unit)
 				element1(i).ec=ec1
 				element1(i).sf=sf1
 				if(et1==beam) element1(i).system=system1
-                if(element1(i).et==wellbore) then  !wellbore 单元有两种情况，2节点和4节点
-				    element1(i).ndof=n1
-				    element1(i).nd=n1                    
-                endif
+        !        if(element1(i).et==wellbore) then  !wellbore 单元有两种情况，2节点和4节点
+				    !element1(i).ndof=n1
+				    !element1(i).nd=n1                    
+        !            if(n1==2) element1(i).et=pipe2
+        !        endif
 			end do
 			!eset(set1).num=set1
 			eset(set1).stype=stype
@@ -3084,12 +3085,18 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ND1=3
 			STYPE='FETRIANGLE'
 			EC1=STRU
-		case(pipe2,wellbore)
+		case(wellbore)
 			NNUM1=4
 			NDOF1=4
 			ND1=4
+			STYPE='FEQUADRILATERAL'
+			EC1=SPG
+		case(pipe2)
+			NNUM1=2
+			NDOF1=2
+			ND1=2
 			STYPE='FELINESEG'
-			EC1=PIPE
+			EC1=SPG            
 		case(springx,springy,springz,springmx,springmy,springmz)
 			nnum1=1
 			ndof1=1

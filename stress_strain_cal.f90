@@ -372,9 +372,10 @@ subroutine extrapolation_stress_strain_cal(ienum)
 								ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				END DO				
 			END DO
-
+        CASE(WELLBORE,PIPE2)
+        
 		CASE DEFAULT
-			PRINT *, 'NO SUCH A ELEMENT TYPE. SUB extrapolation_stress_strain_cal'
+			PRINT *, 'NO SUCH AN ELEMENT TYPE. SUB extrapolation_stress_strain_cal'
 			STOP					
 	END SELECT
 			
@@ -610,7 +611,9 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 	
 	!averaged simplily at nodes
 	do i=1,enum
-		IF(ELEMENT(I).ISACTIVE==0) CYCLE	
+		IF(ELEMENT(I).ISACTIVE==0) CYCLE
+        
+
 
 		n1=element(i).ngp
 		
@@ -646,7 +649,21 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 				    ENDIF
 				end do
 			case(spg2d,spg,cax_spg)
+            
+
 				do j=1,element(i).nnum
+                    node(element(i).node(j)).q=node(element(i).node(j)).q+element(i).flux(j)
+                    
+                    IF(ELEMENT(I).ET==PIPE2) CYCLE
+                    !recover the head value at the nodes along the wellbore
+                    IF(ELEMENT(I).ET==WELLBORE) THEN
+                        TDISP(NODE(ELEMENT(I).NODE(4)).DOF(4))=TDISP(NODE(ELEMENT(I).NODE(1)).DOF(4))
+                        TDISP(NODE(ELEMENT(I).NODE(3)).DOF(4))=TDISP(NODE(ELEMENT(I).NODE(2)).DOF(4))
+                        CYCLE
+                    ENDIF
+                        
+                    
+                    
                     IF(solver_control.i2ncal/=SPR) THEN
 					    IF(SOLVER_CONTROL.I2NWEIGHT==WEIGHT_ANGLE) THEN
                             T2=element(i).ANGLE(J)/node(element(i).node(j)).ANGLE
@@ -665,7 +682,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 					    node(element(i).node(j)).mw=node(element(i).node(j)).mw &
 					    +element(i).mw(n1+j)*T2	
                     ENDIF
-					node(element(i).node(j)).q=node(element(i).node(j)).q+element(i).flux(j)
+					
                 end do
             case(stru,spring,soilspring)
                 
@@ -799,6 +816,8 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				enddo			
 			END DO
+        CASE(WELLBORE,PIPE2)
+        
 		CASE DEFAULT
 			PRINT *, 'NO SUCH A ELEMENT TYPE. SUB extrapolation_stress_strain_cal'
 			STOP					
@@ -832,6 +851,8 @@ subroutine NodalWeight(ISTEP)
         endif
         
         if(element(i).isactive==0) cycle
+        !line element,such as wellbore and pipe2 are excluded.
+        if(element(i).et==wellbore.or.element(i).et==pipe2) cycle
         
 		ISSPG1=ELEMENT(I).EC==SPG.OR.ELEMENT(I).EC==SPG2D.OR.ELEMENT(I).EC==CAX_SPG
 		do j=1,element(i).nnum
@@ -882,7 +903,8 @@ subroutine calangle(ienum)
 	!assume that all element edges are straight lines. such that the angle
 	!of the nodes inside a line equel to pi.
 	! the angle for inner nodes equel to 2pi	
-	
+	IF(ALLOCATED(ELEMENT(IENUM).ANGLE)) RETURN
+    
 	allocate(element(ienum).angle(element(ienum).nnum))
     IESET1=ELEMENT(IENUM).SET
     IF(ESET(IESET1).COUPLESET>0.AND.ESET(IESET1).COUPLESET<IESET1) THEN !GHOST

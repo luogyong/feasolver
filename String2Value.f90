@@ -334,8 +334,8 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 			value=cax_spg
 		case('pipe2')
 			value=pipe2
-		case('ppipe2')
-			value=ppipe2
+		case('wellbore')
+			value=wellbore
 		case('eip_bar')
 			value=eip_bar
 		case('eip_beam')

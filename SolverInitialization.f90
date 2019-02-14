@@ -705,7 +705,7 @@ subroutine Initialization()
                 CALL BARFAMILY_EXTREMEVALUE(I)
 			case(shell3_kjb)
 			
-			case(wellbore)
+			case(pipe2,wellbore)
 				node(element(i).node(1:element(i).nnum)).dof(4)=0
 				allocate(element(i).km(element(i).nnum,element(i).nnum))
 				element(i).km=0.0D0
@@ -715,10 +715,16 @@ subroutine Initialization()
                     t1=1.1857521D-12
                 endif
                 element(i).property(1)=(2*material(element(i).mat).property(1))**2/t1/32
-                if(element(i).nnum>2) then
-                    
-                    !element(i).property(2)=
-                    
+                T1=RPI*material(element(i).mat).property(1)**2/ &
+                    NORM2(NODE(ELEMENT(I).NODE(1)).COORD-NODE(ELEMENT(I).NODE(2)).COORD)
+                ELEMENT(I).PROPERTY(1)=T1*ELEMENT(I).PROPERTY(1)
+                if(element(i).et==wellbore) then
+                    CALL INI_WELLBORE(I)                   
+                ELSE
+                    ALLOCATE(ELEMENT(I).KM(2,2))
+                    ELEMENT(I).KM=1.D0
+                    ELEMENT(I).KM(1,2)=-1.D0;ELEMENT(I).KM(2,1)=-1.D0
+                    ELEMENT(I).KM=ELEMENT(I).KM*ELEMENT(I).PROPERTY(1)
                 endif
                 
 			!CASE(ZT4_SPG) !assume no flow occurs in the diections parallel to element faces.
@@ -1550,4 +1556,131 @@ SUBROUTINE NDOF_HEAD()
 
 ENDSUBROUTINE
 
+
+SUBROUTINE INI_WELLBORE(IELT)
+    
+    USE MESHADJ
+    USE solverds
+    USE SolverMath
+    IMPLICIT NONE
+    INTEGER,INTENT(IN)::IELT
+    INTEGER::I,J,IELT1,IEDGE1,GMET1,SUBID1,AF1(2),N1,NADJL1(50),N2,N3
+    REAL(8)::AV1(3,2),AR1(3,3),ZV1(3),YV1(3),XV1(3),D1,T1,T2,RDIS1(50),HK1,PHI1,TPHI1,WR1,L1,&
+        ORG1(3)
+    
+    if(.not.isIniSEdge) then
+        CALL SETUP_EDGE_ADJL(SEDGE,NSEDGE,SNADJL)
+        ISINISEDGE=.TRUE.
+    endif
+    
+    IEDGE1=ELEMENT(IELT).EDGE(3)
+    N1=0
+    L1=SEDGE(IEDGE1).DIS/2.0
+    DO I=1,SEDGE(IEDGE1).ENUM
+        IELT1=SEDGE(IEDGE1).ELEMENT(I)
+        GMET1=GETGMSHET(ELEMENT(IELT1).ET)
+        IF(ELTTYPE(GMET1).DIM==3.AND.ELEMENT(IELT1).EC==SPG) THEN
+            N1=N1+1
+            IF(.NOT.ALLOCATED(ELEMENT(IELT1).ANGLE)) CALL calangle(IELT1) 
+        ENDIF
+    ENDDO
+    
+       
+    ALLOCATE(ELEMENT(IELT).NODE2(N1),ELEMENT(IELT).ANGLE(N1))
+    
+    DO I=3,4
+        DO J=1,SNADJL(ELEMENT(IELT).NODE(I)).ENUM
+            IELT1=SNADJL(ELEMENT(IELT).NODE(I)).ELEMENT(J)
+            IF(ELEMENT(IELT1).ET==WELLBORE.OR.ELEMENT(IELT1).ET==PIPE2) CYCLE !ITSELF EXCLUDED
+            IF(ELEMENT(IELT1).EC/=SPG) CYCLE
+            IF(ALLOCATED(ELEMENT(IELT1).ANGLE)) CYCLE
+            CALL calangle(IELT1)
+        ENDDO    
+    ENDDO
+    
+    N1=0;HK1=0.D0
+    DO I=1,SEDGE(IEDGE1).ENUM
+        IELT1=SEDGE(IEDGE1).ELEMENT(I)
+        GMET1=GETGMSHET(ELEMENT(IELT1).ET)
+        IF(ELTTYPE(GMET1).DIM<3) CYCLE
+        SUBID1=SEDGE(IEDGE1).SUBID(I)
+        N1=N1+1
+        ELEMENT(IELT).NODE2(N1)=IELT1
+        AF1=PACK([1:ELTTYPE(GMET1).NFACE],MASK=ANY(ABS(ELTTYPE(GMET1).FACEEDGE(1:4,:))-SUBID1==0,DIM=1))
+        DO J=1,2
+            AR1(:,1)=NODE(ELEMENT(IELT1).NODE(ELTTYPE(GMET1).FACE(1,AF1(J)))).COORD
+            AR1(:,2)=NODE(ELEMENT(IELT1).NODE(ELTTYPE(GMET1).FACE(2,AF1(J)))).COORD
+            AR1(:,3)=NODE(ELEMENT(IELT1).NODE(ELTTYPE(GMET1).FACE(3,AF1(J)))).COORD                   
+            AV1(:,J)=NORMAL_TRIFACE(AR1)            
+        ENDDO
+        ELEMENT(IELT).ANGLE(N1)=DihedralAngle(AV1(:,1),AV1(:,2))
+        !井周边单元的的平均渗透系数，暂假定各项同性
+        HK1=HK1+MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(1)        
+    ENDDO
+    HK1=HK1/N1
+    TPHI1=SUM(ELEMENT(IELT).ANGLE)
+    ELEMENT(IELT).PROPERTY(4)=TPHI1
+    PHI1=TPHI1/SIZE(ELEMENT(IELT).ANGLE)
+    
+    !LOCAL COORDINATE SYSTEM
+    !以wellbore单元，3节点为原点，3-4为z轴的局部坐标系。
+    ALLOCATE(ELEMENT(IELT).G2L(3,3))
+    ORG1=NODE(ELEMENT(IELT).NODE(3)).COORD
+    ZV1=NODE(ELEMENT(IELT).NODE(4)).COORD-ORG1
+    ZV1=ZV1/NORM2(ZV1)
+    D1=-DOT_PRODUCT(ZV1,ORG1)
+    
+    IF(ABS(ZV1(3))>1E-7) THEN
+        XV1=[ORG1(1)+1.0,0.D0,-(D1+ZV1(1)*(ORG1(1)+1.0))/ZV1(3)]
+    ELSEIF(ABS(ZV1(2))>1E-7) THEN
+        XV1=[ORG1(1)+1.0,-(D1+ZV1(1)*(ORG1(1)+1.0))/ZV1(2),0.D0]
+    ELSE
+        XV1=[-(D1+ZV1(2)*(ORG1(2)+1.0))/ZV1(1),ORG1(2)+1.0,0.D0]
+    ENDIF
+    XV1=XV1-ORG1
+    XV1=XV1/NORM2(XV1)
+    
+    YV1=NORMAL_TRIFACE(RESHAPE([0.D0,0.D0,0.D0,ZV1,XV1],([3,3])))       
+    YV1=YV1/NORM2(YV1)
+    ELEMENT(IELT).G2L(1,:)=XV1;ELEMENT(IELT).G2L(2,:)=YV1;ELEMENT(IELT).G2L(3,:)=ZV1;
+    
+    WR1=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(1)
+    T2=PHI1*SIN(PHI1)/(1-COS(PHI1))
+    DO J=3,4
+        N2=0
+        N3=ELEMENT(IELT).NODE(J)
+        DO I=1,SNADJL(N3).NNUM
+            N1=SNADJL(N3).NODE(I)
+            XV1=NODE(N1).COORD-NODE(ELEMENT(IELT).NODE(3)).COORD
+            XV1=MATMUL(ELEMENT(IELT).G2L(:,:),XV1)
+            T1=NORM2(XV1(1:2))
+            IF(T1>WR1) THEN
+                N2=N2+1
+                NADJL1(N2)=N1;
+                RDIS1(N2)=T1
+            ENDIF
+           
+        ENDDO
+        T1=SUM(RDIS1(1:N2))/N2
+        IF(J==3) THEN
+            ALLOCATE(ELEMENT(IELT).WELL_SP3(N2),ELEMENT(IELT).WELL_SP3_R(N2))
+            ELEMENT(IELT).NWSP3=N2
+            ELEMENT(IELT).WELL_SP3=NADJL1(1:N2)
+            ELEMENT(IELT).WELL_SP3_R=RDIS1(1:N2)
+            ELEMENT(IELT).PROPERTY(2)=TPHI1*HK1*L1/(LOG(T1/WR1)-T2)
+        ELSE
+            ALLOCATE(ELEMENT(IELT).WELL_SP4(N2),ELEMENT(IELT).WELL_SP4_R(N2))
+            ELEMENT(IELT).NWSP4=N2
+            ELEMENT(IELT).WELL_SP4=NADJL1(1:N2)
+            ELEMENT(IELT).WELL_SP4_R=RDIS1(1:N2)
+            ELEMENT(IELT).PROPERTY(3)=TPHI1*HK1*L1/(LOG(T1/WR1)-T2)
+        ENDIF
+        
+    ENDDO
+    
+    !ALLOCATE(ELEMENT(IELT).KM(4,4))
+    ELEMENT(IELT).KM=KM_WELLBORE(ELEMENT(IELT).PROPERTY(1),ELEMENT(IELT).PROPERTY(2),ELEMENT(IELT).PROPERTY(3))
+
+    
+ENDSUBROUTINE
 

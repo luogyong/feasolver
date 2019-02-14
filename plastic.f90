@@ -48,7 +48,7 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 				!end if
 				un(1:element(i).ndof)=stepdis(element(i).g)
                 if(.not.stepinfo(istep).issteady) inihead(1:element(i).ndof)=inivaluedof(element(i).g)
-                call SPG_Q_UPDATE(bload,un,INIHEAD,DT1,element(i).ndof,i,iiter,istep,iscon)
+                call SPG_Q_UPDATE(STEPDIS,bload,un,INIHEAD,DT1,element(i).ndof,i,iiter,istep,iscon)
 
 			case(STRU)
 				un(1:element(i).ndof)=stepdis(element(i).g)  

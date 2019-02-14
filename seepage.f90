@@ -1,74 +1,86 @@
-SUBROUTINE SPG_Q_UPDATE(bload,HHEAD,INIHEAD,DT,nbload,ienum,iiter,istep,iscon)
+SUBROUTINE SPG_Q_UPDATE(STEPDIS,bload,HHEAD,INIHEAD,DT,nbload,ienum,iiter,istep,iscon)
     USE solverds
     IMPLICIT NONE
     logical,intent(in)::iscon
 	integer,intent(in)::iiter,ienum,istep,nbload
-	real(kind=DPN),intent(in)::HHEAD(nbload),INIHEAD(nbload),DT
+	real(kind=DPN),intent(in)::STEPDIS(NDOF),HHEAD(nbload),INIHEAD(nbload),DT
 	real(kind=DPN),intent(out)::bload(nbload)
     INTEGER::J,N1,ND1
-    REAL(DPN)::KT1(NDIMENSION,NDIMENSION),HJ,hj_ini,slope1,sita1,R1
-
-	ND1=ELEMENT(IENUM).ND
-    N1=element(ienum).NGP
-	do j=1,N1
-                   
-		hj=dot_product(ecp(element(ienum).et).Lshape(1:nbload,J),HHEAD(1:nbload))
-        
-		R1=1.D0
-		if(element(ienum).ec==cax_spg) R1=ABS(element(ienum).xygp(1,j))
-					
-		!gradient
-		element(ienum).igrad(1:nd1,j)=matmul(element(ienum).B(:,:,j),HHEAD(1:NBLOAD))
-		!velocity
-		CALL SPG_KT_UPDATE(KT1,HHEAD,HJ,nbload,IENUM,J,ISTEP,IITER)			
-		element(ienum).velocity(1:nd1,j)=-matmul(KT1,element(ienum).igrad(1:nd1,j))
-		!flux
-		if(.not.stepinfo(istep).issteady) then
-			hj_ini=dot_product(ecp(element(ienum).et).Lshape(1:nbload,j),INIHEAD)
-			call slope_SWWC_spg(ienum,hj,element(ienum).xygp(ndimension,j),slope1,sita1,element(ienum).sita_ini(j),hj_ini,ISTEP)
-                        
-            element(ienum).mw(j)=slope1
-            element(ienum).sita_fin(j)=sita1
-						
-			Qstored=Qstored+sita1*ecp(element(ienum).et).weight(j)*element(ienum).detjac(j)
-						
-						
-			if(j==1) element(ienum).cmm=0.d0  !clear 
-            if(slope1/=0.0d0) then
-				element(ienum).cmm=element(ienum).cmm+csproduct(ecp(element(ienum).et).Lshape(:,j),ecp(element(ienum).et).Lshape(:,j))* &
-								(R1*slope1*ecp(element(ienum).et).weight(j)*element(ienum).detjac(j)*MATERIAL(ELEMENT(ienum).MAT).GET(13,ISTEP)/DT)
-            end if
-            if((j==n1).and.any(element(ienum).cmm/=0.d0)) then
-				bload(1:NBLOAD)=bload(1:NBLOAD)+matmul(element(ienum).cmm,(HHEAD-INIHEAD))
-			end if
-		end if
-										
-		bload(1:NBLOAD)=bload(1:NBLOAD)+ &
-		matmul(-element(ienum).velocity(1:nd1,j),element(ienum).b(:,:,j))* &
-		element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*R1						
-
-        if(solver_control.bfgm==continuum.or.solver_control.bfgm==consistent) then
-            if(j==1) element(ienum).km=0.0D0
-			element(ienum).km=element(ienum).km+ &
-				matmul(MATMUL(TRANSPOSE(element(ienum).b(:,:,j)),KT1),element(ienum).b(:,:,j))* &
-				(element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*R1)
-   !         if(j==n1) then
-			!	bload(1:NBLOAD)=bload(1:NBLOAD)+matmul(element(ienum).km,HHEAD(1:NBLOAD))
-			!end if							
-		end if
-					
-	end do
+    REAL(DPN)::KT1(NDIMENSION,NDIMENSION),HJ,hj_ini,slope1,sita1,R1,A1,A2,A3
     
-	element(ienum).flux(1:NBLOAD)=bload(1:NBLOAD)    
+    
+    SELECT CASE(ELEMENT(IENUM).ET)
+        
+    CASE(PIPE2,WELLBORE)
+        CALL WELLBORE_Q_K_UPDATE(STEPDIS,IENUM,ISTEP,IITER)
+        BLOAD=ELEMENT(IENUM).FLUX        
+    CASE DEFAULT
+
+	    ND1=ELEMENT(IENUM).ND
+        N1=element(ienum).NGP
+	    do j=1,N1
+                   
+		    hj=dot_product(ecp(element(ienum).et).Lshape(1:nbload,J),HHEAD(1:nbload))
+        
+		    R1=1.D0
+		    if(element(ienum).ec==cax_spg) R1=ABS(element(ienum).xygp(1,j))
+					
+		    !gradient
+		    element(ienum).igrad(1:nd1,j)=matmul(element(ienum).B(:,:,j),HHEAD(1:NBLOAD))
+		    !velocity
+		    CALL SPG_KT_UPDATE(KT1,HHEAD,HJ,nbload,IENUM,J,ISTEP,IITER)			
+		    element(ienum).velocity(1:nd1,j)=-matmul(KT1,element(ienum).igrad(1:nd1,j))
+		    !flux
+		    if(.not.stepinfo(istep).issteady) then
+			    hj_ini=dot_product(ecp(element(ienum).et).Lshape(1:nbload,j),INIHEAD)
+			    call slope_SWWC_spg(ienum,hj,element(ienum).xygp(ndimension,j),slope1,sita1,element(ienum).sita_ini(j),hj_ini,ISTEP)
+                        
+                element(ienum).mw(j)=slope1
+                element(ienum).sita_fin(j)=sita1
+						
+			    Qstored=Qstored+sita1*ecp(element(ienum).et).weight(j)*element(ienum).detjac(j)
+						
+						
+			    if(j==1) element(ienum).cmm=0.d0  !clear 
+                if(slope1/=0.0d0) then
+				    element(ienum).cmm=element(ienum).cmm+csproduct(ecp(element(ienum).et).Lshape(:,j),ecp(element(ienum).et).Lshape(:,j))* &
+								    (R1*slope1*ecp(element(ienum).et).weight(j)*element(ienum).detjac(j)*MATERIAL(ELEMENT(ienum).MAT).GET(13,ISTEP)/DT)
+                end if
+                if((j==n1).and.any(element(ienum).cmm/=0.d0)) then
+				    bload(1:NBLOAD)=bload(1:NBLOAD)+matmul(element(ienum).cmm,(HHEAD-INIHEAD))
+			    end if
+		    end if
+										
+		    bload(1:NBLOAD)=bload(1:NBLOAD)+ &
+		    matmul(-element(ienum).velocity(1:nd1,j),element(ienum).b(:,:,j))* &
+		    element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*R1						
+
+            if(solver_control.bfgm==continuum.or.solver_control.bfgm==consistent) then
+                if(j==1) element(ienum).km=0.0D0
+			    element(ienum).km=element(ienum).km+ &
+				    matmul(MATMUL(TRANSPOSE(element(ienum).b(:,:,j)),KT1),element(ienum).b(:,:,j))* &
+				    (element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*R1)
+       !         if(j==n1) then
+			    !	bload(1:NBLOAD)=bload(1:NBLOAD)+matmul(element(ienum).km,HHEAD(1:NBLOAD))
+			    !end if							
+		    end if
+					
+	    end do
+        
+        element(ienum).flux(1:NBLOAD)=bload(1:NBLOAD)
+    
+    END SELECT
+    
+	    
     
 END SUBROUTINE    
     
     
-subroutine lamda_spg(ienum,hj,z,lamda,iiter,igp,ISTEP)
+subroutine lamda_spg(ienum,hj,z,lamda,ISTEP)
 	
 	use solverds
 	implicit none
-	integer,intent(in)::ienum,iiter,igp,ISTEP
+	integer,intent(in)::ienum,ISTEP
 	real(8),intent(in)::hj,z
 	real(8),intent(out)::lamda
 	real(8)::t1,epsilon1,epsilon2,krsml
@@ -227,7 +239,7 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
     
 	
 					
-	call lamda_spg(ienum,hj,element(ienum).xygp(ndimension,IGP),lamda,iiter,IGP,ISTEP)                   						
+	call lamda_spg(ienum,hj,element(ienum).xygp(ndimension,IGP),lamda,ISTEP)                   						
                     
     if(iiter>1) lamda=(element(ienum).kr(IGP)+lamda)/2.0D0
                     
@@ -313,3 +325,102 @@ SUBROUTINE SPG_Signorini_BC_UPDATE(DISQ,STEPDIS,ISTEP)
 	
 	
 ENDSUBROUTINE
+
+
+SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
+    USE solverds
+    USE MESHGEO,ONLY:SNADJL
+    IMPLICIT NONE
+    INTEGER,INTENT(IN)::IEL,ISTEP,IITER
+    REAL(8),INTENT(IN)::STEPDIS(NDOF)
+    INTEGER::I,J,K,IN1,IN2,IN3,N1,N2,IEL1,IP1
+    REAL(8)::H1,X1(3),R1,Q1(4),PI1,LAMDA1,K1,DIS1,DH1,A1(3),NHEAD1(4),KM1(4,4),HZ1,RA1,X2(3),&
+    W1,TW1
+    
+    
+    NHEAD1=STEPDIS(ELEMENT(IEL).G)
+    
+    IF(ANY(NHEAD1(1:2)-NODE(ELEMENT(IEL).NODE(1:2)).COORD(NDIMENSION)<0.D0)) THEN
+        A1(1)=1.D-7
+    ELSE
+        A1(1)=ELEMENT(IEL).PROPERTY(1)
+    ENDIF
+    
+    IF(ELEMENT(IEL).ET==PIPE2) THEN
+        KM1(1,1)=A1(1);KM1(2,2)=A1(1);KM1(1,2)=-A1(1);KM1(2,1)=-A1(1)
+     
+    ELSE
+        !WRITE(99,10) 
+        
+        PI1=PI();Q1=0.D0
+        DO I=1,2
+    
+            IF(NHEAD1(2+I)-NODE(ELEMENT(IEL).NODE(2+I)).COORD(NDIMENSION)<0.D0) THEN        
+                A1(I+1)=1.D-7
+                CYCLE
+            ENDIF
+        
+            IN1=ELEMENT(IEL).NODE(2+I)
+            IN2=ELEMENT(IEL).NODE(2+MOD(I,2)+1)
+            DIS1=NORM2(NODE(IN1).COORD-NODE(IN2).COORD)/2.
+            IF(I==1) THEN
+                N2=2
+            ELSE
+                N2=1
+            ENDIF
+            DH1=STEPDIS(NODE(IN1).DOF(4))-STEPDIS(NODE(ELEMENT(IEL).NODE(N2)).DOF(4))
+            IP1=0;RA1=0.D0;W1=0;TW1=0;
+            DO J=1,SNADJL(IN1).ENUM
+                IEL1=SNADJL(IN1).ELEMENT(J)
+                IF(ELEMENT(IEL1).ET==WELLBORE.OR.ELEMENT(IEL1).ET==PIPE2) CYCLE !ITSELF EXCLUDED
+                IF(ELEMENT(IEL1).EC/=SPG) CYCLE
+                
+                H1=0;X1=0.D0;N1=0
+                DO K=1,ELEMENT(IEL1).NNUM
+                    IN3=ELEMENT(IEL1).NODE(K)
+                    !IF(IN3==IN1) CYCLE
+                    !IF(IN3==IN2) CYCLE
+                    N1=N1+1
+                    H1=H1+STEPDIS(NODE(IN3).DOF(4))
+                    X1=X1+NODE(IN3).COORD
+                ENDDO
+                
+                IF(N1<1) CYCLE
+                
+                H1=H1/N1;X1=X1/N1;X2=X1
+                
+                CALL lamda_spg(IEL1,H1,X1(NDIMENSION),lamda1,ISTEP)
+                K1=MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(1)*LAMDA1 !ASSUME ISOTROPIC
+                X1=X1-NODE(ELEMENT(IEL).NODE(3)).COORD !ORIGIN IS THE THIRD NODE.
+                X1=MATMUL(ELEMENT(IEL).G2L,X1)
+                R1=NORM2(X1(1:2))
+                
+                IF(R1<=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)) CYCLE
+                
+                HZ1=NHEAD1(2)+(NHEAD1(1)-NHEAD1(2))/(NODE(ELEMENT(IEL).NODE(1)).COORD(NDIMENSION)-NODE(ELEMENT(IEL).NODE(2)).COORD(NDIMENSION))*X1(NDIMENSION)  !X1已经局部坐标
+                RA1=ELEMENT(IEL).PROPERTY(4)*K1*(H1-HZ1)/ &
+                LOG(R1/MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1))
+                W1=ELEMENT(IEL1).ANGLE(SNADJL(IN1).SUBID(J))
+                Q1(I+2)=Q1(I+2)+RA1
+                TW1=TW1+W1;IP1=IP1+1
+                !WRITE(99,20) ISTEP,IITER,IEL,I+2,IP1,X2,X1,R1,H1,HZ1,RA1,W1
+            ENDDO  
+            Q1(I+2)=Q1(I+2)/IP1*DIS1
+            A1(I+1)=ABS(Q1(I+2)/DH1)
+        ENDDO
+        KM1=KM_WELLBORE(A1(1),A1(2),A1(3))
+    ENDIF
+    
+    
+    IF(.NOT.ALLOCATED(ELEMENT(IEL).FLUX)) ALLOCATE(ELEMENT(IEL).FLUX(ELEMENT(IEL).NNUM))
+    
+    ELEMENT(IEL).FLUX=MATMUL(KM1(1:ELEMENT(IEL).NDOF,1:ELEMENT(IEL).NDOF),NHEAD1(1:ELEMENT(IEL).NDOF))
+    
+    if(solver_control.bfgm==continuum.or.solver_control.bfgm==consistent) then
+        ELEMENT(IEL).KM=KM1(1:ELEMENT(IEL).NDOF,1:ELEMENT(IEL).NDOF)      							
+    end if
+
+10  FORMAT("ISTEP,IITER,IEL,NODE1,P1,XG,YG,ZG,XL,YL,ZL,RA,HA,HW,Qunit,WGT   //WELLBORE INFO")
+20  FORMAT(5I7,11F15.7)
+    
+END SUBROUTINE

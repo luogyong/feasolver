@@ -22,6 +22,7 @@ module solverds
 		integer::nelist=0,NELIST_SPG=0,ISACTIVE=0
 		!integer,allocatable::elist(:),ELIST_SPG(:) !elements sharing the node.
 !		integer::Property=0 !for SPG, Property=1 suggesting that the node is on the seepage surface.
+
 	end type
 	integer::nnum !节点数
 	type(node_tydef),allocatable::node(:)
@@ -32,6 +33,7 @@ module solverds
 		integer::nnum,NEDGE=0,NFACE=0,NTET=0 !node numbers of this element
 		integer,allocatable::node(:),EDGE(:),FACE(:),TET(:) !单元的节点,TET为单元的细分单元组的下标。
         integer,allocatable::node2(:) !为方便Bar和Beam单元的后处理，为单元集内的节点编号，将其转换成实体六面体单元后输出,当单元为zt4_spg,或zt6_spg时，node2指向gnode。
+        !当et=wellbore时，node2存储以wellbore单元第3，4节点为边的3维单元 
 		integer::et  !单元类型
 		integer::mat,mattype  !material id and material type.the paramters is got from material(mat)
 		!for et=soilspring, mat=-1,主动侧单元，mat=-2,被动侧单元
@@ -61,7 +63,9 @@ module solverds
 		! y and z is defined by user but must be consistent with right hand rule.
 		!and be consistent with Iy and Iz.
 		real(kind=DPN)::property(6)=0.0D0  !for spg problem and iniflux is used, property(3)=low lamda,property(2)=up lamda
+        !for wellbore element, property(1-3), element hydraulic conductivity, property(4) surround angle.
 		real(kind=DPN),allocatable::angle(:)!internal angle for every nodes
+        !当et=wellbore时,angle存储node2单元对应的二面角。
 		integer,allocatable::g(:) !单元的定位向量
 		real(kind=DPN),allocatable::km(:,:) !单元的单刚,km(ndof,ndof)
 		real(kind=DPN),allocatable::CMM(:,:) !Consistent mass matrix
@@ -94,7 +98,9 @@ module solverds
 		real(kind=DPN),allocatable::Kr(:) !relative permeability
 		real(kind=DPN),allocatable::Mw(:) !slope of volumetric water content
 		real(kind=DPN),allocatable::sita_fin(:),sita_ini(:) !volume water content in the end and start of the time step.  
-        		
+        INTEGER,ALLOCATABLE::WELL_SP3(:),WELL_SP4(:) !USE forlab WELLBORE ELEMENT
+        REAL(KIND=DPN),ALLOCATABLE::WELL_SP3_R(:),WELL_SP4_R(:)
+        INTEGER::NWSP3=0,NWSP4=0		
 		
 		!real(kind=DPN),allocatable::lamda(:) !lamda(ngp)=1.0(by default),relative k. 
 		!additional variables for upper bound analysis
@@ -447,6 +453,7 @@ module solverds
 	INTEGER::NNODALQ=0
 	integer,allocatable::bfgm_step(:)
     integer::mpi_rank = 0, mpi_size = 1, mpi_ierr
+    LOGICAL::ISINISEDGE=.FALSE.
     
     INTERFACE
          PURE subroutine INVARIANT(stress,inv)
@@ -639,6 +646,25 @@ pure function DINV(E,V,ND) result(C)
 	
 end function
 
+FUNCTION KM_WELLBORE(A1,A2,A3) RESULT(KM)
+    IMPLICIT NONE
+    REAL(8),INTENT(IN)::A1,A2,A3
+    REAL(8)::KM(4,4)
+    
+    
+    KM=0.D0
+    KM(1,1)=A1+A3
+    KM(2,2)=A1+A2
+    KM(3,3)=A2
+    KM(4,4)=A3
+    KM(1,2)=-A1
+    KM(2,1)=-A1
+    KM(2,3)=-A2
+    KM(3,2)=-A2
+    KM(1,4)=-A3
+    KM(4,1)=-A3
+
+END FUNCTION
     
 end module
 

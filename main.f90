@@ -25,7 +25,7 @@ program main
 	Print *, 'FEASOLVER. LGY WORK.'
     !ef = setexitqq(QWIN$EXITNOPERSIST)
 	call TIME(char_time) 
-    ef = setexitqq(QWIN$EXITNOPERSIST)
+    !ef = setexitqq(QWIN$EXITNOPERSIST)
     !IF(SOLVER_CONTROL.NOPOPUP==0) THEN
 	   ! write(*, 10) 
 	   ! key=getcharqq()

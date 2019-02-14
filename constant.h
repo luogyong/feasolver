@@ -93,7 +93,7 @@
 	integer, parameter::ZT6_SPG=130 !6-NODED ZEROTHICKNESS 3D SEEPAGE ELEMENT,SIMLATING A 3D CUT-OFF WALL.
 	!pipe flow
 	integer,parameter::pipe2=401 !2-noded line element for pipe flow simulation
-	integer,parameter::wellbore=402 !2-noded line element for perforated wellbore inflow simulation
+	integer,parameter::wellbore=402 !4-noded line element for perforated wellbore inflow simulation
 	
 	!Coupled element
 	integer,parameter::CPE3_CPL=202  !Continuum, plane strain, triangle element with 3 nodes, nodal number order is anticlockwise (1,2,3) 

@@ -78,7 +78,7 @@ module DS_Gmsh2Solver
 		character(32)::ET="ELT_BC_OR_LOAD"
 		INTEGER::LAYERGROUP(50)=0	
         INTEGER,ALLOCATABLE::TRISURFACE(:),QUASURFACE(:),TRINODEG2L(:),TRINODEL2G(:) !global to local
-        INTEGER::NTRISURFACE=0,NQUASURFACE=0,NTRINODEL2G=0       
+        INTEGER::NTRISURFACE=0,NQUASURFACE=0,NTRINODEL2G=0
 	end type
 	integer,parameter::maxphgp=10100
 	type(physicalGroup_type)::physicalgroup(maxphgp)
@@ -335,7 +335,8 @@ module DS_Gmsh2Solver
         CLASS(WELLBORE_TYDEF)::SELF
         INTEGER::I,J,K,N1,N2,INODE1,IEL1
         INTEGER::NODE1(10)
-        
+        LOGICAL,ALLOCATABLE::ISWBE1(:)
+        INTEGER,ALLOCATABLE::IA1(:)
         
         !generate four-noded well element
         ! 1 +-----------+ 2
@@ -351,7 +352,9 @@ module DS_Gmsh2Solver
        
         N1=SELF.IGP
         !PHYSICALGROUP(N1).ET="WELLBORE"
-        N2=NNODE
+        
+        ALLOCATE(ISWBE1(PHYSICALGROUP(N1).NEL))
+        ISWBE1=.FALSE.
         DO J=1,PHYSICALGROUP(N1).NEL
             
             IEL1=PHYSICALGROUP(N1).ELEMENT(J)
@@ -375,13 +378,36 @@ module DS_Gmsh2Solver
                 PRINT *, "SELF.WELLBORELOC<0.THE FUNCTION IS NOT FINISHED."
             ENDIF
             IF(ANY(PHYSICALGROUP(SELF.WELLBORELOC).ELEMENT-IEL1==0)) THEN
-                !滤管井单元
+                !滤管井单元            
                 ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE
                 NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1]
                 DEALLOCATE(ELEMENT(IEL1).NODE)
                 ALLOCATE(ELEMENT(IEL1).NODE,SOURCE=NODE1([1,2,4,3]))
+                ISWBE1(J)=.TRUE.
             ENDIF
         ENDDO
+        
+        IF(COUNT(ISWBE1==.FALSE.)==PHYSICALGROUP(N1).NEL) THEN
+            PHYSICALGROUP(N1).ET="PIPE2"
+        ELSEIF(COUNT(ISWBE1==.TRUE.)==PHYSICALGROUP(N1).NEL) THEN
+            PHYSICALGROUP(N1).ET="WELLBORE"
+        ELSE
+            N2=maxval(phgpnum)+1
+            CALL I_ENLARGE_AR(phgpnum,1)
+            NPHGP=NPHGP+1
+            phgpnum(nphgp)=N2
+            
+            ALLOCATE(IA1,SOURCE=PHYSICALGROUP(N1).ELEMENT);DEALLOCATE(PHYSICALGROUP(N1).ELEMENT)
+            PHYSICALGROUP(N2).ET="WELLBORE"            
+            PHYSICALGROUP(N2).NEL=COUNT(ISWBE1==.TRUE.)
+            ALLOCATE(PHYSICALGROUP(N2).ELEMENT(PHYSICALGROUP(N2).NEL))
+            PHYSICALGROUP(N2).ELEMENT=PACK(IA1,ISWBE1==.TRUE.)
+            
+            PHYSICALGROUP(N1).ET="PIPE2"            
+            PHYSICALGROUP(N1).NEL=COUNT(ISWBE1==.FALSE.)            
+            ALLOCATE(PHYSICALGROUP(N1).ELEMENT(PHYSICALGROUP(N1).NEL))
+            PHYSICALGROUP(N1).ELEMENT=PACK(IA1,ISWBE1==.FALSE.)
+        ENDIF
         
         !BC
         N1=SELF.WELLNODE
@@ -395,22 +421,20 @@ module DS_Gmsh2Solver
             NELT_BC=NELT_BC+1
             ELT_BC(NELT_BC).GROUP=SELF.WELLNODE
             ELT_BC(NELT_BC).NDIM=0
+            ELT_BC(NELT_BC).DOF=4
             ELT_BC(NELT_BC).VALUE=SELF.VALUE
         ELSE
             CALL ENLARGE_AR(ELT_LOAD,10)
             NELT_LOAD=NELT_LOAD+1
             ELT_LOAD(NELT_LOAD).GROUP=SELF.WELLNODE
             ELT_LOAD(NELT_LOAD).NDIM=0
-            ELT_LOAD(NELT_LOAD).VALUE=SELF.VALUE
-            
-        ENDIF
-        
-        
-        
-        
-        
-        
+            ELT_LOAD(NELT_LOAD).DOF=4
+            ELT_LOAD(NELT_LOAD).VALUE=SELF.VALUE            
+        ENDIF        
     
+        
+        DEALLOCATE(ISWBE1)
+        IF(ALLOCATED(IA1)) DEALLOCATE(IA1)
     ENDSUBROUTINE
     
   !  SUBROUTINE SET_ELEMENT_EDGE(THIS)
