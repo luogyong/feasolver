@@ -634,8 +634,23 @@ subroutine kwcommand(term,unit)
                 wellbore(I).wellnode=INT(AR(3))
                 wellbore(I).value=AR(4)
                 IF(nread>4) then
-                    WELLBORE(I).WELLBORELOC=INT(AR(5))                    
-                endif                
+                    WELLBORE(I).SPHERICALFLOW=INT(AR(5))                    
+                endif
+                IF(nread>5) then
+                    WELLBORE(I).NSEMI_SF=INT(AR(6))                    
+                endif 
+                IF(nread>6) then
+                    WELLBORE(I).WELLBORELOC=INT(AR(7)) 
+                ELSE
+                    WELLBORE(I).WELLBORELOC=WELLBORE(I).IGP
+                endif
+                IF(WELLBORE(I).NSEMI_SF>0) THEN
+                    ALLOCATE(WELLBORE(I).SEMI_SF_IPG(WELLBORE(I).NSEMI_SF),WELLBORE(I).DIR_VECTOR(3,WELLBORE(I).NSEMI_SF))
+                    DO J=1,WELLBORE(I).NSEMI_SF
+                        call skipcomment(unit)
+                        READ(UNIT,*) WELLBORE(I).SEMI_SF_IPG(J),WELLBORE(I).DIR_VECTOR(:,J)
+                    ENDDO
+                ENDIF
 			end do
         CASE("endwellbore")
 			strL1=LEN_trim("endwellbore")
@@ -1073,12 +1088,20 @@ subroutine Tosolver()
 		item=len_trim(elttype(physicalgroup(N1).et_gmsh).description)
 		write(unit,122) elttype(physicalgroup(N1).et_gmsh).description
 		item=elttype(physicalgroup(N1).et_gmsh).nnode
-		write(unit,123) ((J),J=1,item)		
-		do j=1,physicalgroup(N1).nel				
-			N2=physicalgroup(N1).element(j)
-			item=element(n2).nnode
-			write(unit,121) node(element(n2).node).inode
-		end do
+		write(unit,123) ((J),J=1,item)
+        IF(trim(physicalgroup(N1).et)=='semi_sphflow') then
+		     do j=1,physicalgroup(N1).nel				
+			    N2=physicalgroup(N1).element(j)
+			    item=element(n2).nnode            
+			    write(unit,124) node(element(n2).node).inode,physicalgroup(N1).property(1:MODELDIMENSION)
+		    end do           
+        else
+            do j=1,physicalgroup(N1).nel				
+			    N2=physicalgroup(N1).element(j)
+			    item=element(n2).nnode            
+			    write(unit,121) node(element(n2).node).inode
+		    end do
+        endif
 		!ENDIF
 	end do
 	
@@ -1143,6 +1166,7 @@ subroutine Tosolver()
 121 FORMAT(<ITEM>(I7,1X))
 122 FORMAT("//",A<ITEM>)
 123 FORMAT("// ", <ITEM>("N",I<width(j)>,5X))
+124 FORMAT(<ITEM>(I7,1X),<MODELDIMENSION>(F24.16,1X))
 
 130 FORMAT(/'BC,NUM=',I7,',ISINC=0') 
 131 FORMAT(I7,1X,I2,1X,E15.7,1X,I4)

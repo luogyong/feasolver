@@ -336,6 +336,10 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 			value=pipe2
 		case('wellbore')
 			value=wellbore
+		case('semi_sphflow')
+			value=semi_sphflow 
+		case('sphflow')
+			value=sphflow             
 		case('eip_bar')
 			value=eip_bar
 		case('eip_beam')

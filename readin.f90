@@ -871,12 +871,13 @@ subroutine solvercommand(term,unit)
 				        allocate(element1(i).node(nnum1))
 						call skipcomment(unit)
 						read(unit,*) element1(i).node,element1(i).PROPERTY(3)
-                    !case(wellbore)
-                    !    !wellbore 单元有两种情况，2节点和4节点
-                    !    call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
-                    !    element1(i).nnum=n1
-                    !    allocate(element1(i).node(n1))
-                    !    element1(i).node=int(ar(1:n1))                        
+                    case(semi_sphflow)
+                        !semi_sphflow still input direction vector
+                        call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+                        element1(i).nnum=2
+                        allocate(element1(i).node(2))
+                        element1(i).node=int(ar(1:2)) 
+                        element1(i).property(1:n1-2)=ar(3:n1) !direction vector.
 					case default
                     	element1(i).nnum=nnum1
 				        allocate(element1(i).node(nnum1))
@@ -3091,6 +3092,12 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ND1=4
 			STYPE='FEQUADRILATERAL'
 			EC1=SPG
+		case(sphflow,semi_sphflow)
+			NNUM1=2
+			NDOF1=2
+			ND1=2
+			STYPE='FELINESEG'
+			EC1=SPG            
 		case(pipe2)
 			NNUM1=2
 			NDOF1=2

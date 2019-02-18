@@ -94,7 +94,9 @@
 	!pipe flow
 	integer,parameter::pipe2=401 !2-noded line element for pipe flow simulation
 	integer,parameter::wellbore=402 !4-noded line element for perforated wellbore inflow simulation
-	
+	integer, parameter::sphflow = 403 !spherical flow element
+	integer, parameter::semi_sphflow = 404 !semi_spherical flow element
+
 	!Coupled element
 	integer,parameter::CPE3_CPL=202  !Continuum, plane strain, triangle element with 3 nodes, nodal number order is anticlockwise (1,2,3) 
 	integer,parameter::CPE6_CPL=203  !Continuum Plane strain, triangle element with 6 nodes, nodal number order is anticlockwise (1,4,2,5,3,6) 

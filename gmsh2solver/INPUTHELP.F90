@@ -119,9 +119,12 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//$WELLBORE"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD WELLBORE IS USED TO DEFINE THE WELLBORE PARAMETERS."//'"'
 	README(IPP(I)) = "//{NWELLBORE}   // WELLBORE NUMBERS"
-    README(IPP(I)) = "//{WellLine_GROUPID,WELL_HEAD_BC_TYPE,WellNODE_GroupID,VALUE [,WELLBORE_GroupID]}"     
+    README(IPP(I)) = "//{WellLine_GROUPID,WELL_HEAD_BC_TYPE,WellNODE_GroupID,VALUE [,SFN_GROUDID,NSEMI_SFN_GROUPS,WELLBORE_GroupID]}" 
+    README(IPP(I)) = "//{[SEMI_SFN_GROUDID,DIRECTION_VECTOR]} //ONLY NEED WHEN NSEMI_SFN_GROUPS>0 "  
     README(IPP(I)) = "//WELL_HEAD_BC_TYPE,WellNODE_GroupID and Value:井点的边界类型、施加边界的节点GROUDID及数值。WELL_HEAD_BC_TYPE=0,1分别表示：水头，流量边界;"
-    README(IPP(I)) = "//WELLBORE_GroupID,=0,默认全长均为滤管，=-1，没有滤管，管底透水，=GROUPID(>0),滤管的位置由PHYSICALGROUP中单元决定 "    
+    README(IPP(I)) = "//SFN_GROUDID,附近为球状流的点集，模拟点源。=0(默认，无)=GROUPID(>0),球状流的位置由PHYSICALGROUP中单元决定" 
+    README(IPP(I)) = "//NSEMI_SFN_GROUPS,半球状流的点集的个数，模拟非完整井。=0，无(默认，井为完整井)，=GROUPID(>0),半球状流的节点和方向由SEMI_SFN_GROUP和DIRECTION_VECTOR(半球区域方向矢量)中单元决定" 
+    README(IPP(I)) = "//WELLBORE_GroupID,=WellLine_GROUPID(默认全长均为滤管)，=0，没有滤管，管底透水，=GROUPID(>0),滤管的位置由PHYSICALGROUP中单元决定 "    
 	README(IPP(I)) = "//$ENDWELLBORE"	    
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
