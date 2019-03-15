@@ -665,7 +665,93 @@ FUNCTION KM_WELLBORE(A1,A2,A3) RESULT(KM)
     KM(4,1)=-A3
 
 END FUNCTION
+
+
+
+REAL(8) FUNCTION fD_PF(RE,KR,REW) !darcy-friction for pipe flow
+    IMPLICIT NONE
+!function: calculate darcy-friction for pipe flow,if ReW>0,then it is a porous pipe flow
+!Re, Reynolds number (unitless);
+!Kr, relative roughness (unitless)
+!ReW, wall Reynolds number (unitless);
+!REF:[1] Fang X, Xu Y, Zhou Z. New Correlations of Single-Phase Friction Factor for Turbulent Pipe Flow and Evaluation of Existing Single-Phase Friction Factor Correlations[J]. Nuclear Engineering and Design, 2011, 241(3): 897-902. 
+![2] Ouyang L-B, Arbabi S, Aziz K. General Wellbore Flow Model for Horizontal, Vertical, and Slanted Well Completions[J]. SPE Journal 1998, 3(2): 124~133.
+    REAL(8),INTENT(IN)::RE,KR
+    REAL(8),INTENT(IN),OPTIONAL::REW
+    REAL(8)::LAMDA1,REW1,FC1
     
+    IF(RE<3000) THEN
+        LAMDA1=64./RE    
+    ELSEIF(KR>0.D0) THEN        
+        LAMDA1=1.613*(LOG(0.234*(KR)**1.1007-60.525/RE**1.1105+56.291/RE**1.0712))**(-2.0D0)
+    ELSE
+        LAMDA1=0.25*(LOG10(150.39/RE**0.98865-152.66/RE))**(-2.D0)
+    ENDIF
+    
+    REW1=0.D0
+    IF(PRESENT(REW))    REW1=REW
+    FC1=1.D0
+    IF(ABS(REW1)>1.D-7) THEN
+        !INFLOW
+        IF(REW1>0.D0) THEN
+            IF(RE<3000) THEN
+            !LAMINAR
+                FC1=1.0+0.04304*REW1**0.6142
+            ELSE
+                !TURBULENT
+                FC1=1.0-0.0153*REW1**0.3978
+            ENDIF
+        
+        ELSE
+        !OUTFLOW
+            IF(RE<3000) THEN
+            !LAMINAR
+                FC1=1.0-0.0625*(-REW1)**1.3056/(REW1+4.626)**-0.2724
+            ELSE
+            !TURBULENT
+                FC1=1.0-17.5*REW1/RE**0.75
+            ENDIF        
+        
+        ENDIF
+    ENDIF
+
+    fD_PF=LAMDA1*FC1
+
+ENDFUNCTION
+
+REAL(8) FUNCTION Vk(T)
+    IMPLICIT NONE
+    !Kinematic viscosity, unit=m2/s,fitting range 0<=T<=80
+    REAL(8),INTENT(IN)::T
+!VK= -7.2087579E-10*T1**5 + 1.9555068E-7*T1**4 - 2.2103680E-5*T1**3 + 1.4147594E-3*T1**2 - 6.0104832E-2*T1 + 1.7867110
+VK=0.040598559873*10**(183.079140630271/(273.15+T-161.737209235748)) 
+VK=VK*1.D-6 !m2/s
+
+ENDFUNCTION
+
+REAL(8) FUNCTION Re_W(V,D,T)
+!calculate Reynold number of water for pipe flow
+!V,VELOCITY,m/s
+!D,DIAMETER,m
+!T,temperature,celsius ÉãÊÏ¶È, fitting range 0<=T<=80
+IMPLICIT NONE
+REAL(8),INTENT(IN)::V,D !unit,v,m/s, D,m
+REAL(8),INTENT(IN),OPTIONAL::T !unit= ÉãÊÏ¶È
+REAL(8)::T1
+
+IF(.NOT.PRESENT(T)) THEN
+    T1=25
+ELSE
+    T1=T
+ENDIF
+
+
+Re_W=V*D/Vk(T1)
+
+    
+ENDFUNCTION
+
+
 end module
 
 INCLUDE 'mkl_dss.f90' 

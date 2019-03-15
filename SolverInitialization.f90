@@ -19,7 +19,7 @@ subroutine Initialization()
 	implicit none
 	integer::i,j,k,nj,p,j1,j2,iset1
 	integer::n1,n2,n3,n4
-	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord1(3,4)=0,trans1(12,12)=0,c1(3,3)=0,b2(3),c2(3),R1,R2,R3,R4
+	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord1(3,4)=0,trans1(12,12)=0,c1(3,3)=0,b2(3),c2(3),R1,R2,R3,R4,G1
 	real(kind=DPN)::km1(6,6)=0.d0
 	integer::dof1(MNDOF)
 	character(64)::ermsg=''
@@ -709,15 +709,21 @@ subroutine Initialization()
 				node(element(i).node(1:element(i).nnum)).dof(4)=0
 				allocate(element(i).km(element(i).nnum,element(i).nnum))
 				element(i).km=0.0D0
-                if(abs(material(element(i).mat).property(2))>0.d0) then
-                    t1=material(element(i).mat).property(2)
-                else
-                    t1=1.1857521D-12
+                !if(abs(material(element(i).mat).property(2))>0.d0) then
+                !    t1=material(element(i).mat).property(2)
+                !else
+                !    t1=1.1857521D-12
+                !endif
+                t1=vk(material(element(i).mat).property(2))/9.8
+                if(abs(material(element(i).mat).property(4)-1.d0)>1.d-7) then
+                    t1=t1/24./3600. !UNIT,M.DAY
                 endif
                 element(i).property(1)=(2*material(element(i).mat).property(1))**2/t1/32
                 T1=RPI*material(element(i).mat).property(1)**2/ &
                     NORM2(NODE(ELEMENT(I).NODE(1)).COORD-NODE(ELEMENT(I).NODE(2)).COORD)
+                               
                 ELEMENT(I).PROPERTY(1)=T1*ELEMENT(I).PROPERTY(1)
+                
                 if(element(i).et==wellbore) then
                     CALL INI_WELLBORE(I)                   
                 ELSE

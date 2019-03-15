@@ -336,17 +336,57 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
     IMPLICIT NONE
     INTEGER,INTENT(IN)::IEL,ISTEP,IITER
     REAL(8),INTENT(IN)::STEPDIS(NDOF)
-    INTEGER::I,J,K,IN1,IN2,IN3,N1,N2,IEL1,IP1
+    INTEGER::I,J,K,IN1,IN2,IN3,N1,N2,IEL1,IP1,MODEL1
     REAL(8)::H1,X1(3),R1,Q1(4),PI1,LAMDA1,K1,DIS1,DH1,A1(3),NHEAD1(4),KM1(4,4),HZ1,RA1,X2(3),&
-    W1,TW1
+    W1,TW1,RE1,VA1,QR1,FD1,L1,D1,QA1,VR1,AREA1,g1,FACC1,REW1,cf1
     
     
     NHEAD1(1:ELEMENT(IEL).NNUM)=STEPDIS(ELEMENT(IEL).G)
-    
+    PI1=PI();
     IF(ANY(NHEAD1(1:2)-NODE(ELEMENT(IEL).NODE(1:2)).COORD(NDIMENSION)<0.D0)) THEN
         A1(1)=1.D-7
     ELSE
-        A1(1)=ELEMENT(IEL).PROPERTY(1)
+        FD1=1./ELEMENT(IEL).PROPERTY(1)
+        FACC1=0.0D0;REW1=0.D0
+        
+        MODEL1=INT(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(6))
+        
+        IF(MODEL1/=0) THEN
+            L1=NORM2(NODE(ELEMENT(IEL).NODE(1)).COORD-NODE(ELEMENT(IEL).NODE(2)).COORD)
+            D1=2*MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)
+            AREA1=PI1*D1**2/4.0
+            QA1=ABS((NHEAD1(1)-NHEAD1(2))*ELEMENT(IEL).KM(1,1))
+            VA1=QA1/AREA1
+            if(ABS(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(5))<1.E-7) THEN
+                g1=73156608000.00 
+            else
+                g1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(5)
+            endif
+            
+            !ACCELERATION LOSS.
+            IF(ELEMENT(IEL).ET==WELLBORE) THEN
+                QR1=(NHEAD1(3)-NHEAD1(2))*ELEMENT(IEL).KM(3,3)+(NHEAD1(4)-NHEAD1(1))*ELEMENT(IEL).KM(4,4)
+                FACC1=2*QR1/(G1*AREA1**2)
+            ENDIF
+            
+            !FRICTION PART, CONSIDERING THE TURBULENT AND POROUS SIDE EFFECT
+            IF(MODEL1==2) THEN
+                !ASSUME LENGHTH UNIT IS M
+                IF(ABS(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(4))<1.D-7) THEN
+                    CF1=1./24/3600
+                ELSE
+                    CF1=1.0D0
+                ENDIF
+                RE1=Re_W(VA1*CF1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
+                VR1=QR1/(L1*PI1*D1)
+                REW1=Re_W(VR1*CF1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
+                FD1=FD_PF(RE1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(3),REW1)
+                FD1=FD1*L1*QA1/(2*D1*G1*AREA1**2)
+            ENDIF            
+        END IF 
+        
+        A1(1)=1./(FACC1+FD1)
+        
     ENDIF
     
     IF(ELEMENT(IEL).ET==PIPE2) THEN
@@ -355,7 +395,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
     ELSE
         !WRITE(99,10) 
         
-        PI1=PI();Q1=0.D0
+        Q1=0.D0
         DO I=1,2
     
             IF(NHEAD1(2+I)-NODE(ELEMENT(IEL).NODE(2+I)).COORD(NDIMENSION)<0.D0) THEN        
@@ -420,9 +460,10 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
     
     ELEMENT(IEL).FLUX=MATMUL(KM1(1:ELEMENT(IEL).NDOF,1:ELEMENT(IEL).NDOF),NHEAD1(1:ELEMENT(IEL).NDOF))
     
-    if(solver_control.bfgm==continuum.or.solver_control.bfgm==consistent) then
-        ELEMENT(IEL).KM=KM1(1:ELEMENT(IEL).NDOF,1:ELEMENT(IEL).NDOF)      							
-    end if
+    ELEMENT(IEL).KM=KM1(1:ELEMENT(IEL).NDOF,1:ELEMENT(IEL).NDOF)
+    !if(solver_control.bfgm==continuum.or.solver_control.bfgm==consistent) then
+    !          							
+    !end if
 
 10  FORMAT("ISTEP,IITER,IEL,NODE1,P1,XG,YG,ZG,XL,YL,ZL,RA,HA,HW,Qunit,WGT   //WELLBORE INFO")
 20  FORMAT(5I7,11F15.7)
@@ -699,3 +740,7 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE(STEPDIS,IELT,ISTEP,IITER)
     end if
     
 ENDSUBROUTINE
+
+
+
+
