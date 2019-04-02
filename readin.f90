@@ -56,6 +56,8 @@
 
     
     print *, 'Begin to read in data...'
+    helpfile=trim(drive)//trim(dir)//'IFSOLVER_HELP.TXT'
+    
 	call read_execute(unit,itype,keyword,solvercommand)
 
 	if(itype==0) then
@@ -78,7 +80,7 @@
 		EXCAB_STRURES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_stru.dat'
 		EXCAB_EXTREMEBEAMRES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_minmaxbeam.dat'
         Slope_file=trim(drive)//trim(dir)//trim(name)//'_slope_res.dat'
-        helpfile=trim(drive)//trim(dir)//'IFSOLVER_HELP.TXT'
+        
 	end if
     
 	open(99,file=resultfile3,status='replace')

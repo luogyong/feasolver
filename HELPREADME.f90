@@ -8,8 +8,8 @@ subroutine write_readme_feasolver()
 	integer,parameter::nreadme=2048
 	character(1024)::readme(nreadme)
 	
-    print *, "The help file is in d:\README_FEASOLVER.TXT."
-	open(2,file=HELPFILE,STATUS='REPLACE')
+    !print *, "The help file is in d:\README_FEASOLVER.TXT."
+	open(20,file=HELPFILE,STATUS='REPLACE')
 	
 	I=0
 	README(IPP(I)) ="//THE KEYWORD STRUCTURE USED IN THE INPUT FILE SINP IS EXPLAINED HEREIN"
@@ -259,7 +259,7 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) ="//当为单元SSP2D指定材料，输入参数(A,Iz,minN,maxN,minMz,maxMz)均为单根钢板桩的参数,YC钢板桩形心轴距离锁口内沿的距离。"
 	README(IPP(I)) ="//hy,hz分别为梁截面在y'和z'轴方向(局部坐标)的高度，为后处理转化为六面体单元时所用. \N"C
 	README(IPP(I)) ="//当为支护桩时，hy,hz分别为桩径和桩距，计算作用于支护桩上的土压力和土弹簧的刚度用 \N"C
-	README(IPP(I)) ="//10. CASE(wellbore) : PROPERTY(1)=R(井半径).(2)Temp. (3)=Kr(relative roughness of the inner surface of the pipe ),.(4)=time unit (day=0(default),second=1), .(5)=g (gravity acc. =0(SET by default, 73156608000.00 m/day2. ), .(6)PIPE-FLOW MODEL(=0,LAMINOR(DEFAULT);=1,LAMINOR+ACC;=2,TURBULENT+ACC+POROUS-PIPE EFFECT) "C
+	README(IPP(I)) ="//10. CASE(wellbore) : PROPERTY(1)=R(井半径). (2)Temp. (3)=Kr(relative roughness of the  inner surface of the pipe ),.(4)=time unit (day=0(default),second=1), .(5)=g (gravity acc. =0(SET by default, 73156608000.00 m/day2. ), .(6)PIPE-FLOW MODEL(=0,LAMINOR(DEFAULT);=1,LAMINOR+ACC;=2,TURBULENT+ACC+POROUS-PIPE EFFECT); .(7)Ksk_scale(周边砂层Ks泥皮(假定厚度1mm)Kskin的比值.=0(默认,不考虑井损)，根据北江实验为(2.5-4)*10^3) "C
 	README(IPP(I)) ="//11. CASE(ExcavationSoil/SLOPESOIL) : PROPERTY(1:10)=黏聚力，摩擦角，天然/饱和重度，变形模量，泊松比,渗透系数，水平基床系数(F/L**3),墙土间摩擦角（度）,[层顶水压力PW1,层底水压力PW2]"C
 	README(IPP(I)) ="//PW1，PW2仅当土层的水压力为手动输入时有用（WPMETHOD=3）。"
 	README(IPP(I)) ="//12. CASE(spring) : PROPERTY(1:3)=k,minV(发生负位移),maxV(发生正位移)，预加力，预加位移"C
@@ -285,11 +285,11 @@ subroutine write_readme_feasolver()
 	
 	do j=1,i
 		item=len_trim(readme(j))
-		write(2,20) readme(j)
+		write(20,20) readme(j)
 	end do
 	
-	tof=system("D:\README_FEASOLVER.TXT")	
-	
+	!tof=system("D:\README_FEASOLVER.TXT")	
+	close(20)
 20	format(a<item>)
 	
 	contains

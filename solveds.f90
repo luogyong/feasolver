@@ -63,7 +63,7 @@ module solverds
 		! y and z is defined by user but must be consistent with right hand rule.
 		!and be consistent with Iy and Iz.
 		real(kind=DPN)::property(6)=0.0D0  !for spg problem and iniflux is used, property(3)=low lamda,property(2)=up lamda
-        !for wellbore element, property(1-3), element hydraulic conductivity, property(4) surround angle.
+        !for wellbore element, property(1-3), element hydraulic conductivity, property(4) surround angle. (5)=WELL SKIN RESISTANCE
 		real(kind=DPN),allocatable::angle(:)!internal angle for every nodes
         !当et=wellbore时,angle存储node2单元对应的二面角。
 		integer,allocatable::g(:) !单元的定位向量
@@ -706,7 +706,11 @@ REAL(8) FUNCTION fD_PF(RE,KR,REW) !darcy-friction for pipe flow
         !OUTFLOW
             IF(RE<3000) THEN
             !LAMINAR
-                FC1=1.0-0.0625*(-REW1)**1.3056/(REW1+4.626)**-0.2724
+                !FC1=1.0-0.0625*(-REW1)**1.3056/(REW1+4.626)**-0.2724
+                
+                    !!!!!!!!!!!!
+                !IF(ISNAN(FC1)) FC1=1.0-0.04304*(-REW1)**0.6142
+                FC1=1.D0
             ELSE
             !TURBULENT
                 FC1=1.0-17.5*REW1/RE**0.75
@@ -714,8 +718,14 @@ REAL(8) FUNCTION fD_PF(RE,KR,REW) !darcy-friction for pipe flow
         
         ENDIF
     ENDIF
-
+    
+    IF(FC1<0.D0) FC1=1.D0
+    
     fD_PF=LAMDA1*FC1
+    
+    IF(ISNAN(fD_PF)) THEN
+        PRINT *, 'fD_PF IS NAN'
+    ENDIF
 
 ENDFUNCTION
 
