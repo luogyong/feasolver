@@ -9,7 +9,7 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "GmshToSolver", "gmsh2solver
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "TryArray", "..\..\TryArray\TryArray.vfproj", "{EC94330D-D137-4AB6-9484-DD93C77F9EDB}"
 EndProject
-Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "meshgen", "FEMGRID\meshgen.vfproj", "{E7715EEE-1140-4422-8A9E-335C8A511E60}"
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "2DMeshGen", "FEMGRID\2DMeshGen\2DMeshGen.vfproj", "{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -43,19 +43,20 @@ Global
 		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Release|x64.Build.0 = Release|x64
 		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Release|x86.ActiveCfg = Release|Win32
 		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Release|x86.Build.0 = Release|Win32
-		{E7715EEE-1140-4422-8A9E-335C8A511E60}.Debug|x64.ActiveCfg = Debug|x64
-		{E7715EEE-1140-4422-8A9E-335C8A511E60}.Debug|x64.Build.0 = Debug|x64
-		{E7715EEE-1140-4422-8A9E-335C8A511E60}.Debug|x86.ActiveCfg = Debug|Win32
-		{E7715EEE-1140-4422-8A9E-335C8A511E60}.Debug|x86.Build.0 = Debug|Win32
-		{E7715EEE-1140-4422-8A9E-335C8A511E60}.Release|x64.ActiveCfg = Release|x64
-		{E7715EEE-1140-4422-8A9E-335C8A511E60}.Release|x64.Build.0 = Release|x64
-		{E7715EEE-1140-4422-8A9E-335C8A511E60}.Release|x86.ActiveCfg = Release|Win32
-		{E7715EEE-1140-4422-8A9E-335C8A511E60}.Release|x86.Build.0 = Release|Win32
+		{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}.Debug|x64.ActiveCfg = Debug|x64
+		{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}.Debug|x86.ActiveCfg = Debug|Win32
+		{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}.Debug|x86.Build.0 = Debug|Win32
+		{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}.Release|x64.ActiveCfg = Release|x64
+		{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}.Release|x86.ActiveCfg = Release|Win32
+		{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
+		BuildVersion_UseGlobalSettings = True
+		BuildVersion_StartDate = 2000/1/1
+		BuildVersion_BuildVersioningStyle = YearStamp.MonthStamp.DayStamp.Increment
 		SolutionGuid = {7EAC45B3-3731-465F-B1F3-BA1A5073FEC3}
 	EndGlobalSection
 EndGlobal

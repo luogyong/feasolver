@@ -96,6 +96,7 @@
 	integer,parameter::wellbore=402 !4-noded line element for perforated wellbore inflow simulation
 	integer, parameter::sphflow = 403 !spherical flow element
 	integer, parameter::semi_sphflow = 404 !semi_spherical flow element
+	integer,parameter::wellbore_spgface=405 !wellbore seeapge face element
 
 	!Coupled element
 	integer,parameter::CPE3_CPL=202  !Continuum, plane strain, triangle element with 3 nodes, nodal number order is anticlockwise (1,2,3) 

@@ -372,7 +372,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 								ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				END DO				
 			END DO
-        CASE(WELLBORE,PIPE2,SPHFLOW,SEMI_SPHFLOW)
+        CASE(WELLBORE,WELLBORE_SPGFACE,PIPE2,SPHFLOW,SEMI_SPHFLOW)
         
 		CASE DEFAULT
 			PRINT *, 'NO SUCH AN ELEMENT TYPE. SUB extrapolation_stress_strain_cal'
@@ -656,7 +656,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
                     
                     IF(ELEMENT(I).ET==PIPE2) CYCLE
                     !recover the head value at the nodes along the wellbore
-                    IF(ELEMENT(I).ET==WELLBORE) THEN
+                    IF(ELEMENT(I).ET==WELLBORE.OR.ELEMENT(I).ET==WELLBORE_SPGFACE) THEN
                         TDISP(NODE(ELEMENT(I).NODE(4)).DOF(4))=TDISP(NODE(ELEMENT(I).NODE(1)).DOF(4))
                         TDISP(NODE(ELEMENT(I).NODE(3)).DOF(4))=TDISP(NODE(ELEMENT(I).NODE(2)).DOF(4))
                         CYCLE
@@ -819,7 +819,7 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				enddo			
 			END DO
-        CASE(WELLBORE,PIPE2,SPHFLOW,SEMI_SPHFLOW)
+        CASE(WELLBORE,WELLBORE_SPGFACE,PIPE2,SPHFLOW,SEMI_SPHFLOW)
         
 		CASE DEFAULT
 			PRINT *, 'NO SUCH A ELEMENT TYPE. SUB extrapolation_stress_strain_cal'
@@ -855,7 +855,7 @@ subroutine NodalWeight(ISTEP)
         
         if(element(i).isactive==0) cycle
         !line element,such as wellbore and pipe2 are excluded.
-        if(element(i).et==wellbore.or.element(i).et==pipe2) cycle
+        if(element(i).et==wellbore.or.element(i).et==pipe2.OR.element(i).et==WELLBORE_SPGFACE) cycle
         if(element(i).et==SPHFLOW.or.element(i).et==SEMI_SPHFLOW) cycle
         
 		ISSPG1=ELEMENT(I).EC==SPG.OR.ELEMENT(I).EC==SPG2D.OR.ELEMENT(I).EC==CAX_SPG

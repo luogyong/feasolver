@@ -118,13 +118,16 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$WELLBORE"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD WELLBORE IS USED TO DEFINE THE WELLBORE PARAMETERS."//'"'
-	README(IPP(I)) = "//{NWELLBORE}   // WELLBORE NUMBERS"
-    README(IPP(I)) = "//{WellLine_GROUPID,WELL_HEAD_BC_TYPE,WellNODE_GroupID,VALUE [,SFN_GROUDID,NSEMI_SFN_GROUPS,WELLBORE_GroupID]}" 
-    README(IPP(I)) = "//{[SEMI_SFN_GROUDID,DIRECTION_VECTOR]} //ONLY NEED WHEN NSEMI_SFN_GROUPS>0 "  
-    README(IPP(I)) = "//WELL_HEAD_BC_TYPE,WellNODE_GroupID and Value:井点的边界类型、施加边界的节点GROUDID及数值。WELL_HEAD_BC_TYPE=0,1分别表示：水头，流量边界;"
+	README(IPP(I)) = "//{NWELLBORE}   // 井集数"
+    README(IPP(I)) = "//{Wellbore_GROUPID,WELL_HEAD_BC_TYPE,WellNODE_GroupID,VALUE [,SFN_GROUDID,NSEMI_SFN_GROUPS,PIPEFLOW_GroupID,NWELLSEEPAGEFACE]}" 
+    README(IPP(I)) = "//{[SEMI_SFN_GROUDID,DIRECTION_VECTOR]} //ONLY NEED WHEN NSEMI_SFN_GROUPS>0 " 
+    README(IPP(I)) = "//{[WELL_SEEPAGE_FACE_LINE_GROUPID,SINKNODE_GROUPID]} //ONLY NEED WHEN NWELLSEEPAGEFACE>0 " 
+    README(IPP(I)) = "//WELL_HEAD_BC_TYPE,WellNODE_GroupID and Value:井点的边界类型、施加边界的节点GROUDID及数值。WELL_HEAD_BC_TYPE=0,1,2分别表示：自流井水头(水只出不进,但迭代过程中出现井流量为流入时，强制流量为0)，流量边界，常规定水头边界(不进行流量的正负检查);"
     README(IPP(I)) = "//SFN_GROUDID,附近为球状流的点集，模拟点源。=0(默认，无)=GROUPID(>0),球状流的位置由PHYSICALGROUP中单元决定" 
     README(IPP(I)) = "//NSEMI_SFN_GROUPS,半球状流的点集的个数，模拟非完整井。=0，无(默认，井为完整井)，=GROUPID(>0),半球状流的节点和方向由SEMI_SFN_GROUP和DIRECTION_VECTOR(半球区域方向矢量)中单元决定" 
-    README(IPP(I)) = "//WELLBORE_GroupID,=WellLine_GROUPID(默认全长均为滤管)，=0，没有滤管，管底透水，=GROUPID(>0),滤管的位置由PHYSICALGROUP中单元决定 "    
+    README(IPP(I)) = "//PIPEFLOW_GroupID,=0(默认全长均为滤管)，>0,管流管的位置由PHYSICALGROUP中单元决定 " 
+    README(IPP(I)) = "//WELL_SEEPAGE_FACE_LINE_GROUPID和SINKNODE_GROUPID为潜水井井壁出溢线集和对应的井点(即各出溢点的流量汇入点)，每个潜水井对应一个出溢线集合和一个井点，所以SINKNODE_GROUPID只包含一个节点"
+    !README(IPP(I)) = "目前，当井为潜水井时，出溢管是滤管的一部分，此时没有管流管。"
 	README(IPP(I)) = "//$ENDWELLBORE"	    
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
@@ -203,7 +206,7 @@ subroutine write_readme_gmsh2sinp()
 	
     README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$OUTMESHSTRUCTURE"
-	README(IPP(I))=  "//"//'"'//"WETHER TO OUT MESHSTRUCTURE."//'"'
+	README(IPP(I))=  "//"//'"'//"WHETHER TO OUT MESHSTRUCTURE."//'"'
     README(IPP(I)) = "//A:{1|0}    //1:YES,0:NO(DEFAULT)"  
 	README(IPP(I)) = "//$OUTMESHSTRUCTURE" 	
     

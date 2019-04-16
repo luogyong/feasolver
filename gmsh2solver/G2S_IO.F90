@@ -447,6 +447,12 @@ subroutine kwcommand(term,unit)
 			do i=1,nelt_bc
 				call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
 				n1=int(ar(1))
+                IF(ELT_BC(N1).ISINPUT/=0) THEN
+                    PRINT *, "THE ID NUMBER HAS BEEN USED IN ELT_BC. PLEASE TRY ANOTHER ONE. ID=",N1
+                    STOP
+                ELSE
+                    ELT_BC(N1).ISINPUT=N1
+                ENDIF
 				elt_bc(n1).group=int(ar(2))
 				elt_bc(n1).ndim=int(ar(3))
 				elt_bc(n1).dof=int(ar(4))
@@ -472,6 +478,12 @@ subroutine kwcommand(term,unit)
 			do i=1,nelt_load
 				call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
 				n1=int(ar(1))
+                IF(elt_load(N1).ISINPUT/=0) THEN
+                    PRINT *, "THE ID NUMBER HAS BEEN USED IN ELT_LOAD. PLEASE TRY ANOTHER ONE. ID=",N1
+                    STOP
+                ELSE
+                    elt_load(N1).ISINPUT=N1
+                ENDIF                
 				elt_load(n1).group=int(ar(2))
 				elt_load(n1).ndim=int(ar(3))
 				elt_load(n1).dof=int(ar(4))
@@ -498,6 +510,12 @@ subroutine kwcommand(term,unit)
 			do i=1,nelt_spgface
 				call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
 				n1=int(ar(1))
+                IF(elt_spgface(N1).ISINPUT/=0) THEN
+                    PRINT *, "THE ID NUMBER HAS BEEN USED IN ELT_SPGFACE. PLEASE TRY ANOTHER ONE. ID=",N1
+                    STOP
+                ELSE
+                    elt_spgface(N1).ISINPUT=N1
+                ENDIF                 
 				elt_spgface(n1).group=int(ar(2))
 				elt_spgface(n1).ndim=int(ar(3))
 				elt_spgface(n1).dof=int(ar(4))
@@ -557,6 +575,7 @@ subroutine kwcommand(term,unit)
 			call skipcomment(unit)
 			read(unit,*) nphgp
 			allocate(phgpnum(nphgp+100))
+            phgpnum=0
 			!allocate(physicalgroup(nphgp))
 			do i=1,nphgp
 				call skipcomment(unit)
@@ -625,7 +644,9 @@ subroutine kwcommand(term,unit)
 			write(*, 20) "endoutmeshstructure"  
 		case("wellbore")
             call skipcomment(unit)
-			read(unit,*) NWELLBORE
+            !call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
+			read(unit,*) NWELLBORE           
+            
 			allocate(wellbore(NWELLBORE))
 			do i=1,NWELLBORE
 				call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
@@ -640,10 +661,13 @@ subroutine kwcommand(term,unit)
                     WELLBORE(I).NSEMI_SF=INT(AR(6))                    
                 endif 
                 IF(nread>6) then
-                    WELLBORE(I).WELLBORELOC=INT(AR(7)) 
-                ELSE
-                    WELLBORE(I).WELLBORELOC=WELLBORE(I).IGP
+                    WELLBORE(I).PIPEFLOW=INT(AR(7)) 
                 endif
+                IF(nread>7) then
+                    WELLBORE(I).NSPG_FACE=INT(AR(8)) 
+                endif                
+                
+                 
                 IF(WELLBORE(I).NSEMI_SF>0) THEN
                     ALLOCATE(WELLBORE(I).SEMI_SF_IPG(WELLBORE(I).NSEMI_SF),WELLBORE(I).DIR_VECTOR(3,WELLBORE(I).NSEMI_SF))
                     DO J=1,WELLBORE(I).NSEMI_SF
@@ -651,6 +675,14 @@ subroutine kwcommand(term,unit)
                         READ(UNIT,*) WELLBORE(I).SEMI_SF_IPG(J),WELLBORE(I).DIR_VECTOR(:,J)
                     ENDDO
                 ENDIF
+                IF(WELLBORE(I).NSPG_FACE>0) THEN
+                    ALLOCATE(WELLBORE(I).SPG_FACE(WELLBORE(I).NSPG_FACE),WELLBORE(I).SINK_NODE_SPG_FACE(WELLBORE(I).NSPG_FACE))
+                    DO J=1,WELLBORE(I).NSPG_FACE
+                        call skipcomment(unit)
+                        READ(UNIT,*) WELLBORE(I).SPG_FACE(J),WELLBORE(I).SINK_NODE_SPG_FACE(J)
+                    ENDDO
+                ENDIF                
+                
 			end do
         CASE("endwellbore")
 			strL1=LEN_trim("endwellbore")
@@ -661,7 +693,7 @@ subroutine kwcommand(term,unit)
 			
 	end select
 
-10 format("The Keyword"," '",a<strL1>,"'"," cannot be recognized and be ignored.")	
+10 format("The Keyword"," '",a<strL1>,"'"," cannot be recognized and was ignored.")	
 20 format("The Content Introduced by the Keyword ","'",a<strL1>,"'"," is read in.")
 end subroutine
 
@@ -1112,7 +1144,15 @@ subroutine Tosolver()
 			write(unit,131) node(nodalBC(i).node).inode,nodalBC(i).dof,nodalBC(i).value,nodalBC(i).sf
 		end do
 	end if
-	
+
+    if(NWELLHEAD>0) then
+		write(unit,133) NWELLHEAD
+		write(unit, 132) 
+		do i=1,NWELLHEAD
+			write(unit,131) node(WELLHEAD(i).node).inode,WELLHEAD(i).dof,WELLHEAD(i).value,WELLHEAD(i).sf
+		end do
+	end if
+    
 	if(nnodalload>0) then
 		write(unit,140) nnodalload
 		write(unit,142)
@@ -1123,7 +1163,12 @@ subroutine Tosolver()
 	
 	if(nspgface>0) then
 		do i=1, nelt_spgface
-			write(unit,150) elt_spgface(i).n2-elt_spgface(i).n1+1,elt_spgface(i).sf
+            IF(ELT_SPGFACE(I).ISWELLCONDITION<1) THEN
+			    write(unit,150) elt_spgface(i).n2-elt_spgface(i).n1+1,elt_spgface(i).sf
+            ELSE
+                write(unit,153) elt_spgface(i).n2-elt_spgface(i).n1+1,elt_spgface(i).sf,ELT_SPGFACE(I).ISWELLCONDITION
+            ENDIF
+            
 			write(unit,152)
 			
 			write(unit,151) (node(SPGFACE(j).node).inode,j=elt_spgface(i).n1,elt_spgface(i).n2)
@@ -1172,6 +1217,9 @@ subroutine Tosolver()
 131 FORMAT(I7,1X,I2,1X,E15.7,1X,I4)
 132 FORMAT("// ","NODE DOF VALUE [STEPFUNC.]")
 
+133 FORMAT(/'BC,NUM=',I7,',ISINC=0,ISWELLHEAD=1') 
+
+
 140 FORMAT(/'LOAD,NUM=',I7,',ISINC=0')
 141 FORMAT(I7,1X,I2,1X,E15.7,1X,I4)
 142 FORMAT("// ","NODE DOF VALUE [STEPFUNC.] ")
@@ -1179,6 +1227,7 @@ subroutine Tosolver()
 150 FORMAT(/'SEEPAGE FACE,NUM=',I7,', sf=',I7) 
 151 FORMAT(10(I7,1X))
 152 FORMAT("// NODE")
+153 FORMAT(/'SEEPAGE FACE,NUM=',I7,', sf=',I7,",ISWELLBORE=",I7) 
 
 160 FORMAT(/"WSP,NUM=",I7,",CP=0|1") 
 161 FORMAT(10(I7,1X))

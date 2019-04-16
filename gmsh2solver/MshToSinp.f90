@@ -10,7 +10,7 @@
 	LOGICAL(4)::tof,pressed
 	integer,allocatable::IPERM(:)
 	
-	!winfo%TYPE = QWIN$MAX
+	winfo%TYPE = QWIN$MAX
 	tof=SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo)
 	tof=SETWSIZEQQ(0, winfo)  
 	NOPOPUP=0
@@ -50,9 +50,7 @@
 		IF(ISOUTMS>0) CALL OUTMESHSTRUCTURE()
         STOP "DONE IN GENERATING TRISURFACE."
 	ENDIF
-    
-    
-    
+   
     DO I=1,NWELLBORE
         CALL WELLBORE(I).INITIALIZE()
     ENDDO
@@ -751,7 +749,7 @@ ENDSUBROUTINE
 subroutine elt_bc_load_translate()
 	use DS_Gmsh2Solver
 	implicit none
-	integer::i,j,k,n1,n2,nc,iar1(5)
+	integer::i,j,k,n1,n2,nc,iar1(5),n3
 	real(8)::LAV1,t1
 	integer,allocatable::nodalload1(:),node1(:)
 	real(8),allocatable::load1(:)
@@ -760,6 +758,7 @@ subroutine elt_bc_load_translate()
 	if(nelt_load>0) allocate(nodalLoad(maxnnodalLoad))
 	if(nelt_bc>0) allocate(nodalBC(maxnnodalBC))
 	if(nelt_spgface>0) allocate(spgface(maxnspgface))
+    
 	allocate(nodalload1(nnode),node1(nnode))
 	if(nelt_load>0) allocate(load1(nnode))
 	do i=1, nelt_load
@@ -820,35 +819,57 @@ subroutine elt_bc_load_translate()
 	
 	do i=1, nelt_bc
 		!**********目前认为边界条件都没有可加性,NDIM=1,2,3的情况与NDIM=0的情况一样**********。
-		nodalload1=0
-		do j=1,physicalgroup(elt_bc(i).group).nel
-			n1=physicalgroup(elt_bc(i).group).element(j)
-			do k=1,element(n1).nnode
-				n2=element(n1).node(k)
-				if(nodalload1(n2)==0) then
-					nnodalBC=nnodalBC+1 
-					if(nnodalBC>maxnnodalBC) call enlargenodalBC()
-					nodalBC(nnodalBC).node=n2
-					nodalBC(nnodalBC).dof=elt_bc(i).dof
-					nodalBC(nnodalBC).sf=elt_bc(i).sf
-					nodalBC(nnodalBC).value=elt_bc(i).GETVALUE(node(n2).xy(1),node(n2).xy(2),node(n2).xy(3))
-					nodalload1(n2)=1 !多次出现时以第一次出现的值为准。
-				end if
-			end do			
-		end do		
+        nodalload1=0
+        IF(ELT_BC(I).ISWELLCONDITION<1) THEN
+		    
+		    do j=1,physicalgroup(elt_bc(i).group).nel
+			    n1=physicalgroup(elt_bc(i).group).element(j)
+			    do k=1,element(n1).nnode
+				    n2=element(n1).node(k)
+				    if(nodalload1(n2)==0) then
+					    nnodalBC=nnodalBC+1 
+					    if(nnodalBC>maxnnodalBC) call enlarge_AR(nodalBC,100,maxnnodalBC)
+					    nodalBC(nnodalBC).node=n2
+					    nodalBC(nnodalBC).dof=elt_bc(i).dof
+					    nodalBC(nnodalBC).sf=elt_bc(i).sf
+					    nodalBC(nnodalBC).value=elt_bc(i).GETVALUE(node(n2).xy(1),node(n2).xy(2),node(n2).xy(3))
+					    nodalload1(n2)=1 !多次出现时以第一次出现的值为准。
+				    end if
+			    end do			
+		    end do
+        ELSE
+		    do j=1,physicalgroup(elt_bc(i).group).nel
+			    n1=physicalgroup(elt_bc(i).group).element(j)
+			    do k=1,element(n1).nnode
+				    n2=element(n1).node(k)
+				    if(nodalload1(n2)==0) then
+					    NWELLHEAD=NWELLHEAD+1 
+					    if(NWELLHEAD>MAXNWELLHEAD) call enlarge_AR(WELLHEAD,100,MAXNWELLHEAD)
+					    WELLHEAD(NWELLHEAD).node=n2
+					    WELLHEAD(NWELLHEAD).dof=elt_bc(i).dof
+					    WELLHEAD(NWELLHEAD).sf=elt_bc(i).sf
+					    WELLHEAD(NWELLHEAD).value=elt_bc(i).GETVALUE(node(n2).xy(1),node(n2).xy(2),node(n2).xy(3))
+					    nodalload1(n2)=1 !多次出现时以第一次出现的值为准。
+				    end if
+			    end do			
+		    end do            
+        ENDIF
 	end do 
 	
 	do i=1, nelt_spgface
 		!**********目前认为边界条件都没有可加性**********。
 		nodalload1=0
+
 		elt_spgface(i).n1=nspgface+1
 		do j=1,physicalgroup(elt_spgface(i).group).nel
 			n1=physicalgroup(elt_spgface(i).group).element(j)
-			do k=1,element(n1).nnode
+            n3=element(n1).nnode
+            if(elt_spgface(i).iswellcondition>0) n3=element(n1).nnode/2
+			do k=1,n3
 				n2=element(n1).node(k)
 				if(nodalload1(n2)==0) then
 					nspgface=nspgface+1 
-					if(nspgface>maxnspgface) call enlargespgface()
+					if(nspgface>maxnspgface) call enlarge_AR(spgface,100,maxnspgface)
 					spgface(nspgface).node=n2
 					spgface(nspgface).dof=elt_spgface(i).dof
 					spgface(nspgface).sf=elt_spgface(i).sf
@@ -858,6 +879,7 @@ subroutine elt_bc_load_translate()
 			end do			
 		end do
 		elt_spgface(i).n2=nspgface
+
 	end do 
     
     do i=1,nwsp
@@ -1126,33 +1148,20 @@ subroutine enlargenodalLoad()
 end subroutine
 
 
-subroutine enlargenodalBC()
-	use DS_Gmsh2Solver
-	implicit none
 
-	type(bc_tydef)::nodalBC1(maxnnodalBC)
-	
-	nodalBC1=nodalBC(1:maxnnodalBC)
-	deallocate(nodalBC)	
-	allocate(nodalBC(maxnnodalBC+1000))
-	nodalBC(1:maxnnodalBC)=nodalBC1
-	maxnnodalBC=maxnnodalBC+1000
-
-end subroutine
-
-subroutine enlargespgface()
-	use DS_Gmsh2Solver
-	implicit none
-
-	type(bc_tydef)::spgface1(maxnspgface)
-	
-	spgface1=spgface(1:maxnspgface)
-	deallocate(spgface)	
-	allocate(spgface(maxnspgface+1000))
-	spgface(1:maxnspgface)=spgface1
-	maxnspgface=maxnspgface+1000
-
-end subroutine
+!subroutine enlargespgface()
+!	use DS_Gmsh2Solver
+!	implicit none
+!
+!	type(bc_tydef)::spgface1(maxnspgface)
+!	
+!	spgface1=spgface(1:maxnspgface)
+!	deallocate(spgface)	
+!	allocate(spgface(maxnspgface+1000))
+!	spgface(1:maxnspgface)=spgface1
+!	maxnspgface=maxnspgface+1000
+!
+!end subroutine
 
 SUBROUTINE find_duplicate_nodes(NODE,DIM,NNODE,NEWNODE,NODE2NN,NNEW,TOL)
 	IMPLICIT NONE

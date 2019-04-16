@@ -446,9 +446,9 @@ end if
 					if(csl(i).flag==0.and.j==csl(i).num) exit !²»±ÕºÏ
 					n1=b(mod(j,csl(i).num)+1)
 					nseg=nseg+1
-					segindex(k,n1)=nseg
-					segindex(n1,k)=nseg
-					seg(nseg).sv=k
+					segindex(b(J),n1)=nseg
+					segindex(n1,b(J))=nseg
+					seg(nseg).sv=b(J)
 					seg(nseg).ev=n1
 					seg(nseg).icl=i
 					if(j==csl(i).num) seg(nseg).ist2h=1 
@@ -506,14 +506,14 @@ end if
 		      !call sizecal(node(nnode).x,node(nnode).y,node(nnode).s)
 		      node(nnode).number=nnode
 			  BNpt.npt=>node(nnode)
-				n1=b(mod(i,keypn)+1)
-				nseg=nseg+1
-				segindex(k,n1)=nseg
-				segindex(n1,k)=nseg
-				seg(nseg).sv=k
-				seg(nseg).ev=n1
-				seg(nseg).icl=0
-				if(i==keypn) seg(nseg).ist2h=1			  
+                n1=b(mod(i,keypn)+1)
+                nseg=nseg+1
+                segindex(I,n1)=nseg
+                segindex(n1,I)=nseg
+                seg(nseg).sv=I
+                seg(nseg).ev=n1
+                seg(nseg).icl=0
+                if(i==keypn) seg(nseg).ist2h=1			  
 			  
 		   end do
 	       BNpt.next=>BNhead
@@ -1031,7 +1031,7 @@ end if
    subroutine read_execute(unit,ITYPE,keyword)
 	
 	  implicit none
-	  integer::unit,ef,ITYPE
+	  integer::i,unit,ef,ITYPE
 	  character(256)::term,keyword
 	  character(1)::ch
 
@@ -1040,6 +1040,14 @@ end if
 	     read(unit,'(a256)',iostat=ef) term	
 		 if(ef<0) exit
 		 term=adjustl(term)
+         if(len_trim(term)==0) cycle
+         
+         do i=1,len_trim(term) !remove 'Tab'
+			if(term(i:i)==char(9)) then
+                term(i:i)=char(32)
+            endif
+		end do
+        term=adjustl(term)
 		 if(len_trim(term)==0) cycle		
 		 write(ch,'(a1)') term
 		 if(ch/='/') then
@@ -1051,8 +1059,9 @@ end if
 			if(itype>0) then
 			   if(index(keyword,trim(term))==0) cycle
 			end if
-
-			term=adjustl(trim(term))
+            		
+            
+            term=adjustl(trim(term))
 			call command(term,unit) 	
 		 end if
 	  end do 	

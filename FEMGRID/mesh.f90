@@ -105,7 +105,6 @@
 					call judgezone(xc,yc,zone(i),tof)
 					if(tof) then
 						elt(ept).zn=i
-
 						exit
 					 end if
 				end do

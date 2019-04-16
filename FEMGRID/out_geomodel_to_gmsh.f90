@@ -39,7 +39,7 @@ contains
     subroutine find_zone_boudary()
 		integer::izone
         integer::i,j,k,ielt,iedge,n1
-		integer::bedge1(1000),nbe=0
+		integer::bedge1(2000),nbe=0
 		
         do izone=1,znum
 		    nbe=0
@@ -247,7 +247,13 @@ contains
     REAL(8)::T1
     INTEGER::I
 
+    
+    IF(N==0) THEN
+        INCOUNT=1
+        RETURN
+    ENDIF
     T1=ABS(N)
+    
     INCOUNT=INT(LOG10(T1))+1
 	IF(N<0) INCOUNT=INCOUNT+1
     

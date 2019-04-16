@@ -74,6 +74,9 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 
 	end do
 	
+    
+    CALL WELL_ELEMENT_OUT(iincs,ISUBTS,IITER)
+    
 	call E2N_stress_strain(IINCS,isubts)
 	
 	
@@ -101,6 +104,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
     endif
     
     CALL BC_RHS_OUT(iincs,iiter,ISUBTS)
+    
     
 	call tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 	isset1=.false.
@@ -295,7 +299,7 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 
 		NITEM1=NODE(bc_load(i).node).NDOF
 		CALL NODAL_ACTIVE_DOF(bc_load(i).node,DOFS1,ADOFS1,MNDOF)		
-		WRITE(99,11) bc_load(i).node,bc_load(i).dof,'LOAD',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1)) 
+		WRITE(99,11) bc_load(i).node,bc_load(i).dof,'LOAD',INC,ITER,NODE(bc_load(i).node).COORD(1:NDIMENSION),NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1)) 
         IF(OUTVAR(90+bc_LOAD(i).dof).IVO>0) NODALQ(bc_load(i).node,OUTVAR(90+bc_LOAD(i).dof).IVO,NNODALQ)=bc_LOAD(i).dof
         
         
@@ -308,7 +312,7 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 
 		NITEM1=NODE(bc_DISP(i).node).NDOF
 		CALL NODAL_ACTIVE_DOF(bc_DISP(i).node,DOFS1,ADOFS1,MNDOF)		
-		WRITE(99,11) bc_DISP(i).node,bc_DISP(i).dof,'B.C.',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1))
+		WRITE(99,11) bc_DISP(i).node,bc_DISP(i).dof,'B.C.',INC,ITER,NODE(bc_DISP(i).node).COORD(1:NDIMENSION),NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1))
         IF(OUTVAR(90+bc_DISP(i).dof).IVO>0) NODALQ(bc_DISP(i).node,OUTVAR(90+bc_DISP(i).dof).IVO,NNODALQ)=-bc_DISP(i).dof
 		!QT=QT+NODE(bc_DISP(i).node).Q*dt1
 	END DO
@@ -318,7 +322,7 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
         !NODALQ(NSEEP(i).node,OUTVAR(90).IVO,NNODALQ)=1
 		NITEM1=NODE(NSEEP(i).node).NDOF
 		CALL NODAL_ACTIVE_DOF(NSEEP(i).node,DOFS1,ADOFS1,MNDOF)			
-		WRITE(99,11) NSEEP(i).node,NSEEP(i).dof,'S.F.',INC,ITER,NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1))
+		WRITE(99,11) NSEEP(i).node,NSEEP(i).dof,'S.F.',INC,ITER,NODE(NSEEP(i).node).COORD(1:NDIMENSION),NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1))
         IF(OUTVAR(90+NSEEP(i).dof).IVO>0) NODALQ(NSEEP(i).node,OUTVAR(90+NSEEP(i).dof).IVO,NNODALQ)=-NSEEP(i).dof
 		!QT=QT+NODE(NSEEP(i).node).Q*dt1
 	END DO
@@ -331,8 +335,8 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 	
 	WRITE(99,21)
 
-10  format(3X,"NODE",5X,"DOF",3X,"TYPE",4X,"INC",3X,"ITER",11X,"GENERALIZED_LOADS",11X,"GENERALIZED_DISPLACEMENTS")
-11	format(I7,1X,I7,3X,A4,4X,I3,4X,I4,1X,<NITEM1>F15.7,<NITEM1>F15.7)
+10  format(3X,"NODE",5X,"DOF",3X,"TYPE",4X,"INC",4X,"ITER",15X,"X",15X,"Y",15X,"Z",2X,"GENERALIZED_LOADS",1X,"GENERALIZED_DISPLACEMENTS")
+11	format(I7,1X,I7,3X,A4,4X,I3,4X,I4,1X,<NDIMENSION>(F15.7,1X),3X,<NITEM1>F15.7,10X,<NITEM1>F15.7)
 12	format("WATER STORED:",F15.7,X,"WATER FLOWED IN:",F15.7,X,"RATIO:",F15.7)
 20	format("\N******************OUTPUT THE FLUX ON BOUNDARIES AND MASS CONVERSATION RATIO******************"C)
 21	format("******************END THE OUTPUT******************\N"C)

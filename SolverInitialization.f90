@@ -705,38 +705,40 @@ subroutine Initialization()
                 CALL BARFAMILY_EXTREMEVALUE(I)
 			case(shell3_kjb)
 			
-			case(pipe2,wellbore)
+			case(pipe2,wellbore,WELLBORE_SPGFACE)
 				node(element(i).node(1:element(i).nnum)).dof(4)=0
 				allocate(element(i).km(element(i).nnum,element(i).nnum))
 				element(i).km=0.0D0
-                !if(abs(material(element(i).mat).property(2))>0.d0) then
-                !    t1=material(element(i).mat).property(2)
-                !else
-                !    t1=1.1857521D-12
-                !endif
-                t1=vk(material(element(i).mat).property(2))/9.8
-                if(abs(material(element(i).mat).property(4)-1.d0)>1.d-7) then
-                    t1=t1/24./3600. !UNIT,M.DAY
-                endif
-                element(i).property(1)=(2*material(element(i).mat).property(1))**2/t1/32
-                T1=RPI*material(element(i).mat).property(1)**2/ &
-                    NORM2(NODE(ELEMENT(I).NODE(1)).COORD-NODE(ELEMENT(I).NODE(2)).COORD)
+                IF(element(i).et/=WELLBORE_SPGFACE) THEN
+                    t1=vk(material(element(i).mat).property(2))/9.8
+                    if(abs(material(element(i).mat).property(4)-1.d0)>1.d-7) then
+                        t1=t1/24./3600. !UNIT,M.DAY
+                    endif
+                    element(i).property(1)=(2*material(element(i).mat).property(1))**2/t1/32
+                    T1=RPI*material(element(i).mat).property(1)**2/ &
+                        NORM2(NODE(ELEMENT(I).NODE(1)).COORD-NODE(ELEMENT(I).NODE(2)).COORD)
                                
-                ELEMENT(I).PROPERTY(1)=T1*ELEMENT(I).PROPERTY(1)
+                    ELEMENT(I).PROPERTY(1)=1./(T1*ELEMENT(I).PROPERTY(1))
+                ELSE
+                    ELEMENT(I).PROPERTY(1)=1.D10 !模拟不透水,大阻力
+                ENDIF
                 
-                if(element(i).et==wellbore) then
+                if(element(i).et==WELLBORE.or.element(i).et==WELLBORE_SPGFACE) then
                     CALL INI_WELLBORE(I)                   
                 ELSE
                     !ALLOCATE(ELEMENT(I).KM(2,2))
                     ELEMENT(I).KM=1.D0
                     ELEMENT(I).KM(1,2)=-1.D0;ELEMENT(I).KM(2,1)=-1.D0
-                    ELEMENT(I).KM=ELEMENT(I).KM*ELEMENT(I).PROPERTY(1)
+                    ELEMENT(I).KM=ELEMENT(I).KM/ELEMENT(I).PROPERTY(1)
                 endif
+                ISOUT_WELL_FILE=.TRUE.
+                
             CASE(SEMI_SPHFLOW,SPHFLOW)
                 node(element(i).node(1:element(i).nnum)).dof(4)=0
 				allocate(element(i).km(element(i).nnum,element(i).nnum))
 				element(i).km=0.0D0
-                CALL INI_SPHFLOW(I)                   
+                CALL INI_SPHFLOW(I)
+                ISOUT_WELL_FILE=.TRUE.
                 
 			!CASE(ZT4_SPG) !assume no flow occurs in the diections parallel to element faces.
 			!	node(element(i).node(1:element(i).nnum)).dof(4)=0
@@ -1039,7 +1041,7 @@ subroutine Initialization()
 				call fepv(i,dof1)
 				call dofbw(i)
 				
-			case(pipe2,wellbore,SEMI_SPHFLOW,SPHFLOW)
+			case(pipe2,wellbore,WELLBORE_SPGFACE,SEMI_SPHFLOW,SPHFLOW)
 				dof1=0
 				dof1(4)=4
 				call fepv(i,dof1)

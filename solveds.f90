@@ -63,7 +63,8 @@ module solverds
 		! y and z is defined by user but must be consistent with right hand rule.
 		!and be consistent with Iy and Iz.
 		real(kind=DPN)::property(6)=0.0D0  !for spg problem and iniflux is used, property(3)=low lamda,property(2)=up lamda
-        !for wellbore element, property(1-3), element hydraulic conductivity, property(4) surround angle. (5)=WELL SKIN RESISTANCE
+        !for wellbore element, property(1), element frictional resistance,(2) and (3) are geometrical resistance; (4) acceralated resistantce; (5)=WELL SKIN RESISTANCE , property(6) surround angle.
+        !fore sphflow and semi_sphflow property(1)= geometrical resistance.
 		real(kind=DPN),allocatable::angle(:)!internal angle for every nodes
         !当et=wellbore时,angle存储node2单元对应的二面角。
 		integer,allocatable::g(:) !单元的定位向量
@@ -98,9 +99,9 @@ module solverds
 		real(kind=DPN),allocatable::Kr(:) !relative permeability
 		real(kind=DPN),allocatable::Mw(:) !slope of volumetric water content
 		real(kind=DPN),allocatable::sita_fin(:),sita_ini(:) !volume water content in the end and start of the time step.  
-        INTEGER,ALLOCATABLE::WELL_SP3(:),WELL_SP4(:) !USE forlab WELLBORE ELEMENT
-        REAL(KIND=DPN),ALLOCATABLE::WELL_SP3_R(:),WELL_SP4_R(:)
-        INTEGER::NWSP3=0,NWSP4=0		
+        !INTEGER,ALLOCATABLE::WELL_SP3(:),WELL_SP4(:) !USE forlab WELLBORE ELEMENT
+        !REAL(KIND=DPN),ALLOCATABLE::WELL_SP3_R(:),WELL_SP4_R(:)
+        !INTEGER::NWSP3=0,NWSP4=0		
 		
 		!real(kind=DPN),allocatable::lamda(:) !lamda(ngp)=1.0(by default),relative k. 
 		!additional variables for upper bound analysis
@@ -165,10 +166,13 @@ module solverds
 				
 		!对于bc_disp,如果isdual==i(>0),则表示此自由度可能与出溢边界Nseep(i)重复，如果边界水头小于位置水头，则变为出溢边界。
 		!对于Nseep, 如果isdual==i(>0)，则表示此自由度可能与水头边界BC_disp(i)重复，如果边界水头大于位置水头，则以水头边界为准，即水头边界的优先级大于出溢边界。
-		integer::isdual=0
+		integer::isdual=0,iswellhead=0 
+        !对于bc_disp,iswellhead>0,表示此节点为减压自流井边界节点，节点流量只出不进，如果流入流量，则令此边界失效
+        !对于Nseep,iswellhead>0,表示此节点为井壁出溢面，且此出溢点的流量，计入编号为iswellhead的井点流量
 		integer::ssp_onepile=0 !只对SSP单元节点起作用，标示这个作用是否是作用在其中一根钢板桩上,而不两根都作用。
 								!/=0,作用在单根钢板桩上，=0都作用。
 		integer::isincrement=0 !如果为1，则表明value是增量，而不是全量（默认）
+        
 	end type
 	type(bc_tydef),allocatable::bc_disp(:),bc_load(:),bf(:),NSeep(:),IniValue(:),CFN(:)
 	integer::bd_num=0,bl_num=0,bfnum=0,NumNSeep=0,Niniv=0,NCFN=0	
@@ -186,7 +190,7 @@ module solverds
 
 	!material 
 	type mat_tydef
-		integer::type=0
+		integer::type=0,ISINPUT=0
 		real(kind=DPN)::property(32)=0.0D0
 		integer::sf(32)=0 !not considered yet.
 		real(kind=DPN)::weight=0.0
@@ -251,7 +255,8 @@ module solverds
         real(kind=DPN)::slope_kscale=1.D0,slope_kbase=1.D0,slope_kratio=10
 	end type
 	type(solver_tydef)::solver_control
-	
+	INTEGER::MAX_NODE_ADJ=50,MAX_FACE_ADJ=100
+    
 	type property_tydef
 		character(128)::name=''
         integer::nval=1
@@ -388,7 +393,7 @@ module solverds
 
 	
 	character(1024)::title,resultfile,resultfile1,resultfile2,resultfile3,resultfile21,resultfile22,EXCAMSGFILE,EXCAB_BEAMRES_FILE,&
-					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE,SLOPE_FILE,helpfile
+					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE,SLOPE_FILE,helpfile,well_file
 	INTEGER::DATAPOINT_UNIT=29
 	integer::datapacking=1	!=1,point format:{x1,y1,z1},{x2,y2,z2},..., . (Default Format)
 						 != 2, block format, {x1,x2,...},{y1,y2,...},{z1,z2,...}
@@ -453,7 +458,7 @@ module solverds
 	INTEGER::NNODALQ=0
 	integer,allocatable::bfgm_step(:)
     integer::mpi_rank = 0, mpi_size = 1, mpi_ierr
-    LOGICAL::ISINISEDGE=.FALSE.
+    LOGICAL::ISINISEDGE=.FALSE.,ISOUT_WELL_FILE=.FALSE.
     
     INTERFACE
          PURE subroutine INVARIANT(stress,inv)
@@ -646,15 +651,27 @@ pure function DINV(E,V,ND) result(C)
 	
 end function
 
-FUNCTION KM_WELLBORE(A1,A2,A3) RESULT(KM)
+FUNCTION KM_WELLBORE(A1,A2,A3,A4,A5) RESULT(KM)
     IMPLICIT NONE
     REAL(8),INTENT(IN)::A1,A2,A3
-    REAL(8)::KM(4,4)
+    REAL(8),INTENT(IN),OPTIONAL::A4,A5
+    REAL(8)::A15,A25
+    INTEGER::ND1=4
+    REAL(8),ALLOCATABLE::KM(:,:)
     
+    IF(PRESENT(A4)) THEN
+        ND1=5
+        A15=A4;A25=A5
+    ELSE
+        ND1=4
+        A15=0.D0
+        A25=0.D0
+    ENDIF
+    ALLOCATE(KM(ND1,ND1))
     
     KM=0.D0
-    KM(1,1)=A1+A3
-    KM(2,2)=A1+A2
+    KM(1,1)=A1+A3+A15
+    KM(2,2)=A1+A2+A25
     KM(3,3)=A2
     KM(4,4)=A3
     KM(1,2)=-A1
@@ -663,6 +680,12 @@ FUNCTION KM_WELLBORE(A1,A2,A3) RESULT(KM)
     KM(3,2)=-A2
     KM(1,4)=-A3
     KM(4,1)=-A3
+    
+    IF(PRESENT(A4)) THEN
+        KM(5,5)=A15+A25
+        KM(1,5)=-A15;KM(5,1)=-A15
+        KM(2,5)=-A25;KM(5,2)=-A25
+    ENDIF
 
 END FUNCTION
 
@@ -679,6 +702,11 @@ REAL(8) FUNCTION fD_PF(RE,KR,REW) !darcy-friction for pipe flow
     REAL(8),INTENT(IN)::RE,KR
     REAL(8),INTENT(IN),OPTIONAL::REW
     REAL(8)::LAMDA1,REW1,FC1
+    
+    IF(ABS(RE)<1.D-7) THEN
+        LAMDA1=1E7
+        RETURN
+    ENDIF
     
     IF(RE<3000) THEN
         LAMDA1=64./RE    

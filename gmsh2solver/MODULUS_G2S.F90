@@ -3,7 +3,7 @@ module DS_Gmsh2Solver
 
     INTERFACE ENLARGE_AR
         MODULE PROCEDURE I_ENLARGE_AR,R_ENLARGE_AR,NODE_ENLARGE_AR,ELEMENT_ENLARGE_AR,BCGROUP_ENLARGE_AR,&
-                        FACE_TYDEF_ENLARGE_AR,EDGE_TYDEF_ENLARGE_AR
+                        FACE_TYDEF_ENLARGE_AR,EDGE_TYDEF_ENLARGE_AR,BCTYPE_ENLARGE_AR
     END INTERFACE    
     
     INTEGER::NLAYER=1
@@ -99,13 +99,14 @@ module DS_Gmsh2Solver
 	type(et_type)::elttype(100)
 	
 	type bcgroup_type
-		integer::group,ISFIELD=0
+		integer::group,ISFIELD=0,ISINPUT=0
 		integer::ndim=0 !=0,point load; =1,line load; =2, planar load; =3,volume load;
 		integer::dof
 		integer::sf=0
 		real(8)::value=0  !当输入seepageface时，value=1,2,3 分别表示节点的水头值等于坐标x,y,z.
 		integer::n1=0,n2=0 !for spgface output
         real(8)::LFC(4)=0.d0 !FIELD=AX+BY+CY+D LFC()=[A,B,C,D]
+        integer::ISWELLCONDITION=0 !是否为井的边界，或出溢面
     CONTAINS
         PROCEDURE::GETVALUE=>LINEARFILEDCAL
 	end type
@@ -118,10 +119,12 @@ module DS_Gmsh2Solver
 		integer::isdead=0 !for seepage face iterative, =1,the condition is no longer on work. 
 		real(8)::value=0
 	end type
-	type(bc_tydef),allocatable::nodalLoad(:),nodalBC(:),spgface(:)
+	type(bc_tydef),allocatable::nodalLoad(:),nodalBC(:),spgface(:),Wellhead(:),WellSpgface(:)
 	integer::nnodalLoad=0,maxnnodalLoad=1000
 	integer::nnodalBC=0,maxnnodalBC=1000
 	integer::nspgface=0,maxnspgface=1000
+    integer::nwellhead=0,maxnwellhead=0
+    integer::nwellspgface=0,maxnwellspgface=0
     
     type wsp_typdef
         integer::Group,chgroup,spgroup !chgroup, characteristic point.
@@ -182,9 +185,10 @@ module DS_Gmsh2Solver
     INTEGER::ISGENTRISURFACE=0,ISGEO=0,ISSTL=0,ISOFF=0
     
     TYPE WELLBORE_TYDEF
-        INTEGER::IGP=0,WELLNODE=0,NWELLBORESEG=-1,BCTYPE=0,NWNODE=0,WELLBORELOC=-1,SPHERICALFLOW=0,NSEMI_SF=0
+                                INTEGER::IGP=0,WELLNODE=0,NWELLBORESEG=-1,BCTYPE=0,NWNODE=0,PIPEFLOW=-1,SPHERICALFLOW=0,NSEMI_SF=0
+        INTEGER::NSPG_FACE=0
         REAL(8)::R,VALUE=0.D0
-        INTEGER,ALLOCATABLE::SEMI_SF_IPG(:)
+        INTEGER,ALLOCATABLE::SEMI_SF_IPG(:),SPG_FACE(:),SINK_NODE_SPG_FACE(:)
         REAL(8),ALLOCATABLE::DIR_VECTOR(:,:)        
     CONTAINS
         PROCEDURE::INITIALIZE=>WELLBORE_INITIALIZE
@@ -192,6 +196,7 @@ module DS_Gmsh2Solver
     ENDTYPE
     TYPE(WELLBORE_TYDEF),ALLOCATABLE::WELLBORE(:)
     INTEGER::NWELLBORE=0
+    
 
     CONTAINS
     
@@ -322,22 +327,42 @@ module DS_Gmsh2Solver
         TYPE(bcgroup_type),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
         INTEGER,INTENT(IN)::DSTEP
         TYPE(bcgroup_type),ALLOCATABLE::VAL1(:)
-        INTEGER::LB1=0,UB1=0
+        INTEGER::LB1=0,UB1=0,ERR
     
         LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-        ALLOCATE(VAL1,SOURCE=AVAL)
-        DEALLOCATE(AVAL)
-        ALLOCATE(AVAL(LB1:UB1+DSTEP))
+        ALLOCATE(VAL1,SOURCE=AVAL,STAT=ERR)
+        DEALLOCATE(AVAL,STAT=ERR)
+        ALLOCATE(AVAL(LB1:UB1+DSTEP),STAT=ERR)
         AVAL(LB1:UB1)=VAL1
         !AVAL(UB1+1:UB1+10)=0
-        DEALLOCATE(VAL1)
-    END SUBROUTINE    
+        DEALLOCATE(VAL1,STAT=ERR)
+    END SUBROUTINE
+    SUBROUTINE BCTYPE_ENLARGE_AR(AVAL,DSTEP,UBAVAL)
+        TYPE(bc_tydef),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+        INTEGER,INTENT(IN)::DSTEP
+        INTEGER,INTENT(IN OUT),OPTIONAL::UBAVAL
+        TYPE(bc_tydef),ALLOCATABLE::VAL1(:)
+        
+        INTEGER::LB1=0,UB1=0,ERR
+    
+        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+    
+        ALLOCATE(VAL1,SOURCE=AVAL,STAT=ERR)
+        IF(ALLOCATED(AVAL)) DEALLOCATE(AVAL)
+        ALLOCATE(AVAL(LB1:UB1+DSTEP))
+        AVAL(LB1:UB1)=VAL1
+        IF(PRESENT(UBAVAL)) UBAVAL=UB1+DSTEP
+        !AVAL(UB1+1:UB1+10)=0
+        IF(ALLOCATED(VAL1)) DEALLOCATE(VAL1)
+    END SUBROUTINE   
+    
     SUBROUTINE WELLBORE_INITIALIZE(SELF)
         CLASS(WELLBORE_TYDEF)::SELF
-        INTEGER::I,J,K,N1,N2,INODE1,IEL1
+        INTEGER::I,J,K,N1,N2,N3,N4,INODE1,IEL1,II1
         INTEGER::NODE1(10)
-        LOGICAL,ALLOCATABLE::ISWBE1(:)
+        INTEGER,ALLOCATABLE::ISWBE1(:)
         INTEGER,ALLOCATABLE::IA1(:)
+        CHARACTER(16),PARAMETER::CAR1(3)=["PIPE2","WELLBORE","WELLBORE_SPGFACE"]
         
         !generate four-noded well element
         ! 1 +-----------+ 2
@@ -349,77 +374,117 @@ module DS_Gmsh2Solver
         
         
         NODE.N1=0
+        N3=2+SELF.NSPG_FACE
+        ALLOCATE(IA1(N3))
+        IF(SELF.NSPG_FACE>0) THEN
+            IA1=[SELF.IGP,SELF.PIPEFLOW,SELF.SPG_FACE]
+        ELSE
+            IA1=[SELF.IGP,SELF.PIPEFLOW]
+        ENDIF
         
-       
-        N1=SELF.IGP
-        !PHYSICALGROUP(N1).ET="WELLBORE"
-        
-        ALLOCATE(ISWBE1(PHYSICALGROUP(N1).NEL))
-        ISWBE1=.FALSE.
-        DO J=1,PHYSICALGROUP(N1).NEL
+        DO IJ1=1,N3
             
-            IEL1=PHYSICALGROUP(N1).ELEMENT(J)
+            N1=IA1(IJ1)
             
-            DO K=1,ELEMENT(IEL1).NNODE
-                INNODE1=ELEMENT(IEL1).NODE(K)
-                IF(NODE(INNODE1).N1==0) THEN
-                    NNODE=NNODE+1
-                    NODE(INNODE1).N1=NNODE
-                    IF(NNODE>UBOUND(NODE,DIM=1)) THEN
-                        CALL NODE_ENLARGE_AR(NODE,1000)       
-                    ENDIF
-                    NODE(NNODE)=NODE(INNODE1)
-                    NODE(NNODE).N1=INNODE1
-                ENDIF                
-            ENDDO
-            ELEMENT(IEL1).NODE=NODE(ELEMENT(IEL1).NODE).N1
-            IF(SELF.WELLBORELOC<0) SELF.WELLBORELOC=SELF.IGP 
-            IF(SELF.WELLBORELOC>0) THEN
-                IF(ANY(PHYSICALGROUP(SELF.WELLBORELOC).ELEMENT-IEL1==0)) THEN
-                    !滤管井单元            
+            IF(N1<1) CYCLE
+            
+            IF(IJ1==1) THEN
+                PHYSICALGROUP(N1).ET="WELLBORE"
+            ELSEIF(IJ1==2) THEN
+                PHYSICALGROUP(N1).ET="PIPE2"
+            ELSE
+                PHYSICALGROUP(N1).ET="WELLBORE_SPGFACE"
+            ENDIF
+            
+            PHYSICALGROUP(N1).ISMODEL=.TRUE.
+            
+            IF(PHYSICALGROUP(N1).MAT(1)==0.AND.IA1(1)>0) THEN
+                PHYSICALGROUP(N1).MAT(1)=PHYSICALGROUP(IA1(1)).MAT(1)            
+            ENDIF
+            IF(PHYSICALGROUP(N1).MAT(1)==0.AND.IA1(2)>0) THEN
+                PHYSICALGROUP(N1).MAT(1)=PHYSICALGROUP(IA1(2)).MAT(1)            
+            ENDIF            
+            IF(PHYSICALGROUP(N1).MAT(1)==0) THEN
+                PRINT *,'PLEASE SIGN A MATID TO PHYSICALGROUP(N1) THROUGH "GROUPPARAMETER". N1=',N1
+                STOP
+            ENDIF
+                        
+            DO J=1,PHYSICALGROUP(N1).NEL
+            
+                IEL1=PHYSICALGROUP(N1).ELEMENT(J)
+            
+                DO K=1,ELEMENT(IEL1).NNODE
+                    INNODE1=ELEMENT(IEL1).NODE(K)
+                    IF(NODE(INNODE1).N1==0) THEN
+                        NNODE=NNODE+1
+                        NODE(INNODE1).N1=NNODE
+                        IF(NNODE>UBOUND(NODE,DIM=1)) THEN
+                            CALL ENLARGE_AR(NODE,1000)       
+                        ENDIF
+                        NODE(NNODE)=NODE(INNODE1)
+                        NODE(NNODE).N1=INNODE1
+                    ENDIF                
+                ENDDO
+            
+                ELEMENT(IEL1).NODE=NODE(ELEMENT(IEL1).NODE).N1
+                
+                IF(IJ1==2) THEN
+                    PHYSICALGROUP(N1).ET_GMSH=1
+                ELSE
+                    !滤管井单元,井流出溢面单元              
                     ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE
                     NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1]
                     DEALLOCATE(ELEMENT(IEL1).NODE)
                     N2=ELEMENT(IEL1).NNODE/2
                     ALLOCATE(ELEMENT(IEL1).NODE,SOURCE=NODE1([1:N2,ELEMENT(IEL1).NNODE:N2+1:-1]))
-                    ISWBE1(J)=.TRUE.                
+                    PHYSICALGROUP(N1).ET_GMSH=3                
                 ENDIF
-            ENDIF
-        ENDDO
+                
+                !SELECT CASE(IJ1)
+                !CASE(1)                   
+                ! !滤管井单元           
+                !    ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE
+                !    NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1]
+                !    DEALLOCATE(ELEMENT(IEL1).NODE)
+                !    N2=ELEMENT(IEL1).NNODE/2
+                !    ALLOCATE(ELEMENT(IEL1).NODE,SOURCE=NODE1([1:N2,ELEMENT(IEL1).NNODE:N2+1:-1]))
+                !    PHYSICALGROUP(N1).ET_GMSH=3   
+                !CASE(2) !管流单元
+                !    !NOTHING TO DO
+                !    PHYSICALGROUP(N1).ET_GMSH=1
+                !CASE DEFAULT !井流出溢面单元                    
+                !    ! :>>>>>>>>>>>>>>>>>>>>>>:
+                !    ! 1...........2>>>>>>>>>>5(SinkNode(滤管最上面的边界节点))   (井壁侧)  !实际为1-4和2-3两个线单元，第5个节点只是为统计井流量用。
+                !    ! |           |
+                !    ! 4           3                                                
+                !    ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE+1
+                !    N4=ELEMENT(PHYSICALGROUP(SELF.SINK_NODE_SPG_FACE(IJ1-2)).ELEMENT(1)).NODE(1) !此集只含一个单节点的单元
+                !    N4=NODE(N4).N1
+                !    NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1,N4]
+                !    DEALLOCATE(ELEMENT(IEL1).NODE)
+                !    N2=(ELEMENT(IEL1).NNODE-1)/2
+                !    ALLOCATE(ELEMENT(IEL1).NODE,SOURCE=NODE1([1:N2,ELEMENT(IEL1).NNODE-1:N2+1:-1,ELEMENT(IEL1).NNODE]))
+                !    PHYSICALGROUP(N1).ET_GMSH=3
+                !ENDSELECT
+            ENDDO
         
-        IF(COUNT(ISWBE1==.FALSE.)==PHYSICALGROUP(N1).NEL) THEN
-            PHYSICALGROUP(N1).ET="PIPE2"
-            IF(PHYSICALGROUP(N1).ET_GMSH==15) PHYSICALGROUP(N2).ISMODEL=.FALSE.
-            PHYSICALGROUP(N1).ET_GMSH=1
-        ELSEIF(COUNT(ISWBE1==.TRUE.)==PHYSICALGROUP(N1).NEL) THEN
-            PHYSICALGROUP(N1).ET="WELLBORE"
-            PHYSICALGROUP(N1).ET_GMSH=3
-        ELSE
-            N2=maxval(phgpnum)+1
-            CALL I_ENLARGE_AR(phgpnum,1)
-            NPHGP=NPHGP+1
-            phgpnum(nphgp)=N2
-            
-            ALLOCATE(IA1,SOURCE=PHYSICALGROUP(N1).ELEMENT);DEALLOCATE(PHYSICALGROUP(N1).ELEMENT)
-            PHYSICALGROUP(N2).ET="WELLBORE"            
-            PHYSICALGROUP(N2).NEL=COUNT(ISWBE1==.TRUE.)
-            ALLOCATE(PHYSICALGROUP(N2).ELEMENT(PHYSICALGROUP(N2).NEL))
-            PHYSICALGROUP(N2).ELEMENT=PACK(IA1,ISWBE1==.TRUE.)
-            PHYSICALGROUP(N2).ISMODEL=.TRUE.
-            PHYSICALGROUP(N2).MAT=PHYSICALGROUP(N1).MAT
-            PHYSICALGROUP(N2).ET_GMSH=3
-            
-            PHYSICALGROUP(N1).ET="PIPE2"            
-            PHYSICALGROUP(N1).NEL=COUNT(ISWBE1==.FALSE.)            
-            ALLOCATE(PHYSICALGROUP(N1).ELEMENT(PHYSICALGROUP(N1).NEL))
-            PHYSICALGROUP(N1).ELEMENT=PACK(IA1,ISWBE1==.FALSE.)
-            PHYSICALGROUP(N1).ISMODEL=.TRUE.
-        ENDIF
+        ENDDO
+
+     
         
         IF(SELF.SPHERICALFLOW>0) THEN
             N2=SELF.SPHERICALFLOW
             PHYSICALGROUP(N2).ISMODEL=.TRUE.
-            PHYSICALGROUP(N2).MAT=PHYSICALGROUP(N1).MAT
+            IF(PHYSICALGROUP(N2).MAT(1)==0.AND.IA1(1)>0) THEN
+                PHYSICALGROUP(N2).MAT=PHYSICALGROUP(IA1(1)).MAT
+            ENDIF
+            IF(PHYSICALGROUP(N2).MAT(1)==0.AND.IA1(2)>0) THEN
+                PHYSICALGROUP(N2).MAT=PHYSICALGROUP(IA1(2)).MAT
+            ENDIF  
+            IF(PHYSICALGROUP(N2).MAT(1)==0) THEN
+                PRINT *,'PLEASE SIGN A MATID TO PHYSICALGROUP(N2) THROUGH "GROUPPARAMETER". N2=',N2
+                STOP
+            ENDIF            
             PHYSICALGROUP(N2).ET="SPHFLOW"
             PHYSICALGROUP(N2).ET_GMSH=1
             DO I=1,PHYSICALGROUP(N2).NEL
@@ -437,7 +502,16 @@ module DS_Gmsh2Solver
         DO I=1,SELF.NSEMI_SF            
             N2=SELF.SEMI_SF_IPG(I)
             PHYSICALGROUP(N2).ISMODEL=.TRUE.
-            PHYSICALGROUP(N2).MAT=PHYSICALGROUP(N1).MAT
+            IF(PHYSICALGROUP(N2).MAT(1)==0.AND.IA1(1)>0) THEN
+                PHYSICALGROUP(N2).MAT=PHYSICALGROUP(IA1(1)).MAT
+            ENDIF
+            IF(PHYSICALGROUP(N2).MAT(1)==0.AND.IA1(2)>0) THEN
+                PHYSICALGROUP(N2).MAT=PHYSICALGROUP(IA1(2)).MAT
+            ENDIF  
+            IF(PHYSICALGROUP(N2).MAT(1)==0) THEN
+                PRINT *,'PLEASE SIGN A MATID TO PHYSICALGROUP(N2) THROUGH "GROUPPARAMETER". N2=',N2
+                STOP
+            ENDIF 
             PHYSICALGROUP(N2).ET="SEMI_SPHFLOW"
             PHYSICALGROUP(N2).ET_GMSH=1
             PHYSICALGROUP(N2).PROPERTY(1:3)=SELF.DIR_VECTOR(:,I)
@@ -456,28 +530,41 @@ module DS_Gmsh2Solver
         !BC
         N1=SELF.WELLNODE
         
-        DO I=1,PHYSICALGROUP(N1).NEL !THE NEL IS ASSUMED TO BE 1
+        DO I=1,PHYSICALGROUP(N1).NEL 
             IEL1=PHYSICALGROUP(N1).ELEMENT(I)
             ELEMENT(IEL1).NODE=NODE(ELEMENT(IEL1).NODE).N1
         ENDDO
-        IF(SELF.BCTYPE==0) THEN
-            CALL ENLARGE_AR(ELT_BC,10)
+        IF(SELF.BCTYPE/=1) THEN
+            
             NELT_BC=NELT_BC+1
+            IF(NELT_BC>SIZE(ELT_BC,DIM=1)) CALL ENLARGE_AR(ELT_BC,10)
+            
             ELT_BC(NELT_BC).GROUP=SELF.WELLNODE
             ELT_BC(NELT_BC).NDIM=0
             ELT_BC(NELT_BC).DOF=4
             ELT_BC(NELT_BC).VALUE=SELF.VALUE
-        ELSE
-            CALL ENLARGE_AR(ELT_LOAD,10)
+            IF(SELF.BCTYPE==0) ELT_BC(NELT_BC).ISWELLCONDITION=1 !自流减压井水头边界，其出水量只出不进
+        ELSE            
             NELT_LOAD=NELT_LOAD+1
+            IF(NELT_LOAD>SIZE(ELT_LOAD,DIM=1)) CALL ENLARGE_AR(ELT_LOAD,10)
             ELT_LOAD(NELT_LOAD).GROUP=SELF.WELLNODE
             ELT_LOAD(NELT_LOAD).NDIM=0
             ELT_LOAD(NELT_LOAD).DOF=4
             ELT_LOAD(NELT_LOAD).VALUE=SELF.VALUE            
         ENDIF        
     
+        DO I=1,SELF.NSPG_FACE
+            IF(nelt_spgface+SELF.NSPG_FACE>SIZE(ELT_SPGFACE,DIM=1)) CALL ENLARGE_AR(ELT_SPGFACE,SELF.NSPG_FACE)
+            nelt_spgface=nelt_spgface+1
+            
+            ELT_SPGFACE(NELT_SPGFACE).GROUP=SELF.SPG_FACE(I)
+            ELT_SPGFACE(NELT_SPGFACE).NDIM=0
+            ELT_SPGFACE(NELT_SPGFACE).DOF=4
+            ELT_SPGFACE(NELT_SPGFACE).VALUE=SELF.VALUE            
+            ELT_SPGFACE(NELT_SPGFACE).ISWELLCONDITION=SELF.SINK_NODE_SPG_FACE(I)
+        ENDDO
         
-        DEALLOCATE(ISWBE1)
+        IF(ALLOCATED(ISWBE1)) DEALLOCATE(ISWBE1)
         IF(ALLOCATED(IA1)) DEALLOCATE(IA1)
     ENDSUBROUTINE
     

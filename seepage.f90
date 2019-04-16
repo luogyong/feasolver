@@ -11,7 +11,7 @@ SUBROUTINE SPG_Q_UPDATE(STEPDIS,bload,HHEAD,INIHEAD,DT,nbload,ienum,iiter,istep,
     
     SELECT CASE(ELEMENT(IENUM).ET)
         
-    CASE(PIPE2,WELLBORE)
+    CASE(PIPE2,WELLBORE,WELLBORE_SPGFACE)
         CALL WELLBORE_Q_K_UPDATE(STEPDIS,IENUM,ISTEP,IITER)
         BLOAD=ELEMENT(IENUM).FLUX 
     CASE(SPHFLOW,SEMI_SPHFLOW)
@@ -336,28 +336,27 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
     IMPLICIT NONE
     INTEGER,INTENT(IN)::IEL,ISTEP,IITER
     REAL(8),INTENT(IN)::STEPDIS(NDOF)
-    INTEGER::I,J,K,I0,IN1,IN2,IN3,N1,N2,IEL1,IP1,MODEL1
-    REAL(8)::H1,X1(3),R1,Q1(4),PI1,LAMDA1,K1,DIS1,DH1,A1(3),NHEAD1(4),KM1(4,4),HZ1,RA1,X2(3),&
-    W1,TW1,RE1,VA1,QR1,FD1,L1,D1,QA1,VR1,AREA1,g1,FACC1,REW1,cf1,QN1(4),KX1,KY1,KZ1,SITA1(3),LP1,&
-    KR1,XC1(3),VW1(3)
-    LOGICAL::ISO1=.FALSE.
+    INTEGER::I,J,K,I0,IN1,IN2,IN3,N1,N2,IEL1,IP1,MODEL1,II1,NDOF1,ET1
+    REAL(8)::H1,X1(3),R1,Q1(4),PI1,LAMDA1,K1,DIS1,DH1,A1(5),NHEAD1(5),KM1(5,5),HZ1,RA1,X2(3),&
+    W1,TW1,RE1,VA1,QR1,FD1,L1,D1,QA1,VR1,AREA1,g1,FACC1,REW1,cf1,QN1(5),KX1,KY1,KZ1,SITA1(3),LP1,&
+    KR1,XC1(3),VW1(3),T1
+    LOGICAL::ISO1=.FALSE.,ISIN1=.FALSE.
     
-    NHEAD1(1:ELEMENT(IEL).NNUM)=STEPDIS(ELEMENT(IEL).G)
-    PI1=PI();    
-    !IF(ANY(NHEAD1(1:2)-NODE(ELEMENT(IEL).NODE(1:2)).COORD(NDIMENSION)<0.D0)) THEN
-    !    A1(1)=1.D-7
-    !ELSE
+    NDOF1=ELEMENT(IEL).NDOF;ET1=ELEMENT(IEL).ET
+    NHEAD1(1:NDOF1)=STEPDIS(ELEMENT(IEL).G)
+    PI1=PI(); 
     
-    !It is assumed that the conducitvity of the pipe/wellbore is allways strong. 
-    FD1=1./ELEMENT(IEL).PROPERTY(1)
+    X2=NODE(ELEMENT(IEL).NODE(1)).COORD-NODE(ELEMENT(IEL).NODE(2)).COORD
+    DIS1=NORM2(X2)/2.0 !half length of the wellbore
+    VW1=X2/DIS1/2.0 !wellbore unit vection    
+    
+    FD1=ELEMENT(IEL).PROPERTY(1)
     FACC1=0.0D0;REW1=0.D0
         
     MODEL1=INT(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(6))
-    X2=NODE(ELEMENT(IEL).NODE(4)).COORD-NODE(ELEMENT(IEL).NODE(3)).COORD
-    DIS1=NORM2(X2)/2.0 !half length of the wellbore
-    VW1=X2/DIS1/2.0 !wellbore unit vection 
+ 
     
-    IF(MODEL1/=0) THEN
+    IF(ET1/=WELLBORE_SPGFACE.AND.MODEL1/=0) THEN
         L1=2*DIS1
         D1=2*MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)
         AREA1=PI1*D1**2/4.0
@@ -378,27 +377,38 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
         !FRICTION PART, CONSIDERING THE TURBULENT AND POROUS SIDE EFFECT
         IF(MODEL1==2) THEN
             !ASSUME LENGHTH UNIT IS M
-            IF(ABS(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(4))<1.D-7) THEN
-                CF1=1./24/3600 !to m/s
+            IF(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(8)>0.D0) THEN
+                FD1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(8)
             ELSE
-                CF1=1.0D0
+                IF(ABS(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(4))<1.D-7) THEN
+                    CF1=1./24/3600 !to m/s
+                ELSE
+                    CF1=1.0D0
+                ENDIF
+                RE1=Re_W(VA1*CF1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
+                VR1=QR1/(L1*PI1*D1)
+                REW1=Re_W(VR1*CF1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
+                FD1=FD_PF(RE1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(3),REW1) 
             ENDIF
-            RE1=Re_W(VA1*CF1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
-            VR1=QR1/(L1*PI1*D1)
-            REW1=Re_W(VR1*CF1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
-            FD1=FD_PF(RE1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(3),REW1)
             FD1=FD1*L1*QA1/(2*D1*G1*AREA1**2)
         ENDIF            
     END IF 
-        
+    
+    ELEMENT(IEL).PROPERTY(1)=FD1;ELEMENT(IEL).PROPERTY(4)=FACC1; 
+    
+    IF(ABS(FD1)<1E-10) THEN
+        FD1=1.D-10
+    ENDIF
+    
+    
     A1(1)=1./(FACC1+FD1)
     IF(A1(1)<0.D0) A1(1)=1./FD1    
-    !ENDIF
+    
     
     
 
     
-    IF(ELEMENT(IEL).ET==PIPE2) THEN
+    IF(ET1==PIPE2) THEN
         KM1(1,1)=A1(1);KM1(2,2)=A1(1);KM1(1,2)=-A1(1);KM1(2,1)=-A1(1)
      
     ELSE
@@ -406,12 +416,13 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
         
         Q1=0.D0
         
-        QN1=MATMUL(ELEMENT(IEL).KM,NHEAD1(1:4))
+        QN1(1:NDOF1)=MATMUL(ELEMENT(IEL).KM,NHEAD1(1:NDOF1))
         
         DO I=1,2
     
             IF(NHEAD1(2+I)-NODE(ELEMENT(IEL).NODE(2+I)).COORD(NDIMENSION)<0.D0) THEN        
                 A1(I+1)=1.D-7
+                A1(1)=1.D-7 !!!!!
                 CYCLE
             ENDIF
         
@@ -423,77 +434,124 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
             ELSE
                 N2=1
             ENDIF
-            DH1=STEPDIS(NODE(IN1).DOF(4))-STEPDIS(NODE(ELEMENT(IEL).NODE(N2)).DOF(4))
-            IP1=0;RA1=0.D0;W1=0;TW1=0;  
+            IF(ET1==WELLBORE) THEN
+                DH1=STEPDIS(NODE(IN1).DOF(4))-STEPDIS(NODE(ELEMENT(IEL).NODE(N2)).DOF(4))
+            ELSE
+                !WELLBORE_SPGFACE
+                DH1=STEPDIS(NODE(IN1).DOF(4))-NODE(ELEMENT(IEL).NODE(N2)).COORD(NDIMENSION)
+            ENDIF
             
-            DO J=1,SNADJL(IN1).ENUM
-                IEL1=SNADJL(IN1).ELEMENT(J)
-                IF(ELEMENT(IEL1).ET==WELLBORE.OR.ELEMENT(IEL1).ET==PIPE2) CYCLE !ITSELF EXCLUDED
-                IF(ELEMENT(IEL1).ET==SPHFLOW.OR.ELEMENT(IEL1).ET==SEMI_SPHFLOW) CYCLE !ITSELF EXCLUDED
-                IF(ELEMENT(IEL1).EC/=SPG) CYCLE
-                
-                KR1=0.D0
-                IF(NORM2(MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(1:NDIMENSION)-MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(1))<1E-10) THEN
-                    K=5
-                    ISO1=.TRUE.
+            DO II1=1,2
+                IP1=0;RA1=0.D0;W1=0;TW1=0;     
+                IF(II1==1) THEN
+                    ISIN1=.TRUE.
                 ELSE
-                    K=1
-                    ISO1=.FALSE.
+                    ISIN1=.FALSE.
                 ENDIF
+                DO J=1,SNADJL(IN1).ENUM
+                    IEL1=SNADJL(IN1).ELEMENT(J)
+                    IF(ELEMENT(IEL1).ET==WELLBORE.OR.ELEMENT(IEL1).ET==PIPE2 &
+                    .OR.ELEMENT(IEL1).ET==WELLBORE_SPGFACE) CYCLE !ITSELF EXCLUDED 
+                    IF(ELEMENT(IEL1).ET==SPHFLOW.OR.ELEMENT(IEL1).ET==SEMI_SPHFLOW) CYCLE !ITSELF EXCLUDED
+                    IF(ELEMENT(IEL1).EC/=SPG) CYCLE
                 
-                DO K=K,5
-                    X1(1)=DOT_PRODUCT(NODE(ELEMENT(IEL1).NODE(1:4)).COORD(1),GQ_TET4_O3(1:4,K))
-                    X1(2)=DOT_PRODUCT(NODE(ELEMENT(IEL1).NODE(1:4)).COORD(2),GQ_TET4_O3(1:4,K))
-                    X1(3)=DOT_PRODUCT(NODE(ELEMENT(IEL1).NODE(1:4)).COORD(3),GQ_TET4_O3(1:4,K))
-                    IF(K==5) THEN !K==5 IS CENTER OF THE ELEMENT
-                        H1=DOT_PRODUCT(STEPDIS(ELEMENT(IEL1).G(1:4)),GQ_TET4_O3(1:4,K))
-                        XC1=X1
-                    ENDIF
-                    
-                    X1=X1-NODE(ELEMENT(IEL).NODE(3)).COORD !ORIGIN IS THE THIRD NODE.                
-
-                    LP1=DOT_PRODUCT(X1,VW1) 
-                    X2=LP1*VW1 !X1在井线上的投影 
-                    X2=X1-X2 !投影线向量，为此单元的流量的方向矢量
-                    R1=NORM2(X2)                   
-                
-                    !DIRECTIONAL K
-                    SITA1=X2/R1            
-                    K1=0.D0
-                    DO I0=1,3
-                        K1=K1+1.0/MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(I0)*(SITA1(I0))**2
-                    ENDDO
-                    IF(ISO1) THEN
-                        KR1=KR1+1/K1
+                    KR1=0.D0
+                    IF(NORM2(MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(1:NDIMENSION)-MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(1))<1E-10) THEN
+                        K=5
+                        ISO1=.TRUE.
                     ELSE
-                        KR1=KR1+1/K1*GQ_TET4_O3(5,K)*6.D0 
+                        K=1
+                        ISO1=.FALSE.
                     ENDIF
+                
+                    DO K=K,5
+                        X1(1)=DOT_PRODUCT(NODE(ELEMENT(IEL1).NODE(1:4)).COORD(1),GQ_TET4_O3(1:4,K))
+                        X1(2)=DOT_PRODUCT(NODE(ELEMENT(IEL1).NODE(1:4)).COORD(2),GQ_TET4_O3(1:4,K))
+                        X1(3)=DOT_PRODUCT(NODE(ELEMENT(IEL1).NODE(1:4)).COORD(3),GQ_TET4_O3(1:4,K))
+                        IF(K==5) THEN !K==5 IS CENTER OF THE ELEMENT
+                            H1=DOT_PRODUCT(STEPDIS(ELEMENT(IEL1).G(1:4)),GQ_TET4_O3(1:4,K))
+                            XC1=X1
+                        ENDIF
+                    
+                        X1=X1-NODE(ELEMENT(IEL).NODE(3)).COORD !ORIGIN IS THE THIRD NODE.                
+
+                        LP1=DOT_PRODUCT(X1,VW1) 
+                        X2=LP1*VW1 !X1在井线上的投影 
+                        X2=X1-X2 !投影线向量，为此单元的流量的方向矢量
+                        R1=NORM2(X2)                   
+                
+                        !DIRECTIONAL K
+                        SITA1=X2/R1            
+                        K1=0.D0
+                        DO I0=1,3
+                            K1=K1+1.0/MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(I0)*(SITA1(I0))**2
+                        ENDDO
+                        IF(ISO1) THEN
+                            KR1=KR1+1/K1
+                        ELSE
+                            KR1=KR1+1/K1*GQ_TET4_O3(5,K)*6.D0 
+                        ENDIF
+                    ENDDO
+                
+                    CALL lamda_spg(IEL1,H1,XC1(NDIMENSION),lamda1,ISTEP)
+                    KR1=LAMDA1*KR1
+                
+                    IF(R1<=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)) CYCLE
+                    IF((LP1<0.D0.OR.LP1>2*DIS1).AND.ISIN1) CYCLE !跳过不在单元范围内的节点
+               
+                    HZ1=NHEAD1(2)+(NHEAD1(1)-NHEAD1(2))/(2*DIS1)*LP1 
+                
+                    HZ1=HZ1+QN1(I+2)*ELEMENT(IEL).PROPERTY(5)
+                
+                    RA1=ELEMENT(IEL).PROPERTY(6)*KR1*(H1-HZ1)/ &
+                    LOG(R1/MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1))
+                    W1=ELEMENT(IEL1).ANGLE(SNADJL(IN1).SUBID(J))
+                    Q1(I+2)=Q1(I+2)+RA1*W1
+                    TW1=TW1+W1;IP1=IP1+1
+                    !WRITE(99,20) ISTEP,IITER,IEL,I+2,IP1,X2,X1,R1,H1,HZ1,RA1,W1
                 ENDDO
                 
-                CALL lamda_spg(IEL1,H1,XC1(NDIMENSION),lamda1,ISTEP)
-                KR1=LAMDA1*KR1
+                IF(IP1>0) EXIT
                 
-                IF(R1<=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)) CYCLE
-                IF(LP1<0.D0.OR.LP1>2*DIS1) CYCLE !跳过不在单元范围内的节点
-               
-                HZ1=NHEAD1(2)+(NHEAD1(1)-NHEAD1(2))/(2*DIS1)*LP1 
-                
-                HZ1=HZ1+QN1(I+2)*ELEMENT(IEL).PROPERTY(5)
-                
-                RA1=ELEMENT(IEL).PROPERTY(4)*KR1*(H1-HZ1)/ &
-                LOG(R1/MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1))
-                W1=ELEMENT(IEL1).ANGLE(SNADJL(IN1).SUBID(J))
-                Q1(I+2)=Q1(I+2)+RA1*W1
-                TW1=TW1+W1;IP1=IP1+1
-                !WRITE(99,20) ISTEP,IITER,IEL,I+2,IP1,X2,X1,R1,H1,HZ1,RA1,W1
-            ENDDO  
+                IF(II1==1) THEN
+                   PRINT *, "井单元I周边单元的形心的投影均不在单元I内，尝试区域外的单元.I=",iel                 
+                ELSE
+                   PRINT *, "井单元I周边没有相邻的单元.请检查.I=",iel 
+                   STOP
+                ENDIF
+            ENDDO
             Q1(I+2)=Q1(I+2)/TW1*DIS1
-            A1(I+1)=ABS(Q1(I+2)/DH1)
+            !A1(I+1)=ABS(Q1(I+2)/DH1)
+            
+            IF(ABS(Q1(I+2))<1E-10) THEN
+                Q1(I+2)=1.D-10
+            ENDIF
+            
+            IF(ABS(DH1)<1.D-10) DH1=1.D-10
+            
+            ELEMENT(IEL).PROPERTY(I+1)=ABS(DH1/Q1(I+2))
+            !IF(ET1==WELLBORE_SPGFACE) THEN
+            !    !出溢面单元1,2节点的与井点的水头差等于高程差。
+            !    T1=NODE(ELEMENT(IEL).NODE(I+1)).COORD(NDIMENSION)-NHEAD1(5)
+            !    IF(ABS(T1)<1.E-7) T1=1.E-7
+            !    T1=ABS(Q1(I+2)/T1)
+            !    IF(I==1) THEN
+            !        A1(5)=T1 !A25
+            !    ELSE
+            !        A1(4)=T1 !A15
+            !    ENDIF
+            !ENDIF
+            
             !井损
-            A1(I+1)=1.0/(1.0/A1(I+1)+ELEMENT(IEL).PROPERTY(5))
+            A1(I+1)=1.0/(ELEMENT(IEL).PROPERTY(I+1)+ELEMENT(IEL).PROPERTY(5))
         ENDDO
 
-        KM1=KM_WELLBORE(A1(1),A1(2),A1(3))
+        !IF(ANY(ISNAN(A1(1:3)))) THEN
+        !    PRINT *, 'NAN'
+        !ENDIF
+        
+         KM1(1:NDOF1,1:NDOF1)=KM_WELLBORE(A1(1),A1(2),A1(3))
+
     ENDIF
     
     
@@ -518,8 +576,8 @@ SUBROUTINE INI_WELLBORE(IELT)
     USE SolverMath
     IMPLICIT NONE
     INTEGER,INTENT(IN)::IELT
-    INTEGER::I,J,IELT1,IEDGE1,GMET1,SUBID1,AF1(2),N1,NADJL1(50),N2,N3
-    REAL(8)::AV1(3,2),AR1(3,3),ZV1(3),YV1(3),XV1(3),D1,T1,T2,RDIS1(50),HK1,PHI1,TPHI1,WR1,L1,&
+    INTEGER::I,J,IELT1,IEDGE1,GMET1,SUBID1,AF1(2),N1,NADJL1(200),N2,N3
+    REAL(8)::AV1(3,2),AR1(3,3),ZV1(3),YV1(3),XV1(3),D1,T1,T2,RDIS1(200),HK1,PHI1,TPHI1,WR1,L1,&
         ORG1(3),AREA1
     
     if(.not.isIniSEdge) then
@@ -550,7 +608,8 @@ SUBROUTINE INI_WELLBORE(IELT)
     DO I=3,4
         DO J=1,SNADJL(ELEMENT(IELT).NODE(I)).ENUM
             IELT1=SNADJL(ELEMENT(IELT).NODE(I)).ELEMENT(J)
-            IF(ELEMENT(IELT1).ET==WELLBORE.OR.ELEMENT(IELT1).ET==PIPE2) CYCLE !ITSELF EXCLUDED
+            IF(ELEMENT(IELT1).ET==WELLBORE.OR.ELEMENT(IELT1).ET==PIPE2 &
+            .OR.ELEMENT(IELT1).ET==WELLBORE_SPGFACE) CYCLE !ITSELF EXCLUDED
             IF(ELEMENT(IELT1).ET==SPHFLOW.OR.ELEMENT(IELT1).ET==SEMI_SPHFLOW) CYCLE !ITSELF EXCLUDED
             IF(ELEMENT(IELT1).EC/=SPG) CYCLE
             IF(ALLOCATED(ELEMENT(IELT1).ANGLE)) CYCLE
@@ -581,7 +640,11 @@ SUBROUTINE INI_WELLBORE(IELT)
     
     TPHI1=SUM(ELEMENT(IELT).ANGLE)
     HK1=HK1/TPHI1
-    ELEMENT(IELT).PROPERTY(4)=TPHI1
+    ELEMENT(IELT).PROPERTY(6)=TPHI1
+    IF(ABS(TPHI1)<1E-7) THEN
+        PRINT *, "NO ELEMENTS ADJACENT TO THE WELLBORE ELEMENT I. IELT=",IELT
+        STOP
+    ENDIF
     PHI1=TPHI1/SIZE(ELEMENT(IELT).ANGLE)
     
     !LOCAL COORDINATE SYSTEM
@@ -625,31 +688,33 @@ SUBROUTINE INI_WELLBORE(IELT)
         ENDDO
         T1=SUM(RDIS1(1:N2))/N2
         IF(J==3) THEN
-            ALLOCATE(ELEMENT(IELT).WELL_SP3(N2),ELEMENT(IELT).WELL_SP3_R(N2))
-            ELEMENT(IELT).NWSP3=N2
-            ELEMENT(IELT).WELL_SP3=NADJL1(1:N2)
-            ELEMENT(IELT).WELL_SP3_R=RDIS1(1:N2)
-            ELEMENT(IELT).PROPERTY(2)=TPHI1*HK1*L1/(LOG(T1/WR1)-T2)
+            !ALLOCATE(ELEMENT(IELT).WELL_SP3(N2),ELEMENT(IELT).WELL_SP3_R(N2))
+            !ELEMENT(IELT).NWSP3=N2
+            !ELEMENT(IELT).WELL_SP3=NADJL1(1:N2)
+            !ELEMENT(IELT).WELL_SP3_R=RDIS1(1:N2)
+            ELEMENT(IELT).PROPERTY(2)=1./(TPHI1*HK1*L1/(LOG(T1/WR1)-T2))
         ELSE
-            ALLOCATE(ELEMENT(IELT).WELL_SP4(N2),ELEMENT(IELT).WELL_SP4_R(N2))
-            ELEMENT(IELT).NWSP4=N2
-            ELEMENT(IELT).WELL_SP4=NADJL1(1:N2)
-            ELEMENT(IELT).WELL_SP4_R=RDIS1(1:N2)
-            ELEMENT(IELT).PROPERTY(3)=TPHI1*HK1*L1/(LOG(T1/WR1)-T2)
+            !ALLOCATE(ELEMENT(IELT).WELL_SP4(N2),ELEMENT(IELT).WELL_SP4_R(N2))
+            !ELEMENT(IELT).NWSP4=N2
+            !ELEMENT(IELT).WELL_SP4=NADJL1(1:N2)
+            !ELEMENT(IELT).WELL_SP4_R=RDIS1(1:N2)
+            ELEMENT(IELT).PROPERTY(3)=1./(TPHI1*HK1*L1/(LOG(T1/WR1)-T2))
         ENDIF
         
     ENDDO
     !井损
     IF(ABS(MATERIAL(ELEMENT(IELT).MAT).PROPERTY(7))>1E-12) THEN
         AREA1=2.0*PI()*MATERIAL(ELEMENT(IELT).MAT).PROPERTY(1)*L1
-        ELEMENT(IELT).PROPERTY(5)=1.0/(HK1/MATERIAL(ELEMENT(IELT).MAT).PROPERTY(7)/0.001*AREA1)
-        ELEMENT(IELT).PROPERTY(2:3)=1.0/ELEMENT(IELT).PROPERTY(2:3)+ELEMENT(IELT).PROPERTY(5)
-        ELEMENT(IELT).PROPERTY(2:3)=1.0/ELEMENT(IELT).PROPERTY(2:3)
+        ELEMENT(IELT).PROPERTY(5)=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(7)/AREA1
+        ELEMENT(IELT).PROPERTY(2:3)=ELEMENT(IELT).PROPERTY(2:3)+ELEMENT(IELT).PROPERTY(5)
+        !ELEMENT(IELT).PROPERTY(2:3)=ELEMENT(IELT).PROPERTY(2:3)
     ELSE
         ELEMENT(IELT).PROPERTY(5)=0.D0
     ENDIF
     !ALLOCATE(ELEMENT(IELT).KM(4,4))
-    ELEMENT(IELT).KM=KM_WELLBORE(ELEMENT(IELT).PROPERTY(1),ELEMENT(IELT).PROPERTY(2),ELEMENT(IELT).PROPERTY(3))
+    
+    ELEMENT(IELT).KM=KM_WELLBORE(1./ELEMENT(IELT).PROPERTY(1),1./ELEMENT(IELT).PROPERTY(2),1./ELEMENT(IELT).PROPERTY(3))
+
 
     
 ENDSUBROUTINE
@@ -679,7 +744,8 @@ SUBROUTINE INI_SPHFLOW(IELT)
         IF(ELEMENT(IELT1).ET==WELLBORE &
         .OR.ELEMENT(IELT1).ET==PIPE2 &
         .OR.ELEMENT(IELT1).ET==SPHFLOW &
-        .OR.ELEMENT(IELT1).ET==SEMI_SPHFLOW) CYCLE !ITSELF EXCLUDED
+        .OR.ELEMENT(IELT1).ET==SEMI_SPHFLOW &
+        .OR.ELEMENT(IELT1).ET==WELLBORE_SPGFACE) CYCLE !ITSELF EXCLUDED
         
         IF(ELEMENT(IELT1).EC/=SPG) CYCLE
         IF(ALLOCATED(ELEMENT(IELT1).ANGLE)) CYCLE
@@ -723,7 +789,7 @@ SUBROUTINE INI_SPHFLOW(IELT)
     ELEMENT(IELT).KM(1,1)=1.D0;ELEMENT(IELT).KM(2,2)=1.D0
     ELEMENT(IELT).KM(2,1)=-1.D0;ELEMENT(IELT).KM(1,2)=-1.D0
     ELEMENT(IELT).KM=ELEMENT(IELT).KM*T1
-    ELEMENT(IELT).PROPERTY(4)=T1
+    ELEMENT(IELT).PROPERTY(1)=1/T1
     
 ENDSUBROUTINE
 
@@ -757,7 +823,8 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE(STEPDIS,IELT,ISTEP,IITER)
             IF(ELEMENT(IELT1).ET==WELLBORE &
             .OR.ELEMENT(IELT1).ET==PIPE2 &
             .OR.ELEMENT(IELT1).ET==SPHFLOW &
-            .OR.ELEMENT(IELT1).ET==SEMI_SPHFLOW) CYCLE !ITSELF EXCLUDED
+            .OR.ELEMENT(IELT1).ET==SEMI_SPHFLOW &
+            .OR.ELEMENT(IELT1).ET==WELLBORE_SPGFACE) CYCLE !ITSELF EXCLUDED
         
             IF(ELEMENT(IELT1).EC/=SPG) CYCLE
             
@@ -831,6 +898,7 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE(STEPDIS,IELT,ISTEP,IITER)
     KM1(1,1)=1.D0;KM1(2,2)=1.D0
     KM1(2,1)=-1.D0;KM1(1,2)=-1.D0
     KM1=KM1*T1
+    element(ielt).property(1)=1/T1
 
     IF(.NOT.ALLOCATED(ELEMENT(IELT).FLUX)) ALLOCATE(ELEMENT(IELT).FLUX(ELEMENT(IELT).NNUM))
     
@@ -840,6 +908,61 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE(STEPDIS,IELT,ISTEP,IITER)
     ELEMENT(IELT).KM=KM1    							
     !end if
     
+ENDSUBROUTINE
+
+SUBROUTINE WELL_ELEMENT_OUT(ISTEP,ISUBTS,IITER)
+    USE solverds
+    IMPLICIT NONE
+    INTEGER,INTENT(IN)::ISTEP,ISUBTS,IITER
+    INTEGER::I,J,ISET1,NDOF1,FILE_UNIT
+    REAL(8)::Q1(4),H1(4)
+    CHARACTER(16)::ETNAME1(401:405)=["PIPE2","WELLBORE","SPHFLOW","SEMI_SPHFLOW","WELLBORE_SPGFACE"]
+    
+    IF(.NOT.ISOUT_WELL_FILE) RETURN
+    
+    FILE_UNIT=30    
+    IF(ISTEP==1.AND.ISUBTS==1) THEN	   
+        OPEN(FILE_UNIT,FILE=well_file,STATUS='REPLACE')        
+    ELSE
+        OPEN(FILE_UNIT,FILE=well_file,STATUS='UNKNOWN',ACCESS='APPEND')	
+    END IF
+    
+    DO i=1,neset
+	    iset1=esetid(i)
+	    if(sf(eset(iset1).sf).factor(ISTEP)==0) cycle
+        IF(.NOT.(ANY([WELLBORE,PIPE2,SPHFLOW,SEMI_SPHFLOW]-ESET(ISET1).ET==0))) CYCLE
+        
+        IF(ESET(ISET1).ET==WELLBORE) THEN
+            WRITE(FILE_UNIT,10) 
+        ELSE
+            WRITE(FILE_UNIT,20) 
+        ENDIF
+        
+	    DO j=eset(iset1).enums,eset(iset1).enume
+            H1(1:ELEMENT(J).NDOF)=TDISP(ELEMENT(J).G)
+            Q1(1:ELEMENT(J).NDOF)=MATMUL(ELEMENT(J).KM,H1(1:ELEMENT(J).NDOF))
+            IF(ESET(ISET1).ET==WELLBORE) THEN
+                WRITE(FILE_UNIT,11) ISTEP,ISUBTS,J,NODE(ELEMENT(J).NODE(1)).COORD,&
+                NODE(ELEMENT(J).NODE(2)).COORD,H1(1:ELEMENT(J).NDOF),Q1(1:ELEMENT(J).NDOF),&
+                MATERIAL(ELEMENT(J).MAT).PROPERTY(1),ELEMENT(J).PROPERTY([1,4,2,3,5]),&
+                ABS(ELEMENT(J).KM(1,2)),ABS(ELEMENT(J).KM(2,3)),ABS(ELEMENT(J).KM(1,4))
+            ELSE
+                WRITE(FILE_UNIT,21) ISTEP,ISUBTS,J,ETNAME1(ESET(ISET1).ET),NODE(ELEMENT(J).NODE(1)).COORD,&
+                NODE(ELEMENT(J).NODE(2)).COORD,H1(1:ELEMENT(J).NDOF),Q1(1),&
+                MATERIAL(ELEMENT(J).MAT).PROPERTY(1),ELEMENT(J).PROPERTY(1),&
+                ELEMENT(J).KM(1,1)
+            ENDIF
+        ENDDO
+        
+    ENDDO
+    
+    CLOSE(FILE_UNIT)
+    
+10 FORMAT(2X,'ISTEP',2X,'ISUBTS',3X,'ELTNO',11X,'ET',9X,'X1',14X,'Y1',14X,'Z1',14X,'X2',14X,'Y2',14X,'Z2',14X,'H1',14X,'H2',14X,'H3',14X,'H4',14X,'Q1',14X,'Q2',14X,'Q3',14X,'Q4',14X,'RW',7X,'Rfriction',12X,'Racc',11X,'Rgeo3',11X,'Rgeo4',4X,'Rskin(N3=N4)',13X,'|K12|',13X,'|K23|',13X,'|K14|')    
+11 FORMAT(3(I7,1X),'    WELLBORE ',23(G15.8,1X))  
+20 FORMAT(2X,'ISTEP',2X,'ISUBTS',3X,'ELTNO',11X,'ET',9X,'X1',14X,'Y1',14X,'Z1',14X,'X2',14X,'Y2',14X,'Z2',14X,'H1',14X,'H2',14X,'Q',14X,'RW',11X,'Rgeo',11X,'|K11|')    
+21 FORMAT(3(I7,1X),(A12,1X),12(G15.8,1X)) 
+   
 ENDSUBROUTINE
 
 SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioProject ProjectCreator="Intel Fortran" Keyword="QuickWin" Version="11.0" ProjectIdGuid="{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}">
+	<Platforms>
+		<Platform Name="Win32"/>
+		<Platform Name="x64"/></Platforms>
+	<Configurations>
+		<Configuration Name="Debug|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" WarnInterfaces="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtQuickWinDebug"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemWindows"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" FPS4Filenames="true" RuntimeLibrary="rtQuickWin"/>
+				<Tool Name="VFLinkerTool" SuppressStartupBanner="true" SubSystem="subSystemWindows"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" WarnInterfaces="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtQuickWinDebug"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemWindows"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" FPS4Filenames="true" RuntimeLibrary="rtQuickWin"/>
+				<Tool Name="VFLinkerTool" SuppressStartupBanner="true" SubSystem="subSystemWindows"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
+	<Files>
+		<Filter Name="Header Files" Filter="fi;fd;h;inc"/>
+		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
+		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<File RelativePath="..\6&amp;15_noded_trinagle.f90"/>
+		<File RelativePath="..\BoundPointMesh.f90"/>
+		<File RelativePath="..\checkdata.f90"/>
+		<File RelativePath="..\data_structure.f90"/>
+		<File RelativePath="..\divideline.f90"/>
+		<File RelativePath="..\ds2.f90"/>
+		<File RelativePath="..\EKCD.F90"/>
+		<File RelativePath="..\graph.f90"/>
+		<File RelativePath="..\InsertPoints.f90"/>
+		<File RelativePath="..\keypointmesh.f90"/>
+		<File RelativePath="..\limitanalysisGrid.f90"/>
+		<File RelativePath="..\mc40.for"/>
+		<File RelativePath="..\mc40dependency.for"/>
+		<File RelativePath="..\mc49.for"/>
+		<File RelativePath="..\mesh.f90"/>
+		<File RelativePath="..\meshinp.f90"/>
+		<File RelativePath="..\out_geomodel_to_gmsh.f90"/>
+		<File RelativePath="..\output.f90"/>
+		<File RelativePath="..\outtocheckdata.f90"/>
+		<File RelativePath="..\PrismElement.f90"/>
+		<File RelativePath="..\readme.dat"/>
+		<File RelativePath="..\removetriangles.f90"/>
+		<File RelativePath="..\repair control line.f90"/>
+		<File RelativePath="..\Sloan_algorithm.f90"/>
+		<File RelativePath="..\structuremesh.f90"/></Filter></Files>
+	<Globals/></VisualStudioProject>

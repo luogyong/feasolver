@@ -80,7 +80,7 @@
 		EXCAB_STRURES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_stru.dat'
 		EXCAB_EXTREMEBEAMRES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_minmaxbeam.dat'
         Slope_file=trim(drive)//trim(dir)//trim(name)//'_slope_res.dat'
-        
+        well_file=trim(drive)//trim(dir)//trim(name)//'_well_res.dat'
 	end if
     
 	open(99,file=resultfile3,status='replace')
@@ -415,9 +415,11 @@ subroutine read_execute(unit,itype,keyword,COMMAND_PARSER)
 		strL=len_trim(term)
 		if(strL==0) cycle
 		do i=1,strL !remove 'Tab'
-			if(term(i:i)/=char(9)) exit
+			if(term(i:i)==char(9)) then
+                term(i:i)=char(32)
+            endif
 		end do
-		term=term(i:strL)
+		!term=term(i:strL)
 		term=adjustl(term)
 		strL=len_trim(term)
 		if(strL==0) cycle		
@@ -466,7 +468,7 @@ subroutine solvercommand(term,unit)
 	integer::unit
 	character(1024) term
 	integer::i,j,k
-	integer::n1,n2,n3,n4,n5,n_toread,nmax
+	integer::n1,n2,n3,n4,n5,n6,n_toread,nmax
 	real(8)::ar(MaxNumRead)=0,t1,T2
 	integer(4)::msg
 	type(mat_tydef),allocatable::mat1(:)
@@ -971,7 +973,12 @@ subroutine solvercommand(term,unit)
 				endif
 				
 				if(matid1==0) matid1=j !If there is only one set of such material of this type in this model 
-				
+				IF(material(matid1).ISINPUT/=0) THEN
+                    PRINT *, "THE MATID HAS BEEN USED IN THE MATERIAL LIST. TRY ANOTHER ONE. MATID=", MATID1
+                    STOP
+                ELSE
+                    material(matid1).ISINPUT=matid1
+                ENDIF
 				if(j/=0) material(matid1).type=j
 				material(matid1).name=name1
 				if(n1==1) material(matid1).isff=.true.
@@ -1198,6 +1205,7 @@ subroutine solvercommand(term,unit)
 			n3=0
 			n4=0
 			n5=0
+            n6=0
 			do i=1,pro_num
 				select case(property(i).name)
 					case('num')
@@ -1209,7 +1217,9 @@ subroutine solvercommand(term,unit)
 					case('sf','stepfunction','stepfunc')
 						n4=int(property(i).value)
 					case('isinc')
-						n5=int(property(i).value)	
+						n5=int(property(i).value)
+                    case('iswellhead')
+                        n6=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -1221,6 +1231,7 @@ subroutine solvercommand(term,unit)
 				bf1(i).dof=int(ar(2))
 				bf1(i).value=ar(3)
 				bf1(i).isincrement=n5
+                bf1(i).iswellhead=n6
 				bf1(i).sf=n4								
 				if(n1>=4) bf1(i).sf=int(ar(4))
 				bf1(i).isdual=n3
@@ -1246,7 +1257,7 @@ subroutine solvercommand(term,unit)
   			do i=1,pro_num
 				select case(property(i).name)
 					case('num')
-						nfreedof=int(property(i).value)
+						nfreedof=int(property(i).value)                    
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -1259,13 +1270,15 @@ subroutine solvercommand(term,unit)
 		case('seepage face')
 			print *,'Reading Nodes In SEEPAGEFACE data...'
 			n3=0
-			n4=0
+			n4=0;n6=0
 			do i=1,pro_num
 				select case(property(i).name)
 					case('num')
 						n4=int(property(i).value)
 					case('step function','sf')
 						n3=int(property(i).value)
+                     case('iswellbore')
+                        n6=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -1276,6 +1289,7 @@ subroutine solvercommand(term,unit)
 				call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
 				Nseep1(n2+1:n2+n1).node=int(ar(1:n1))
 				Nseep1(n2+1:n2+n1).sf=n3
+                Nseep1(n2+1:n2+n1).iswellhead=n6
 				n2=n1+n2				
 			end do
 			if(Numnseep>0)	then
@@ -1291,6 +1305,7 @@ subroutine solvercommand(term,unit)
 			Nseep.isdead=0
 
 			Nseep.value=Node(Nseep.node).coord(ndimension)
+            
 !			node(Nseep.node).property=1
 		case('datapoint')
 			print *, 'Reading DATAPOINT data...'
@@ -1497,6 +1512,10 @@ subroutine solvercommand(term,unit)
                         solver_control.slope_kratio=property(i).value                        
                     case('slope_istensioncrack')
                         solver_control.slope_isTensionCrack=int(property(i).value)
+                    case('max_node_adj')
+                        max_node_adj=int(property(i).value)  
+                    case('max_face_adj')
+                        max_face_adj=int(property(i).value)     
 					!case('ispostcal')
 					!	solver_control.ispostcal=int(property(i).value)
 					case default
@@ -3088,24 +3107,19 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ND1=3
 			STYPE='FETRIANGLE'
 			EC1=STRU
-		case(wellbore)
+		case(wellbore,wellbore_SPGFACE)
 			NNUM1=4
 			NDOF1=4
 			ND1=4
 			STYPE='FEQUADRILATERAL'
 			EC1=SPG
-		case(sphflow,semi_sphflow)
+		case(PIPE2,sphflow,semi_sphflow)
 			NNUM1=2
 			NDOF1=2
 			ND1=2
 			STYPE='FELINESEG'
 			EC1=SPG            
-		case(pipe2)
-			NNUM1=2
-			NDOF1=2
-			ND1=2
-			STYPE='FELINESEG'
-			EC1=SPG            
+        
 		case(springx,springy,springz,springmx,springmy,springmz)
 			nnum1=1
 			ndof1=1

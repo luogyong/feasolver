@@ -5,7 +5,7 @@
      use meshDS
 	 implicit none
 	 integer::i,j,k,k1,m,n1,n2,n3,n4
-	 real(8)::ar(3,100)
+	 real(8)::ar(3,200)
 	 logical::tof
 	 real(8)::xi,yi,si,xj,yj,sj
 	 

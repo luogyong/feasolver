@@ -461,6 +461,19 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 			
 			bc_disp(i).isdead=0
         else
+            if(bc_disp(i).iswellhead) then
+            !对于减压自流井，如其流量为正，则令其水头边界失效；反之，如果该点水头大于井口高程，则恢复激活
+                
+                if(bc_disp(i).isdead==0) then
+                    if(NI_NodalForce(node(bc_disp(i).node).dof(4))>1.d-7) bc_disp(i).isdead=1
+                else
+                    if(stepdis(node(bc_disp(i).node).dof(4))>node(bc_disp(i).node).coord(ndimension)) then
+                        bc_disp(i).isdead=0
+                        bc_disp(i).value=node(bc_disp(i).node).coord(ndimension)
+                    endif
+                endif
+            endif
+            
             if(bc_disp(i).isdead==1) cycle
 		end if
 		
