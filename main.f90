@@ -56,11 +56,11 @@ program main
         call TIME(char_time)
 	    PRINT *, 'Solve Completed!',char_time
 	
-        if(isexca2d/=0) then
-            call SCIPLOT()
-            key=getcharqq()
-		    ef = setexitqq(QWIN$EXITPERSIST)
-        endif    
+      !  if(isexca2d/=0) then
+      !      call SCIPLOT()
+      !      key=getcharqq()
+		    !ef = setexitqq(QWIN$EXITPERSIST)
+      !  endif    
    
 !       ENDIF
    

@@ -775,7 +775,7 @@ ENDSUBROUTINE
 
 subroutine slope_handler(selection)
     USE SolverMath
-    !USE SLOPE_PSO, ONLY:SLOPE_OPTIM,POLYLINE_FOS_CAL
+    USE SLOPE_PSO, ONLY:SLOPE_OPTIM,POLYLINE_FOS_CAL
     implicit none
     integer(kind=glcint), intent(in out) :: selection
     INTEGER::NSLIP1,I,IEL1,J,K,n1=0,N2=0,OFFSET1,N3=0

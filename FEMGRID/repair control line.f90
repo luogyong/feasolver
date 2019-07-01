@@ -41,13 +41,16 @@ subroutine RCL_4TH(iflag)
 			!the edge around a hole will be kept after first fix
 			!cedge().cl=999999 is an indicative that the contraint edge is generated
 			! from the Prism element generation. 
+        
+            IF(cedge(i).edge>0) EDGE(cedge(i).edge).ISCEDGE=I
+            
 			if(cedge(i).cl/=999999.and.(iflag/=0.and.csl(cedge(i).cl).hole==1)) cycle
 			!the boundary will be kept after first fix.
 			if(iflag/=0.and.cedge(i).cl==0) cycle
 
 			n1=cedge(i).v(1)
 			n2=cedge(i).v(2)
-			n3=cedge(i).edge
+			n3=cedge(i).edge            
 			if(n3/=-1) then
 				!quick judge
 				if(edge(n3).v(1)==n1.and.edge(n3).v(2)==n2) cycle
@@ -85,7 +88,10 @@ subroutine RCL_4TH(iflag)
 			else
 				cedge(i).edge=adjlist(n1).edge( &
 				iloc(adjlist(n1).node,adjlist(n1).count,n2))
-			end if	
+                                
+			end if
+            
+            IF(cedge(i).edge>0) EDGE(cedge(i).edge).ISCEDGE=I
 		end do
 
 		if(.not.tof) print *, 'Completed successfully in & 

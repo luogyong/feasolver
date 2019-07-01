@@ -102,13 +102,22 @@
 				xc=(node(elt(ept).node(1)).x+node(elt(ept).node(2)).x+node(elt(ept).node(3)).x)/3
 				yc=(node(elt(ept).node(1)).y+node(elt(ept).node(2)).y+node(elt(ept).node(3)).y)/3
 				do i=1,znum
-					call judgezone(xc,yc,zone(i),tof)
+                    if(zone(i).outgmshtype==2) cycle
+					call judgezone(xc,yc,zone(i),tof)                   
 					if(tof) then
-						elt(ept).zn=i
-						exit
+                        elt(ept).zn=i 
+                        exit
 					 end if
 				end do
-				
+				do i=1,znum
+                    if(zone(i).outgmshtype==2) then
+					    call judgezone(xc,yc,zone(i),tof)                   
+					    if(tof) then
+                            elt(ept).zn2=i 
+                            exit
+					     end if
+                     endif
+				end do                
 			end if
 
 		end do

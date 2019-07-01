@@ -10,7 +10,7 @@ Module Geometry
     type line_tydef
         integer::npoint=0
         integer,allocatable::Point(:)
-        integer::mat=-1,FMT=0,VAR=1 
+        integer::mat=-1,FMT=0,VAR=1,SF=0 
         !VAR IS  independent VARIABLE of INTERPOLATion. var=1/2/3 means var=x/y/z 
         character(64)::title=''
         REAL(Double),allocatable::h(:,:) !for waterlevel stored (xi,hi)

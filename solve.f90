@@ -58,7 +58,7 @@ subroutine assemble_km(istep)
 	implicit none
 	integer,intent(in)::istep
 	integer::i,j,k,nj,n1=0
-	integer::loc,rdof,cdof
+	integer::loc,rdof,cdof,loc1
 	real(8)::var1,t1,t2
 	
 	km=0.0D0
@@ -100,10 +100,21 @@ subroutine assemble_km(istep)
 						if(rdof<cdof) cycle  !if colume>row, skip for it is in upper part
 					end if
 				end if
+				if(solver_control.ismkl) then
 				
-				loc=bw(rdof)-(Lmre(rdof)-cdof)
-				
-				if(solver_control.ismkl) loc=adrn(loc) !非对称默认的求解为mkl solver.
+                    do loc=rowindex(rdof),rowindex(rdof+1)-1
+                        if(jcol(loc)==cdof) exit
+                    enddo
+                else
+                    loc=bw(rdof)-(Lmre(rdof)-cdof)
+                endif
+                !if(loc1/=loc) then
+                !    stop "error in assemble_km"
+                !endif
+                
+                !abs(jcol(:1)-cdof)
+				!loc=rowindex(rdof)+
+				!if(solver_control.ismkl) loc=adrn(loc) !非对称默认的求解为mkl solver.
 				
 				km(loc)=km(loc)+t1*element(i).km(j,k)
                 if(isnan(km(loc))) then
@@ -129,7 +140,7 @@ subroutine assemble_km(istep)
 	!为避免对角线元素为零，保持正定，令没激活的自由度的对角线元素等于1，应该不会影响计算结果。
 	do i=1,ndof
 		if(adof(i)==0) then
-			km(diaglkmloc(i))=1.d0
+			km(rowindex(i))=1.d0
 		endif	
 	enddo
 	
@@ -151,80 +162,119 @@ subroutine dof_activate(istep)
 endsubroutine
 
 !转换成坐标格式及mkl格式进行总刚的存储
-subroutine irowjcol()
+!subroutine irowjcol()
+!	use solverds
+!	implicit none
+!	INTEGER*8::i,j,k,nj,n1=0,NNZ1
+!	INTEGER*8::loc,rdof,cdof !RDOF FOR ROW DOF INDEX; CDOF FOR COLUME DOF INDEX
+!    integer::err
+!	real(8)::var1,t1
+!	integer,allocatable::irow1(:),jcol1(:)
+!	
+!    NNZ1=BW(NDOF)
+!	allocate(irow(nnz1),STAT=ERR)
+!    allocate(jcol(nnz1),STAT=ERR)
+!    allocate(adrn(nnz1),STAT=ERR)
+!    !allocate(adrn(nnz1),jcol(nnz1),adrn(nnz1))
+!	irow=0
+!	jcol=0
+!	adrn=0
+!	
+!	do i=1,enum
+!		!assemble the total matrix
+!		do j=1,element(i).ndof !row
+!			rdof=element(i).g(j)
+!			do k=1,element(i).ndof  !colume
+!				cdof=element(i).g(k)
+!				if(solver_control.issym) then
+!					if(solver_control.ismkl) then						
+!						if(rdof>cdof) cycle  !mkl solver, 存上三角（包含对角线元素）,下三角部分跳过
+!					else
+!						if(rdof<cdof) cycle  !default solver,存下三角（包含对角线元素）,上三角部分跳过				
+!					end if
+!				end if
+!				
+!				loc=bw(rdof)-(Lmre(rdof)-cdof)	!BW:THE MOST RIGHT ENTRY INDEX IN TOTAL MATRIX
+!															!Lmre(rdof):the column of the most right entry in the row of rdof
+!				irow(loc)=rdof
+!				jcol(loc)=cdof	
+!			end do
+!		end do
+!	end do
+!	
+!	n1=0
+!	!adrn STORED THE NONZERO ENTRIES(IROW(I)/=0) 
+!	do i=1,NNZ1
+!		if(irow(i)/=0) then
+!			n1=n1+1
+!			irow(n1)=irow(i) !n1<i
+!			jcol(n1)=jcol(i)
+!			adrn(i)=n1  ! 
+!			if(irow(i)==jcol(i)) diaglkmloc(irow(i))=n1 !FOR SETTING THE BOUNDARY CONDITIONS 
+!			
+!		end if
+!	end do
+!    
+!	nnz=n1
+!	IF(NNZ<0) THEN
+!        PRINT *, "THE NUMBER NONZERO ENTRIES IN KM IS TOO LARGE TO BE HANDEL BY INTEGER*4."
+!        STOP
+!    ENDIF
+!	!rowindex for mkl format
+!	allocate(irow1(nnz),jcol1(nnz),rowindex(ndof+1))
+!	irow1=irow(1:nnz)
+!	jcol1=jcol(1:nnz)
+!	deallocate(irow,jcol)
+!	allocate(irow(nnz),jcol(nnz))
+!	irow=irow1
+!	jcol=jcol1
+!	deallocate(irow1,jcol1)
+!	if(.not.allocated(km)) allocate(km(nnz))
+!	km=0.D0
+!	
+!	rowindex(1)=1
+!	j=1
+!	i=1
+!	do while(j<=nnz)
+!		if(irow(j)/=i) then
+!			i=i+1
+!			rowindex(i)=j			
+!		end if
+!		j=j+1
+!	end do
+!	rowindex(i+1)=j !最后一元素，i=ndof
+!	
+!end subroutine
+
+subroutine irowjcol_SEC()
 	use solverds
 	implicit none
-	integer::i,j,k,nj,n1=0
-	integer::loc,rdof,cdof !RDOF FOR ROW DOF INDEX; CDOF FOR COLUME DOF INDEX
-	real(8)::var1,t1
-	integer,allocatable::irow1(:),jcol1(:)
-	
-	allocate(irow(nnz),jcol(nnz),adrn(nnz))
-	irow=0
-	jcol=0
-	adrn=0
-	
-	do i=1,enum
-		!assemble the total matrix
-		do j=1,element(i).ndof !row
-			rdof=element(i).g(j)
-			do k=1,element(i).ndof  !colume
-				cdof=element(i).g(k)
-				if(solver_control.issym) then
-					if(solver_control.ismkl) then						
-						if(rdof>cdof) cycle  !mkl solver, 存上三角（包含对角线元素）,下三角部分跳过
-					else
-						if(rdof<cdof) cycle  !default solver,存下三角（包含对角线元素）,上三角部分跳过				
-					end if
-				end if
-				
-				loc=bw(rdof)-(Lmre(rdof)-cdof)	!BW:THE MOST RIGHT ENTRY INDEX IN TOTAL MATRIX
-															!Lmre(rdof):the column of the most right entry in the row of rdof
-				irow(loc)=rdof
-				jcol(loc)=cdof	
-			end do
-		end do
-	end do
-	
-	n1=0
-	!adrn STORED THE NONZERO ENTRIES(IROW(I)/=0) 
-	do i=1,NNZ
-		if(irow(i)/=0) then
-			n1=n1+1
-			irow(n1)=irow(i) !n1<i
-			jcol(n1)=jcol(i)
-			adrn(i)=n1  ! 
-			if(irow(i)==jcol(i)) diaglkmloc(irow(i))=n1 !FOR SETTING THE BOUNDARY CONDITIONS 
+	INTEGER*8::i,n1=0	
+    integer::err
+
+    !diaglkmloc(irow(i))=n1 !FOR SETTING THE BOUNDARY CONDITIONS 
 			
-		end if
-	end do
-	nnz=n1
-	
-	!rowindex for mkl format
-	allocate(irow1(nnz),jcol1(nnz),rowindex(ndof+1))
-	irow1=irow(1:nnz)
-	jcol1=jcol(1:nnz)
-	deallocate(irow,jcol)
-	allocate(irow(nnz),jcol(nnz))
-	irow=irow1
-	jcol=jcol1
-	deallocate(irow1,jcol1)
-	if(.not.allocated(km)) allocate(km(nnz))
-	km=0.D0
-	
-	rowindex(1)=1
-	j=1
-	i=1
-	do while(j<=nnz)
-		if(irow(j)/=i) then
-			i=i+1
-			rowindex(i)=j			
-		end if
-		j=j+1
-	end do
-	rowindex(i+1)=j !最后一元素，i=ndof
+	    
+	nnz=SUM(DOFADJL.NDOF)
+	IF(NNZ<0) THEN
+        PRINT *, "THE NUMBER NONZERO ENTRIES IN KM IS TOO LARGE TO BE HANDEL BY INTEGER*4."
+        STOP
+    ENDIF
+    !rowindex for mkl format
+
+
+	allocate(jcol(nnz),rowindex(ndof+1),STAT=ERR)
+    n1=0;    
+    DO I=1,NDOF
+        rowindex(I)=N1+1
+        JCOL(N1+1:N1+DOFADJL(I).NDOF)=DOFADJL(I).DOF
+        N1=N1+DOFADJL(I).NDOF        
+    ENDDO
+	rowindex(NDOF+1)=rowindex(NDOF)+DOFADJL(NDOF).NDOF
 	
 end subroutine
+
+
 
 
 subroutine incremental_load(iincs,iiter,method,isubts)
@@ -674,7 +724,8 @@ END SUBROUTINE
 
 subroutine chodec(tm_t1,sbw,nnum_t) !cholesky decomposition
 	implicit none
-	integer::tmn,nnum_t,sbw(nnum_t)
+	integer::tmn,nnum_t
+    INTEGER*8::sbw(nnum_t)
 	real(8)::tm_t1(sbw(nnum_t))
 	integer::i,j
 	integer::K1,i1,j1
@@ -711,7 +762,8 @@ end subroutine
 subroutine chosol(tm_t1,sbw,value,nnum_t,maxbdw_t)
 
 	implicit none
-	integer::tmn,nnum_t,maxbdw_t,sbw(nnum_t)
+	integer::tmn,nnum_t,maxbdw_t
+    INTEGER*8::sbw(nnum_t)
 	real(8)::tm_t1(sbw(nnum_t)),value(nnum_t)
 	integer::i,j
 	integer::i1,j1
@@ -746,7 +798,7 @@ end subroutine
 subroutine LDLFACTORUPDATE(L,Y,ALPHA,BW,NDOF,MAXBW)
 	IMPLICIT NONE
 	INTEGER,INTENT(IN)::NDOF,MAXBW
-	INTEGER,INTENT(IN)::BW(NDOF)
+	INTEGER*8,INTENT(IN)::BW(NDOF)
 	REAL(8),INTENT(INOUT)::ALPHA
 	REAL(8),INTENT(INOUT)::L(BW(NDOF)),Y(NDOF)
 	
@@ -914,3 +966,5 @@ subroutine bf_initialstress() !for cal_geo
 	
 	
 end subroutine
+
+  

@@ -45,7 +45,7 @@ module meshDS
 	   integer::et=0           !element type, 3-noded:0, 6-noded triangle:6; 15-noded:15 
 	                                      !6-noded prism element: 63; 15-noded prism element:153;
 	                                      !4-noded tetrahedral element:43, second order tetrahedral element: 103
-	   integer::zn=1,number
+	   integer::zn=1,number,ZN2=-1
 	   integer::edge(3)=0,ORIENT(3)=1 !the edge number in edge set.
 	   real(8)::property(5)=0    !单元属性值
 	   integer::kcd=0,Maxedge=0  !单元的可分度,
@@ -93,7 +93,7 @@ module meshDS
 	end type
 
 	type zone_tydef
-	   integer::num,k
+	   integer::num,k,OutGmshType=1,iElevation=1 !OutGmshType=1 Physical Volume only; =2 Physical Surface only; =3, both;if OutGmshType=2/3, iElevation指定输出哪个高程的面。       
 	   real(8),allocatable::point(:,:)
 	   real(8)::xmin=1e15,ymin=1e15,xmax=-1e15,ymax=-1e15
 	   integer,allocatable::item(:),trie3n(:),Dise4n(:), trie6n(:),trie15n(:)
@@ -172,7 +172,8 @@ module meshDS
 		integer::num=0
 		integer::V(2)=0 !two vetex for each element edge 
 		integer::E(2)=-1  !the two elements sharing the element	
-		INTEGER::BRECT=0 !zone boudary rectangle face id of out to gmsh volume. 		
+		INTEGER::BRECT=0 !zone boudary rectangle face id of out to gmsh volume. 
+        INTEGER::ISZONEBC=-1,ISCEDGE=0
 	end type
 	type(edge_tydef),allocatable::edge(:)
 	integer::nedge=0

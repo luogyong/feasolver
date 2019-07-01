@@ -1066,7 +1066,7 @@ subroutine Initialization()
 	!if(.not.solver_control.issym) then
 	bw=lmre-bw+1 !BAND WIDTH 
 	!end if
-	allocate(load(ndof),tdisp(ndof),diaglkmloc(ndof),adof(ndof))
+	allocate(load(ndof),tdisp(ndof),adof(ndof))
 	adof=0
 	load=0.0D0
 	tdisp=0.0D0
@@ -1088,20 +1088,21 @@ subroutine Initialization()
 		.or.solver_control.solver==MOSEK)  return
 	
 	bwmax=maxval(bw)
-	diaglkmloc(1)=1
+	!diaglkmloc(1)=1
 	do i=2,ndof
 		bw(i)=bw(i)+bw(i-1) !bw(i) is NOW the location of the most right entry in the i row in the total matrix.
-		if(.not.solver_control.ismkl) diaglkmloc(i)=bw(i) !!!1!对角元素的在总刚中位置,这时以总刚以下三角的形式存储
+		!if(.not.solver_control.ismkl) diaglkmloc(i)=bw(i) !!!1!对角元素的在总刚中位置,这时以总刚以下三角的形式存储
 	end do
 
 	! allocate space for load() and km
-	nnz=bw(ndof)
+	!nnz=bw(ndof)
+    !
 	!if(.not.solver_control.issym) nnz=UBW(NDOF)
 
 	load=0.0D0
 
 
-	if(solver_control.ismkl) call irowjcol()
+	call irowjcol_SEC()
 	if(.not.allocated(km)) allocate(km(nnz))
 	km=0.d0
 
@@ -1164,11 +1165,17 @@ end subroutine
 !according element connection, calculate the bandwidth.
 subroutine dofbw(ienum)
 	use solverds
+    USE quicksort
 	implicit none
-	integer::ienum,n1,n2,n3,n4,j
+	integer::ienum,n1,n2,n3,n4,j,DOF1(200),I
+    
 
 	n1=minval(element(ienum).g)
 	n3=maxval(element(ienum).g)
+    DOF1(1:element(ienum).ndof)=element(ienum).g
+    
+    CALL quick_sort(DOF1(1:element(ienum).ndof))
+    
 	do j=1,element(ienum).ndof
 		
 		
@@ -1182,6 +1189,10 @@ subroutine dofbw(ienum)
 				if(bw(element(ienum).g(j))>n1) bw(element(ienum).g(j))=n1 !location of the most Left entry
 				Lmre(element(ienum).g(j))=element(ienum).g(j) !location of the most right entry
 				
+                DO I=1,J
+                    CALL SETUP_DOFADJL(DOF1(I),DOF1(J))
+                ENDDO
+                
 			else
 				!for mkl solver, 存上三角，bw(i)为第i行上角形带宽
 !				n2=n3-element(ienum).g(j)+1
@@ -1189,12 +1200,17 @@ subroutine dofbw(ienum)
 				
 				bw(element(ienum).g(j))=element(ienum).g(j) !location of the most Left entry
 				if(Lmre(element(ienum).g(j))<n3) Lmre(element(ienum).g(j))=n3 !location of the most right entry			
-				
+				 DO I=J,element(ienum).ndof
+                    CALL SETUP_DOFADJL(DOF1(I),DOF1(J))
+                 ENDDO
 			end if
 
 		else
 			if(bw(element(ienum).g(j))>n1) bw(element(ienum).g(j))=n1 !location of the most Left entry
 			if(Lmre(element(ienum).g(j))<n3) Lmre(element(ienum).g(j))=n3 !location of the most right entry	
+            DO I=1,element(ienum).ndof
+                CALL SETUP_DOFADJL(DOF1(I),DOF1(J))                
+            ENDDO
 		end if
 		
 		
@@ -1203,6 +1219,46 @@ subroutine dofbw(ienum)
 	end do
 
 end subroutine
+
+
+SUBROUTINE SETUP_DOFADJL(ITEM,IDOF)
+    USE solverds
+    USE MESHGEO,ONLY:I_ENLARGE_AR
+    IMPLICIT NONE
+    INTEGER,INTENT(IN)::ITEM,IDOF
+    INTEGER::I,N1
+    
+    IF(.NOT.ALLOCATED(DOFADJL)) THEN
+        ALLOCATE(DOFADJL(NDOF))
+        DO I=1,NDOF
+            ALLOCATE(DOFADJL(I).DOF(DOFADJL(I).DOF_SIZE))    
+            DOFADJL(I).NDOF=1
+            DOFADJL(I).DOF(1)=I
+        ENDDO    
+    ENDIF
+
+    IF(.NOT.ANY(DOFADJL(IDOF).DOF(1:DOFADJL(IDOF).NDOF)-ITEM==0)) THEN
+            
+        IF(DOFADJL(IDOF).NDOF+1>DOFADJL(IDOF).DOF_SIZE) THEN
+            CALL I_ENLARGE_AR(DOFADJL(IDOF).DOF,10)
+            DOFADJL(IDOF).DOF_SIZE=DOFADJL(IDOF).DOF_SIZE+10
+        ENDIF
+        IF(ITEM>DOFADJL(IDOF).DOF(DOFADJL(IDOF).NDOF)) THEN
+            N1=DOFADJL(IDOF).NDOF+1
+        ELSEIF(ITEM<DOFADJL(IDOF).DOF(1)) THEN
+            N1=1
+            DOFADJL(IDOF).DOF(DOFADJL(IDOF).NDOF+1:2:-1)=DOFADJL(IDOF).DOF(DOFADJL(IDOF).NDOF:1:-1)
+        ELSE
+            N1=MINVAL(PACK([1:DOFADJL(IDOF).NDOF],DOFADJL(IDOF).DOF(:DOFADJL(IDOF).NDOF)-ITEM>0))
+            DOFADJL(IDOF).DOF(DOFADJL(IDOF).NDOF+1:N1+1:-1)=DOFADJL(IDOF).DOF(DOFADJL(IDOF).NDOF:N1:-1)
+        ENDIF
+        DOFADJL(IDOF).DOF(N1)=ITEM
+        DOFADJL(IDOF).NDOF=DOFADJL(IDOF).NDOF+1
+    ENDIF
+    
+    
+
+ENDSUBROUTINE
 
 ! allocate room for element.km,b,d.
 subroutine el_alloc_room(ienum)

@@ -500,13 +500,15 @@ subroutine graph
 			   call outgtext(trim(msg))
 			 case(10)
 			   do k=1,3
-				   write(nnum,'(i6)') EDGE(elt(ept).edge(k)).NUM
-				   x1=(node(edge(elt(ept).edge(k)).v(1)).x+ &
-				   	node(edge(elt(ept).edge(k)).v(2)).x)/2
-				   y1=(node(edge(elt(ept).edge(k)).v(1)).y+ &
-				   	node(edge(elt(ept).edge(k)).v(2)).y)/2				   	
-				   call moveto_w(x1,y1,wxy)			
-				   call outgtext(trim(adjustL(nnum)))
+                   !IF(EDGE(elt(ept).edge(k)).ISZONEBC/=-1.AND.EDGE(elt(ept).edge(k)).ISCEDGE==0) THEN
+				       write(nnum,'(i6)') EDGE(elt(ept).edge(k)).NUM
+				       x1=(node(edge(elt(ept).edge(k)).v(1)).x+ &
+				   	    node(edge(elt(ept).edge(k)).v(2)).x)/2
+				       y1=(node(edge(elt(ept).edge(k)).v(1)).y+ &
+				   	    node(edge(elt(ept).edge(k)).v(2)).y)/2				   	
+				       call moveto_w(x1,y1,wxy)			
+				       call outgtext(trim(adjustL(nnum)))
+                   !ENDIF
 			   end do
 		 end select		
 

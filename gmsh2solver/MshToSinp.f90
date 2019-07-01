@@ -13,17 +13,17 @@
 	winfo%TYPE = QWIN$MAX
 	tof=SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo)
 	tof=SETWSIZEQQ(0, winfo)  
-	NOPOPUP=0
+	!NOPOPUP=0
 	print *, 'LGY Works. Msh2Sinp'
 !!DEC$ IF DEFINED(NOPOP)
-    IF(NOPOPUP==0) THEN
-	    write(*, 10) 
-	    key=getcharqq()
-	    if(ichar(key)==ichar('h').or.ichar(key)==ichar('H')) then		
-		    call write_readme_gmsh2sinp()			
-		    stop
-        end if        
-    ENDIF
+    !IF(NOPOPUP==0) THEN
+	   ! write(*, 10) 
+	   ! key=getcharqq()
+	   ! if(ichar(key)==ichar('h').or.ichar(key)==ichar('H')) then		
+		  !  call write_readme_gmsh2sinp()			
+		  !  stop
+    !    end if        
+    !ENDIF
 !!DEC$ ENDIF
 	
 	print *, 'Begin to read in data...'

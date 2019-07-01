@@ -154,7 +154,7 @@ subroutine solve_SLD()
 					do j=1,bd_num
 						if(bc_disp(j).isdead==1) cycle
 						dof1=node(bc_disp(j).node).dof(bc_disp(j).dof)
-						km(diaglkmloc(dof1))=UM
+						km(rowindex(dof1))=UM
 					end do
 					
 					call KM_UPDATE_SPG2(stepdis,iiter,iincs)
@@ -165,8 +165,13 @@ subroutine solve_SLD()
 						!STOP_TIME= DCLOCK()
 						!write(99,20) iincs,iiter,STOP_TIME-START_TIME
 					else
-						! Factor the matrix.
-						error = DSS_FACTOR_REAL( handle, MKL_DSS_POSITIVE_DEFINITE,km)
+						! Factor the matrix.！MKL_DSS_POSITIVE_DEFINITE
+                        error = DSS_FACTOR_REAL( handle, MKL_DSS_POSITIVE_DEFINITE,km)
+                        IF (error /= MKL_DSS_SUCCESS) THEN
+                            !PRINT *, 'MKL_DSS_POSITIVE_DEFINITE FAILED.TRY MKL_DSS_INDEFINITE OPTION.'
+						    error = DSS_FACTOR_REAL( handle, MKL_DSS_INDEFINITE,km)
+                        ENDIF
+                        
 						IF (error /= MKL_DSS_SUCCESS) call mkl_solver_error(error)			
 							
 					end if
@@ -381,7 +386,10 @@ subroutine solve_SLD()
         enddo
 		nc1 = setexitqq(QWIN$EXITNOPERSIST)
     else
- 
+        IF(SOLVER_CONTROL.NOPOPUP>0) THEN
+            nc1 = setexitqq(QWIN$EXITNOPERSIST)
+            RETURN
+        ENDIF
 
 		
 		term="Click Yes to Post-processing with tecplot.\N No to Exit and\N Cancel to Continue post-processing with the built-in PostProcessor."C
@@ -411,7 +419,7 @@ subroutine solve_SLD()
 	if(allocated(km)) deallocate(km)
 	if(allocated(load)) deallocate(load)
 	if(allocated(tdisp)) deallocate(tdisp)
-	if(allocated(irow)) deallocate(irow)
+!	if(allocated(irow)) deallocate(irow)
 	if(allocated(jcol)) deallocate(jcol)
 	if(allocated(Lmre)) deallocate(Lmre)
 	if(allocated(adrn)) deallocate(adrn)
@@ -612,7 +620,7 @@ subroutine KM_UPDATE_SPG2(stepdis,iiter,IINCS)
 		
 		if(Nseep(j).isdead==0) then
 			dof1=node(Nseep(j).node).dof(Nseep(j).dof)														  
-			km(diaglkmloc(dof1))=UM
+			km(rowindex(dof1))=UM
 			!load(dof1)=(Nseep(j).value-stepdis(dof1))*sf(Nseep(j).sf).factor(iincs)*UM
 		end if
 	end do
@@ -690,7 +698,7 @@ subroutine Cal_AcceleratingFactor(iiter,iincs,iscon,stepdis,bdylds,relax,handle,
 		do j=1,bd_num
 			if(bc_disp(j).isdead==1) cycle
 			dof1=node(bc_disp(j).node).dof(bc_disp(j).dof)
-			km(diaglkmloc(dof1))=UM
+			km(rowindex(dof1))=UM
 		end do
 		
 		call KM_UPDATE_SPG2(stepdis,iiter,iincs)
@@ -1859,14 +1867,17 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
         !pore pressure
         UW1=0.D0
         element(ienum).UW(j)=0.D0
-        IF(WATERLEVEL.NPOINT>0) THEN
+        IF(WATERLEVEL.NPOINT>0.OR.ABS(SF(WATERLEVEL.SF).FACTOR(ISTEP)+999.0)>1.D-7) THEN
             element(ienum).UW(j)=MultiSegInterpolate(WATERLEVEL.H(1,:),WATERLEVEL.H(2,:),WATERLEVEL.NPOINT,&
-                                ELEMENT(IENUM).XYGP(WATERLEVEL.VAR,J)) 
+                                ELEMENT(IENUM).XYGP(WATERLEVEL.VAR,J))
+            element(ienum).UW(j)=element(ienum).UW(j)*SF(WATERLEVEL.SF).FACTOR(ISTEP)                 
             element(ienum).UW(j)=MAX((element(ienum).UW(j)-ELEMENT(IENUM).XYGP(NDIMENSION,J))*9.8,0.D0) !UNSATURATED SOIL IS NOT CONSIDERED.            
         ENDIF
-        UW1(1:NDIMENSION)=element(ienum).UW(j)
-		!total stress
+        UW1(1:NDIMENSION)=element(ienum).UW(j) 
+        if(iiter==1) Dstress1=Dstress1+uw1  !Dstress-(-uw1) !第一次迭代时，荷载产生的应力均为总应力，此时减去孔压分担的应力,因为在此简单计算得到的UW不是增量。 
 		Tstress1=Dstress1+element(ienum).stress(:,j)
+        
+        
         
         IF(istep>0) THEN !IINCS==0,假定只建立弹性应力场。
             IF(MATERIAL(ELEMENT(IENUM).MAT).TYPE==MC.AND.solver_control.bfgm==consistent) THEN

@@ -463,6 +463,7 @@ subroutine solvercommand(term,unit)
 	use ExcaDSLIB
     use ds_hyjump
     USE DS_SlopeStability
+    use DownWaternSettlement,only:settlement_head
 	implicit none
     
 	integer::unit
@@ -499,6 +500,30 @@ subroutine solvercommand(term,unit)
 	term=trim(term)
 
 	select case(term)
+        case('settlement_head')
+            print *,'Reading head1 and head2  for settelement induced by downwater.'
+            do i=1, pro_num
+				select case(property(i).name)
+					case('nnode')
+						settlement_head.nnode=int(property(i).value)
+					case('nhead')
+						settlement_head.nhead=int(property(i).value)                        
+					case default
+						call Err_msg(property(i).name)
+				end select
+			end do
+			allocate(settlement_head.head(settlement_head.nhead,settlement_head.nnode))
+            allocate(settlement_head.sf(settlement_head.nhead))
+            
+            DO I=0,settlement_head.nnode
+                call skipcomment(unit)
+                IF(I==0) THEN
+                    read(unit,*) settlement_head.sf 
+                ELSE
+				    read(unit,*) N2,settlement_head.HEAD(:,N2) 
+                ENDIF
+            ENDDO
+            
 		case('title')
 			print *, 'Reading TITLE data...'
 			excelformat=0
@@ -630,6 +655,8 @@ subroutine solvercommand(term,unit)
                         WATERLEVEL.FMT=int(property(i).value)
                     case('var')
                         WATERLEVEL.VAR=int(property(i).value)
+                    CASE('sf')
+                        WATERLEVEL.SF=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select    
@@ -1480,7 +1507,8 @@ subroutine solvercommand(term,unit)
 						if(int(property(i).value)==YES) then
 							solver_control.ismkl=.true.
 						else
-							solver_control.ismkl=.false.
+                            print *, "the solver(not mkl) is disabled.mkl solver is used instead."
+							solver_control.ismkl=.true.
                         end if
                     case('ls','linesearch')
 						if(int(property(i).value)==YES) then

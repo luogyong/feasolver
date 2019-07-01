@@ -26,7 +26,12 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) = "//HELPFILE,EXIT=YES|NO"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD TITLE IS USED TO OUTPUT A IFSOLVER HELPFILE IN THE CURRENT DIRECTION."//'"'
 	README(IPP(I))= "//NO PARAMETER IS NEEDED.IS EIXT=YES, WHEN THE OUTPUT IS COMPLETED, STOP RUNNING AND EXIT."    
-	
+	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//SETTLEMENT_HEAD,NNODE=...(I),NHEAD=...(I)   //NNODE=模型的节点总数,NHEAD=各节点输入的水头个数"
+	README(IPP(I))=  "//"//'"'//"THE KEYWORD SETTLEMENT_HEAD IS USED TO INPUT HEAD1 AND HEAD2 FOR SETTLEMENT INDUCED BY DOWNWATER."//'"'
+    README(IPP(I))="//{SF(1),...,SF(NHEAD)}    //各水头对应步函数。注意，第I步的压力水头为输入的各压力水头之和，即SUM(HEAD(I)*SF(I)-高程)，不考虑负压的情况" 
+	README(IPP(I))="//{INODE,HEAD(1),...,HEAD(NHEAD)}*NNODE    //节点号，水头及对应步函数"    	
+    
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//NODE,NUM=...(I) [,DATAPACKING=1|2] [,DEMENSION=1|2|3]   // NUM=节点数"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD NODE IS USED TO INPUT THE NODAL INFOMATION."//'"'
@@ -108,7 +113,7 @@ subroutine write_readme_feasolver()
                          \N//当FACTOR(ISTEP)=-999时,此边界或荷载在此步中失效（无作用）. &
                          \N//!表单元生死时，0为死1为生。"C  
 	README(IPP(I)) = "//{...}  //共NUM行"
-	!README(IPP(I)) = "//注意,对于力学模型（SOLVER_CONTROL.TYPE=SLD），输入的是各步荷载或位移边界的增量;而对渗流模型（SOLVER_CONTROL.TYPE=SPG）,输入的是各步水头或流量边界的总量."
+
 
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//SLAVE_MASTER_NODE_PAIR,NUM=...(I)   //NUM=约束节点对的个数."  
@@ -179,7 +184,7 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) = "//注意：1）按X从左至右的顺序输入,既x1<=x2<=..<=xn" 
 	
  	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//WATERLEVEL,NUM=...(I),FMT=0|1,VAR=1|2|3  //VAR=INTERPOLATION INDEPENDENT VARIABLE. 1/2/3 MEANS X/Y/Z"  
+	README(IPP(I)) = "//WATERLEVEL,NUM=...(I),FMT=0|1,VAR=1|2|3,SF=0  //VAR=INTERPOLATION INDEPENDENT VARIABLE. 1/2/3 MEANS X/Y/Z,SF=STEPFUNCTION"  
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD IS USED TO INPUT WALTERLEVEL LINE DATA."//'"'
     README(IPP(I)) = "//IF fmt=0(DEFAULT) then input the id number in the array KPOINT of the points. " 
     README(IPP(I)) = "//IF fmt=1 then INPUT (VAR,H) of the points. " 
@@ -259,7 +264,7 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) ="//当为单元SSP2D指定材料，输入参数(A,Iz,minN,maxN,minMz,maxMz)均为单根钢板桩的参数,YC钢板桩形心轴距离锁口内沿的距离。"
 	README(IPP(I)) ="//hy,hz分别为梁截面在y'和z'轴方向(局部坐标)的高度，为后处理转化为六面体单元时所用. \N"C
 	README(IPP(I)) ="//当为支护桩时，hy,hz分别为桩径和桩距，计算作用于支护桩上的土压力和土弹簧的刚度用 \N"C
-	README(IPP(I)) ="//10. CASE(wellbore) : PROPERTY(1)=R(井半径). (2)Temp. (3)=Kr(relative roughness of the  inner surface of the pipe ),.(4)=time unit (day=0(default),second=1), .(5)=g (gravity acc. =0(SET by default, 73156608000.00 m/day2. ), .(6)PIPE-FLOW MODEL(=0,LAMINOR(DEFAULT);=1,LAMINOR+ACC;=2,TURBULENT+ACC+POROUS-PIPE EFFECT); .(7)泥皮的厚度和渗透系数的比L/K.=0(默认,不考虑井损));.(8)=f(Darcy Friction factor(井壁摩阻系数),=0,由计算定(默认)，一般为0.02-0.03左右)"C
+	README(IPP(I)) ="//10. CASE(wellbore) : PROPERTY(1)=R(井半径). (2)Temp. (3)=Kr(relative roughness of the  inner surface of the pipe ),.(4)=time unit (day=0(default),second=1), .(5)=g (gravity acc. =0(SET by default, 73156608000.00 m/day2. ), .(6)PIPE-FLOW MODEL(=0,Darcy(no porous effect,DEFAULT);=1,Siwon; =2,OUYang EFFECT;=3,Input by user); .(7)泥皮的厚度和渗透系数的比L/K.=0(默认,不考虑井损));.(8)=f(Darcy Friction factor(井壁摩阻系数),=0,由计算定(默认)，一般为0.02-0.03左右,当model=3时输入。);.(9)=POROSITY OF THE WELLBORE(当model=1时输入)"C
 	README(IPP(I)) ="//11. CASE(ExcavationSoil/SLOPESOIL) : PROPERTY(1:10)=黏聚力，摩擦角，天然/饱和重度，变形模量，泊松比,渗透系数，水平基床系数(F/L**3),墙土间摩擦角（度）,[层顶水压力PW1,层底水压力PW2]"C
 	README(IPP(I)) ="//PW1，PW2仅当土层的水压力为手动输入时有用（WPMETHOD=3）。"
 	README(IPP(I)) ="//12. CASE(spring) : PROPERTY(1:3)=k,minV(发生负位移),maxV(发生正位移)，预加力，预加位移"C

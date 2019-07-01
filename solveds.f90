@@ -1,6 +1,6 @@
-  
-    !¶¨ÒåÇó½âÆ÷µÄÊý¾Ý½á¹¹
-	!½Úµã
+ï»¿  
+    !å®šä¹‰æ±‚è§£å™¨çš„æ•°æ®ç»“æž„
+	!èŠ‚ç‚¹
 module solverds
 
     
@@ -11,9 +11,9 @@ module solverds
     
 	type node_tydef
 		real(kind=DPN)::coord(3)=0.0D0 !coordinates (x,y,z)
-		integer::ndof=0 !½ÚµãµÄ×ÔÓÉ¶È¸öÊý
+		integer::ndof=0 !èŠ‚ç‚¹çš„è‡ªç”±åº¦ä¸ªæ•°
 		integer::dof(MNDOF)=inactive !-9999999,inactive dof; >0:active dof. if dof()>0, then it indexes the dof number.						 		
-		real(kind=DPN),allocatable::stress(:),strain(:),pstrain(:),SFR(:),PSIGMA(:)  !SFR=Ó¦Á¦ÆÆ»µ±È
+		real(kind=DPN),allocatable::stress(:),strain(:),pstrain(:),SFR(:),PSIGMA(:)  !SFR=åº”åŠ›ç ´åæ¯”
 		real(kind=DPN),allocatable::FQ(:),M(:) !nodal shear forces and nodal bending moments.
 		real(kind=DPN),allocatable::igrad(:),velocity(:)	!for spg element, gradients,velocities.
 		real(kind=DPN)::angle=0.0D0 !the angle around the vertex.
@@ -24,36 +24,36 @@ module solverds
 !		integer::Property=0 !for SPG, Property=1 suggesting that the node is on the seepage surface.
 
 	end type
-	integer::nnum !½ÚµãÊý
+	integer::nnum !èŠ‚ç‚¹æ•°
 	type(node_tydef),allocatable::node(:)
 	real(DPN),ALLOCATABLE::GNODE(:,:) !GHOST NODE
 	INTEGER::NGNODE=0
     
 	type element_tydef
 		integer::nnum,NEDGE=0,NFACE=0,NTET=0 !node numbers of this element
-		integer,allocatable::node(:),EDGE(:),FACE(:),TET(:) !µ¥ÔªµÄ½Úµã,TETÎªµ¥ÔªµÄÏ¸·Öµ¥Ôª×éµÄÏÂ±ê¡£
-        integer,allocatable::node2(:) !Îª·½±ãBarºÍBeamµ¥ÔªµÄºó´¦Àí£¬Îªµ¥Ôª¼¯ÄÚµÄ½Úµã±àºÅ£¬½«Æä×ª»»³ÉÊµÌåÁùÃæÌåµ¥ÔªºóÊä³ö,µ±µ¥ÔªÎªzt4_spg,»òzt6_spgÊ±£¬node2Ö¸Ïògnode¡£
-        !µ±et=wellboreÊ±£¬node2´æ´¢ÒÔwellboreµ¥ÔªµÚ3£¬4½ÚµãÎª±ßµÄ3Î¬µ¥Ôª 
-		integer::et  !µ¥ÔªÀàÐÍ
+		integer,allocatable::node(:),EDGE(:),FACE(:),TET(:) !å•å…ƒçš„èŠ‚ç‚¹,TETä¸ºå•å…ƒçš„ç»†åˆ†å•å…ƒç»„çš„ä¸‹æ ‡ã€‚
+        integer,allocatable::node2(:) !ä¸ºæ–¹ä¾¿Barå’ŒBeamå•å…ƒçš„åŽå¤„ç†ï¼Œä¸ºå•å…ƒé›†å†…çš„èŠ‚ç‚¹ç¼–å·ï¼Œå°†å…¶è½¬æ¢æˆå®žä½“å…­é¢ä½“å•å…ƒåŽè¾“å‡º,å½“å•å…ƒä¸ºzt4_spg,æˆ–zt6_spgæ—¶ï¼Œnode2æŒ‡å‘gnodeã€‚
+        !å½“et=wellboreæ—¶ï¼Œnode2å­˜å‚¨ä»¥wellboreå•å…ƒç¬¬3ï¼Œ4èŠ‚ç‚¹ä¸ºè¾¹çš„3ç»´å•å…ƒ 
+		integer::et  !å•å…ƒç±»åž‹
 		integer::mat,mattype  !material id and material type.the paramters is got from material(mat)
-		!for et=soilspring, mat=-1,Ö÷¶¯²àµ¥Ôª£¬mat=-2,±»¶¯²àµ¥Ôª
+		!for et=soilspring, mat=-1,ä¸»åŠ¨ä¾§å•å…ƒï¼Œmat=-2,è¢«åŠ¨ä¾§å•å…ƒ
 		integer::set=0 !element set
 		integer::ndof !total dofs of the element
 		integer::ngp !the number of gauss points		
-		integer::isactive=1 !1Y0N¡£-1,COUPLEELEMET,²»½øÐÐ¼ÆËã£¬½öÊä³öÉÏÒ»²½µÄ½á¹û×÷Îª±¾²½µÄ½á¹û¡£
+		integer::isactive=1 !1Y0Nã€‚-1,COUPLEELEMET,ä¸è¿›è¡Œè®¡ç®—ï¼Œä»…è¾“å‡ºä¸Šä¸€æ­¥çš„ç»“æžœä½œä¸ºæœ¬æ­¥çš„ç»“æžœã€‚
         INTEGER::SF=0 !STEP FUNCTION .FACTOR=0,DEATICE;FACTOR=1,ACTIVE
 		integer::sign=1 !for soilspring element .sign=1, Pa,Po,Pp,Pw=+; sign=-1, pa,po,pp,pw=-.
-					!for pe_ssp2d,ngp=iÖ¸Ïòsmnp(i).		
+					!for pe_ssp2d,ngp=iæŒ‡å‘smnp(i).		
 		integer::nd ! the dimension of the strain-stress matrix
 		integer::id  !element id number in the set
 		integer::ec=0 !element class
 		integer::nspr=0 ! the patch number sharing the element
 		integer::layer=1 !element layer, for horizontal seepage analysis; 
 						!for sectional seepage analysis, =1, all nodes are under water table,=-1,all nodes are above water talbe,=0 cross the water table
-		integer::ifreedof=-1 !>0,±í½Â½Óµã,Ö¸Ïòfreedof(ifreedof)
+		integer::ifreedof=-1 !>0,è¡¨é“°æŽ¥ç‚¹,æŒ‡å‘freedof(ifreedof)
 		
 		!integer::status=1 !=1,fixed(default); =2,slip;=0:free.
-		integer::referencestep=1 !=i,±íÃ÷´Ëµ¥Ôª±äÐÎ¼ÆËã³õÊ¼²Î¿¼×´Ì¬ÆðµãÎªµÚi²½½áÊøµÄÎ»ÒÆ³¡¡£        
+		integer::referencestep=1 !=i,è¡¨æ˜Žæ­¤å•å…ƒå˜å½¢è®¡ç®—åˆå§‹å‚è€ƒçŠ¶æ€èµ·ç‚¹ä¸ºç¬¬iæ­¥ç»“æŸçš„ä½ç§»åœºã€‚        
 		integer::system=0 !local coordinate system, =0,global coordinate
 		! local coordinate system for bar element:
 		! x-axis is along the bar and the positive direction is from node 1 to node 2
@@ -66,9 +66,9 @@ module solverds
         !for wellbore element, property(1), element frictional resistance,(2) and (3) are geometrical resistance; (4) acceralated resistantce; (5)=WELL SKIN RESISTANCE , property(6) surround angle.
         !fore sphflow and semi_sphflow property(1)= geometrical resistance.
 		real(kind=DPN),allocatable::angle(:)!internal angle for every nodes
-        !µ±et=wellboreÊ±,angle´æ´¢node2µ¥Ôª¶ÔÓ¦µÄ¶þÃæ½Ç¡£
-		integer,allocatable::g(:) !µ¥ÔªµÄ¶¨Î»ÏòÁ¿
-		real(kind=DPN),allocatable::km(:,:) !µ¥ÔªµÄµ¥¸Õ,km(ndof,ndof)
+        !å½“et=wellboreæ—¶,angleå­˜å‚¨node2å•å…ƒå¯¹åº”çš„äºŒé¢è§’ã€‚
+		integer,allocatable::g(:) !å•å…ƒçš„å®šä½å‘é‡
+		real(kind=DPN),allocatable::km(:,:) !å•å…ƒçš„å•åˆš,km(ndof,ndof)
 		real(kind=DPN),allocatable::CMM(:,:) !Consistent mass matrix
 		real(kind=DPN),allocatable::B(:,:,:)  !B matrix, B(nd,ndof,ngp+nnum)
 		real(kind=DPN),allocatable::D(:,:)  !elastic strain-stress Matrix, D(nd,nd), its shape depends on the
@@ -88,7 +88,7 @@ module solverds
         real(kind=DPN),allocatable::uw(:) !pore pressure at each gausian point
 		real(kind=DPN),allocatable::GForce(:),DGforce(:) !the cumulative general force of each dof in globle system,Gf(ndof),useful for structure elements
 														!the nodal discharges, for spg element.
-                                                        !Dgforce(:),Ã¿²½ÄÚÁ¦ÔöÁ¿¡£
+                                                        !Dgforce(:),æ¯æ­¥å†…åŠ›å¢žé‡ã€‚
 		real(kind=DPN),allocatable::GForceILS(:) !the nodal force in the local system.
         !real(kind=DPN)::reference
  		real(kind=DPN),allocatable::G2L(:,:) !transformation matrix from global system to local system
@@ -108,7 +108,7 @@ module solverds
 		real(kind=DPN),allocatable::A12(:,:)  ! for UBZT4 is A23
 		real(kind=DPN),allocatable::X2(:)
 	end type
-	integer::enum=0 !½ÚµãÊý
+	integer::enum=0 !èŠ‚ç‚¹æ•°
 	type(element_tydef),allocatable::element(:)
 	
 	
@@ -116,10 +116,10 @@ module solverds
 	type stepfun_tydef
 		real(kind=DPN),allocatable::factor(:)
         character(64)::title=""  
-        integer::base=1 !µ±base=1Ê±£¬factor(0)=0£¬µ±base=0,factor(0)=input by user.
-		!×¢Òâ,ÊäÈëµÄÊÇ¸÷²½ºÉÔØ»òÎ»ÒÆ±ß½çµÄÔöÁ¿.
-		!µ±FACTOR(ISTEP)=-999Ê±,´Ë±ß½ç»òºÉÔØÔÚ´Ë²½ÖÐÊ§Ð§£¨ÎÞ×÷ÓÃ£©.	
-        !±íµ¥ÔªÉúËÀÊ±£¬1ÎªÉú,ÆäËûÎ´ËÀ¡£
+        integer::base=1 !å½“base=1æ—¶ï¼Œfactor(0)=0ï¼Œå½“base=0,factor(0)=input by user.
+		!æ³¨æ„,è¾“å…¥çš„æ˜¯å„æ­¥è·è½½æˆ–ä½ç§»è¾¹ç•Œçš„å¢žé‡.
+		!å½“FACTOR(ISTEP)=-999æ—¶,æ­¤è¾¹ç•Œæˆ–è·è½½åœ¨æ­¤æ­¥ä¸­å¤±æ•ˆï¼ˆæ— ä½œç”¨ï¼‰.	
+        !è¡¨å•å…ƒç”Ÿæ­»æ—¶ï¼Œ1ä¸ºç”Ÿ,å…¶ä»–æœªæ­»ã€‚
 	endtype
 	type(stepfun_tydef),allocatable::sf(:)
 	integer::nsf=0
@@ -143,16 +143,16 @@ module solverds
         logical::issteady=.true.
         integer::bctype=step,loadtype=step
         
-        !LOADTYPE(BCTYPE):ÎªºÉÔØ(Î»ÒÆ±ß½ç)Ê©¼Ó·½Ê½£¬
-		!=1(ramp),±íÊ¾²½ÄÚºÉÔØ(Î»ÒÆ±ß½ç)ËæÊ±¼äÏßÐÔÊ©¼Ó£¬
-		!=2(step(default))£¬±íÊ¾²½ºÉÔØ(Î»ÒÆ±ß½ç)ÔÚ²½³õË²¼äÊ©¼Ó¡£
-		!=-1(ReRamp) ±íÊ¾²½ºÉÔØ(Î»ÒÆ±ß½ç)ËæÊ±¼äÏßÐÔ´Ó´ó±äÐ¡¡£
+        !LOADTYPE(BCTYPE):ä¸ºè·è½½(ä½ç§»è¾¹ç•Œ)æ–½åŠ æ–¹å¼ï¼Œ
+		!=1(ramp),è¡¨ç¤ºæ­¥å†…è·è½½(ä½ç§»è¾¹ç•Œ)éšæ—¶é—´çº¿æ€§æ–½åŠ ï¼Œ
+		!=2(step(default))ï¼Œè¡¨ç¤ºæ­¥è·è½½(ä½ç§»è¾¹ç•Œ)åœ¨æ­¥åˆçž¬é—´æ–½åŠ ã€‚
+		!=-1(ReRamp) è¡¨ç¤ºæ­¥è·è½½(ä½ç§»è¾¹ç•Œ)éšæ—¶é—´çº¿æ€§ä»Žå¤§å˜å°ã€‚
 	end type
     type(Stepinfo_tydef),allocatable::stepinfo(:)
     integer::nstepinfo=1
 	
 !	type IniValue_tydef
-!		real(kind=DPN),allocatable::v(:) !³õÖµ. initialvalue(nnode)
+!		real(kind=DPN),allocatable::v(:) !åˆå€¼. initialvalue(nnode)
 !	end type
 !	type(IniValue_tydef)::InitialValue(MNDOF)
 	
@@ -164,14 +164,14 @@ module solverds
 		integer::isdead=0 !for =1,the condition is deactive in the current step.
 		real(kind=DPN)::value=0
 				
-		!¶ÔÓÚbc_disp,Èç¹ûisdual==i(>0),Ôò±íÊ¾´Ë×ÔÓÉ¶È¿ÉÄÜÓë³öÒç±ß½çNseep(i)ÖØ¸´£¬Èç¹û±ß½çË®Í·Ð¡ÓÚÎ»ÖÃË®Í·£¬Ôò±äÎª³öÒç±ß½ç¡£
-		!¶ÔÓÚNseep, Èç¹ûisdual==i(>0)£¬Ôò±íÊ¾´Ë×ÔÓÉ¶È¿ÉÄÜÓëË®Í·±ß½çBC_disp(i)ÖØ¸´£¬Èç¹û±ß½çË®Í·´óÓÚÎ»ÖÃË®Í·£¬ÔòÒÔË®Í·±ß½çÎª×¼£¬¼´Ë®Í·±ß½çµÄÓÅÏÈ¼¶´óÓÚ³öÒç±ß½ç¡£
+		!å¯¹äºŽbc_disp,å¦‚æžœisdual==i(>0),åˆ™è¡¨ç¤ºæ­¤è‡ªç”±åº¦å¯èƒ½ä¸Žå‡ºæº¢è¾¹ç•ŒNseep(i)é‡å¤ï¼Œå¦‚æžœè¾¹ç•Œæ°´å¤´å°äºŽä½ç½®æ°´å¤´ï¼Œåˆ™å˜ä¸ºå‡ºæº¢è¾¹ç•Œã€‚
+		!å¯¹äºŽNseep, å¦‚æžœisdual==i(>0)ï¼Œåˆ™è¡¨ç¤ºæ­¤è‡ªç”±åº¦å¯èƒ½ä¸Žæ°´å¤´è¾¹ç•ŒBC_disp(i)é‡å¤ï¼Œå¦‚æžœè¾¹ç•Œæ°´å¤´å¤§äºŽä½ç½®æ°´å¤´ï¼Œåˆ™ä»¥æ°´å¤´è¾¹ç•Œä¸ºå‡†ï¼Œå³æ°´å¤´è¾¹ç•Œçš„ä¼˜å…ˆçº§å¤§äºŽå‡ºæº¢è¾¹ç•Œã€‚
 		integer::isdual=0,iswellhead=0 
-        !¶ÔÓÚbc_disp,iswellhead>0,±íÊ¾´Ë½ÚµãÎª¼õÑ¹×ÔÁ÷¾®±ß½ç½Úµã£¬½ÚµãÁ÷Á¿Ö»³ö²»½ø£¬Èç¹ûÁ÷ÈëÁ÷Á¿£¬ÔòÁî´Ë±ß½çÊ§Ð§
-        !¶ÔÓÚNseep,iswellhead>0,±íÊ¾´Ë½ÚµãÎª¾®±Ú³öÒçÃæ£¬ÇÒ´Ë³öÒçµãµÄÁ÷Á¿£¬¼ÆÈë±àºÅÎªiswellheadµÄ¾®µãÁ÷Á¿
-		integer::ssp_onepile=0 !Ö»¶ÔSSPµ¥Ôª½ÚµãÆð×÷ÓÃ£¬±êÊ¾Õâ¸ö×÷ÓÃÊÇ·ñÊÇ×÷ÓÃÔÚÆäÖÐÒ»¸ù¸Ö°å×®ÉÏ,¶ø²»Á½¸ù¶¼×÷ÓÃ¡£
-								!/=0,×÷ÓÃÔÚµ¥¸ù¸Ö°å×®ÉÏ£¬=0¶¼×÷ÓÃ¡£
-		integer::isincrement=0 !Èç¹ûÎª1£¬Ôò±íÃ÷valueÊÇÔöÁ¿£¬¶ø²»ÊÇÈ«Á¿£¨Ä¬ÈÏ£©
+        !å¯¹äºŽbc_disp,iswellhead>0,è¡¨ç¤ºæ­¤èŠ‚ç‚¹ä¸ºå‡åŽ‹è‡ªæµäº•è¾¹ç•ŒèŠ‚ç‚¹ï¼ŒèŠ‚ç‚¹æµé‡åªå‡ºä¸è¿›ï¼Œå¦‚æžœæµå…¥æµé‡ï¼Œåˆ™ä»¤æ­¤è¾¹ç•Œå¤±æ•ˆ
+        !å¯¹äºŽNseep,iswellhead>0,è¡¨ç¤ºæ­¤èŠ‚ç‚¹ä¸ºäº•å£å‡ºæº¢é¢ï¼Œä¸”æ­¤å‡ºæº¢ç‚¹çš„æµé‡ï¼Œè®¡å…¥ç¼–å·ä¸ºiswellheadçš„äº•ç‚¹æµé‡
+		integer::ssp_onepile=0 !åªå¯¹SSPå•å…ƒèŠ‚ç‚¹èµ·ä½œç”¨ï¼Œæ ‡ç¤ºè¿™ä¸ªä½œç”¨æ˜¯å¦æ˜¯ä½œç”¨åœ¨å…¶ä¸­ä¸€æ ¹é’¢æ¿æ¡©ä¸Š,è€Œä¸ä¸¤æ ¹éƒ½ä½œç”¨ã€‚
+								!/=0,ä½œç”¨åœ¨å•æ ¹é’¢æ¿æ¡©ä¸Šï¼Œ=0éƒ½ä½œç”¨ã€‚
+		integer::isincrement=0 !å¦‚æžœä¸º1ï¼Œåˆ™è¡¨æ˜Žvalueæ˜¯å¢žé‡ï¼Œè€Œä¸æ˜¯å…¨é‡ï¼ˆé»˜è®¤ï¼‰
         
 	end type
 	type(bc_tydef),allocatable::bc_disp(:),bc_load(:),bf(:),NSeep(:),IniValue(:),CFN(:)
@@ -179,8 +179,8 @@ module solverds
 	real(kind=DPN),allocatable::iniValueDof(:) 
     
     type hinge_typef
-        integer::element,node,dof=7 !µ¥ÔªºÅ£¬½ÚµãºÅ£¬×ÔÓÉ¶È
-		integer::newnode=0 !Ö¸ÏòÓë½ÚµãNodeÎªÖØºÏµÄ½Úµãnode(newnode)¡£
+        integer::element,node,dof=7 !å•å…ƒå·ï¼ŒèŠ‚ç‚¹å·ï¼Œè‡ªç”±åº¦
+		integer::newnode=0 !æŒ‡å‘ä¸ŽèŠ‚ç‚¹Nodeä¸ºé‡åˆçš„èŠ‚ç‚¹node(newnode)ã€‚
     endtype
     type(hinge_typef),allocatable::FreeDOF(:)
     integer::Nfreedof=0
@@ -244,12 +244,12 @@ module solverds
         INTEGER::ISLS=0,ISACC=DANG  !ISACC=0,NO ACCELERATION, =1,SLOAN, =2,DANG(DEFAULT)
         INTEGER::NLS=10
         real(kind=DPN)::STOL=0.8D0,S0=0.D0,ALPHA=1.0D0 !ALPHA =INISTIFFNESS ACCELERATION PARAMETER
-        integer::RF_EPP=0 !±»¶¯²àÍÁµ¯»É¿¹Á¦ÏÞÖµÊÇ·ñÒª¼õµô³õÊ¼µÄÍÁÑ¹Á¦¡£
-        integer::RF_APP=0 !Ö÷¶¯²àÖ÷¶¯ÍÁÑ¹Á¦ºÉÔØ£¬¿ªÍÚÃæÒÔÏÂÊÇ·ñ°´µ¹Èý½ÇÕÛ¼õ¡£
-		integer::INIEPP=2  !±»¶¯²àÍÁµ¯»É¿¹Á¦ÏÞÖµÊÇ·ñÒª¼õµô³õÊ¼µÄÍÁÑ¹Á¦,2=Ö÷¶¯ÍÁÑ¹Á¦£¬1=¾²Ö¹ÍÁÑ¹Á¦
+        integer::RF_EPP=0 !è¢«åŠ¨ä¾§åœŸå¼¹ç°§æŠ—åŠ›é™å€¼æ˜¯å¦è¦å‡æŽ‰åˆå§‹çš„åœŸåŽ‹åŠ›ã€‚
+        integer::RF_APP=0 !ä¸»åŠ¨ä¾§ä¸»åŠ¨åœŸåŽ‹åŠ›è·è½½ï¼Œå¼€æŒ–é¢ä»¥ä¸‹æ˜¯å¦æŒ‰å€’ä¸‰è§’æŠ˜å‡ã€‚
+		integer::INIEPP=2  !è¢«åŠ¨ä¾§åœŸå¼¹ç°§æŠ—åŠ›é™å€¼æ˜¯å¦è¦å‡æŽ‰åˆå§‹çš„åœŸåŽ‹åŠ›,2=ä¸»åŠ¨åœŸåŽ‹åŠ›ï¼Œ1=é™æ­¢åœŸåŽ‹åŠ›
         integer::nopopup=0
-        integer::isParasys=0,CaseID=0 !isParasys,ÊÇ·ñÎª²ÎÊýÃô¸ÐÐÔ·ÖÎö(must start form 1)
-!		integer::isPostCal=0 !ËùÓÐµÄÎ´ÖªÁ¿¾ùÎªÒÑÖª£¨ÓÉ±ß½çÌõ¼þÊäÈë£©£¬½ö½øÐÐºó´¦Àí¼ÆËã¡£
+        integer::isParasys=0,CaseID=0 !isParasys,æ˜¯å¦ä¸ºå‚æ•°æ•æ„Ÿæ€§åˆ†æž(must start form 1)
+!		integer::isPostCal=0 !æ‰€æœ‰çš„æœªçŸ¥é‡å‡ä¸ºå·²çŸ¥ï¼ˆç”±è¾¹ç•Œæ¡ä»¶è¾“å…¥ï¼‰ï¼Œä»…è¿›è¡ŒåŽå¤„ç†è®¡ç®—ã€‚
         !REAL(KIND=DPN),ALLOCATABLE::ETA(:),RATIO(:)
         integer::slidedirection=right,slope_isTensionCrack=1,ISSLOPEPA=0
         real(kind=DPN)::slope_kscale=1.D0,slope_kbase=1.D0,slope_kratio=10
@@ -283,10 +283,10 @@ module solverds
 		integer::mesh_share_id=0,out_mesh=.true. !for output tecplot.
 		
 		!for bar ane beam element only.
-		real(kind=DPN),allocatable::xyz_section(:,:) !µ¥Ôª¼¯µÄÍ³Ò»µÄ½ØÃæµÄËÄ¸ö½ÇµãµÄ×ø±ê£¬ÏÖ¼Ù¶¨Ò»¸öµ¥Ôª¼¯ÄÚµÄËùÓÐ¸Ëµ¥Ôª»òÁºµ¥ÔªµÄ¾Ö²¿×ø±êÒ»Ñù¡£
-		integer,allocatable::outorder(:) !Êä³öºó´¦ÀíÊ±£¬Í¬Ò»¾Ö²¿×ø±êÏÂ½ÚµãµÄÊä³öË³Ðò£¬Óëelement.node2½ÚµãºÅ¶ÔÓ¦¡£
+		real(kind=DPN),allocatable::xyz_section(:,:) !å•å…ƒé›†çš„ç»Ÿä¸€çš„æˆªé¢çš„å››ä¸ªè§’ç‚¹çš„åæ ‡ï¼ŒçŽ°å‡å®šä¸€ä¸ªå•å…ƒé›†å†…çš„æ‰€æœ‰æ†å•å…ƒæˆ–æ¢å•å…ƒçš„å±€éƒ¨åæ ‡ä¸€æ ·ã€‚
+		integer,allocatable::outorder(:) !è¾“å‡ºåŽå¤„ç†æ—¶ï¼ŒåŒä¸€å±€éƒ¨åæ ‡ä¸‹èŠ‚ç‚¹çš„è¾“å‡ºé¡ºåºï¼Œä¸Želement.node2èŠ‚ç‚¹å·å¯¹åº”ã€‚
         integer::noutorder=0
-		integer,allocatable::elist(:,:) !µ¥Ôª¼¯ÄÚµÄelist(2,noutorder)£¬Ä¿Ç°¼Ù¶¨Ò»¸ö½Úµã×î¶àÓÐ2¸ö¸ËÏµµ¥Ôª¡£
+		integer,allocatable::elist(:,:) !å•å…ƒé›†å†…çš„elist(2,noutorder)ï¼Œç›®å‰å‡å®šä¸€ä¸ªèŠ‚ç‚¹æœ€å¤šæœ‰2ä¸ªæ†ç³»å•å…ƒã€‚
 
     end type
 	type(eset_tydef)::eset(maxset) !the maximum set number allowed is MAXSET.
@@ -333,7 +333,7 @@ module solverds
 											!horizontal soil layer
 		integer::nsoil=1 !the number of soil layers
 		real(kind=DPN),allocatable::KO(:),weight(:),height(:)
-        integer,allocatable::eset(:) !¼ÆËãµØÓ¦Á¦Ê±£¬¼¤»îµÄµ¥Ôª¼¯,Ä¬ÈÏÈ«²¿µ¥Ôª¼¯¶¼¼¤»î¡£
+        integer,allocatable::eset(:) !è®¡ç®—åœ°åº”åŠ›æ—¶ï¼Œæ¿€æ´»çš„å•å…ƒé›†,é»˜è®¤å…¨éƒ¨å•å…ƒé›†éƒ½æ¿€æ´»ã€‚
         integer::neset=0
 	end type
 	type(geostatic_tydef)::geostatic
@@ -341,14 +341,14 @@ module solverds
 	!output variables
 	type outvar_tydef
 		character(128)::name=''
-		integer::value=0,ivo=0	!>0, variable output is required.,ivo=´ËÁ¿´æÖüÔÚNodalQ(:,ivo)
+		integer::value=0,ivo=0	!>0, variable output is required.,ivo=æ­¤é‡å­˜è´®åœ¨NodalQ(:,ivo)
 		logical::iscentre=.false. !location, nodes or centroid of element.
 		integer::system=0	!reference systerm,the default system is the globel sysytem
 								!if system=-999, then the local system is a cylindrical system whose origin is along 
 								!the central line of the cylinder.
 								!if system=-9999,then the local system is a spherical syystem whose origin is located
 								!at the center of the sphere
-		integer::nval=1 !Õâ¸ö±äÁ¿°üº¬¶àÉÙ¸öÊý¡£
+		integer::nval=1 !è¿™ä¸ªå˜é‡åŒ…å«å¤šå°‘ä¸ªæ•°ã€‚
 	end type
 	type(outvar_tydef)::outvar(150)	
 	integer::vo(150)=0,nvo=0
@@ -360,13 +360,13 @@ module solverds
 	integer::ncoord=0
     
 	
-	!×¢Òâ£¬masterµãÉÏµÄmdof×ÔÓÉ¶ÈÉÏÄ¿Ç°²»ÄÜÊ©¼ÓÎ»ÒÆ±ß½çÌõ¼þ£¬ÕâÊ±ÊäÈëÊ±±ä»»Ò»¸öslaveºÍmaster
+	!æ³¨æ„ï¼Œmasterç‚¹ä¸Šçš„mdofè‡ªç”±åº¦ä¸Šç›®å‰ä¸èƒ½æ–½åŠ ä½ç§»è¾¹ç•Œæ¡ä»¶ï¼Œè¿™æ—¶è¾“å…¥æ—¶å˜æ¢ä¸€ä¸ªslaveå’Œmaster
 	type slave_master_node_pairtydef		
 		integer::slave=0,sdof=0		
 		integer::master=0,mdof=0
-		integer::nmbl=0 !×÷ÓÃÔÚmaster½ÚµãÉÏµÄºÉÔØ¸öÊý,Ä¿Ç°×î¶àÔÊÐí10¸ö¡£
+		integer::nmbl=0 !ä½œç”¨åœ¨masterèŠ‚ç‚¹ä¸Šçš„è·è½½ä¸ªæ•°,ç›®å‰æœ€å¤šå…è®¸10ä¸ªã€‚
 		integer::mbl(10)=0
-		integer::pe=0 !¶ÔÓ¦µÄ·£µ¥Ôª
+		integer::pe=0 !å¯¹åº”çš„ç½šå•å…ƒ
 		real(kind=DPN)::interforce=0.0d0,load=0.0d0
 		real(kind=DPN)::aff=0.0d0 !allowablefrictionforce
 	end type
@@ -380,7 +380,11 @@ module solverds
     type(out_data_typdef),allocatable::DataPoint(:)
     integer::NDataPoint=0
 	
-
+    TYPE DOFADJL_TYDEF
+        INTEGER::NDOF=0,DOF_SIZE=20
+        INTEGER,ALLOCATABLE::DOF(:) !SORTED BY COLUMNS        
+    ENDTYPE
+    TYPE(DOFADJL_TYDEF),ALLOCATABLE::DOFADJL(:)
 	
     !type rcd_set_tydef
     !    integer::rcd
@@ -403,31 +407,31 @@ module solverds
 						!=3 input x,y and z
 							
 	integer::ndof=0 !total dof number
-	integer,allocatable::bw(:) 	!bw(i): firstly, it is the column number of the most left entry in the i row. and later, it is the bandwidth of the total matrix
+	INTEGER*8,allocatable::bw(:) 	!bw(i): firstly, it is the column number of the most left entry in the i row. and later, it is the bandwidth of the total matrix
 	integer,allocatable::adof(:)	!adof=1,active or deactive												!!for default solver, finally it stores the diagonal address in the total stiffness matrix
 	
 	integer::bwmax=0 !the maximum value of the band width. 
 	real(kind=DPN),allocatable::load(:),Tload(:),km(:),tdisp(:),bfload(:),stepload(:)	!km(:):Lower  trianglar part of total stiffness matrix(including diagonal elements)
 	real(kind=DPN),allocatable::tdispInLS(:) ! Total displacement in a local system.
-	real(kind=DPN),allocatable::NI_NodalForce(:) !ÓÉµ¥Ôª»ý·Ö¶øµÃµÄ½ÚµãÁ¦¡£
-	real(kind=DPN),allocatable::Tstepdis(:,:) !TstepDisp(ndof,nstep):¸÷²½½áÊøÊ±µÄ¸÷×ÔÓÉ¶ÈµÄÁ¿¡£ 
+	real(kind=DPN),allocatable::NI_NodalForce(:) !ç”±å•å…ƒç§¯åˆ†è€Œå¾—çš„èŠ‚ç‚¹åŠ›ã€‚
+	real(kind=DPN),allocatable::Tstepdis(:,:) !TstepDisp(ndof,nstep):å„æ­¥ç»“æŸæ—¶çš„å„è‡ªç”±åº¦çš„é‡ã€‚ 
 	!additioinal variables defined when the linear system is unsymmetric.
 !	real(kind=DPN),allocatable::ukm(:)	!ukm(:):Upper trianglar part of total stiffness matrix(including diagonal elements,but set equel to 0)
 !	integer,allocatable::ubw(:)
 	
 !	real(kind=DPN),allocatable::a(:) !nonzero elments in km(:) and ukm(:)	
 
-	integer::nnz=0
-	integer,allocatable::irow(:),jcol(:),Lmre(:),adrn(:) !Lmre(i): the column number of the most rigth entry in the i row.
-	integer,allocatable::ROWINDEX(:) !rowindex:×Ü¸ÕÖÐÃ¿Ò»ÐÐµÚÒ»¸ö·ÇÁãÔªËØÔÚ×Ü¸ÕÊý×éÖÐµÄÎ»ÖÃ;
-											!bw: Ò»¿ªÊ¼Îª×Ü¸ÕÖÐÃ¿Ò»ÐÐµÚÒ»¸ö·ÇÁãÔªËØÔÚ×Ü¸ÕÖÐµÄÁÐºÅ£¬×îºóÎª×Ü¸ÕÖÐÃ¿Ò»ÐÐ×îºóÒ»¸ö·ÇÁãÔªËØÔÚ×Ü¸ÕÊý×éÖÐµÄÎ»ÖÃ;
-											!Lmre:×Ü¸ÕÖÐÃ¿Ò»ÐÐ×îºóÒ»¸ö·ÇÁãÔªËØÔÚ×Ü¸ÕÖÐµÄÁÐºÅ¡£
-											!ÖµµÃ×¢ÒâµÄÊÇ£ºÔÚdefault solverÖÐ£¬×Ü¸Õº¬ÓÐÁãÔª£¨´æÔÚÓÚÃ¿ÐÐµÚÒ»¸ö·ÇÁãÔªºÍ×îºóÒ»¸ö·ÇÁãÔªÖ®¼ä£©£¬¶øÔÚmkl»ò×ø±ê´æ´¢¸ñÊ½ÖÐ£¬×Ü¸Õ²»º¬ÁãÔª¡£
-											!adrn(i):ÔÚdefault solverÖÐµÄ×Ü¸ÕÊý×éÖÐ·ÇÁãÔª i ÔÚmkl¸ñÊ½×Ü¸ÕÊý×éµÄÎ»ÖÃ¡£
+	INTEGER::nnz=0
+	integer,allocatable::jcol(:),Lmre(:),adrn(:) !Lmre(i): the column number of the most rigth entry in the i row.
+	integer,allocatable::ROWINDEX(:) !rowindex:æ€»åˆšä¸­æ¯ä¸€è¡Œç¬¬ä¸€ä¸ªéžé›¶å…ƒç´ åœ¨æ€»åˆšæ•°ç»„ä¸­çš„ä½ç½®;
+											!bw: ä¸€å¼€å§‹ä¸ºæ€»åˆšä¸­æ¯ä¸€è¡Œç¬¬ä¸€ä¸ªéžé›¶å…ƒç´ åœ¨æ€»åˆšä¸­çš„åˆ—å·ï¼Œæœ€åŽä¸ºæ€»åˆšä¸­æ¯ä¸€è¡Œæœ€åŽä¸€ä¸ªéžé›¶å…ƒç´ åœ¨æ€»åˆšæ•°ç»„ä¸­çš„ä½ç½®;
+											!Lmre:æ€»åˆšä¸­æ¯ä¸€è¡Œæœ€åŽä¸€ä¸ªéžé›¶å…ƒç´ åœ¨æ€»åˆšä¸­çš„åˆ—å·ã€‚
+											!å€¼å¾—æ³¨æ„çš„æ˜¯ï¼šåœ¨default solverä¸­ï¼Œæ€»åˆšå«æœ‰é›¶å…ƒï¼ˆå­˜åœ¨äºŽæ¯è¡Œç¬¬ä¸€ä¸ªéžé›¶å…ƒå’Œæœ€åŽä¸€ä¸ªéžé›¶å…ƒä¹‹é—´ï¼‰ï¼Œè€Œåœ¨mklæˆ–åæ ‡å­˜å‚¨æ ¼å¼ä¸­ï¼Œæ€»åˆšä¸å«é›¶å…ƒã€‚
+											!adrn(i):åœ¨default solverä¸­çš„æ€»åˆšæ•°ç»„ä¸­éžé›¶å…ƒ i åœ¨mklæ ¼å¼æ€»åˆšæ•°ç»„çš„ä½ç½®ã€‚
 	
 	
 	real(kind=DPN),allocatable::DIAGLKM(:) !STORED DIAGONAL ELEMENT OF THE KM BEFORE FACTORIZATION FOR FACTOR UPDATING.
-	integer,allocatable::diaglkmloc(:) !×Ü¸ÕÖÐ¶Ô½ÇÏßÔªËØÔÚ×Ü¸ÕÊý×éÖÐµÄÎ»ÖÃ¡£
+	!integer,allocatable::diaglkmloc(:) !æ€»åˆšä¸­å¯¹è§’çº¿å…ƒç´ åœ¨æ€»åˆšæ•°ç»„ä¸­çš„ä½ç½®ã€‚
 
 	!one dimensional linear field function
 	real(kind=DPN)::LF1D(0:maxilf,2)  !LF1D(:,1)=k,LF1D(:,2)=c. then y=k*x+c
@@ -443,22 +447,23 @@ module solverds
 	real(kind=DPN)::NormL=0.0
 	
 	real(kind=DPN)::minNPH=1e20
-	integer::isref_spg=0 !ÊÇ·ñÖØÐÂ·Ö½â¾ØÕó
+	integer::isref_spg=0 !æ˜¯å¦é‡æ–°åˆ†è§£çŸ©é˜µ
 	real(kind=DPN)::eps1=1e20,eps2=1e20
 	real(kind=DPN)::Origin_Sys_cylinder(3)=0.0  !in the order of x,y and z. the default value is 0.
-	real(kind=DPN)::Qinput=0.0d0,Qstored=0.0d0,Qstorted_ini=0.0d0 !ÖÊÁ¿ÊØºã 
+	real(kind=DPN)::Qinput=0.0d0,Qstored=0.0d0,Qstorted_ini=0.0d0 !è´¨é‡å®ˆæ’ 
 	
-	real(kind=DPN)::BARFAMILY_DIAGRAM_SCALE(12)=0.0D0 !ÏÈ´æ¾ø¶Ô×î´óÖµ£¬ºó´æ»­Í¼·Å´óÏµÊý£¬DISX,DISY,DISZ,RX,RY,RZ,FX,FY,FZ,MX,MY,MZ
+	real(kind=DPN)::BARFAMILY_DIAGRAM_SCALE(12)=0.0D0 !å…ˆå­˜ç»å¯¹æœ€å¤§å€¼ï¼ŒåŽå­˜ç”»å›¾æ”¾å¤§ç³»æ•°ï¼ŒDISX,DISY,DISZ,RX,RY,RZ,FX,FY,FZ,MX,MY,MZ
 	real(kind=DPN)::barfamily_minxyz(3)=1.0d20,barfamily_maxxyz(3)=-1.0d20,MYFVAL=-1.0D20,SICR=0 ! SICR=STRESS INTEGRATION CONVERGE RATIO
     INTEGER::ISEXCA2D=0,ISHBEAM=0,ISSLOPE=0,NYITER(2)=0
 	
-	INTEGER::NDOFHEAD=0,NDOFMEC=0 !!Ã¿²½µÄÉøÁ÷×ÔÓÉ¶ÈÊý¼°ÀûÏ¢×ÔÓÉ¶ÈÊý£¬
+	INTEGER::NDOFHEAD=0,NDOFMEC=0 !!æ¯æ­¥çš„æ¸—æµè‡ªç”±åº¦æ•°åŠåˆ©æ¯è‡ªç”±åº¦æ•°ï¼Œ
 	INTEGER,ALLOCATABLE::DOFHEAD(:),DOFMEC(:),CalStep(:) !head dofs in the model.
 	real(kind=DPN),allocatable::NodalQ(:,:,:),RTime(:) !NODALQ(INODE,IVO,NNODALQ) !NNODALQ=SUM(TEIMSTEP.nsubts)
 	INTEGER::NNODALQ=0
 	integer,allocatable::bfgm_step(:)
     integer::mpi_rank = 0, mpi_size = 1, mpi_ierr
     LOGICAL::ISINISEDGE=.FALSE.,ISOUT_WELL_FILE=.FALSE.
+    
     
     INTERFACE
          PURE subroutine INVARIANT(stress,inv)
@@ -690,8 +695,7 @@ FUNCTION KM_WELLBORE(A1,A2,A3,A4,A5) RESULT(KM)
 END FUNCTION
 
 
-
-REAL(8) FUNCTION fD_PF(RE,KR,REW) !darcy-friction for pipe flow
+REAL(8) FUNCTION fD_PF(RE,KR,MODEL,REW,POROSITY) !darcy-friction for pipe flow
     IMPLICIT NONE
 !function: calculate darcy-friction for pipe flow,if ReW>0,then it is a porous pipe flow
 !Re, Reynolds number (unitless);
@@ -700,56 +704,91 @@ REAL(8) FUNCTION fD_PF(RE,KR,REW) !darcy-friction for pipe flow
 !REF:[1] Fang X, Xu Y, Zhou Z. New Correlations of Single-Phase Friction Factor for Turbulent Pipe Flow and Evaluation of Existing Single-Phase Friction Factor Correlations[J]. Nuclear Engineering and Design, 2011, 241(3): 897-902. 
 ![2] Ouyang L-B, Arbabi S, Aziz K. General Wellbore Flow Model for Horizontal, Vertical, and Slanted Well Completions[J]. SPE Journal 1998, 3(2): 124~133.
     REAL(8),INTENT(IN)::RE,KR
-    REAL(8),INTENT(IN),OPTIONAL::REW
-    REAL(8)::LAMDA1,REW1,FC1
+    REAL(8),INTENT(IN),OPTIONAL::REW,POROSITY
+    INTEGER,INTENT(IN),OPTIONAL::MODEL
+    REAL(8)::LAMDA1,REW1,FC1,A,B,C,PO1,FO1,KR1
+    INTEGER::MODEL1
     
     IF(ABS(RE)<1.D-7) THEN
         LAMDA1=1E7
         RETURN
     ENDIF
     
-    IF(RE<3000) THEN
+    MODEL1=0
+    IF(PRESENT(MODEL)) MODEL1=MODEL
+    
+    
+    IF(MODEL1==1) THEN
+        PO1=0.D0
+        IF(PRESENT(POROSITY)) PO1=POROSITY
+        KR1=KR+0.282*PO1**2.4
+        FO1=0.0106*PO1**0.413
+    ENDIF
+    
+    IF(RE<2260) THEN
         LAMDA1=64./RE    
-    ELSEIF(KR>0.D0) THEN        
-        LAMDA1=1.613*(LOG(0.234*(KR)**1.1007-60.525/RE**1.1105+56.291/RE**1.0712))**(-2.0D0)
+    ELSEIF(RE<3400) THEN
+        A=-2.*log10(12/Re+KR1/3.7)
+        B=-2*log10(2.51*A/Re+KR1/3.7)
+        C=-2*log10(2.51/Re+KR1/3.7)
+        LAMDA1=A-(B-A)**2/(C-2*B-A)    
+        LAMDA1=(1./LAMDA1)**2          
+    ELSEIF(KR1>0.D0) THEN        
+        LAMDA1=1.613*(LOG(0.234*(KR1)**1.1007-60.525/RE**1.1105+56.291/RE**1.0712))**(-2.0D0)
     ELSE
         LAMDA1=0.25*(LOG10(150.39/RE**0.98865-152.66/RE))**(-2.D0)
     ENDIF
     
-    REW1=0.D0
-    IF(PRESENT(REW))    REW1=REW
-    FC1=1.D0
-    IF(ABS(REW1)>1.D-7) THEN
-        !INFLOW
-        IF(REW1>0.D0) THEN
-            IF(RE<3000) THEN
-            !LAMINAR
-                FC1=1.0+0.04304*REW1**0.6142
-            ELSE
-                !TURBULENT
-                FC1=1.0-0.0153*REW1**0.3978
-            ENDIF
+    
+    
+    SELECT CASE(MODEL1)
+    
+    CASE(0) !DARCY,DEFAULT
+        fD_PF=LAMDA1    
+    CASE(1) !SIWON
+        fD_PF=LAMDA1+FO1
+    CASE(2) !OUYANG
+        REW1=0.D0
+        IF(PRESENT(REW))    REW1=REW
+        FC1=1.D0
+        IF(ABS(REW1)>1.D-7) THEN
+            !INFLOW
+            IF(REW1>0.D0) THEN
+                IF(RE<3000) THEN
+                !LAMINAR
+                    FC1=1.0+0.04304*REW1**0.6142
+                ELSE
+                    !TURBULENT
+                    FC1=1.0-0.0153*REW1**0.3978
+                ENDIF
         
-        ELSE
-        !OUTFLOW
-            IF(RE<3000) THEN
-            !LAMINAR
-                !FC1=1.0-0.0625*(-REW1)**1.3056/(REW1+4.626)**-0.2724
+            ELSE
+            !OUTFLOW
+                IF(RE<3000) THEN
+                !LAMINAR
+                    !FC1=1.0-0.0625*(-REW1)**1.3056/(REW1+4.626)**-0.2724
                 
-                    !!!!!!!!!!!!
-                !IF(ISNAN(FC1)) FC1=1.0-0.04304*(-REW1)**0.6142
-                FC1=1.D0
-            ELSE
-            !TURBULENT
-                FC1=1.0-17.5*REW1/RE**0.75
-            ENDIF        
+                        !!!!!!!!!!!!
+                    !IF(ISNAN(FC1)) FC1=1.0-0.04304*(-REW1)**0.6142
+                    FC1=1.D0
+                ELSE
+                !TURBULENT
+                    FC1=1.0-17.5*REW1/RE**0.75
+                ENDIF        
         
+            ENDIF
         ENDIF
-    ENDIF
     
-    IF(FC1<0.D0) FC1=1.D0
+        IF(FC1<0.D0) FC1=1.D0
     
-    fD_PF=LAMDA1*FC1
+        fD_PF=LAMDA1*FC1    
+    CASE(3) !USER INPUT
+        
+    ENDSELECT
+    
+    
+    
+    
     
     IF(ISNAN(fD_PF)) THEN
         PRINT *, 'fD_PF IS NAN'
@@ -771,10 +810,10 @@ REAL(8) FUNCTION Re_W(V,D,T)
 !calculate Reynold number of water for pipe flow
 !V,VELOCITY,m/s
 !D,DIAMETER,m
-!T,temperature,celsius ÉãÊÏ¶È, fitting range 0<=T<=80
+!T,temperature,celsius æ‘„æ°åº¦, fitting range 0<=T<=80
 IMPLICIT NONE
 REAL(8),INTENT(IN)::V,D !unit,v,m/s, D,m
-REAL(8),INTENT(IN),OPTIONAL::T !unit= ÉãÊÏ¶È
+REAL(8),INTENT(IN),OPTIONAL::T !unit= æ‘„æ°åº¦
 REAL(8)::T1
 
 IF(.NOT.PRESENT(T)) THEN
@@ -817,9 +856,9 @@ MODULE SOLVERLIB
         ENDSUBROUTINE
         
         subroutine enlarge_element(EL,NEL,enel,iel)
-        !À©´óELÊý×é,Í¬Ê±update×ÜµÄµ¥ÔªÊýNEL=NEL+enel
-        !Enel:À©´óµÄµ¥Ôª¸öÊý
-        !iel,:À©ÈÝ²¿·ÖµÄÆðÎ»
+        !æ‰©å¤§ELæ•°ç»„,åŒæ—¶updateæ€»çš„å•å…ƒæ•°NEL=NEL+enel
+        !Enel:æ‰©å¤§çš„å•å…ƒä¸ªæ•°
+        !iel,:æ‰©å®¹éƒ¨åˆ†çš„èµ·ä½
             USE solverds
 	        integer,intent(in)::enel
             INTEGER,INTENT(IN OUT)::NEL
@@ -828,9 +867,9 @@ MODULE SOLVERLIB
         ENDSUBROUTINE
 
         subroutine enlarge_node(EL,NEL,enel,iel)
-        !À©´óELÊý×é,Í¬Ê±update×ÜµÄµ¥ÔªÊýNEL=NEL+enel
-        !Enel:À©´óµÄµ¥Ôª¸öÊý
-        !iel,:À©ÈÝ²¿·ÖµÄÆðÎ»
+        !æ‰©å¤§ELæ•°ç»„,åŒæ—¶updateæ€»çš„å•å…ƒæ•°NEL=NEL+enel
+        !Enel:æ‰©å¤§çš„å•å…ƒä¸ªæ•°
+        !iel,:æ‰©å®¹éƒ¨åˆ†çš„èµ·ä½
             USE solverds
 	        integer,intent(in)::enel
             INTEGER,INTENT(IN OUT)::NEL
@@ -857,9 +896,9 @@ MODULE SOLVERLIB
 
     
 subroutine enlarge_bc(bc,nbc,enbc,ibc)
-    !À©´óbcÊý×é,Í¬Ê±update×ÜµÄµ¥ÔªÊýNBC=NBC+enBC
-    !EnBC:À©´óµÄµ¥Ôª¸öÊý
-    !iBC:À©ÈÝ²¿·ÖµÄ³õÊ¼ÆðÎ»
+    !æ‰©å¤§bcæ•°ç»„,åŒæ—¶updateæ€»çš„å•å…ƒæ•°NBC=NBC+enBC
+    !EnBC:æ‰©å¤§çš„å•å…ƒä¸ªæ•°
+    !iBC:æ‰©å®¹éƒ¨åˆ†çš„åˆå§‹èµ·ä½
 	    use solverds	
 	    implicit none
 	    integer,intent(in)::enbc
@@ -881,9 +920,9 @@ subroutine enlarge_bc(bc,nbc,enbc,ibc)
     endsubroutine
     
 subroutine enlarge_element(EL,NEL,enel,iel)
-!À©´óELÊý×é,Í¬Ê±update×ÜµÄµ¥ÔªÊýNEL=NEL+enel
-!Enel:À©´óµÄµ¥Ôª¸öÊý
-!iel,:À©ÈÝ²¿·ÖµÄÆðÎ»
+!æ‰©å¤§ELæ•°ç»„,åŒæ—¶updateæ€»çš„å•å…ƒæ•°NEL=NEL+enel
+!Enel:æ‰©å¤§çš„å•å…ƒä¸ªæ•°
+!iel,:æ‰©å®¹éƒ¨åˆ†çš„èµ·ä½
 	use solverds	
 	implicit none
 	integer,intent(in)::enel
@@ -905,9 +944,9 @@ subroutine enlarge_element(EL,NEL,enel,iel)
 endsubroutine    
 
 subroutine enlarge_node(EL,NEL,enel,iel)
-!À©´óELÊý×é,Í¬Ê±update×ÜµÄµ¥ÔªÊýNEL=NEL+enel
-!Enel:À©´óµÄµ¥Ôª¸öÊý
-!iel,:À©ÈÝ²¿·ÖµÄÆðÎ»
+!æ‰©å¤§ELæ•°ç»„,åŒæ—¶updateæ€»çš„å•å…ƒæ•°NEL=NEL+enel
+!Enel:æ‰©å¤§çš„å•å…ƒä¸ªæ•°
+!iel,:æ‰©å®¹éƒ¨åˆ†çš„èµ·ä½
 	use solverds	
 	implicit none
 	integer,intent(in)::enel

@@ -211,7 +211,7 @@ end if
 		
 		   print *,'Reading POINT data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,*) '\n Point的输入格式为:\n 1)点数(inpn);\n 2)序号(num),坐标(x),坐标(y); \n ..... \n 共inpn个.\n'c
+		   write(*,*) '\n Point的输入格式为:\n 1)点数(inpn);\n 2)序号(num),坐标(x),坐标(y),[elevation(1:soillayer+1)]; \n ..... \n 共inpn个.\n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
             do i=1, pro_num
                 select case(property(i).name)
@@ -375,7 +375,7 @@ end if
 		case('zone','ZONE')
 		   print *,'Reading ZONE data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,*) '\n zone的输入格式为:\n 1)区域数(znum);\n 2) \n(a) 区域坐标数(num);区域地层材料号(k(1:soillayer));区域地表水头(ch,-9999表示地表水头底于地表高程,-999表从文件读入). \n(b)点号(num个). \n ..... \n 共znum个.\n'c
+		   write(*,*) '\n zone的输入格式为:\n 1)区域数(znum);\n 2) \n(a) 区域坐标数(num)[,OutGmshType,iElevation];!OutGmshType=1 Physical Volume only; =2 Physical Surface only; =3, both;if OutGmshType=2/3, iElevation指定输出哪个高程的面。\n(b) 点号(num个). \n ..... \n 共znum个.\n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
 		   read(unit,*) znum
 		   noun='zone'
@@ -385,7 +385,12 @@ end if
 				 !call indataerror(i,noun,unit)
 				 call strtoint(unit,ar,dnmax,dn,dnmax)
                  zone(i).num=int(ar(1))
-                 if(dn>1) zone(i).k=int(ar(2))
+                 if(dn>1) then
+                    zone(i).OutGmshType=int(ar(2))
+                 endif
+                 if(dn>2) then
+                    zone(i).iElevation=int(ar(3))
+                 endif
 				 !read(unit,*) zone(i).num,zone(i).k !//.k is material number.
 
 				 allocate(zone(i).point(2,zone(i).num))
@@ -508,9 +513,9 @@ end if
 			  BNpt.npt=>node(nnode)
                 n1=b(mod(i,keypn)+1)
                 nseg=nseg+1
-                segindex(I,n1)=nseg
-                segindex(n1,I)=nseg
-                seg(nseg).sv=I
+                segindex(b(i),n1)=nseg
+                segindex(n1,b(I))=nseg
+                seg(nseg).sv=b(I)
                 seg(nseg).ev=n1
                 seg(nseg).icl=0
                 if(i==keypn) seg(nseg).ist2h=1			  

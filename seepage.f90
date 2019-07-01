@@ -339,7 +339,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
     INTEGER::I,J,K,I0,IN1,IN2,IN3,N1,N2,IEL1,IP1,MODEL1,II1,NDOF1,ET1
     REAL(8)::H1,X1(3),R1,Q1(4),PI1,LAMDA1,K1,DIS1,DH1,A1(5),NHEAD1(5),KM1(5,5),HZ1,RA1,X2(3),&
     W1,TW1,RE1,VA1,QR1,FD1,L1,D1,QA1,VR1,AREA1,g1,FACC1,REW1,cf1,QN1(5),KX1,KY1,KZ1,SITA1(3),LP1,&
-    KR1,XC1(3),VW1(3),T1
+    KR1,XC1(3),VW1(3),T1,C1,B1,PO1,VS1
     LOGICAL::ISO1=.FALSE.,ISIN1=.FALSE.
     
     NDOF1=ELEMENT(IEL).NDOF;ET1=ELEMENT(IEL).ET
@@ -356,7 +356,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
     MODEL1=INT(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(6))
  
     
-    IF(ET1/=WELLBORE_SPGFACE.AND.MODEL1/=0) THEN
+    IF(ET1/=WELLBORE_SPGFACE) THEN
         L1=2*DIS1
         D1=2*MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)
         AREA1=PI1*D1**2/4.0
@@ -369,35 +369,64 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
         endif
             
         !ACCELERATION LOSS.
+        
         IF(ELEMENT(IEL).ET==WELLBORE) THEN
             QR1=(NHEAD1(3)-NHEAD1(2))*ELEMENT(IEL).KM(3,3)+(NHEAD1(4)-NHEAD1(1))*ELEMENT(IEL).KM(4,4)
-            FACC1=2*QR1/(G1*AREA1**2)
-        ENDIF
-            
-        !FRICTION PART, CONSIDERING THE TURBULENT AND POROUS SIDE EFFECT
-        IF(MODEL1==2) THEN
-            !ASSUME LENGHTH UNIT IS M
-            IF(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(8)>0.D0) THEN
-                FD1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(8)
+            FACC1=QR1/(G1*AREA1**2)
+            IF(MODEL1==1.AND.ABS(QR1)>1.E-7) THEN
+            ! Siwoń, Z. (1987), Solutions for Lateral Inflow in Perforated Conduits, Journal of Hydraulic Engineering, 113(9), 1117-1132.
+                PO1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(9)
+                B1=10/(1000*PO1)**4.2+4/10**7                
+                C1=1.05+1./(1.235+B1*(QA1/QR1*4*L1*PO1/D1)**2)
             ELSE
-                IF(ABS(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(4))<1.D-7) THEN
-                    CF1=1./24/3600 !to m/s
-                ELSE
-                    CF1=1.0D0
-                ENDIF
-                RE1=Re_W(VA1*CF1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
-                VR1=QR1/(L1*PI1*D1)
-                REW1=Re_W(VR1*CF1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
-                FD1=FD_PF(RE1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(3),REW1) 
+                C1=2.0
             ENDIF
-            FD1=FD1*L1*QA1/(2*D1*G1*AREA1**2)
-        ENDIF            
+            FACC1=C1*FACC1
+        ELSE
+            QR1=0.D0
+        ENDIF
+        
+        IF(MODEL1==3) THEN
+            FD1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(8)
+        ELSE
+            IF(ABS(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(4))<1.D-7) THEN
+                CF1=1./24/3600 !to m/s
+            ELSE
+                CF1=1.0D0
+            ENDIF
+            RE1=Re_W(VA1*CF1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
+            VR1=QR1/(L1*PI1*D1)
+            REW1=Re_W(VR1*CF1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
+            FD1=FD_PF(RE1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(3),REW=REW1,POROSITY=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(9),MODEL=MODEL1) 
+        ENDIF
+        
+        FD1=FD1*L1*QA1/(2*D1*G1*AREA1**2)
+       
+        
+        !FRICTION PART, CONSIDERING THE TURBULENT AND POROUS SIDE EFFECT
+        !IF(MODEL1==2) THEN
+        !    !ASSUME LENGHTH UNIT IS M
+        !    IF(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(8)>0.D0) THEN
+        !        FD1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(8)
+        !    ELSE
+        !        !IF(ABS(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(4))<1.D-7) THEN
+        !        !    CF1=1./24/3600 !to m/s
+        !        !ELSE
+        !        !    CF1=1.0D0
+        !        !ENDIF
+        !        !RE1=Re_W(VA1*CF1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
+        !        VR1=QR1/(L1*PI1*D1)
+        !        REW1=Re_W(VR1*CF1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
+        !        FD1=FD_PF(RE1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(3),REW1) 
+        !    ENDIF
+        !    FD1=FD1*L1*QA1/(2*D1*G1*AREA1**2)
+        !ENDIF            
     END IF 
     
     ELEMENT(IEL).PROPERTY(1)=FD1;ELEMENT(IEL).PROPERTY(4)=FACC1; 
     
-    IF(ABS(FD1)<1E-10) THEN
-        FD1=1.D-10
+    IF(ABS(FD1)<1E-15) THEN
+        FD1=1.D-15
     ENDIF
     
     
@@ -410,7 +439,6 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
     
     IF(ET1==PIPE2) THEN
         KM1(1,1)=A1(1);KM1(2,2)=A1(1);KM1(1,2)=-A1(1);KM1(2,1)=-A1(1)
-     
     ELSE
         !WRITE(99,10) 
         
@@ -496,7 +524,11 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
                     CALL lamda_spg(IEL1,H1,XC1(NDIMENSION),lamda1,ISTEP)
                     KR1=LAMDA1*KR1
                 
-                    IF(R1<=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)) CYCLE
+                    IF(R1<=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)) THEN
+                        PRINT *,'THE ELEMENT SIZE AROUND THE NODE I SEEMS TO BE TOO SMALL. I=', NODE(ELEMENT(IEL).NODE(IN1)).COORD
+                        CYCLE 
+                        
+                    ENDIF
                     IF((LP1<0.D0.OR.LP1>2*DIS1).AND.ISIN1) CYCLE !跳过不在单元范围内的节点
                
                     HZ1=NHEAD1(2)+(NHEAD1(1)-NHEAD1(2))/(2*DIS1)*LP1 
@@ -529,26 +561,16 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
             
             IF(ABS(DH1)<1.D-10) DH1=1.D-10
             
-            ELEMENT(IEL).PROPERTY(I+1)=ABS(DH1/Q1(I+2))
-            !IF(ET1==WELLBORE_SPGFACE) THEN
-            !    !出溢面单元1,2节点的与井点的水头差等于高程差。
-            !    T1=NODE(ELEMENT(IEL).NODE(I+1)).COORD(NDIMENSION)-NHEAD1(5)
-            !    IF(ABS(T1)<1.E-7) T1=1.E-7
-            !    T1=ABS(Q1(I+2)/T1)
-            !    IF(I==1) THEN
-            !        A1(5)=T1 !A25
-            !    ELSE
-            !        A1(4)=T1 !A15
-            !    ENDIF
-            !ENDIF
+            ELEMENT(IEL).PROPERTY(I+1)=ABS(DH1/Q1(I+2)) !!!
+
             
             !井损
             A1(I+1)=1.0/(ELEMENT(IEL).PROPERTY(I+1)+ELEMENT(IEL).PROPERTY(5))
         ENDDO
 
-        !IF(ANY(ISNAN(A1(1:3)))) THEN
-        !    PRINT *, 'NAN'
-        !ENDIF
+        IF(ANY(ISNAN(A1(1:3)))) THEN
+            PRINT *, 'NAN'
+        ENDIF
         
          KM1(1:NDOF1,1:NDOF1)=KM_WELLBORE(A1(1),A1(2),A1(3))
 
@@ -571,7 +593,7 @@ END SUBROUTINE
 
 SUBROUTINE INI_WELLBORE(IELT)
     
-    USE MESHADJ
+    USE MESHADJ,ONLY:SETUP_EDGE_ADJL,SEDGE,NSEDGE,SNADJL,GETGMSHET,ELTTYPE
     USE solverds
     USE SolverMath
     IMPLICIT NONE
@@ -687,6 +709,7 @@ SUBROUTINE INI_WELLBORE(IELT)
            
         ENDDO
         T1=SUM(RDIS1(1:N2))/N2
+
         IF(J==3) THEN
             !ALLOCATE(ELEMENT(IELT).WELL_SP3(N2),ELEMENT(IELT).WELL_SP3_R(N2))
             !ELEMENT(IELT).NWSP3=N2
@@ -892,7 +915,7 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE(STEPDIS,IELT,ISTEP,IITER)
         Q1=Q1/TPHI1
         IF(ELEMENT(IELT).ET==SPHFLOW) Q1=2.D0*Q1
     
-        T1=ABS(Q1/(NHEAD1(2)-NHEAD1(1)))
+        T1=ABS(Q1/(NHEAD1(2)-NHEAD1(1))) !!!!abs
     ENDIF
     
     KM1(1,1)=1.D0;KM1(2,2)=1.D0
@@ -932,7 +955,7 @@ SUBROUTINE WELL_ELEMENT_OUT(ISTEP,ISUBTS,IITER)
 	    if(sf(eset(iset1).sf).factor(ISTEP)==0) cycle
         IF(.NOT.(ANY([WELLBORE,PIPE2,SPHFLOW,SEMI_SPHFLOW]-ESET(ISET1).ET==0))) CYCLE
         
-        IF(ESET(ISET1).ET==WELLBORE) THEN
+        IF(ESET(ISET1).ET==WELLBORE.OR.ESET(ISET1).ET==WELLBORE_SPGFACE) THEN
             WRITE(FILE_UNIT,10) 
         ELSE
             WRITE(FILE_UNIT,20) 

@@ -593,6 +593,22 @@ subroutine elementgroup()
 			case(15)
 				zone(n1).ntrie15n=zone(n1).ntrie15n+1				
 		end select
+        
+        if(elt(i).zn2>0) then
+            n1=elt(i).zn2
+		    zone(n1).nitem=zone(n1).nitem+1
+		    select case(elt(i).et)
+			    case(-1)
+				    zone(n1).ndise4n=zone(n1).ndise4n+1
+			    case(0)
+				    zone(n1).ntrie3n=zone(n1).ntrie3n+1
+			    case(6)
+				    zone(n1).ntrie6n=zone(n1).ntrie6n+1
+			    case(15)
+				    zone(n1).ntrie15n=zone(n1).ntrie15n+1				
+		    end select        
+        endif
+        
 	end do
 
 	do i=1,znum
@@ -633,6 +649,27 @@ subroutine elementgroup()
 				zone(n1).ntrie15n=zone(n1).ntrie15n+1
 				zone(n1).trie15n(zone(n1).ntrie15n)=i								
 		end select
+        
+        if(elt(i).zn2>0) then
+            n1=elt(i).zn2
+		    zone(n1).nitem=zone(n1).nitem+1
+		    zone(n1).item(zone(n1).nitem)=i
+		    select case(elt(i).et)
+			    case(-1)
+				    zone(n1).ndise4n=zone(n1).ndise4n+1
+				    zone(n1).dise4n(zone(n1).ndise4n)=i				
+			    case(0)
+				    zone(n1).ntrie3n=zone(n1).ntrie3n+1
+				    zone(n1).trie3n(zone(n1).ntrie3n)=i	
+			    case(6)
+				    zone(n1).ntrie6n=zone(n1).ntrie6n+1
+				    zone(n1).trie6n(zone(n1).ntrie6n)=i
+			    case(15)
+				    zone(n1).ntrie15n=zone(n1).ntrie15n+1
+				    zone(n1).trie15n(zone(n1).ntrie15n)=i								
+		    end select 
+        endif
+        
 	end do
 
  end subroutine

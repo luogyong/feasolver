@@ -44,6 +44,7 @@ Global
 		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Release|x86.ActiveCfg = Release|Win32
 		{EC94330D-D137-4AB6-9484-DD93C77F9EDB}.Release|x86.Build.0 = Release|Win32
 		{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}.Debug|x64.ActiveCfg = Debug|x64
+		{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}.Debug|x64.Build.0 = Debug|x64
 		{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}.Debug|x86.ActiveCfg = Debug|Win32
 		{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}.Debug|x86.Build.0 = Debug|Win32
 		{FD86AC44-C0A3-491F-ACE5-AFB081E29C33}.Release|x64.ActiveCfg = Release|x64
@@ -54,9 +55,9 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		BuildVersion_UseGlobalSettings = True
-		BuildVersion_StartDate = 2000/1/1
-		BuildVersion_BuildVersioningStyle = YearStamp.MonthStamp.DayStamp.Increment
 		SolutionGuid = {7EAC45B3-3731-465F-B1F3-BA1A5073FEC3}
+		BuildVersion_BuildVersioningStyle = YearStamp.MonthStamp.DayStamp.Increment
+		BuildVersion_StartDate = 2000/1/1
+		BuildVersion_UseGlobalSettings = True
 	EndGlobalSection
 EndGlobal

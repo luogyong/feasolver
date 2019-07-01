@@ -179,6 +179,20 @@ subroutine kwcommand(term,unit)
 	strL1=len_trim(term)
 	
 	select case (term)
+    CASE('helpfile')
+        print *, 'WRITING A HELPFILE IN THE CURRENT DIR'
+        
+        call skipcomment(unit)
+        read(unit,*) n1
+        call write_readme_gmsh2sinp()
+        if(n1>0) STOP "DONE.A HELPFILE IS OUT IN THE CURRENT DIR."
+        
+    CASE("endhelpfile")
+        strL1=11
+        write(*, 20) "ENDHELPFILE" 
+        
+
+    
 	CASE('off_merge')
 		call skipcomment(unit)
 		call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
