@@ -39,7 +39,7 @@
 			call Removesupertri()			
 			call RemoveT()
 			call TIME(char_time)
-				if(isnorefined==0) then
+			if(isnorefined==0) then
 				print *, 'Control lines have been repaired in the initial mesh. Begin to refine the initial mesh, please warit¡­: ', char_time
 				call InsertPoint()
 				call TIME(char_time)
@@ -55,6 +55,7 @@
 		
 		if(nsm>0) call structuremesh()
 		call group()
+        
 		call elementgroup()
 		call limitanalysisgrid()
 		call time(char_time)	 

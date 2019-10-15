@@ -7,6 +7,7 @@
      use meshDS
 	 use dflib
 	 implicit none
+     
      integer::i,j,k,n1,n2,n3,n4,n5,iflag,unit,iar
      real(8)::t1,t2
 	 real(8)::ccw
@@ -21,60 +22,57 @@
 	 INTEGER,ALLOCATABLE::IPERM(:)
 	 type(element_tydef),pointer::el
 
-
+     
+     !if(present(iouttype)) then
+     !   iouttype1=iouttype
+     !   TNODE=NNODE*(SOILLAYER+1)
+     !else
+     !   iouttype1=0
+     !   TNODE=NNODE
+     !endif
+     TNODE=NNODE*(SOILLAYER+1)
 	 !节点重编号以优化带宽
      call time(char_time)
 	 print *, '正在优化节点编号，请稍候…: ', char_time	
 	!activate nodes
-	node(1:nnode).subbw=-999 !-999 suggesting deadth. 
+	node.subbw=-999 !-999 suggesting deadth. 
     
     !nnode=nnode*(soillayer+1)
 	
     do ept=1,nelt
 		if(elt(ept).isdel) cycle
-		node(elt(ept).node(1)).subbw=0 !0 indicating live
-		node(elt(ept).node(2)).subbw=0
-		node(elt(ept).node(3)).subbw=0
-		if(elt(ept).node(4)>0) node(elt(ept).node(4)).subbw=0
-		if(elt(ept).et==15) then
-			do k=4,15
-			    node(elt(ept).node(k)).subbw=0		   
-			end do
-		end if
-		if(elt(ept).et==6) then
-			do k=4,6
-			    node(elt(ept).node(k)).subbw=0		   
-			end do
-		end if						
+        if(.not.elt(ept).ismodel) cycle
+		node(elt(ept).node(1:elt(ept).nnum)).subbw=0 !0 indicating live
 	end do	
+  
 	
 	ng=0
-	do i=1,nnode
+	do i=1,tnode
 		if(node(i).subbw/=0) cycle
 		ng=ng+1
 		node(i).number=ng
 	end do
-	allocate(Noutputorder(ng))
+	allocate(Noutputorder(tnode))
 	!nnode=ng
 
-	ALLOCATE(IPERM(NG))
-	call reorder_nodal_number(IPERM,NG)
-	do i=1,nnode
+	ALLOCATE(IPERM(tnode))
+    call reorder_nodal_number(IPERM,tnode,node(1:),nelt,elt)
+    IPERM=IPERM-(TNODE-NG)
+    
+	do i=1,tnode
 		if(node(i).subbw/=0) cycle
 		noutputorder(IPERM(node(i).number))=i	
 		node(i).number=IPERM(node(i).number)		
 	end do
 	DEALLOCATE(IPERM)
 
-	 !calculate the globe semi-bandwith
-   call time(char_time)
-	 print *, '正在计算带宽，请稍候…: ', char_time	
-	 call csb()
+ 
+	
 	!group elements
 	 call elementgroup()
 	
 	 unit=1
-   open(unit,file=resultfile,status='replace')
+     open(unit,file=resultfile,status='replace')
 	
 	 	
 !全域输出节点和单元 
@@ -173,78 +171,114 @@
 	!enum:单层所有单元的个数，enum_tri:单层三角形单元的个数
 	subroutine node_element_out(unit,norder,nnum)
 		use meshds
+        use BC_HANDLE
 		implicit none
 		integer,intent(in)::unit,nnum,norder(nnum)
 		integer::i,j,k
-		integer::n1,n3,n4,n5
+		integer::n1,n2,n3,n4,n5,nnode1,ilayer1,NELT1,ITEM,ITEM1
 		character(256)::outstring=''
 		character(16)::term='',cs(2)=''
 		real(8)::ccw,x1,y1,x2,y2,x3,y3
 		logical,external::isacw
-
+        INTEGER,POINTER,DIMENSION(:)::EPT1
+        !type(element_tydef),POINTER,dimension(:)::ELT1
 		!write(unit,'(/,a16)')  'node'
+        
+	    item=len('Title')
+	    write(unit,100) 'Title'
+	    item=len_trim(RESULTFILE)
+	    write(unit,101) RESULTFILE        
+        
+        
 		n1=nnum
-		write(unit,10) n1
+		write(unit,110) n1,1,modeldimension
 		do i=1,nnum
 			j=norder(i)
-			write(unit,'(3e15.7)') node(j).x*xyscale+xmin,node(j).y*xyscale+ymin	
+			IF(modeldimension==3) THEN
+                write(unit,111) node(j).x*xyscale+xmin,node(j).y*xyscale+ymin,node(j).z
+            ELSE
+                write(unit,111) node(j).x*xyscale+xmin,node(j).y*xyscale+ymin
+            ENDIF
 		end do
 	
-		
-		do i=1,znum
-			!write(cs(1),'(i15)') i
-			if(zone(i).ntrie3n>0) then
-				!write(cs(2),'(i15)') zone(i).ntrie3n
-				!outstring='Element, Material='//trim(adjustl(cs(1)))//',Etype=Trie3n, Num='//trim(adjustl(cs(2)))
-				!write(unit, '(a256)') outstring
-				write(unit, 20) zone(i).ntrie3n,i,zone(i).k,'cpe3_'//trim(adjustL(solverInfo.ProblemType))
-				do j=1,zone(i).ntrie3n
-					n1=zone(i).trie3n(j)
-					!x1=node(elt(n1).node(1)).x
-					!y1=node(elt(n1).node(1)).y
-					!x2=node(elt(n1).node(2)).x
-					!y2=node(elt(n1).node(2)).y
-					!x3=node(elt(n1).node(3)).x
-					!y3=node(elt(n1).node(3)).y
-					!if(isacw(x1,y1,x2,y2,x3,y3)) then
-						write(unit,'(3i15)') node(elt(n1).node(1)).number,node(elt(n1).node(2)).number,node(elt(n1).node(3)).number
-					!else
-					!	write(unit,'(3i15)') node(elt(n1).node(2)).number,node(elt(n1).node(1)).number,node(elt(n1).node(3)).number
-					!end if
-				end do
-			end if
-			if(zone(i).ndise4n>0) then
-				write(cs(2),'(i15)') zone(i).ndise4n
-				outstring='Element, Material='//trim(adjustl(cs(1)))//',Etype=Dise4n, Num='//trim(adjustl(cs(2)))
-				write(unit, '(a256)') outstring
-				do j=1,zone(i).ndise4n
-					n1=zone(i).dise4n(j)
-					write(unit,'(4i15)') node(elt(n1).node(1:4)).number
-				end do
-			end if
-			if(zone(i).ntrie6n>0) then
-				!write(cs(2),'(i15)') zone(i).ntrie6n
-				!outstring='Element, Material='//trim(adjustl(cs(1)))//',Etype=Tri6n, Num='//trim(adjustl(cs(2)))
-				!write(unit, '(a256)') outstring
-				write(unit, 20) zone(i).ntrie6n,i,zone(i).k,'cpe6_'//trim(adjustL(solverInfo.ProblemType))
-				do j=1,zone(i).ntrie6n
-					n1=zone(i).trie6n(j)
-					write(unit,'(6i15)') node(elt(n1).node(1:6)).number
-				end do				
-			end if
-			if(zone(i).ntrie15n>0) then
-				!write(cs(2),'(i15)') zone(i).ntrie15n
-				!outstring='Element, Material='//trim(adjustl(cs(1)))//',Etype=Tri15n, Num='//trim(adjustl(cs(2)))
-				!write(unit, '(a256)') outstring
-				write(unit, 20) zone(i).ntrie15n,i,zone(i).k,'cpe15_'//trim(adjustL(solverInfo.ProblemType))
-				do j=1,zone(i).ntrie15n
-					n1=zone(i).trie15n(j)
-					write(unit,'(15i15)') node(elt(n1).node(1:15)).number
-				end do				
-			end if						
-		end do
-10 format('node,num=',i7)
-20 format('element,num=',i7,'set=',i3,'matid=',i3,'et=',a12)
+		do i=1,nmgroup
+            n1=model(i).izone    
+            n2=model(i).ilayer
+            
+            select case(trim(adjustl(model(i).et))) 
+            case('cpe3_spg','cpe3')                
+                NELT1=ZONE(N1).NTRIE3N
+                EPT1=>ZONE(N1).TRIE3N
+                nnode1=3;ilayer1=n2
+                !ELT1=>ELT
+            case('cpe6_spg','cpe6')                
+                NELT1=ZONE(N1).NTRIE6N
+                EPT1=>ZONE(N1).TRIE6N
+                nnode1=6;ilayer1=n2
+                !ELT1=>ELT
+            case('cpe15_spg','cpe15')                
+                NELT1=ZONE(N1).NTRIE15N
+                EPT1=>ZONE(N1).TRIE15N
+                nnode1=15;ilayer1=n2
+                !ELT1=>ELT
+            case('tet4_spg','tet4')
+                NELT1=ZONE(N1).NTET(N2)
+                EPT1=>ZONE(N1).TET(:,N2)
+                !ELT1=>TETELT
+                nnode1=4;ilayer1=0
+            case('prm6_spg','prm6')
+                NELT1=ZONE(N1).NPRM(N2)
+                EPT1=>ZONE(N1).PRM(:,N2)
+                !ELT1=>PRMELT
+                nnode1=6;ilayer1=0
+            case('dise4n')
+                NELT1=ZONE(N1).ndise4n
+                EPT1=>ZONE(N1).dise4n
+                nnode1=4;ilayer1=n2
+                !ELT1=>ELT
+            case default
+                print *, 'not finished yet. subroutine node_element_out.'
+                stop
+            end select
+            
+            item=len_trim(adjustL(model(i).et))
+		    ITEM1=len_trim(adjustL(model(i).name))
+            WRITE(UNIT,120) nelt1,i,trim(adjustl(model(i).et)),model(i).mat,model(i).coupleset,model(i).sf,trim(adjustl(model(i).name))
+            
+            do J=1,nelt1
+                item=nnode1
+                write(unit,121) NODE(ELT(ept1(j)).node(1:nnode1)+ilayer1*nnode).number
+            enddo
+        enddo
+        
+        
+        do i=1,nzbc
+            call zonebc(i).set_bc
+            call zonebc(i).output(unit)
+        enddo
+        
+        do i=1,nlbc
+            call linebc(i).initialize
+            call linebc(i).set_bc
+            call linebc(i).output(unit)
+        enddo
+        
+        
+        DO I=1,NCOPYFILE
+		    CALL DO_COPYFILE(COPYFILE(I),UNIT)			
+	    END DO
+
+100 FORMAT(A<ITEM>)	
+101 FORMAT('"',A<ITEM>,'"')
+
+110 FORMAT(/,'NODE,NUM=',I7,',DATAPACKING=',I2,',DIMENSION=',I2)
+111 FORMAT(<MODELDIMENSION>(F24.16,1X))
+112 FORMAT("//",<MODELDIMENSION>(A15,1X))
+
+120 FORMAT(/'ELEMENT,NUM=',I7,',SET=',I3,',ET=',A<ITEM>,',MATID=',I3,',COUPLESET=',I3,',SF=',I3,',TITLE=',A<ITEM1>)
+121 FORMAT(<ITEM>(I7,1X))
+
+
 	end subroutine
 
   subroutine judgezone(xt,yt,zone_t,tof)
@@ -301,11 +335,15 @@
  
      !计算各点的带宽
 	 !elementhead,iflag=0;全域，iflag=others,其它超单元
-   subroutine csb()
+   subroutine csb(nnode,node,nelt,elt)
 
-	  use meshds
-	  implicit none
-    integer::i,j,a2,n1,n2,nomin
+	  use meshds,only:point_tydef,element_tydef,et_prm,et_tet
+      implicit none
+      integer,intent(in)::nnode,nelt
+      type(point_tydef),intent(inout),dimension(nnode)::node
+      type(element_tydef),intent(in),dimension(nelt)::elt
+	  
+      integer::i,j,a2,n1,n2,nomin,ept
 	  logical::tof1
 	  !计算网格节点层数，各强透水层为一层。
 
@@ -313,10 +351,11 @@
  	  node(1:nnode).bw=0
     do ept=1,nelt
     	if(elt(ept).isdel) cycle
-	    if(elt(ept).et==0) n1=3
-	    if(elt(ept).et==6) n1=6
-	    if(elt(ept).et==15) n1=15
-	    nomin=minval(node(elt(ept).node(1:n1)).number)
+	    !if(elt(ept).et==0) n1=3
+	    !if(elt(ept).et==6) n1=6
+	    !if(elt(ept).et==15) n1=15
+        N1=elt(ept).nnum
+	    nomin=minval(node(elt(ept).node(1:N1)).number)
 			do i=1,n1   	
 			  a2=(node(elt(ept).node(i)).number-nomin)*n2+1
 			  if(a2>node(elt(ept).node(i)).bw) node(elt(ept).node(i)).bw=a2
@@ -360,13 +399,16 @@
    end subroutine
 
    !n1为node()数组中全域节点总数
-   subroutine reorder_nodal_number(IPERM,nnum)
-	  use meshds
+   subroutine reorder_nodal_number(IPERM,nnum,node,nelt,elt)
+	  use meshds,only:point_tydef,element_tydef,maxadj
 	  use dflib
 	  implicit none
-	  integer,intent(in)::nnum
+      integer,intent(in)::nnum,nelt
+      type(point_tydef),intent(in),dimension(nnum)::node
+      type(element_tydef),intent(in),dimension(nelt)::elt
+	  
 	  integer,intent(inout)::IPERM(nnum)
-	  integer::i,j,k,nnz,ITYPE,IFLAG,LP,MP,n1,n2,n3
+	  integer::i,j,k,nnz,ITYPE,IFLAG,LP,MP,n1,n2,n3,ept
 	  REAL(8)::IPROF(2)
 	  integer,allocatable::adjL(:,:),IRN(:),JCN(:),IW(:),ICPTR(:),art(:)
 	  integer::ar(15),allo_err
@@ -389,26 +431,41 @@
 	  
 	  do ept=1,nelt
 	  	if(elt(ept).isdel) cycle
-	  	
+	  	if(.not.elt(ept).ismodel) cycle
 		 select case(elt(ept).et)
-		
-		 case(0,6,15)
+            case(-1,2,5)
+			!xy1和xy2有联系，xy3和xy4有联系，其它没有联系
+			if(node(elt(ept).node(1)).number>node(elt(ept).node(2)).number) then
+			   call addtoadjL(node(elt(ept).node(2)).number,adjL(:,node(elt(ept).node(1)).number))
+			else
+			   call addtoadjL(node(elt(ept).node(1)).number,adjL(:,node(elt(ept).node(2)).number))
+			end if
+
+			if(node(elt(ept).node(3)).number>node(elt(ept).node(4)).number) then
+			   call addtoadjL(node(elt(ept).node(4)).number,adjL(:,node(elt(ept).node(3)).number))
+			else
+			   call addtoadjL(node(elt(ept).node(3)).number,adjL(:,node(elt(ept).node(4)).number))
+			end if		
+		 case default
 			
 			
 
 			!从大到小排序
-			if(elt(ept).et==0) then
-				n1=3
-				ar(1:n1)=node(elt(ept).node(1:n1)).number
-			end if
-			if(elt(ept).et==6) then
-				n1=6
-				ar(1:n1)=node(elt(ept).node(1:n1)).number
-			end if
-			if(elt(ept).et==15) then
-				n1=15
-				ar(1:n1)=node(elt(ept).node(1:n1)).number
-			end if
+			!if(elt(ept).et==0) then
+			!	n1=3
+			!	ar(1:n1)=node(elt(ept).node(1:n1)).number
+			!end if
+			!if(elt(ept).et==6) then
+			!	n1=6
+			!	ar(1:n1)=node(elt(ept).node(1:n1)).number
+			!end if
+			!if(elt(ept).et==15) then
+			!	n1=15
+			!	ar(1:n1)=node(elt(ept).node(1:n1)).number
+			!end if
+            n1=elt(ept).nnum
+            ar(1:n1)=node(elt(ept).node(1:n1)).number
+            
 			do i=1,n1
 			   do j=i+1,n1
 				  if(ar(i)<ar(j)) then
@@ -425,19 +482,7 @@
 			   end do
 			end do
 		
-		 case(-1,2,5)
-			!xy1和xy2有联系，xy3和xy4有联系，其它没有联系
-			if(node(elt(ept).node(1)).number>node(elt(ept).node(2)).number) then
-			   call addtoadjL(node(elt(ept).node(2)).number,adjL(:,node(elt(ept).node(1)).number))
-			else
-			   call addtoadjL(node(elt(ept).node(1)).number,adjL(:,node(elt(ept).node(2)).number))
-			end if
-
-			if(node(elt(ept).node(3)).number>node(elt(ept).node(4)).number) then
-			   call addtoadjL(node(elt(ept).node(4)).number,adjL(:,node(elt(ept).node(3)).number))
-			else
-			   call addtoadjL(node(elt(ept).node(3)).number,adjL(:,node(elt(ept).node(4)).number))
-			end if
+		 
 
 		 end select
 	  end do
@@ -570,7 +615,7 @@
 subroutine elementgroup()
 	use meshds
 	implicit none
-	integer::i,n1
+	integer::i,n1,n2
 		
 !	allocate(ep(enumber))
 	zone.nitem=0
@@ -581,6 +626,8 @@ subroutine elementgroup()
 	
 	do i=1,nelt
 		if(elt(i).isdel) cycle
+        !if(.not.elt(i).ismodel) cycle
+        
 		n1=elt(i).zn
 		zone(n1).nitem=zone(n1).nitem+1
 		select case(elt(i).et)
@@ -632,26 +679,11 @@ subroutine elementgroup()
 	
 	do i=1,nelt
 		if(elt(i).isdel) cycle
-		n1=elt(i).zn
-		zone(n1).nitem=zone(n1).nitem+1
-		zone(n1).item(zone(n1).nitem)=i
-		select case(elt(i).et)
-			case(-1)
-				zone(n1).ndise4n=zone(n1).ndise4n+1
-				zone(n1).dise4n(zone(n1).ndise4n)=i				
-			case(0)
-				zone(n1).ntrie3n=zone(n1).ntrie3n+1
-				zone(n1).trie3n(zone(n1).ntrie3n)=i	
-			case(6)
-				zone(n1).ntrie6n=zone(n1).ntrie6n+1
-				zone(n1).trie6n(zone(n1).ntrie6n)=i
-			case(15)
-				zone(n1).ntrie15n=zone(n1).ntrie15n+1
-				zone(n1).trie15n(zone(n1).ntrie15n)=i								
-		end select
+        !if(.not.elt(i).ismodel) cycle
         
-        if(elt(i).zn2>0) then
-            n1=elt(i).zn2
+        n1=elt(i).zn;n2=elt(i).ilayer
+        
+        if(elt(i).et<=15) then !!!!!!2D element		    
 		    zone(n1).nitem=zone(n1).nitem+1
 		    zone(n1).item(zone(n1).nitem)=i
 		    select case(elt(i).et)
@@ -667,11 +699,58 @@ subroutine elementgroup()
 			    case(15)
 				    zone(n1).ntrie15n=zone(n1).ntrie15n+1
 				    zone(n1).trie15n(zone(n1).ntrie15n)=i								
-		    end select 
-        endif
+		    end select
         
+            if(elt(i).zn2>0) then
+                n1=elt(i).zn2
+		        zone(n1).nitem=zone(n1).nitem+1
+		        zone(n1).item(zone(n1).nitem)=i
+		        select case(elt(i).et)
+			        case(-1)
+				        zone(n1).ndise4n=zone(n1).ndise4n+1
+				        zone(n1).dise4n(zone(n1).ndise4n)=i				
+			        case(0)
+				        zone(n1).ntrie3n=zone(n1).ntrie3n+1
+				        zone(n1).trie3n(zone(n1).ntrie3n)=i	
+			        case(6)
+				        zone(n1).ntrie6n=zone(n1).ntrie6n+1
+				        zone(n1).trie6n(zone(n1).ntrie6n)=i
+			        case(15)
+				        zone(n1).ntrie15n=zone(n1).ntrie15n+1
+				        zone(n1).trie15n(zone(n1).ntrie15n)=i								
+		        end select 
+            endif
+        else !3D element
+            !if(.not.elt(i).ismodel) cycle
+            
+            select case(elt(i).et)
+            case(et_prm)
+                if(.not.allocated(zone(n1).prm)) then
+                    allocate(zone(n1).prm(maxval(zone(n1).nprm),soillayer))
+                    zone(n1).prm=0
+                    zone(n1).nprm=0
+                endif
+                zone(n1).nprm(n2)=zone(n1).nprm(n2)+1
+                zone(n1).prm(zone(n1).nprm(n2),n2)=i 
+            case(et_tet)
+                if(.not.allocated(zone(n1).Tet)) then
+                    allocate(zone(n1).Tet(maxval(zone(n1).nTet),soillayer))
+                    zone(n1).Tet=0
+                    zone(n1).nTet=0
+                endif
+                zone(n1).nTet(n2)=zone(n1).nTet(n2)+1
+                zone(n1).Tet(zone(n1).nTet(n2),n2)=i             
+            case default
+                print *, 'Not finished yet! In Sub elementgroup()'
+                stop
+            endselect
+            
+            
+            
+        endif
 	end do
-
+    
+ 
  end subroutine
 	
 

@@ -42,7 +42,7 @@
 
 
 		path_name=trim(drive)//trim(dir)//trim(name)
-		resultfile=trim(path_name)//'_FEM.GRID'		
+		resultfile=trim(path_name)//'.SINP'		
 
 		checkfile=trim(path_name)//'_check.plot'
 		title=trim(name)
@@ -123,7 +123,35 @@ if(keypn>0) then
 		csl(0).conpoint(2,i)=node(i).y
 		csl(0).conpoint(3,i)=node(i).s
 	end do
+   
+    
 end if
+
+
+
+
+do i=1,nmgroup
+    if(.not.allocated(zone(model(i).izone).mat)) then
+        allocate(zone(model(i).izone).mat(0:soillayer),zone(model(i).izone).solver_et(0:soillayer),&
+        zone(model(i).izone).name(0:soillayer),zone(model(i).izone).ismodel(0:soillayer))
+    endif
+    zone(model(i).izone).mat(model(i).ilayer)=model(i).mat
+    zone(model(i).izone).solver_et(model(i).ilayer)=model(i).et
+    zone(model(i).izone).name(model(i).ilayer)=model(i).name  
+    zone(model(i).izone).ismodel(model(i).ilayer)=1
+enddo
+
+if(nmeminp>0) then
+    if(.not.allocated(meminp2)) then
+        allocate(meminp2,source=meminp)
+        nmeminp2=nmeminp
+    else
+        meminp2(1:nmeminp)=meminp
+    endif 
+    deallocate(meminp)
+    nmeminp=0
+endif
+
 
    print *,'Reading data COMPLETED.'
    !if(znum==0) znum=1
@@ -170,6 +198,7 @@ end if
      use dflib
 	 use meshds
 	 use ds_t
+     use BC_HANDLE
 	 implicit none
 	 integer::i,j,k,j1
 	
@@ -180,20 +209,20 @@ end if
 	 CHARACTER(3)::SUPNO
 	 character(16)::legalC
 	 character(16)::noun
-	 integer::dnmax,dn
+	 integer::dnmax,dn     
      real(8)::t1,t2
      real(8),allocatable::ar(:)
 	 type(arr_tydef)::ts1
 	 logical::isall1
 	 
-	INTERFACE
-		SUBROUTINE strtoint(unit,ar,nmax,n1,num_read,isall)
-			INTEGER:: unit, nmax, n1,num_read
-			real(8)::ar(nmax)
-			logical::isall
-			OPTIONAL::isall
-		END SUBROUTINE
-	END INTERFACE
+	!INTERFACE
+	!	SUBROUTINE strtoint(unit,ar,nmax,n1,num_read,isall)
+	!		INTEGER:: unit, nmax, n1,num_read
+	!		real(8)::ar(nmax)
+	!		logical::isall
+	!		OPTIONAL::isall
+	!	END SUBROUTINE
+	!END INTERFACE
 	 
 	 
 	 dnmax=300
@@ -207,11 +236,60 @@ end if
 	 term=trim(term)
 	
 	 select case(term)
+     
+        case('model')
+		   print *,'Reading model data...'
+		   oldcolor = SETTEXTCOLOR(INT2(10))
+		   write(*,'(A256)') '\n Model的输入格式为:\n 1)组数(nmgroup);\n 2)[izone,ilayer(0(默认)),MAT(1),SF(0),COUPLESET(-1),ET,NAME]*nmgroup \n'c
+		   oldcolor = SETTEXTCOLOR(INT2(15))
+            do i=1, pro_num
+                select case(property(i).name)
+                case('dimension','dim')
+	                modeldimension=int(property(i).value)                                    
+                case default
+	                call Err_msg(property(i).name)
+                end select
+            end do           
+           call skipcomment(unit)
+           read(unit,*) nmgroup
+           allocate(model(nmgroup))
+           do i=1,nmgroup
+                call skipcomment(unit)
+                read(unit,*) model(i).izone,model(i).ilayer,model(i).mat,model(i).SF,model(i).COUPLESET,model(i).et,model(i).name
+                call lowcase(model(i).et)
+           enddo
+		case('zonebc')
+            print *,'Reading ZoneBC data...'
+            call skipcomment(unit)
+            read(unit,*) nzbc
+            allocate(zonebc(nzbc))
+            if(nzbc>0) call zonebc(1).help(zonebc(1).helpstring)
+            do i=1,nzbc
+                !call skipcomment(unit)
+                call zonebc(i).readin(unit)
+                !call zonebc(i).set_bc
+                !call lowcase(model(i).et)
+            enddo       
+
+		case('linebc')
+            print *,'Reading LineBC data...'
+            call skipcomment(unit)
+            read(unit,*) nlbc
+            allocate(linebc(nlbc))
+            if(nlbc>0) call linebc(1).help(linebc(1).helpstring)
+            do i=1,nlbc
+                !call skipcomment(unit)
+                call linebc(i).readin(unit)
+                !call zonebc(i).set_bc
+                !call lowcase(model(i).et)
+            enddo         
+        
 	    case('point','p')
 		
 		   print *,'Reading POINT data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,*) '\n Point的输入格式为:\n 1)点数(inpn);\n 2)序号(num),坐标(x),坐标(y),[elevation(1:soillayer+1)]; \n ..... \n 共inpn个.\n'c
+		   write(*,*) '\n Point的输入格式为:\n 1)点数(inpn);\n 2)序号(num),坐标(x),坐标(y),[elevation(1:soillayer+1)]; \n ..... \n 共inpn个.\n &
+           &            注意高程应从底层往上输'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
             do i=1, pro_num
                 select case(property(i).name)
@@ -222,10 +300,13 @@ end if
                     endif
 				case('isnorefined')
 					isnorefined=int(property(i).value)
+                case('inpmethod')
+                    inpmethod=int(property(i).value)
                 case default
 	                call Err_msg(property(i).name)
                 end select
-            end do	
+            end do
+           call skipcomment(unit) 
 		   read(unit,*) inpn
 	       allocate(arr_t(inpn),geology(inpn))
 		   ngeo=inpn
@@ -238,10 +319,11 @@ end if
                !当soillayer>0时，如果要同时输入单元尺寸，则要先输入高程信息,再输入尺寸信息。
 			   if(dn>3) then
                     n1=dn
-                    if(soillayer>0) then
-                        arr_t(k).havesoildata=1
+                    if(dn>4.and.soillayer>0) then
+                        arr_t(k).havesoildata=2
                         allocate(arr_t(k).soildata(0:soillayer))
                         arr_t(k).soildata=ar(4:4+soillayer)
+                        if(any(abs(arr_t(k).soildata+999)<1.d-6)) arr_t(k).havesoildata=1
                         if(dn<=4+soillayer) n1=0                         
                         geology(k).isini=1
 						geology(k).node=k
@@ -375,8 +457,9 @@ end if
 		case('zone','ZONE')
 		   print *,'Reading ZONE data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,*) '\n zone的输入格式为:\n 1)区域数(znum);\n 2) \n(a) 区域坐标数(num)[,OutGmshType,iElevation];!OutGmshType=1 Physical Volume only; =2 Physical Surface only; =3, both;if OutGmshType=2/3, iElevation指定输出哪个高程的面。\n(b) 点号(num个). \n ..... \n 共znum个.\n'c
+		   write(*,*) '\n zone的输入格式为:\n 1)区域数(znum);\n 2) \n(a) 区域坐标数(num)[,OutGmshType,iElevation,mat(1:soillayer)];!OutGmshType=1 Physical Volume only; =2 Physical Surface only; =3, both;if OutGmshType=2/3, iElevation指定输出哪个高程的面。\n(b) 点号(num个). \n ..... \n 共znum个.\n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
+           call skipcomment(unit)
 		   read(unit,*) znum
 		   noun='zone'
 		   if(znum>0) then
@@ -391,6 +474,13 @@ end if
                  if(dn>2) then
                     zone(i).iElevation=int(ar(3))
                  endif
+                 !if(dn>3) then
+                 !   allocate(zone(i).mat(dn-3))
+                 !   zone(i).mat=int(ar(4:dn))
+                 !else
+                 !   allocate(zone(i).mat(1))
+                 !   zone(i).mat=i
+                 !endif
 				 !read(unit,*) zone(i).num,zone(i).k !//.k is material number.
 
 				 allocate(zone(i).point(2,zone(i).num))
@@ -417,6 +507,7 @@ end if
 		   oldcolor = SETTEXTCOLOR(INT2(10))
 		   write(*,'(a256)') '\n control line的输入格式为:\n 1)控制数(cln);\n 2) \n(a) 控制线坐标数(num);是否闭合(flag:0否1是);是否空洞(hole:0否1是). \n(b)点号(num个). \n ..... \n 共cln个.\n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
+           call skipcomment(unit)
 		   read(unit,*) cln
 		   if(cln/=0) then
 			  allocate(csl(cln))
@@ -450,13 +541,17 @@ end if
 					!call sizecal(csl(i).conpoint(1,j),csl(i).conpoint(2,j),csl(i).conpoint(3,j))
 					if(csl(i).flag==0.and.j==csl(i).num) exit !不闭合
 					n1=b(mod(j,csl(i).num)+1)
+                    IF(segindex(b(J),n1)>0) THEN
+                        PRINT *, 'THE SEGGMENT(I,J) IN CONTROL LINE K OVERLAPPED. K,I,J=',I,B(J),N1
+                        PAUSE
+                    ENDIF
 					nseg=nseg+1
 					segindex(b(J),n1)=nseg
 					segindex(n1,b(J))=nseg
 					seg(nseg).sv=b(J)
 					seg(nseg).ev=n1
 					seg(nseg).icl=i
-					if(j==csl(i).num) seg(nseg).ist2h=1 
+					!if(j==csl(i).num) seg(nseg).ist2h=1 
 				end do
 			 end do		
 		  end if
@@ -465,13 +560,12 @@ end if
 !		case('boundary condition','bc')
 !           print *,'Reading BOUNDARY CONDITOIN data'
 !           oldcolor = SETTEXTCOLOR(INT2(10))
-!		   write(*,'(a256)') '\n boundary condition的输入格式为:\n 1)边界点(hqnum);\n 2) \n(a) 边界坐标数(num);类型bt(0:线水头;1,线流量;2,面水头;3面流量;3面流量;4,点水头;4,点流量;);量值(v);作用的土层active()(optional,仅当soillayer>1时才输入,个数为soillayer/2+1) \n(b)点号(num个). \n ..... \n 共cln个.\n'c
+!		   write(*,'(a256)') '\n boundary condition的输入格式为:\n 1)边界点(hqnum);\n 2) \n(a) 边界坐标数(num);类型bt(0:线水头;1,线流量;2,面水头;3面流量;3面流量;4,点水头;4,点流量;);量值(v);作用的土层active()(optional,仅当soillayer>1时才输入,个数为soillayer/2+1) \n(b)点号(num个). \n ..... \n 共nbc个.\n'c
 !		   oldcolor = SETTEXTCOLOR(INT2(15))		
 !		   read(unit,*) NBC
 !			if(nbc/=0) then
 !				allocate(bc(nbc))
-!				do i=1,nbc
-!
+!				do i=1,nbc!
 !					call strtoint(unit,ar,dnmax,dn,dnmax)
 !					!nt1=dn-3
 !				end do
@@ -484,11 +578,25 @@ end if
            oldcolor = SETTEXTCOLOR(INT2(10))
 		   write(*,'(a256)') '\n key point的输入格式为:\n 1)点数(keypn);\n 2) 坐标号(keypn个). \n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
+           call skipcomment(unit)
 		   read(unit,*) keypn
+           if(allocated(b)) deallocate(b)
 		   allocate(b(keypn))
 	       !read(unit,*) b
 		   call strtoint(unit,ar,dnmax,dn,keypn)
 		   b(1:dn)=nint(ar(1:dn))
+           if(b(1)/=b(keypn)) then
+                n1=keypn+1
+                allocate(kp1(n1))
+                kp1(1:keypn)=b
+                kp1(n1)=b(1)
+           else
+                n1=keypn
+                allocate(kp1(n1))
+                kp1=b
+           endif
+           
+          
 	       do i=1,keypn
               allocate(BP)
 			  if(i==1) then
@@ -508,17 +616,26 @@ end if
 		      node(nnode).x=arr_t(b(i)).x
 		      node(nnode).y=arr_t(b(i)).y
 			  node(nnode).s=arr_t(b(i)).s
+              if(.not.allocated(node(nnode).elevation)) allocate(node(nnode).elevation(0:soillayer))
+              if(arr_t(b(i)).havesoildata>0) then
+                node(nnode).elevation=arr_t(b(i)).soildata
+                node(nnode).havesoildata=arr_t(b(i)).havesoildata
+              endif
 		      !call sizecal(node(nnode).x,node(nnode).y,node(nnode).s)
 		      node(nnode).number=nnode
 			  BNpt.npt=>node(nnode)
                 n1=b(mod(i,keypn)+1)
+                IF(segindex(b(I),n1)>0) THEN
+                    PRINT *, 'THE SEGGMENT(I,J) IN KP LINE OVERLAPPED. I,J=', B(I),N1
+                    PAUSE
+                ENDIF
                 nseg=nseg+1
                 segindex(b(i),n1)=nseg
                 segindex(n1,b(I))=nseg
                 seg(nseg).sv=b(I)
                 seg(nseg).ev=n1
                 seg(nseg).icl=0
-                if(i==keypn) seg(nseg).ist2h=1			  
+                !if(i==keypn) seg(nseg).ist2h=1			  
 			  
 		   end do
 	       BNpt.next=>BNhead
@@ -561,7 +678,7 @@ end if
 		   oldcolor = SETTEXTCOLOR(INT2(10))
 		   write(*,'(a256)') '\n aupoint的输入格式为:\n 1)辅助点的个数(aupn);\n 2) 点号;该点单元的大小(s);\n......\n 共aupn个 \n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
-
+           call skipcomment(unit)
 		   read(unit,*) aupn
 		   if(aupn>0) allocate(aupoint(aupn))
 			i=0
@@ -708,33 +825,58 @@ end if
 				end do				
 		case('membrance interpolation','meminp')
 			print *, 'Reading membrance interpolation data...'
+            call skipcomment(unit)
 			read(unit,*) nmeminp
 			allocate(meminp(nmeminp))
 			do i=1,nmeminp
+                call skipcomment(unit)
 				read(unit,*) meminp(i).icl
 				if(meminp(i).icl==0) then
 					n1=keypn
+                    if(kp1(1)/=kp1(keypn)) n1=keypn+1
 				else
 					n1=csl(meminp(i).icl).num
+                    if(csl(meminp(i).icl).flag==1.and.(csl(meminp(i).icl).point(1)/=csl(meminp(i).icl).point(csl(meminp(i).icl).num))) then
+                        n1=csl(meminp(i).icl).num+1
+                    endif
 				end if
 				meminp(i).nnum=n1
-				allocate(meminp(i).elevation(n1,0:soillayer))
+				allocate(meminp(i).elevation(n1,0:soillayer),meminp(i).cp(meminp(i).nnum))
+                
                 
 				do j=1,n1
-                    if(arr_t(csl(meminp(i).icl).point(j)).havesoildata>0) then
-					    meminp(i).elevation(j,:)=arr_t(csl(meminp(i).icl).point(j)).soildata
+                    if(meminp(i).icl>0) then
+                        meminp(i).cp(j)=csl(meminp(i).icl).point(j)
+                        if(arr_t(csl(meminp(i).icl).point(j)).havesoildata>0) then
+					        meminp(i).elevation(j,:)=arr_t(csl(meminp(i).icl).point(j)).soildata
+                        else
+                            print *, 'Point i has no soildata. i=',csl(meminp(i).icl).point(j)
+                            meminp(i).elevation(j,:)=-999
+                        endif
+                        if(csl(meminp(i).icl).flag==1.and.(csl(meminp(i).icl).point(1)/=csl(meminp(i).icl).point(csl(meminp(i).icl).num))) then
+                            meminp(i).cp(j)=csl(meminp(i).icl).point(1)
+                        endif                        
                     else
-                        print *, 'Point i has no soildata. i=',csl(meminp(i).icl).point(j)
-                        meminp(i).elevation(j,:)=-999
+                        meminp(i).cp(j)=kp1(j)
+                        if(arr_t(kp1(j)).havesoildata>0) then
+					        meminp(i).elevation(j,:)=arr_t(kp1(j)).soildata
+                        else
+                            print *, 'Point i has no soildata. i=',kp1(j)
+                            meminp(i).elevation(j,:)=-999
+                        endif
+                        
                     endif
 				end do
 			end do
 			!if(nmeminp>0) IPMethod=1
 		case('meminp2')
 			print *, 'Reading MEMBRANCE INTERPOLATION2 data...'
+            call skipcomment(unit)
 			read(unit,*) nmeminp2
-			allocate(meminp2(nmeminp2))
-			do i=1,nmeminp2
+			allocate(meminp2(nmeminp+nmeminp2))
+            nmeminp2=nmeminp+nmeminp2
+			do i=nmeminp,nmeminp2
+                call skipcomment(unit)
 				read(unit,*) meminp2(i).nnum
 				allocate(meminp2(i).elevation(meminp2(i).nnum,0:soillayer), &
 							meminp2(i).cp(meminp2(i).nnum))
@@ -750,17 +892,20 @@ end if
                     endif
 				end do
 			end do
+            
 			!if(nmeminp2>0) IPMethod=1
 		case('geology point','gp')
 		     print *,'Reading GEOLOGY POINT data'
 		     oldcolor = SETTEXTCOLOR(INT2(10))
 		     write(*,'(a256)') '\n geology point的输入格式为:\n 1)点数(geon);\n 2) \n坐标号;高程(从地表往下输入共(0:soillayer)).\n......\n 共(geon组) \n'c
 		     oldcolor = SETTEXTCOLOR(INT2(15))
+             call skipcomment(unit)
 		     read(unit,*) n2
 		
 		     !allocate(geology(ngeo))
 		     do i=1,n2
 				    !allocate(geology(i).elevation(0:soillayer))
+                call skipcomment(unit)
 				read(unit,*) n1,geology(n1).elevation(0:soillayer)
 				geology(n1).node=n1
 				geology(n1).isini=1
@@ -771,21 +916,17 @@ end if
 		   oldcolor = SETTEXTCOLOR(INT2(10))
 		   write(*,'(a256)') '\n soillayger的输入格式为:\n 1)土层数(soilayer)\n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
-		
+		   call skipcomment(unit)
            read(unit,*) soillayer
-   !     case('physical group','pg')
-			!print *, 'Reading Physical Group data...'
-			!write(*,'(a256)') '\n Physical Group的输入格式为:\n 1)物理数个数(I)\n 2) IPG,ICL,NVSEG,IZONE,ILAYER,NDIM,ET,NAME'c
-			!read(unit,*) NPG
-			!ALLOCATE(PHYSCIALGROUP(NPG))
-			!DO I=1,NPG
-			!	read(unit,*) n1,PHYSCIALGROUP(n1).icl,PHYSCIALGROUP(n1).NVSEG,PHYSCIALGROUP(n1).izone,PHYSCIALGROUP(n1).ILAYER,PHYSCIALGROUP(n1).ndim, &
-			!					PHYSCIALGROUP(n1).ET,PHYSCIALGROUP(n1).name
-			!	if(PHYSCIALGROUP(n1).NVSEG>0) THEN
-			!		ALLOCATE(PHYSCIALGROUP(n1).VSEG(PHYSCIALGROUP(n1).NVSEG))
-			!		READ(UNIT,*) PHYSCIALGROUP(n1).VSEG(1:PHYSCIALGROUP(n1).NVSEG)
-			!	END IF
-			!END DO
+        case('copyfile')
+            call skipcomment(unit)
+			read(unit,*) N3
+			
+			do i=ncopyfile+1,ncopyfile+n3
+				call skipcomment(unit)
+				READ(UNIT,'(A<512>)') copyfile(I)
+			end do			
+			ncopyfile=ncopyfile+N3
 		case default
 		
 		   term="No such key word!  "//trim(term)
@@ -861,135 +1002,14 @@ end if
 			t1=t1**0.5
 			if(t1<arr_t(i).mins) arr_t(i).mins=t1 !最大的单元尺寸为两输入点之间距离的一半。
 			if(t1<arr_t(j).mins) arr_t(j).mins=t1 !最大的单元尺寸为两输入点之间距离的一半。
+            
 		 end do
+         if(ARR_T(I).iss==0) ARR_T(I).S=arr_t(I).mins
 	 end do
 
   end subroutine
 
-   !把字符串中相当的数字字符(包括浮点型)转化为对应的数字
-   !如 '123'转为123,'14-10'转为14,13,12,11,10
-   !string中转化后的数字以数组ar(n1)返回，其中,n1为字符串中数字的个数:(注　1-3转化后为3个数字：1,2,3)
-   !nmax为数组ar的大小,string默认字符长度为256。
-   !num_read为要读入数据的个数。
-   !unit为文件号
-   !每次只读入一个有效行（不以'/'开头的行）
-   !每行后面以'/'开始的后面的字符是无效的。
-   subroutine  strtoint(unit,ar,nmax,n1,num_read,isall)
-	  implicit none
-	  integer::i,j,k,strl,ns,ne,n1,n2,n3,step,nmax,num_read,unit,ef,n4
-	  logical::tof1,tof2
-	  real(8)::ar(nmax),t1
-	  character*256::string
-	  character*16::substring
-	  character*16::legalC
-	  logical::isall
-	  optional::isall
 
-	  LegalC='0123456789.-+eE*'
-
-
-	  n1=0
-	  ar=0
-
-	  do while(.true.)
-		 read(unit,'(a256)',iostat=ef) string
-		 if(ef<0) then
-			print *, 'file ended unexpended. sub strtoint()'
-			stop
-		 end if
-		 string=adjustL(string)
-		 strL=len_trim(string)
-		 if(strL==0) cycle
-
-
-		 if(string(1:1)/='/') then
-			
-			!每行后面以'/'开始的后面的字符是无效的。
-			if(index(string,'/')/=0) then
-				strL=index(string,'/')-1
-				string=string(1:strL)
-				!string=adjustL(adjustR(string))
-				strL=len_trim(string)
-			end if
-					
-			i=1			
-			do while(i<=strL)
-			   if(index(legalc,string(i:i))/=0) then
-				  ns=i
-			
-				  if(i<strL) then
-					 do j=i+1,strl
-						if(index(legalc,string(j:j))==0) then
-						   ne=j-1
-						   exit
-						end if
-						if(j==strL) ne=strL
-					 end do
-				  else
-					 ne=i
-					 j=i
-				  end if
-
-				  substring=string(ns:ne)
-				  n2=len_trim(substring)
-				  n3=index(substring,'-')
-				  n4=index(substring,'*')
-				    tof1=.false.
-				    if(n3>1) then
-				         tof1=(substring(n3-1:n3-1)/='e'.and.substring(n3-1:n3-1)/='E')
-				    end if				  
-				  if(tof1) then !处理类似于'1-5'这样的形式的读入数据
-					 read(substring(1:n3-1),'(i8)') ns
-					 read(substring(n3+1:n2),'(i8)') ne
-					 if(ns>ne) then
-						step=-1
-					 else
-						step=1
-					 end if
-					 do k=ns,ne,step
-						n1=n1+1
-						ar(n1)=k
-					 end do				     	
-				  else
-                            tof2=.false.
-				         if(n4>1) then
-				             tof2=(substring(n4-1:n4-1)/='e'.and.substring(n4-1:n4-1)/='E')
-				         end if					 
-					 if(tof2) then !处理类似于'1*5'(表示5个1)这样的形式的读入数据
-						 read(substring(1:n4-1),*) t1
-						 read(substring(n4+1:n2),'(i8)') ne
-						 ar((n1+1):(n1+ne))=t1
-						 n1=n1+ne
-					 else
-						n1=n1+1
-						read(string(ns:ne),*) ar(n1)
-					 end if
-			
-				  end if
-				
-				  i=j+1
-			   else
-				  i=i+1
-			   end if
-			
-			end do
-		 else
-			cycle
-		 end if
-		
-		 if(n1<=num_read) then
-			 if(present(isall)) then
-				if(isall.and.n1==num_read) exit
-			 else
-				exit
-			 end if
-		 else
-		    if(n1>num_read)  print *, 'error!nt2>num_read. i=',n1
-		 end if
-	
-	  end do	
-
-   end subroutine
 
    subroutine indataerror(n1,noun,unit)
       use dflib
@@ -1080,7 +1100,7 @@ subroutine lowcase(term)
 	implicit none
 	integer i,in,nA,nZ,nc,nd
 	character(1)::ch
-	character(256)::term
+	character(*)::term
 	
 	
 	term=adjustl(trim(term))
@@ -1096,6 +1116,39 @@ subroutine lowcase(term)
 		end if
 	end do
 end subroutine
+
+subroutine skipcomment(unit)
+	implicit none
+	integer,intent(in)::unit
+	integer::i,ef,strL
+	character(512) string
+	
+	do while(.true.)
+		read(unit,'(a512)',iostat=ef) string
+		if(ef<0) then
+			print *, 'file ended unexpected. sub strtoint()'
+			stop
+		end if
+
+		string=adjustL(string)
+		strL=len_trim(string)
+
+		do i=1,strL !remove 'Tab'
+			if(string(i:i)/=char(9)) exit
+		end do
+		string=string(i:strL)
+		string=adjustl(string)
+		strL=len_trim(string)
+		if(strL==0) cycle
+
+		if(string(1:1)/='/') then
+			backspace(unit)
+			exit
+		end if
+	end do
+	
+end subroutine
+
 
 subroutine translatetoproperty(term)
 

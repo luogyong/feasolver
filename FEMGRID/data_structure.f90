@@ -1,5 +1,5 @@
 module meshDS
-
+    
 	integer::maxstk, &
 					maxnnode=100000, &
 					newNodemax=10000, &
@@ -8,9 +8,15 @@ module meshDS
 					maxncedge=1000, &
 					maxnelement=210000, &
 					soillayer=0, &
-					maxntetelt=10000
+					maxntetelt=10000,&
+                    modeldimension=3,&
+                    INPMethod=0 !=1,linear, =0, membrance
+    integer,parameter:: ET_PRM=63,&
+                    ET_TET=43,Linear=1,Membrance=0
+    logical::ismeminpdone=.false.
     real(8)::um
-	parameter(maxstk=1000,um=1e15)
+    
+	parameter(maxstk=2000,um=1e15)
 
 	type point_tydef
      integer::number,bw !点的编号,semibandwidth（带宽）,荷载因子编号。
@@ -18,11 +24,13 @@ module meshDS
 	   real(8)::s  !该点附近的单元大小
 	   INTEGER::SUBBW  !=-999 ,the node is dead.
 	   integer::layer=0,onbdy=0 !nodal layer
-	   
+       integer::havesoildata=0 ![0,1,2] 0,no;1,partially;2,completely yes.(all soillayers have elevation(no -999)) 
+       !
+       real(8),allocatable::elevation(:)
 	end type
 	type(point_tydef),allocatable,target::node(:)
 	type(point_tydef),allocatable::cp(:)  !control point
-	integer::nnode=0 !记录节点数，作为优化前结点号
+	integer::nnode=0,tnode=0 !单层节点数，总节点数
 
 	                            										
 	type BP_tydef !bounded points
@@ -32,7 +40,7 @@ module meshDS
 
 	type constrainline_tydef
 	   real(8),pointer::conpoint(:,:)=>null() !控制线上各点的坐标（x,y）
-	   integer::flag,hole  !是否闭合,是否是留洞 0为否，1为真
+	   integer::flag=0,hole=0  !是否闭合,是否是留洞 0为否，1为真
 	   integer::num,material=0  !控制线点的数目,material只对防渗墙有用为，为防渗墙的材料号,
        integer,allocatable::point(:)
 	end type
@@ -41,33 +49,37 @@ module meshDS
 	type element_tydef
 	   !type(point_tydef),pointer::xy1,xy2,xy3,xy4   !单元顶点的坐标
 	   logical::isdel=.false.
+       INTEGER::NNUM=3
 	   integer::node(15) !6-noded/15-noded triangleelement node in node().
 	   integer::et=0           !element type, 3-noded:0, 6-noded triangle:6; 15-noded:15 
 	                                      !6-noded prism element: 63; 15-noded prism element:153;
 	                                      !4-noded tetrahedral element:43, second order tetrahedral element: 103
-	   integer::zn=1,number,ZN2=-1
+                                !21,line,element
+                                !42,quadrangle element
+	   integer::zn=1,number,ZN2=-1,mat=-1
 	   integer::edge(3)=0,ORIENT(3)=1 !the edge number in edge set.
 	   real(8)::property(5)=0    !单元属性值
 	   integer::kcd=0,Maxedge=0  !单元的可分度,
 	   integer::adj(3)=-1 !if =-1,no adjacent element
+       INTEGER::MOTHER=0,iLAYER=0,ISMODEL=1
 	end type
 !	type(element_tydef),pointer::Ehead,Ept,element,Etail!前四个指向划分好的单元，后两个指向包含插入点的三角形单元
-	type(element_tydef),allocatable::ELT(:)
+	type(element_tydef),target,allocatable::ELT(:)
 	integer::nelt=0,Pehead=-1,PEpt=-1,IEpt=-1,ept=-1
 	
-	type PrismElement_tydef !派生单元
-		logical::isdel=.false.
-	    integer::nnum
-	    integer,allocatable::node(:)
-	    integer::mother=0 !generated from the elt(mother)
-	    integer::et=63   !6-noded prism element: 63; 15-noded prism element:153;
-	                                 !4-noded tetrahedral element:43, second order tetrahedral element: 103
-	    integer::matlayer=1 !material 
-	    integer::nlayer(2)=0 !nlayer(1，2) 分别为顶部和底部节点层号
-    
-	end type 
-	type(PrismElement_tydef),allocatable::PRMELT(:),TetELT(:)
-	integer::NPRMELT=0,NTetelt=0
+	!type PrismElement_tydef !派生单元
+	!	logical::isdel=.false.
+	!    integer::nnum
+	!    integer,allocatable::node(:)
+	!    integer::mother=0 !generated from the elt(mother)
+	!    integer::et=63   !6-noded prism element: 63; 15-noded prism element:153;
+	!                                 !4-noded tetrahedral element:43, second order tetrahedral element: 103
+	!    integer::mat !material 
+	!    integer::nlayer(2)=0 !nlayer(1，2) 分别为顶部和底部节点层号
+ !               
+	!end type 
+	!type(PrismElement_tydef),allocatable::PRMELT(:),TetELT(:)
+	!integer::NPRMELT=0,NTetelt=0
 	
 	type physicalGroup_type
 		integer::ndim=0
@@ -86,7 +98,15 @@ module meshDS
 	type(physicalGroup_type),allocatable::physicalgroup(:)
 	
 
-	
+	type modelgroup_type
+        integer::izone=1,ilayer=0,mat=1,coupleset=-1,sf=0 
+        !对于2D的面单元,ilayer=i,表示第i个高程面。
+        !对于2D的面单元,ilayer=i,表示第i层单元。注意，n层单元，有n+1高程面，第i层单元由i-1及i层高程面组成(棱柱单元)。
+        character(32)::et=''
+        character(32)::name=''
+    endtype
+    type(modelgroup_type),allocatable::model(:)
+    integer::nmgroup=0
 
 	type size_point_tydef  !单元尺寸控制点
 	    real(8)::x,y,a,d !坐标，等差的第一项，等差
@@ -98,22 +118,18 @@ module meshDS
 	   real(8)::xmin=1e15,ymin=1e15,xmax=-1e15,ymax=-1e15
 	   integer,allocatable::item(:),trie3n(:),Dise4n(:), trie6n(:),trie15n(:)
 	   integer::nitem=0,ntrie3n=0,ndise4n=0,ntrie6n=0,ntrie15n=0  !restriction:nitem=ntrie3n+ndise4n
-	   integer,allocatable::bedge(:) !boundary edges id(point to edge)
+	   integer,allocatable::bedge(:),mat(:) !boundary edges id(point to edge),mat=每层土的材料号
 	   integer::nbe=0 !number of bedge
+       !当生成PRM和TET时，以下各量会用到
+       
+       integer,allocatable::NPrm(:),NTet(:),PRM(:,:),TET(:,:),ISMODEL(:) 
+       !区内每层土的棱柱单元和四面体单元的个数,PRM,每层棱柱单元在PRM_ELT中的下标,TET类似。
+       !ISmodel=1,yes output in element form. 
+       character(32),allocatable::solver_et(:),NAME(:)
 	end type
-
-
-	type bc_tydef
-	   integer::node=0
-	   real(8)::vbc=0     !若为水头边界则为水头值，若为流量边界则为流量值(当为线状时，存储两端点的值，处于该线上的值线据沿线长度等比例进行插值，面状，只有v(1)起作用，v(2)=v(1))
-	   integer::bt=0 !=0, displacement-like(unknown);
-							!=1, force-like(load); 
-	                  !=2, signorini boundary(seepage exiting face) 					
-
-	   integer::dof=0 !1为激活,表示该边界条件对该强透水层作用，0，反之。0,为覆盖层，其它各层为强透水层，最多为5层强透水层
-
-	end type
-
+    
+   
+ 
 	type material_tydef
 	  real(8)::kx=0,ky=0,u=0,angle=0 !两个主方向的渗透系数和贮水系数,angle为渗透系数的主方向与几何坐标的夹角。以度输入(输入后转为弧度)，默认同向，逆时针方向为正。
 	end type
@@ -204,7 +220,7 @@ module meshDS
 		integer::icl,nnum !cpphead(icl),control line number，control points of icl.
 		integer::nvb !细分后控制线上点的个数。
 		integer,allocatable::cp(:) !for meminp2 to input the control points,cp(nnum)
-		integer,allocatable::nbc(:) !nbc(nvb)
+		integer,allocatable::nbc(:),niseg(:) !nbc(nvb)
 		real(8),allocatable::elevation(:,:) !elevation(nnum,0:soillayer) ！控制线icl上各点的高程。
 		real(8),allocatable::lincof(:,:,:) !lincof(2,n1,0:soillyger) !if csl(icl).flag==1,n1=nnum,==0,n1=nnum-1
 		real(8),allocatable::vbc(:,:) !vbc(nvb,0:soillyger)
@@ -217,11 +233,11 @@ module meshDS
 	type seg_type
 		integer::icl !该线段中cpphead(icl)中位置
 		integer::sv=0,ev=0 !节点在输入数组中的位置。
-		integer::isA2Z=1 !是否是顺序，1为顺序，即在cpphead(icl)链表中为sv-ev. 0为反序，ev-sv. 
-		integer::isT2H=0 !是否是尾首相连的段。=1,yes.
-		integer::nnum=0 !细分后此线段的节点个数。
-		integer,allocatable::node(:) !细分后此线段的节点在tnode的下标,包括端节点。
-		type(BP_tydef),pointer::svp,evp !此节点在cpphead(icl)中的位置
+		!integer::isA2Z=1 !是否是顺序，1为顺序，即在cpphead(icl)链表中为sv-ev. 0为反序，ev-sv. 
+		!integer::isT2H=0 !是否是尾首相连的段。=1,yes.
+		integer::nnum=0,nedge=0 !细分后此线段的节点个数。
+		integer,allocatable::node(:),edge(:) !细分后此线段的节点在tnode的下标,包括端节点。
+		!type(BP_tydef),pointer::svp,evp !此节点在cpphead(icl)中的位置
 	end type
 	type(seg_type),allocatable::seg(:)
 	integer::nseg=0,maxnseg=5000	
@@ -249,7 +265,7 @@ module meshDS
 	type(BP_tydef),allocatable,target::cpphead(:) !指向形成控制线的点的队列，为检查控制线是否在三角形的边上做准备
 !	type(element_tydef),target::element
  	type(size_point_tydef),allocatable::s_P(:)
-	type(zone_tydef),allocatable::zone(:)
+	type(zone_tydef),TARGET,allocatable::zone(:)
 	type(material_tydef),allocatable::material(:)
 !	type(hqboundary_tydef),allocatable::hqb(:)
 	type(ccl_tydef),allocatable::ccl(:)
@@ -304,5 +320,155 @@ module meshDS
 	real(8)::xmin,ymin,xmax,ymax !the extreme value of mesh zone
 	integer,allocatable::bnode(:) 
 	integer::nbnode=0
+    
+    character(512)::COPYFILE(100)
+	INTEGER::NCOPYFILE=0
+contains
+   !把字符串中相当的数字字符(包括浮点型)转化为对应的数字
+   !如 '123'转为123,'14-10'转为14,13,12,11,10
+   !string中转化后的数字以数组ar(n1)返回，其中,n1为字符串中数字的个数:(注　1-3转化后为3个数字：1,2,3)
+   !nmax为数组ar的大小,string默认字符长度为256。
+   !num_read为要读入数据的个数。
+   !unit为文件号
+   !每次只读入一个有效行（不以'/'开头的行）
+   !每行后面以'/'开始的后面的字符是无效的。
+   subroutine  strtoint(unit,ar,nmax,n1,num_read,isall)
+	  implicit none
+	  integer::i,j,k,strl,ns,ne,n1,n2,n3,step,nmax,num_read,unit,ef,n4
+	  logical::tof1,tof2
+	  real(8)::ar(nmax),t1
+	  character*256::string
+	  character*16::substring
+	  character*16::legalC
+	  logical::isall
+	  optional::isall
 
+	  LegalC='0123456789.-+eE*'
+
+
+	  n1=0
+	  ar=0
+
+	  do while(.true.)
+		 read(unit,'(a256)',iostat=ef) string
+		 if(ef<0) then
+			print *, 'file ended unexpended. sub strtoint()'
+			stop
+		 end if
+		 string=adjustL(string)
+		 strL=len_trim(string)
+		 if(strL==0) cycle
+
+
+		 if(string(1:1)/='/') then
+			
+			!每行后面以'/'开始的后面的字符是无效的。
+			if(index(string,'/')/=0) then
+				strL=index(string,'/')-1
+				string=string(1:strL)
+				!string=adjustL(adjustR(string))
+				strL=len_trim(string)
+			end if
+					
+			i=1			
+			do while(i<=strL)
+			   if(index(legalc,string(i:i))/=0) then
+				  ns=i
+			
+				  if(i<strL) then
+					 do j=i+1,strl
+						if(index(legalc,string(j:j))==0) then
+						   ne=j-1
+						   exit
+						end if
+						if(j==strL) ne=strL
+					 end do
+				  else
+					 ne=i
+					 j=i
+				  end if
+
+				  substring=string(ns:ne)
+				  n2=len_trim(substring)
+				  n3=index(substring,'-')
+				  n4=index(substring,'*')
+				    tof1=.false.
+				    if(n3>1) then
+				         tof1=(substring(n3-1:n3-1)/='e'.and.substring(n3-1:n3-1)/='E')
+				    end if				  
+				  if(tof1) then !处理类似于'1-5'这样的形式的读入数据
+					 read(substring(1:n3-1),'(i8)') ns
+					 read(substring(n3+1:n2),'(i8)') ne
+					 if(ns>ne) then
+						step=-1
+					 else
+						step=1
+					 end if
+					 do k=ns,ne,step
+						n1=n1+1
+						ar(n1)=k
+					 end do				     	
+				  else
+                            tof2=.false.
+				         if(n4>1) then
+				             tof2=(substring(n4-1:n4-1)/='e'.and.substring(n4-1:n4-1)/='E')
+				         end if					 
+					 if(tof2) then !处理类似于'1*5'(表示5个1)这样的形式的读入数据
+						 read(substring(1:n4-1),*) t1
+						 read(substring(n4+1:n2),'(i8)') ne
+						 ar((n1+1):(n1+ne))=t1
+						 n1=n1+ne
+					 else
+						n1=n1+1
+						read(string(ns:ne),*) ar(n1)
+					 end if
+			
+				  end if
+				
+				  i=j+1
+			   else
+				  i=i+1
+			   end if
+			
+			end do
+		 else
+			cycle
+		 end if
+		
+		 if(n1<=num_read) then
+			 if(present(isall)) then
+				if(isall.and.n1==num_read) exit
+			 else
+				exit
+			 end if
+		 else
+		    if(n1>num_read)  print *, 'error!nt2>num_read. i=',n1
+		 end if
+	
+	  end do	
+
+   end subroutine
+
+SUBROUTINE DO_COPYFILE(SRCFILE,IDESFILE)
+	IMPLICIT NONE
+	CHARACTER(512),INTENT(IN)::SRCFILE
+	INTEGER,INTENT(IN)::IDESFILE
+	integer::ef,ISRC1,ITERM
+	parameter(iterm=512)
+	character(iterm)::term
+	
+	ISRC1=23
+	OPEN(ISRC1,FILE=SRCFILE,STATUS='OLD')
+	ef=0	
+	do while(ef==0)
+		read(ISRC1,'(A<ITERM>)',iostat=ef) term	
+		WRITE(IDESFILE,'(A<ITERM>)') TERM
+		TERM=''
+		if(ef<0) exit
+	ENDDO 
+	CLOSE(23)
+
+ENDSUBROUTINE   
+   
+   
 end module

@@ -17,7 +17,7 @@ subroutine graph
 					 check_material,check_null,check_bandwidth,check_kcd, &
 					 check_enum,check_EZONE,penaltyelementshow, &
 					 DISCONTINUITIES,offset,gen_6_noded_triangle, &
-					 gen_15_noded_triangle,Generate_3D_Prism_element, &
+					 gen_15_noded_triangle,Generate_3D_MODEL, &
 					 Check_Edge					 
 	integer(4)::oldcolor,event,ix,iy,res,result
 	integer(4)::iunit, ievent, ikeystate, ixpos, iypos
@@ -46,9 +46,9 @@ subroutine graph
 	result = INSERTMENUQQ (4, 0, $MENUCHECKED, 'Tools'c, nul)
 	result = INSERTMENUQQ (4, 1, $MENUENABLED, 'Generate 6-noded element'c, gen_6_noded_triangle)
 	result = INSERTMENUQQ (4, 2, $MENUENABLED, 'Generate 15-noded element'c, gen_15_noded_triangle)
-	result = INSERTMENUQQ (4, 3, $MENUENABLED, 'Generate Prism element'c, Generate_3D_Prism_element)
+	result = INSERTMENUQQ (4, 3, $MENUENABLED, 'Generate 3D model'c, Generate_3D_MODEL)
     result = INSERTMENUQQ (4, 4, $MENUENABLED, 'Generate gmsh volume model'c, out_volume_to_gmsh)
-    
+    !result = INSERTMENUQQ (4, 5, $MENUENABLED, 'Generate tet element'c, Generate_tet_element)
 	result = INSERTMENUQQ (6, 0, $MENUCHECKED, 'Control'c, nul)
 	result = INSERTMENUQQ (6, 1, $MENUENABLED, 'display&all'c, displayall)
 	result = INSERTMENUQQ (6, 2, $MENUENABLED, 'display&substructure'c, displaysubstructure)

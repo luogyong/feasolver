@@ -16,7 +16,7 @@
 		open(unit,file=checkfile,status='replace')	
 		cstring='TITLE = '//'"'//trim(title)//'"'
 		write(unit,'(a256)') cstring
-		cstring='VARIABLES='//'"X","Y"'
+		cstring='VARIABLES='//'"X","Y","Z"'
 		write(unit,'(a256)') cstring
 		n1=0
 		do i=1,znum

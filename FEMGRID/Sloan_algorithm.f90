@@ -69,8 +69,12 @@ end subroutine
 	  integer::adjE(3)=-1,L,R
 	  logical::swap
 
-
+        if(inpmethod==linear.and.soillayer>0.and.node(p).havesoildata<2) then
+            call linearsoilinterpolate_tri(pehead,p)
+        endif
+        
 		adjE=elt(pehead).adj
+
 	  do i=1,2
 	  	if(nelt+1>maxnelement) 	call EnlargeElement()
 	  	nelt=nelt+1

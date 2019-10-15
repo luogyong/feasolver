@@ -1109,7 +1109,7 @@ real(8) function TriArea(xyz)
 	TriArea=(a1(2,2)*a1(3,3)-a1(3,2)*a1(2,3))**2+ &
 		(a1(2,1)*a1(3,3)-a1(3,1)*a1(2,3))**2+ &
 		(a1(2,1)*a1(3,2)-a1(3,1)*a1(2,2))**2
-	TriArea=0.5*TriArea**0.5
+	TriArea=0.5*abs(TriArea)**0.5
 
 end function
 

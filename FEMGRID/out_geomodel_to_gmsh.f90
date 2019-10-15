@@ -403,4 +403,22 @@ contains
     ENDSUBROUTINE
     
     
+    !SUBROUTINE LAYERINTERSECT()
+    !
+    !    INTEGER::I,J,K
+    !    
+    !    DO I=1,NELT
+    !        DO J=1,SOILLAYER
+    !                
+    !        
+    !        
+    !        ENDDO
+    !    ENDDO
+    !
+    !ENDSUBROUTINE
+    
+    
 end module geomodel
+
+
+

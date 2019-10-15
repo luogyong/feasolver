@@ -30,6 +30,7 @@ subroutine gen_6_noded_triangle
 			cycle
 		end if
 		elt(i).et=6
+        elt(j).nnum=6
 		elt(i).node(4:6)=ninedge(elt(i).edge(1:3))
 	end do
 
@@ -72,6 +73,7 @@ subroutine gen_15_noded_triangle
 			cycle
 		end if
 		elt(j).et=15
+        elt(j).nnum=15
 		!boundary nodes
 		do i=1,3
 			elt(j).node(3+i)=ninedge(elt(j).edge(i),2)

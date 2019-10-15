@@ -22,19 +22,22 @@ subroutine RCL_4TH(iflag)
 
 	use meshDS
 	implicit none
-	integer::i,n1,iflag,ni,n2,nc1,iloc1,n3
+	integer::i,n1,iflag,ni,n2,nc1,iloc1,n3,ICL1=-1
 	intent(in)::iflag
 	integer,external::iloc
 	real(8)::xa,ya,xb,yb,sa,sb
 	logical::tof
+    
 
 	tof=.true.
 	nc1=0
 	do while(tof)
 		nc1=nc1+1
-		if(nc1==10) then
+		if(nc1>20) then
 			print *, 'Failed to repair Contrainted Lines'
 			exit
+        else
+            print *, 'the ith iteration to repair Contrainted Lines. i,ICL,nnode=',nc1,ICL1,nnode
 		end if
 		tof=.false.
 		do i=1,ncedge
@@ -50,7 +53,9 @@ subroutine RCL_4TH(iflag)
 
 			n1=cedge(i).v(1)
 			n2=cedge(i).v(2)
-			n3=cedge(i).edge            
+			n3=cedge(i).edge
+            ICL1=cedge(i).cl
+            
 			if(n3/=-1) then
 				!quick judge
 				if(edge(n3).v(1)==n1.and.edge(n3).v(2)==n2) cycle
@@ -66,9 +71,9 @@ subroutine RCL_4TH(iflag)
 				if(nnode+1>maxnnode) call EnlargeNodeRelative()
 				nnode=nnode+1
 				node(nnode).number=nnode
-				node(nnode).x=(xa+xb)/2
-				node(nnode).y=(ya+yb)/2
-				node(nnode).s=(((xa-xb)**2+(ya-yb)**2)**0.5)/2
+				node(nnode).x=(xa+xb)/2.
+				node(nnode).y=(ya+yb)/2.
+				node(nnode).s=((xa-xb)**2+(ya-yb)**2)**0.5
 				!if Prism generation, Calculate elevation
 				!if(cedge(i).cl==999999) call RCL_Prism(n1,n2)
 				!add constraint edge
@@ -84,6 +89,7 @@ subroutine RCL_4TH(iflag)
 
 				call TRILOC(node(nnode).x,node(nnode).y)
 				call GNM_Sloan(nnode)
+                
 				tof=.true.
 			else
 				cedge(i).edge=adjlist(n1).edge( &

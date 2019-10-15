@@ -40,8 +40,8 @@
 	 do i=1,nnode
 		call TRILOC(node(i).x,node(i).y)
 		call GNM_Sloan(i)
-		write(msg,'(i7)') i
-		call SETMESSAGEQQ(msg,QWIN$MSG_RUNNING) 
+!		write(msg,'(i7)') i
+!		call SETMESSAGEQQ(msg,QWIN$MSG_RUNNING) 
 	 end do
 	 !iept=>ehead
 	
@@ -61,6 +61,9 @@
 				end if
 				cedge(ncedge).v(1)=cpp.npt.number
 				cedge(ncedge).v(2)=cpp.next.npt.number
+                !if(cedge(ncedge).v(1)==cedge(ncedge).v(2)) then
+                !    pause
+                !endif
 				cedge(ncedge).cl=i
 			end if
 			cpp=>cpp.next
@@ -239,3 +242,70 @@ subroutine	del_element_update_edge(el)
 	end do
 			
 end subroutine
+
+
+subroutine linearsoilinterpolate_tri(ielt,inode)
+    use meshDS
+    integer,intent(in)::ielt,inode
+    real(8)::shafun(3)=0,tri(2,3)
+    integer::i
+    
+    if(node(inode).havesoildata==2) return
+      
+    if(any(node(elt(ielt).node(1:3)).havesoildata==0)) return
+    
+    tri(1,:)=node(elt(ielt).node(1:3)).x
+    tri(2,:)=node(elt(ielt).node(1:3)).y
+    shafun=trishafun(tri,node(inode).x,node(inode).y)
+    
+    if(node(inode).havesoildata==0) then
+        allocate(node(inode).elevation(0:soillayer))
+        node(inode).havesoildata=minval(node(elt(ielt).node(1:3)).havesoildata)
+        node(inode).elevation=shafun(1)*node(elt(ielt).node(1)).elevation+shafun(2)*node(elt(ielt).node(2)).elevation +shafun(3)*node(elt(ielt).node(3)).elevation
+        if(node(inode).havesoildata==1) then
+            do i=1,3
+                node(inode).elevation=merge(node(inode).elevation,node(elt(ielt).node(i)).elevation, &
+                    abs(node(elt(ielt).node(i)).elevation+999.d0)>1.e-7)
+            enddo
+        endif
+    endif
+    if(node(inode).havesoildata==1) then
+        do i=0,soillayer
+            if(abs(node(inode).elevation(i)+999.d0)<1.e-7) then
+                if(any(abs(node(elt(ielt).node(1:3)).elevation(i)+999.d0)<1.e-7)) then
+                    print *,'UNBALE TO INTERPOLATE. THE NODE(I) OF THE INDCLUDING ELEMENT(J) HAS UNKOWN ELEVATION IN LAYER(K). (I,J,K)= ',INODE,IELT,I   
+                else
+                    node(inode).elevation(i)=dot_product(shafun,node(elt(ielt).node(1:3)).elevation(i))
+                endif
+            endif
+        enddo
+    endif
+contains
+    
+function trishafun(tri,x,y) result(shafun)
+    implicit none
+    real(8),intent(in)::tri(2,3),x,y
+    real(8)::shafun(3)
+    real(8)::a(3),b(3),c(3),t1
+    integer::i
+    
+    
+    a(1)=tri(1,2)*tri(2,3)-tri(1,3)*tri(2,2)
+    a(2)=tri(1,3)*tri(2,1)-tri(1,1)*tri(2,3)
+    a(3)=tri(1,1)*tri(2,2)-tri(1,2)*tri(2,1)
+    b(1)=tri(2,2)-tri(2,3)
+    b(2)=tri(2,3)-tri(2,1)
+    b(3)=tri(2,1)-tri(2,2)
+    c(1)=tri(1,3)-tri(1,2)
+    c(2)=tri(1,1)-tri(1,3)
+    c(3)=tri(1,2)-tri(1,1)
+    t1=sum(a)
+    if(abs(t1)<1d-14) then
+        print *, 'the element area is zero. function=trishafun'
+        stop
+    endif
+    shafun=(a+b*x+c*y)/t1
+    return
+endfunction
+    
+endsubroutine

@@ -43,8 +43,9 @@
 
 			pehead=iept
 			call GNM_Sloan(nnode)
-			write(msg,'(i7)') nnode
-			call SETMESSAGEQQ(msg,QWIN$MSG_RUNNING) 
+          
+			!write(msg,'(i7)') nnode
+			!call SETMESSAGEQQ(msg,QWIN$MSG_RUNNING) 
 
 		end do
 

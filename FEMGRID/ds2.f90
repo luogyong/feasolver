@@ -3,12 +3,12 @@
     use dflib
 	implicit none
 
-	integer,allocatable::b(:)
+	integer,allocatable::b(:),kp1(:)
     integer::inpn ! 输入点的个数
     type arr_tydef  !临时数组，存在所有的必须包含在网格中的点
 	    integer::num,iss=0,ISAU=1		
-		real(8)::x,y,s=1
-		real(8)::mins=99999
+		real(8)::x,y,s=1.D0
+		real(8)::mins=1E10
         integer::havesoildata=0
         real(8),allocatable::soildata(:)
 	 end type

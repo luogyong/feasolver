@@ -48,34 +48,47 @@
 			     cpphead(i).npt=>node(n3)
 			     cpp=>cpphead(i)
 			  else
-		         allocate(cpptail)
-			     cpptail.npt=>node(n3)
-			     cpp.next=>cpptail
-			     cpp=>cpptail
-			     nullify(cpptail)			      
+                if(n3/=cpp.npt.number) then
+		             allocate(cpptail)
+			         cpptail.npt=>node(n3)                                   
+			         cpp.next=>cpptail                 
+			         cpp=>cpptail
+			         nullify(cpptail)
+                 endif
 			  end if
               n1=nnode
 			  if(isnorefined==0) call divideline(xi,yi,si,xj,yj,sj)
+                    
+              !if(INPMethod==Linear) call linearsoilinterpolate(xi,yi,si,xj,yj,sj,n1+1,nnode)
+ 
+              
 		      do n1=n1+1,nnode
-		         allocate(cpptail)
-			     cpptail.npt=>node(n1)
-			     cpp.next=>cpptail
-			     cpp=>cpptail
-			     nullify(cpptail)
+                 if(n1/=cpp.npt.number) then
+		             allocate(cpptail)
+			         cpptail.npt=>node(n1)                 
+			         cpp.next=>cpptail
+
+			         cpp=>cpptail
+			         nullify(cpptail)
+                 endif
 		      end do
            end do
 		end do
         
 		if(csl(i).flag==1) then
-		   cpp.next=>cpphead(i)
+           if(cpp.npt.number/=cpphead(i).npt.number) then
+		        cpp.next=>cpphead(i)
+           endif
 		else
 		   !call fin2d(xi,yi,si,n3)
 		   call fin2d(xj,yj,sj,n3)
-		   allocate(cpptail)
-		   cpptail.npt=>node(n3)
-		   cpp.next=>cpptail
-		   cpp=>cpptail
-		   nullify(cpptail)
+           if(n3/=cpp.npt.number) then
+		       allocate(cpptail)
+		       cpptail.npt=>node(n3)
+		       cpp.next=>cpptail
+		       cpp=>cpptail
+		       nullify(cpptail)
+           endif
 		end if
 		
 
@@ -123,7 +136,7 @@
 	 end do
      
 	 if(.not.tof1) then
-	 		if(nnode+1>maxnnode) call EnlargeNodeRelative()
+	 	if(nnode+1>maxnnode) call EnlargeNodeRelative()
 	    nnode=nnode+1
         n1=nnode
 		node(nnode).number=nnode
@@ -218,3 +231,71 @@
 
    end subroutine
 
+   subroutine linearsoilinterpolate(xi,yi,si,xj,yj,sj,snode,enode)
+    use meshDS
+    USE ds_t
+    implicit none
+    real(8),intent(in)::xi,yi,si,xj,yj,sj
+    integer,intent(in)::snode,enode
+    integer::n1,n2,n3,n4,i
+    real(8)::Lij,Lix
+    
+    
+    
+    if(soillayer==0) return
+    
+    call fin2d_arr_t(xi,yi,n1)    
+    if(n1==0) return
+    if(arr_t(n1).havesoildata==0) return
+    call fin2d(xi,yi,si,n3)
+    if(node(n3).havesoildata==0) then
+        node(n3).havesoildata=arr_t(n1).havesoildata
+        allocate(node(n3).elevation,source=arr_t(n1).soildata)
+    endif  
+    
+    call fin2d_arr_t(xj,yj,n2)    
+    if(n2==0) return
+    if(arr_t(n2).havesoildata==0) return 
+    call fin2d(xj,yj,sj,n4)
+    if(node(n4).havesoildata==0) then
+        node(n4).havesoildata=arr_t(n2).havesoildata
+        allocate(node(n4).elevation,source=arr_t(n2).soildata)
+    endif    
+    
+    
+    
+    Lij=((xi-xj)**2+(yi-yj)**2)**0.5    
+    do i=snode,enode
+        if(node(i).havesoildata==0) then
+            node(i).havesoildata=min(node(n3).havesoildata,node(n4).havesoildata)
+            if(.not.allocated(node(i).elevation)) allocate(node(i).elevation(0:soillayer))
+            Lix=((xi-node(i).x)**2+(yi-node(i).y)**2)**0.5
+            node(i).elevation=node(n3).elevation+(node(n4).elevation-node(n3).elevation)*LIX/LIJ
+        endif
+        if(node(i).havesoildata==1) then
+            node(i).elevation=MERGE(node(N3).elevation,node(I).elevation,ABS(node(N3).elevation+999.D0)<1E-7)
+            node(i).elevation=MERGE(node(N4).elevation,node(I).elevation,ABS(node(N4).elevation+999.D0)<1E-7)
+        endif
+    enddo
+    
+   contains
+        subroutine fin2d_arr_t(xt,yt,n1)
+	        implicit none
+	        logical::tof1
+	        integer::i,j,k,n1
+	        real(8)::xt,yt
+     
+	        tof1=.false.;n1=0
+	        do i=1,inpn
+	        if(abs(xt-arr_t(i).x)>1e-6) cycle
+	        if(abs(yt-arr_t(i).y)>1e-6) cycle
+	        tof1=.true.
+	        n1=i
+	        exit				 
+	        end do
+        end  subroutine     
+   end subroutine
+   
+   
+
+ 
