@@ -284,6 +284,8 @@ end subroutine
 	  integer,intent(in)::iflag
 	  integer,intent(in)::L,T,EPT1
 	  
+      if(L<1) return
+      
 	  do i=1,3
 		  if(elt(L).adj(i)==T) then
 			 elt(L).adj(i)=EPT1

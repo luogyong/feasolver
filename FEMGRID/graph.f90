@@ -501,7 +501,7 @@ subroutine graph
 			 case(10)
 			   do k=1,3
                    !IF(EDGE(elt(ept).edge(k)).ISZONEBC/=-1.AND.EDGE(elt(ept).edge(k)).ISCEDGE==0) THEN
-				       write(nnum,'(i6)') EDGE(elt(ept).edge(k)).NUM
+				       write(nnum,'(i6)') elt(ept).edge(k)
 				       x1=(node(edge(elt(ept).edge(k)).v(1)).x+ &
 				   	    node(edge(elt(ept).edge(k)).v(2)).x)/2
 				       y1=(node(edge(elt(ept).edge(k)).v(1)).y+ &

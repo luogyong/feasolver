@@ -204,10 +204,11 @@
 	  n1=0
 
 	  do i=1,cln-ccln-n1
+      
 	     do j=2,csl(i).num
 		    call moveto_w(csl(i).conpoint(1,j-1),csl(i).conpoint(2,j-1),wxy)
 		    !oldcolor=setcolorrgb(#00ffff)
-		    select case(mod(i,15))
+        select case(mod(i,15))
 		    case(1)
                 oldcolor=setcolorrgb($HIRED)
 		    case(2)
@@ -240,12 +241,21 @@
                 oldcolor=setcolorrgb($Lowhite)			
     !		   case default
     !              oldcolor=setcolorrgb(#fff00)
-		    end select            
+		end select                 
+		     
             
-			x1=csl(i).conpoint(1,j)
-			y1=csl(i).conpoint(2,j)
-			status=lineto_w(x1,y1)
-			do k=1,inpn
+		x1=csl(i).conpoint(1,j)
+		y1=csl(i).conpoint(2,j)
+		status=lineto_w(x1,y1)
+		if(csl(i).flag==1) then
+		    call moveto_w(csl(i).conpoint(1,1),csl(i).conpoint(2,1),wxy)
+            !oldcolor=setcolorrgb(#00ffff)
+		    x1=csl(i).conpoint(1,csl(i).num)
+		    y1=csl(i).conpoint(2,csl(i).num)
+		    status=lineto_w(x1,y1)
+		end if
+        
+        do k=1,inpn
 		       if(((arr_t(k).x-csl(i).conpoint(1,j))**2+(arr_t(k).y-csl(i).conpoint(2,j))**2)<1e-10) exit
 		    end do
 			if(b(k)==0) then
@@ -268,13 +278,7 @@
 			b(k)=1
 		 end if
 		
-		if(csl(i).flag==1) then
-		   call moveto_w(csl(i).conpoint(1,1),csl(i).conpoint(2,1),wxy)
-           oldcolor=setcolorrgb(#00ffff)
-		   x1=csl(i).conpoint(1,csl(i).num)
-		   y1=csl(i).conpoint(2,csl(i).num)
-		   status=lineto_w(x1,y1)
-		end if
+
 	  end do
 
 

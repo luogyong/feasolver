@@ -10,13 +10,19 @@ module meshDS
 					soillayer=0, &
 					maxntetelt=10000,&
                     modeldimension=3,&
-                    INPMethod=0 !=1,linear, =0, membrance
+                    INPMethod=1,& !=1,linear, =0, membrance
+                    Zorder=0 !=0土层高程从下往上输入,=1,反之。
     integer,parameter:: ET_PRM=63,&
                     ET_TET=43,Linear=1,Membrance=0
     logical::ismeminpdone=.false.
     real(8)::um
     
 	parameter(maxstk=2000,um=1e15)
+    
+    INTERFACE ENLARGE_AR
+        MODULE PROCEDURE I_ENLARGE_AR,R_ENLARGE_AR,NODE_ENLARGE_AR,ELEMENT_ENLARGE_AR,&
+                         edge_enlarge_ar
+    END INTERFACE 
 
 	type point_tydef
      integer::number,bw !点的编号,semibandwidth（带宽）,荷载因子编号。
@@ -60,7 +66,7 @@ module meshDS
 	   integer::edge(3)=0,ORIENT(3)=1 !the edge number in edge set.
 	   real(8)::property(5)=0    !单元属性值
 	   integer::kcd=0,Maxedge=0  !单元的可分度,
-	   integer::adj(3)=-1 !if =-1,no adjacent element
+	   integer::adj(4)=-1 !if =-1,no adjacent element
        INTEGER::MOTHER=0,iLAYER=0,ISMODEL=1
 	end type
 !	type(element_tydef),pointer::Ehead,Ept,element,Etail!前四个指向划分好的单元，后两个指向包含插入点的三角形单元
@@ -231,13 +237,21 @@ module meshDS
 	integer,allocatable::segindex(:,:) 
 	!存储模型线段的（不是单元边）在seg中的位置（不包括以ccl形式输入的控制线，因为这类控制线上的点不在输入数组里面）。
 	type seg_type
+        private
 		integer::icl !该线段中cpphead(icl)中位置
 		integer::sv=0,ev=0 !节点在输入数组中的位置。
+        logical::isini=.false.
 		!integer::isA2Z=1 !是否是顺序，1为顺序，即在cpphead(icl)链表中为sv-ev. 0为反序，ev-sv. 
 		!integer::isT2H=0 !是否是尾首相连的段。=1,yes.
 		integer::nnum=0,nedge=0 !细分后此线段的节点个数。
 		integer,allocatable::node(:),edge(:) !细分后此线段的节点在tnode的下标,包括端节点。
 		!type(BP_tydef),pointer::svp,evp !此节点在cpphead(icl)中的位置
+    contains
+        procedure::setparas=>seg_set_parameters
+        procedure::getparas=>seg_get_parameters
+        procedure::initialize=>seg_initialize
+        procedure::get_node=>seg_get_ordered_node
+        procedure::get_edge=>seg_get_ordered_edge
 	end type
 	type(seg_type),allocatable::seg(:)
 	integer::nseg=0,maxnseg=5000	
@@ -469,6 +483,279 @@ SUBROUTINE DO_COPYFILE(SRCFILE,IDESFILE)
 	CLOSE(23)
 
 ENDSUBROUTINE   
-   
-   
+
+
+    SUBROUTINE I_ENLARGE_AR(AVAL,DSTEP)
+        INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+        INTEGER,INTENT(IN)::DSTEP
+        INTEGER,ALLOCATABLE::VAL1(:)
+        INTEGER::LB1=0,UB1=0
+        
+        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+        ALLOCATE(VAL1,SOURCE=AVAL)
+        DEALLOCATE(AVAL)
+        ALLOCATE(AVAL(LB1:UB1+DSTEP))
+        AVAL(LB1:UB1)=VAL1
+        !AVAL(UB1+1:UB1+10)=0
+        DEALLOCATE(VAL1)
+    END SUBROUTINE
+
+    SUBROUTINE R_ENLARGE_AR(AVAL,DSTEP)
+        REAL(8),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+        INTEGER,INTENT(IN)::DSTEP
+        REAL(8),ALLOCATABLE::VAL1(:)
+        INTEGER::LB1=0,UB1=0
+    
+        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+        ALLOCATE(VAL1,SOURCE=AVAL)
+        DEALLOCATE(AVAL)
+        ALLOCATE(AVAL(LB1:UB1+DSTEP))
+        AVAL(LB1:UB1)=VAL1
+        !AVAL(UB1+1:UB1+10)=0
+        DEALLOCATE(VAL1)
+    END SUBROUTINE
+    SUBROUTINE NODE_ENLARGE_AR(AVAL,DSTEP)
+        TYPE(point_tydef),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+        INTEGER,INTENT(IN)::DSTEP
+        TYPE(point_tydef),ALLOCATABLE::VAL1(:)
+        INTEGER::LB1=0,UB1=0
+    
+        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+        ALLOCATE(VAL1,SOURCE=AVAL)
+        DEALLOCATE(AVAL)
+        ALLOCATE(AVAL(LB1:UB1+DSTEP))
+        AVAL(LB1:UB1)=VAL1
+        !AVAL(UB1+1:UB1+10)=0
+        DEALLOCATE(VAL1)
+    END SUBROUTINE   	
+    SUBROUTINE ELEMENT_ENLARGE_AR(AVAL,DSTEP)
+        TYPE(element_tydef),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+        INTEGER,INTENT(IN)::DSTEP
+        TYPE(element_tydef),ALLOCATABLE::VAL1(:)
+        INTEGER::LB1=0,UB1=0
+    
+        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+        ALLOCATE(VAL1,SOURCE=AVAL)
+        DEALLOCATE(AVAL)
+        ALLOCATE(AVAL(LB1:UB1+DSTEP))
+        AVAL(LB1:UB1)=VAL1
+        !AVAL(UB1+1:UB1+10)=0
+        DEALLOCATE(VAL1)
+    END SUBROUTINE   
+    SUBROUTINE EDGE_ENLARGE_AR(AVAL,DSTEP)
+        TYPE(EDGE_tydef),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+        INTEGER,INTENT(IN)::DSTEP
+        TYPE(EDGE_tydef),ALLOCATABLE::VAL1(:)
+        INTEGER::LB1=0,UB1=0
+    
+        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+        ALLOCATE(VAL1,SOURCE=AVAL)
+        DEALLOCATE(AVAL)
+        ALLOCATE(AVAL(LB1:UB1+DSTEP))
+        AVAL(LB1:UB1)=VAL1
+        !AVAL(UB1+1:UB1+10)=0
+        DEALLOCATE(VAL1)
+    END SUBROUTINE 
+	subroutine seg_initialize(this)
+		use ds_t,only:arr_t
+		!use meshds
+		implicit none
+        class(seg_type)::this
+		integer::i,j,k,n1,n2,n3,sign1
+        integer,allocatable::nnode1(:),nar1(:)
+		real(8)::t1,t2,xi,yi,xj,yj,x1,y1        
+		logical::tof1
+		
+        
+        if(this.isini) return
+        
+        allocate(nnode1(1000))
+        
+		!do i=1,nseg
+            
+        xi=arr_t(this.sv).x;yi=arr_t(this.sv).y
+        xj=arr_t(this.ev).x;yj=arr_t(this.ev).y
+        n1=0;nnode1=0
+        
+        node.subbw=0!借用
+        node.layer=0
+        do j=1,ncedge
+            if(cedge(j).cl/=this.icl) cycle
+            x1=sum(node(cedge(j).v).x)/2.0
+            y1=sum(node(cedge(j).v).y)/2.0
+            call vins2d(xi,yi,xj,yj,x1,y1,tof1)
+            if(tof1) then
+                n1=n1+1
+                if(n1>size(nnode1)) then
+                    allocate(nar1(2*size(nnode1)))
+                    nar1(1:size(nnode1))=nnode1
+                    deallocate(nnode1)
+                    allocate(nnode1,source=nar1)
+                    deallocate(nar1)
+                endif
+                nnode1(n1)=cedge(j).edge
+                    
+                                
+                    
+                do k=1,2
+                    n2=cedge(j).v(k)
+                    if(k==1) then
+                        sign1=1 !first vetex
+                    else
+                        sign1=-1 !second vetex
+                    endif
+                    if(node(n2).subbw==0) then
+                        node(n2).subbw=j*sign1
+                    else
+                        node(n2).layer=j*sign1
+                    endif
+                enddo
+            endif
+		enddo
+            
+        if(n1>0) then
+			this.nnum=count(node(1:).subbw/=0)
+			allocate(this.node(this.nnum))
+            this.node=pack([1:nnode],node(1:).subbw/=0)
+            this.nedge=n1
+			allocate(this.edge(n1))
+            this.edge=nnode1(1:n1)
+                
+                
+            !sorted
+            nnode1=0
+            !find the head
+            do j=1,this.nnum
+                n2=this.node(j)
+                if(node(n2).subbw*node(n2).layer/=0) cycle
+                if(abs(xi-node(n2).x)>1e-7) cycle
+                if(abs(yi-node(n2).y)>1e-7) cycle
+                nnode1(1)=n2
+                exit
+            enddo
+                
+            !find the successor
+            do j=2,this.nnum
+                n2=nnode1(j-1)
+                if(j==2) then
+                    if(node(n2).subbw/=0) then
+                        n3=node(n2).subbw
+                    else
+                        n3=node(n2).layer
+                    endif
+                else
+                    if(abs(node(n2).subbw)==n3) then
+                        n3=node(n2).layer
+                    else
+                        n3=node(n2).subbw
+                    endif
+                endif
+                    
+                if(n3>0) then
+                    nnode1(j)=cedge(n3).v(2)
+                else
+                    n3=abs(n3)
+                    nnode1(j)=cedge(n3).v(1)
+                endif
+                this.edge(j-1)=cedge(n3).edge
+            enddo
+                
+            this.node=nnode1(1:this.nnum)
+               
+        endif
+            
+		!end do
+        this.isini=.true.
+        
+        if(allocated(nnode1)) deallocate(nnode1)
+        
+        node.subbw=0
+        node.layer=0
+	
+	end subroutine    
+    
+    
+    function seg_get_ordered_node(this,x) result(INode)
+    !return ordered nodes starting headnode on this seg. 
+        use ds_t,only:arr_t
+        implicit none
+        class(seg_type)::this
+        real(8),intent(in),optional::x(2)
+        integer,target,allocatable::inode(:)
+        real(8)::t1
+        
+        if(.not.this.isini) call this.initialize
+        
+        allocate(inode(this.nnum))
+        
+        if(present(x)) then
+            t1=((x(1)-arr_t(this.sv).x)**2+(x(2)-arr_t(this.sv).y)**2)**0.5
+            if(abs(t1)<1e-7) then
+                inode=this.node
+            else
+                inode=this.node(this.nnum:1:-1)
+            endif
+        else 
+            inode=this.node
+        endif 
+    
+    endfunction
+    function seg_get_ordered_edge(this,x) result(INode)
+    !return ordered edges starting headnode on this seg. 
+        use ds_t,only:arr_t
+        implicit none
+        class(seg_type)::this
+        real(8),intent(in),optional::x(2)
+        integer,target,allocatable::inode(:)
+        real(8)::t1
+        
+        
+        if(.not.this.isini) call this.initialize
+        
+        allocate(inode(this.nedge))
+        
+        if(present(x)) then
+            t1=((x(1)-arr_t(this.sv).x)**2+(x(2)-arr_t(this.sv).y)**2)**0.5
+            if(abs(t1)<1e-7) then
+                inode=this.edge
+            else
+                inode=this.edge(this.nedge:1:-1)
+            endif
+        else 
+            inode=this.edge
+        endif 
+    
+    endfunction
+    
+    subroutine seg_get_parameters(this,icl,sv,ev,isini,nnum,nedge)
+        implicit none
+        class(seg_type)::this
+        integer,intent(out),optional::icl,sv,ev,nnum,nedge
+        logical,intent(out),optional::isini
+        
+        if(present(icl)) icl=this.icl
+        if(present(sv)) sv=this.sv
+        if(present(ev)) ev=this.ev
+        if(present(isini)) isini=this.isini
+        if(present(nnum)) then
+            if(.not.this.isini) call this.initialize
+            nnum=this.nnum
+        endif
+        if(present(nedge)) then
+            if(.not.this.isini) call this.initialize
+            nedge=this.nedge
+        endif
+    endsubroutine
+    
+    subroutine seg_set_parameters(this,icl,sv,ev)
+        implicit none
+        class(seg_type)::this
+        integer,intent(in),optional::icl,sv,ev
+
+        
+        if(present(icl)) this.icl=icl
+        if(present(sv)) this.sv=sv
+        if(present(ev)) this.ev=ev 
+        
+    endsubroutine    
 end module

@@ -52,6 +52,7 @@
 		<File RelativePath=".\BC_HANDLE.f90"/>
 		<File RelativePath="..\BoundPointMesh.f90"/>
 		<File RelativePath="..\checkdata.f90"/>
+		<File RelativePath=".\CutOffWall.f90"/>
 		<File RelativePath="..\data_structure.f90"/>
 		<File RelativePath="..\divideline.f90"/>
 		<File RelativePath="..\ds2.f90"/>

@@ -74,6 +74,14 @@ subroutine RCL_4TH(iflag)
 				node(nnode).x=(xa+xb)/2.
 				node(nnode).y=(ya+yb)/2.
 				node(nnode).s=((xa-xb)**2+(ya-yb)**2)**0.5
+                if(inpmethod==linear.and.soillayer>0) then
+                    if(node(n1).havesoildata>0.and.node(n2).havesoildata>0) then
+                        allocate(node(nnode).elevation(0:soillayer))
+                        node(nnode).havesoildata=min(node(n1).havesoildata,node(n2).havesoildata)
+                        node(nnode).elevation=(node(n1).elevation+node(n2).elevation)/2.0
+                        
+                    endif
+                endif                
 				!if Prism generation, Calculate elevation
 				!if(cedge(i).cl==999999) call RCL_Prism(n1,n2)
 				!add constraint edge

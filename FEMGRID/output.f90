@@ -241,8 +241,11 @@
                 stop
             end select
             
+            IF(NELT1<1) CYCLE
+            
             item=len_trim(adjustL(model(i).et))
 		    ITEM1=len_trim(adjustL(model(i).name))
+            
             WRITE(UNIT,120) nelt1,i,trim(adjustl(model(i).et)),model(i).mat,model(i).coupleset,model(i).sf,trim(adjustl(model(i).name))
             
             do J=1,nelt1
@@ -631,7 +634,7 @@ subroutine elementgroup()
 		n1=elt(i).zn
 		zone(n1).nitem=zone(n1).nitem+1
 		select case(elt(i).et)
-			case(-1)
+			case(-1,41)
 				zone(n1).ndise4n=zone(n1).ndise4n+1
 			case(0)
 				zone(n1).ntrie3n=zone(n1).ntrie3n+1
@@ -645,7 +648,7 @@ subroutine elementgroup()
             n1=elt(i).zn2
 		    zone(n1).nitem=zone(n1).nitem+1
 		    select case(elt(i).et)
-			    case(-1)
+			    case(-1,41)
 				    zone(n1).ndise4n=zone(n1).ndise4n+1
 			    case(0)
 				    zone(n1).ntrie3n=zone(n1).ntrie3n+1
@@ -687,7 +690,7 @@ subroutine elementgroup()
 		    zone(n1).nitem=zone(n1).nitem+1
 		    zone(n1).item(zone(n1).nitem)=i
 		    select case(elt(i).et)
-			    case(-1)
+			    case(-1,41)
 				    zone(n1).ndise4n=zone(n1).ndise4n+1
 				    zone(n1).dise4n(zone(n1).ndise4n)=i				
 			    case(0)
@@ -706,7 +709,7 @@ subroutine elementgroup()
 		        zone(n1).nitem=zone(n1).nitem+1
 		        zone(n1).item(zone(n1).nitem)=i
 		        select case(elt(i).et)
-			        case(-1)
+			        case(-1,41)
 				        zone(n1).ndise4n=zone(n1).ndise4n+1
 				        zone(n1).dise4n(zone(n1).ndise4n)=i				
 			        case(0)

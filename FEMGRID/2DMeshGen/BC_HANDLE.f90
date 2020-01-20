@@ -1,14 +1,14 @@
 MODULE BC_HANDLE
-    USE meshDS, ONLY: NNODE,TNODE,ZONE,ELT,NODE,modeldimension,strtoint,seg,segindex,edge
+    USE meshDS, ONLY: NNODE,TNODE,ZONE,ELT,NODE,modeldimension,strtoint,seg,segindex,edge,enlarge_ar
     USE ds_t, ONLY:arr_t
     implicit none
 
     private
     PUBLIC::ZoneBC_type,LineBC_type,zonebc,nzbc,linebc,nlbc
     
-    INTERFACE ENLARGE_AR
-        MODULE PROCEDURE I_ENLARGE_AR,R_ENLARGE_AR
-    END INTERFACE 
+    !INTERFACE ENLARGE_AR
+    !    MODULE PROCEDURE I_ENLARGE_AR,R_ENLARGE_AR
+    !END INTERFACE 
     
 	Type linebc_type
 		integer::nnum,LOC,ILAYER,BCTYPE,NDIM,DOF,SF,ISFIELD=0 !control point number
@@ -212,21 +212,25 @@ endsubroutine
 subroutine LineBC_initialize(this)
 implicit none
 class(linebc_type)::this
-integer::i,j,k,n1,n2
+integer::i,j,k,n1,n2,nedge1
+integer,allocatable::edge1(:)
 real(8)::t2
 
     !gen line elements
 	n1=0
 	do j=1,this.nnum-1
-		this.nelt=this.nelt+seg(segindex(this.NBC(j),this.NBC(j+1))).nedge !element count
+        call seg(segindex(this.NBC(j),this.NBC(j+1))).getparas(nedge=nedge1)
+		this.nelt=this.nelt+nedge1 !element count
 	end do
 	allocate(this.elt(2,this.nelt),this.eseg(this.nelt))
 	n2=0
 	do j=1,this.nnum-1
 		n1=segindex(this.NBC(j),this.NBC(j+1))
-		do i=1,seg(n1).nedge
+        edge1=seg(n1).get_edge()
+        call seg(n1).getparas(nedge=nedge1)
+		do i=1,nedge1
             n2=n2+1
-            this.elt(:,n2)=edge(seg(n1).edge(i)).v
+            this.elt(:,n2)=edge(edge1(i)).v
             this.eseg(n2)=j
         enddo
 	end do 
@@ -887,35 +891,7 @@ FUNCTION LineBC_interpolate(THIS,ISEG,X,Y,Z) RESULT(IVAL)
         ENDIF
 ENDFUNCTION
 
-    SUBROUTINE I_ENLARGE_AR(AVAL,DSTEP)
-        INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:)
-        INTEGER,INTENT(IN)::DSTEP
-        INTEGER,ALLOCATABLE::VAL1(:)
-        INTEGER::LB1=0,UB1=0
-        
-        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-        ALLOCATE(VAL1,SOURCE=AVAL)
-        DEALLOCATE(AVAL)
-        ALLOCATE(AVAL(LB1:UB1+DSTEP))
-        AVAL(LB1:UB1)=VAL1
-        !AVAL(UB1+1:UB1+10)=0
-        DEALLOCATE(VAL1)
-    END SUBROUTINE
 
-    SUBROUTINE R_ENLARGE_AR(AVAL,DSTEP)
-        REAL(8),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
-        INTEGER,INTENT(IN)::DSTEP
-        REAL(8),ALLOCATABLE::VAL1(:)
-        INTEGER::LB1=0,UB1=0
-    
-        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-        ALLOCATE(VAL1,SOURCE=AVAL)
-        DEALLOCATE(AVAL)
-        ALLOCATE(AVAL(LB1:UB1+DSTEP))
-        AVAL(LB1:UB1)=VAL1
-        !AVAL(UB1+1:UB1+10)=0
-        DEALLOCATE(VAL1)
-    END SUBROUTINE
 
 subroutine not_nodal_force_weight(this,et)
 	

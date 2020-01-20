@@ -51,7 +51,7 @@
 			print *, 'Delaunay triangular Mesh completed. Begin to  handle other tasks, please wait¡­: ', char_time	 	 	 	 
 		end if
 		
-		call seg_initialize()
+		!call seg_initialize()
 		
 		if(nsm>0) call structuremesh()
 		call group()

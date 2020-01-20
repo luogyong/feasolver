@@ -59,7 +59,7 @@
               n1=nnode
 			  if(isnorefined==0) call divideline(xi,yi,si,xj,yj,sj)
                     
-              !if(INPMethod==Linear) call linearsoilinterpolate(xi,yi,si,xj,yj,sj,n1+1,nnode)
+              if(INPMethod==Linear) call linearsoilinterpolate(xi,yi,si,xj,yj,sj,n1+1,nnode)
  
               
 		      do n1=n1+1,nnode

@@ -141,16 +141,6 @@ do i=1,nmgroup
     zone(model(i).izone).ismodel(model(i).ilayer)=1
 enddo
 
-if(nmeminp>0) then
-    if(.not.allocated(meminp2)) then
-        allocate(meminp2,source=meminp)
-        nmeminp2=nmeminp
-    else
-        meminp2(1:nmeminp)=meminp
-    endif 
-    deallocate(meminp)
-    nmeminp=0
-endif
 
 
    print *,'Reading data COMPLETED.'
@@ -288,8 +278,17 @@ endif
 		
 		   print *,'Reading POINT data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,*) '\n Point的输入格式为:\n 1)点数(inpn);\n 2)序号(num),坐标(x),坐标(y),[elevation(1:soillayer+1)]; \n ..... \n 共inpn个.\n &
-           &            注意高程应从底层往上输'c
+		   write(*,'(A512)') '\n Point的输入格式为:\n &
+           &    0) Point[,soillayer=#,inpmethod=0|1,zorder=0|1,isnorefined=0|1] \n  &
+           &    1) 点数(inpn);\n &
+           &    2) 序号(num),坐标(x),坐标(y),[elevation(1:soillayer+1)][,meshsize]. 共inpn行.\n &
+           &    Notes: \n &
+           &        a)Zorder,高程输入顺序，=0(默认)表高程elevation从底层往上输;=1反之. \n &
+           &        b)inpmethod,土层插值方法,=0表膜方程插值;=1(默认),三角形线插. \n &
+           &        c)isnorefined,是否加密网格,0=No(默认),1=Yes.\n &
+           &        d)meshsize=该点附近的网格大小(可不输入). \n &
+           &        e)soillayer=模型的土层数(默认0) \n &
+           &        f)elevation=该点的各土层面高程(soillayer>0时输入)'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
             do i=1, pro_num
                 select case(property(i).name)
@@ -302,6 +301,8 @@ endif
 					isnorefined=int(property(i).value)
                 case('inpmethod')
                     inpmethod=int(property(i).value)
+                case('zorder')
+                    Zorder=int(property(i).value)
                 case default
 	                call Err_msg(property(i).name)
                 end select
@@ -322,7 +323,11 @@ endif
                     if(dn>4.and.soillayer>0) then
                         arr_t(k).havesoildata=2
                         allocate(arr_t(k).soildata(0:soillayer))
-                        arr_t(k).soildata=ar(4:4+soillayer)
+                        if(zorder==0) then
+                            arr_t(k).soildata=ar(4:4+soillayer)
+                        else
+                            arr_t(k).soildata=ar(4+soillayer:4:-1)
+                        endif
                         if(any(abs(arr_t(k).soildata+999)<1.d-6)) arr_t(k).havesoildata=1
                         if(dn<=4+soillayer) n1=0                         
                         geology(k).isini=1
@@ -548,9 +553,10 @@ endif
 					nseg=nseg+1
 					segindex(b(J),n1)=nseg
 					segindex(n1,b(J))=nseg
-					seg(nseg).sv=b(J)
-					seg(nseg).ev=n1
-					seg(nseg).icl=i
+					!seg(nseg).sv=b(J)
+					!seg(nseg).ev=n1
+					!seg(nseg).icl=i
+                    call seg(nseg).setparas(sv=b(j),ev=n1,icl=i)
 					!if(j==csl(i).num) seg(nseg).ist2h=1 
 				end do
 			 end do		
@@ -632,32 +638,33 @@ endif
                 nseg=nseg+1
                 segindex(b(i),n1)=nseg
                 segindex(n1,b(I))=nseg
-                seg(nseg).sv=b(I)
-                seg(nseg).ev=n1
-                seg(nseg).icl=0
+                !seg(nseg).sv=b(I)
+                !seg(nseg).ev=n1
+                !seg(nseg).icl=0
+                call seg(nseg).setparas(sv=b(i),ev=n1,icl=0)
                 !if(i==keypn) seg(nseg).ist2h=1			  
 			  
 		   end do
 	       BNpt.next=>BNhead
 		   deallocate(b)
 
-	      !如果该点的尺寸大于相邻边界点之间的最小的距离，以最小距离为该点的尺寸
-		   do i=1,nnode
-	         if(i==nnode) then
-                j=1
-			 else
-				j=i+1
-			 end if
-		     if(i==1) then
-				k=nnode
-			 else
-			    k=i-1
-			 end if
-			 t1=((node(i).x-node(k).x)**2+(node(i).y-node(k).y)**2)**0.5
-			 t2=((node(i).x-node(j).x)**2+(node(i).y-node(j).y)**2)**0.5
-			 t1=min(t1,t2)
-			 if(node(i).s>t1) node(i).s=t1			
-		   end do
+	   !   !如果该点的尺寸大于相邻边界点之间的最小的距离，以最小距离为该点的尺寸
+		  ! do i=1,nnode
+	   !      if(i==nnode) then
+    !            j=1
+			 !else
+				!j=i+1
+			 !end if
+		  !   if(i==1) then
+				!k=nnode
+			 !else
+			 !   k=i-1
+			 !end if
+			 !t1=((node(i).x-node(k).x)**2+(node(i).y-node(k).y)**2)**0.5
+			 !t2=((node(i).x-node(j).x)**2+(node(i).y-node(j).y)**2)**0.5
+			 !t1=min(t1,t2)
+			 !if(node(i).s>t1) node(i).s=t1			
+		  ! end do
 
 
 		case('ccl')
@@ -823,74 +830,79 @@ endif
 							call Err_msg(property(i).name)
 					end select
 				end do				
-		case('membrance interpolation','meminp')
-			print *, 'Reading membrance interpolation data...'
-            call skipcomment(unit)
-			read(unit,*) nmeminp
-			allocate(meminp(nmeminp))
-			do i=1,nmeminp
-                call skipcomment(unit)
-				read(unit,*) meminp(i).icl
-				if(meminp(i).icl==0) then
-					n1=keypn
-                    if(kp1(1)/=kp1(keypn)) n1=keypn+1
-				else
-					n1=csl(meminp(i).icl).num
-                    if(csl(meminp(i).icl).flag==1.and.(csl(meminp(i).icl).point(1)/=csl(meminp(i).icl).point(csl(meminp(i).icl).num))) then
-                        n1=csl(meminp(i).icl).num+1
-                    endif
-				end if
-				meminp(i).nnum=n1
-				allocate(meminp(i).elevation(n1,0:soillayer),meminp(i).cp(meminp(i).nnum))
-                
-                
-				do j=1,n1
-                    if(meminp(i).icl>0) then
-                        meminp(i).cp(j)=csl(meminp(i).icl).point(j)
-                        if(arr_t(csl(meminp(i).icl).point(j)).havesoildata>0) then
-					        meminp(i).elevation(j,:)=arr_t(csl(meminp(i).icl).point(j)).soildata
-                        else
-                            print *, 'Point i has no soildata. i=',csl(meminp(i).icl).point(j)
-                            meminp(i).elevation(j,:)=-999
-                        endif
-                        if(csl(meminp(i).icl).flag==1.and.(csl(meminp(i).icl).point(1)/=csl(meminp(i).icl).point(csl(meminp(i).icl).num))) then
-                            meminp(i).cp(j)=csl(meminp(i).icl).point(1)
-                        endif                        
-                    else
-                        meminp(i).cp(j)=kp1(j)
-                        if(arr_t(kp1(j)).havesoildata>0) then
-					        meminp(i).elevation(j,:)=arr_t(kp1(j)).soildata
-                        else
-                            print *, 'Point i has no soildata. i=',kp1(j)
-                            meminp(i).elevation(j,:)=-999
-                        endif
-                        
-                    endif
-				end do
-			end do
-			!if(nmeminp>0) IPMethod=1
-		case('meminp2')
-			print *, 'Reading MEMBRANCE INTERPOLATION2 data...'
+		case('membrance interpolation','meminp','meminp2')
+
+			print *, 'Reading MEMBRANCE INTERPOLATION data...'
+            oldcolor = SETTEXTCOLOR(INT2(10))
+		    write(*,'(a256)') 'Membrance Interpolation的输入格式为:\n &
+            &  1)地质线数(nmeminp);\n &
+            &  2) 控制线号 [,控制点个数(>1)(如果该线不是整条控制线.如此数不输入或<2,则2.1)不输入)]. 共nmeminp组。 \n &
+            &  2.1) [控制点号](如果该线不是整条控制线.) \n'c
+            
+		    oldcolor = SETTEXTCOLOR(INT2(15))            
             call skipcomment(unit)
 			read(unit,*) nmeminp2
-			allocate(meminp2(nmeminp+nmeminp2))
-            nmeminp2=nmeminp+nmeminp2
-			do i=nmeminp,nmeminp2
-                call skipcomment(unit)
-				read(unit,*) meminp2(i).nnum
-				allocate(meminp2(i).elevation(meminp2(i).nnum,0:soillayer), &
-							meminp2(i).cp(meminp2(i).nnum))
-				isall1=.true.
-			    call strtoint(unit,ar,dnmax,dn,meminp2(i).nnum,isall1)
-				meminp2(i).cp=nint(ar(1:dn))	
-				do j=1,meminp2(i).nnum
-                    if(arr_t(meminp2(i).cp(j)).havesoildata>0) then
-					    meminp2(i).elevation(j,:)=arr_t(meminp2(i).cp(j)).soildata
-                    else
-                        print *, 'Point i has no soildata. i=',meminp2(i).cp(j)
-                        meminp2(i).elevation(j,:)=-999
-                    endif
-				end do
+			allocate(meminp2(nmeminp2))
+            !nmeminp2=nmeminp+nmeminp2
+			do i=1,nmeminp2
+                !call skipcomment(unit)
+                call strtoint(unit,ar,dnmax,dn,dnmax)
+                if(dn>1.and.int(ar(2))>1) then 
+                    meminp2(i).icl=int(ar(1)) !为局部控制线
+				    meminp2(i).nnum=int(ar(2))
+				    allocate(meminp2(i).elevation(meminp2(i).nnum,0:soillayer), &
+							    meminp2(i).cp(meminp2(i).nnum))
+				    isall1=.true.
+			        call strtoint(unit,ar,dnmax,dn,meminp2(i).nnum,isall1)
+				    meminp2(i).cp=nint(ar(1:dn))	
+				    do j=1,meminp2(i).nnum
+                        if(arr_t(meminp2(i).cp(j)).havesoildata>0) then
+					        meminp2(i).elevation(j,:)=arr_t(meminp2(i).cp(j)).soildata
+                        else
+                            print *, 'Point i has no soildata. i=',meminp2(i).cp(j)
+                            meminp2(i).elevation(j,:)=-999
+                        endif
+				    end do 
+                    
+                else
+                
+                    meminp2(i).icl=int(ar(1))
+                    if(meminp2(i).icl==0) then
+					    n1=keypn
+                        if(kp1(1)/=kp1(keypn)) n1=keypn+1
+				    else
+					    n1=csl(meminp2(i).icl).num
+                        if(csl(meminp2(i).icl).flag==1.and.(csl(meminp2(i).icl).point(1)/=csl(meminp2(i).icl).point(csl(meminp2(i).icl).num))) then
+                            n1=csl(meminp2(i).icl).num+1
+                        endif
+				    end if
+				    meminp2(i).nnum=n1
+				    allocate(meminp2(i).elevation(n1,0:soillayer),meminp2(i).cp(meminp2(i).nnum)) 
+				    do j=1,n1
+                        if(meminp2(i).icl>0) then
+                            meminp2(i).cp(j)=csl(meminp2(i).icl).point(j)
+                            if(arr_t(csl(meminp2(i).icl).point(j)).havesoildata>0) then
+					            meminp2(i).elevation(j,:)=arr_t(csl(meminp2(i).icl).point(j)).soildata
+                            else
+                                print *, 'Point i has no soildata. i=',csl(meminp2(i).icl).point(j)
+                                meminp2(i).elevation(j,:)=-999
+                            endif
+                            if(csl(meminp2(i).icl).flag==1.and.(csl(meminp2(i).icl).point(1)/=csl(meminp2(i).icl).point(csl(meminp2(i).icl).num))) then
+                                meminp2(i).cp(j)=csl(meminp2(i).icl).point(1)
+                            endif                        
+                        else
+                            meminp2(i).cp(j)=kp1(j)
+                            if(arr_t(kp1(j)).havesoildata>0) then
+					            meminp2(i).elevation(j,:)=arr_t(kp1(j)).soildata
+                            else
+                                print *, 'Point i has no soildata. i=',kp1(j)
+                                meminp2(i).elevation(j,:)=-999
+                            endif
+                        
+                        endif
+				    end do                    
+                endif
+
 			end do
             
 			!if(nmeminp2>0) IPMethod=1

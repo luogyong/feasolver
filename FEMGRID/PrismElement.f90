@@ -206,9 +206,9 @@ end Subroutine
  
 		
 	 
-		!if(nmeminp2>0) call seg_initialize()
+       
         
-        if(.not.ismeminpdone.or.inpmethod==0.or.any(node(1:).havesoildata<2)) then
+        if(any(node(1:nnode).havesoildata<2)) then
 	
 		    node.subbw=-999
 		
@@ -350,12 +350,24 @@ end Subroutine
 		    DEALLOCATE(noutputorder,bw1,tm1,tm1b,load1,stat=err)
 		
             deallocate(IPERM,stat=err)
-
+            
+            ismeminpdone=.true.
+            node(1:nnode).havesoildata=2
+            
 	    endif
         
-        ismeminpdone=.true.
-        node(1:nnode).havesoildata=2        
-            	!enlarge node space
+        
+       !enlarge node space
+        !if(size(node(1:),dim=1)<nnode*(soillayer+1)) then
+        !force consistentcy
+        !上层高程的优先级大于下层,即当上层高程低于下层高程时，令下层高程等于上层高程。
+        do i=1,nnode
+            if(node(i).havesoildata==0) cycle
+            do j=soillayer,1,-1
+                if(node(i).elevation(j-1)>node(i).elevation(j)) node(i).elevation(j-1)=node(i).elevation(j)           
+            enddo
+        enddo
+        
         allocate(node1(nnode))
 	    node1=node(1:nnode)
 	    deallocate(node)
@@ -371,7 +383,7 @@ end Subroutine
 		    node((n1+1):(n1+nnode)).layer=i			
 	    end do
 	    deallocate(node1)
-    
+        !endif
     	    !check elevation
         
 	    do j=0,soillayer
@@ -404,7 +416,7 @@ end Subroutine
 		
 
         
-
+        deallocate(at1,lt1)
         
 	end subroutine
 	
@@ -425,11 +437,9 @@ end Subroutine
 			!统计该地质线上总节点数。
 			node1=0
 			do j=1,meminp2(i).nnum-1
-				!n1=n1+seg(segindex(meminp2(i).cp(j),meminp2(i).cp(j+1))).nnum-1 !最后端点暂不计入，以免计重
-                node1(seg(segindex(meminp2(i).cp(j),meminp2(i).cp(j+1))).node)=j
+                node1(seg(segindex(meminp2(i).cp(j),meminp2(i).cp(j+1))).get_node())=j
 			end do
-			!如果不闭合，把最后一个端节点计入。
-			!if(meminp2(i).cp(1)/=meminp2(i).cp(meminp2(i).nnum)) n1=n1+1 
+
 			
 			n1=count(node1>0)
             meminp2(i).nvb=n1
@@ -458,7 +468,7 @@ end Subroutine
 					meminp2(i).lincof(1,j,k1)=(meminp2(i).elevation(k,k1)-meminp2(i).elevation(j,k1))/t2
 					meminp2(i).lincof(2,j,k1)=meminp2(i).elevation(j,k1)
 				end do
-				t1=t2
+				
 			end do		
 		
 			
@@ -557,47 +567,7 @@ end Subroutine
 	!
 	!end subroutine
 	
-	subroutine seg_initialize()
-		use ds_t
-		use meshds
-		implicit none
-		integer::i,j,nnode1(1000),n1
-		real(8)::t1,t2,xi,yi,xj,yj,x1,y1
-		logical::tof1
-		
-        node.subbw=0!
-        
-		do i=1,nseg
-            
-            xi=arr_t(seg(i).sv).x;yi=arr_t(seg(i).sv).y
-            xj=arr_t(seg(i).ev).x;yj=arr_t(seg(i).ev).y
-            n1=0;nnode1=0            
-            do j=1,ncedge
-                if(cedge(j).cl/=seg(i).icl) cycle
-                x1=sum(node(cedge(j).v).x)/2.0
-                y1=sum(node(cedge(j).v).y)/2.0
-                call vins2d(xi,yi,xj,yj,x1,y1,tof1)
-                if(tof1) then
-                    n1=n1+1
-                    nnode1(n1)=cedge(j).edge
-                    node(cedge(j).v).subbw=i
-                endif
-			enddo
-            
-            if(n1>0) then
-			    seg(i).nnum=count(node(1:).subbw==i)
-			    allocate(seg(i).node(seg(i).nnum))
-                seg(i).node=pack([1:nnode],node(1:).subbw==i)
-                seg(i).nedge=n1
-			    allocate(seg(i).edge(n1))
-                seg(i).edge=nnode1(1:n1)
-            endif
-            
-		end do
-        
-        node.subbw=0
-	
-	end subroutine
+
     
     
     
