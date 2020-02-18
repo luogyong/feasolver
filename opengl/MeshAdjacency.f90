@@ -7,7 +7,7 @@ INTERFACE SETUP_EDGE_ADJL
     MODULE PROCEDURE SETUP_EDGE_ADJL_MODEL,SETUP_EDGE_ADJL_TET,SETUP_EDGE_ADJL_SOLVER
 END INTERFACE
 INTERFACE SETUP_FACE_ADJL
-    MODULE PROCEDURE SETUP_FACE_ADJL_MODEL,SETUP_FACE_ADJL_TET
+    MODULE PROCEDURE SETUP_FACE_ADJL_MODEL,SETUP_FACE_ADJL_TET,SETUP_FACE_ADJL_SOLVER
 END INTERFACE
 
 PRIVATE::MAX_NODE_ADJ,MAX_FACE_ADJ
@@ -668,7 +668,181 @@ SUBROUTINE SETUP_FACE_ADJL_MODEL(FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,N
     
 ENDSUBROUTINE
 
+SUBROUTINE SETUP_FACE_ADJL_Solver(FACE_L,NFACE_L,EDGE_L,NEDGE_L)
+    USE solverds,ONLY:ELEMENT_L=>ELEMENT,NODE_L=>NODE,NNODE_L=>NNUM,NEL_L=>ENUM,ESET=>eset,NESET=>NESET,ESETID
+    IMPLICIT NONE
+    INTEGER,INTENT(IN)::NEDGE_L
+    INTEGER::NFACE_L
+	TYPE(EDGE_TYDEF),INTENT(IN)::EDGE_L(NEDGE_L)
+    TYPE(FACE_TYDEF),ALLOCATABLE::FACE_L(:)
+	!type(ELEMENT_TYDEF)::ELEMENT_L(NEL_L)    
+    !REAL(8),INTENT(IN)::NODE_L(3,NNODE_L)
+    !TYPE(ESET_TYDEF),INTENT(IN)::ESET(NESET)
+    INTEGER::I,J,N1,ET1,NFACE1,N2,K,K1,NV1,IFACE1,N2ORDER1(10),NODE1(10),O2NODE1(10),ORDER1(10)
+    REAL(8)::V1(3),V2(3),NORMAL1(3),T1
+    INTEGER::MAXADJL1
+    INTEGER::ADJL1(3,MAX_FACE_ADJ,NNODE_L),F_ADJL1(MAX_FACE_ADJ,NNODE_L),NADJL1(NNODE_L) 
 
+    MAXADJL1=MAX_FACE_ADJ
+
+    
+    IF(.NOT.ISINI_GMSHET) THEN
+        CALL Initialize_et2numNodes() !根据gmsh单元类型和格式，确定每个单元的节点数
+        CALL ET_GMSH_EDGE_FACE() !根据gmsh单元类型和格式，确定每个边、面数
+        ISINI_GMSHET=.TRUE.
+    ENDIF 	
+
+	IF(ALLOCATED(FACE_L)) DEALLOCATE(FACE_L)
+	ALLOCATE(FACE_L(NNODE_L))
+    ADJL1=0;F_ADJL1=0;NADJL1=0
+	DO I=1,NEL_L
+		ET1=GETGMSHET(ESET(ELEMENT_L(I).SET).ET)
+		NFACE1=ELTTYPE(ET1).NFACE
+		ELEMENT_L(I).NFACE=NFACE1
+        NV1=ELTTYPE(ET1).NNODE
+        NODE1(1:NV1)=ELEMENT_L(I).NODE(1:NV1)
+        ALLOCATE(ELEMENT_L(I).FACE(NFACE1),ELEMENT_L(I).ADJELT(NFACE1))
+        IF(ALLOCATED(ELEMENT_L(I).ADJELT)) ELEMENT_L(I).ADJELT=0
+        !DO J=1,NV1
+        !    N1=MINLOC(NODE1(1:NV1),MASK=NODE1(1:NV1)>0,DIM=1)
+        !    N2ORDER1(N1)=J;NODE1(N1)=-1
+        !    O2NODE1(J)=N1
+        !ENDDO
+        O2NODE1(1:NV1)=[1:NV1] !order2node
+        DO J=1,NV1-1
+            !N1=MINLOC(NODE1(1:NV1),MASK=NODE1(1:NV1)>0,DIM=1)
+            DO K=J+1,NV1
+                IF(NODE1(K)<NODE1(J)) THEN
+                    N1=NODE1(J);NODE1(J)=NODE1(K);NODE1(K)=N1;
+                    N1=O2NODE1(J);O2NODE1(J)=O2NODE1(K);O2NODE1(K)=N1
+                    !N2ORDER1(J)=O2NODE1(J);
+                    !N2ORDER1(N1)=J;NODE1(N1)=-1
+                    !O2NODE1(J)=N1
+                ENDIF
+            ENDDO
+        ENDDO
+        N2ORDER1(O2NODE1(1:NV1))=[1:NV1] !node2order
+        
+ 		DO J=1,NFACE1
+            N2=ELTTYPE(ET1).FACE(0,J)            
+            ORDER1(1:N2)=N2ORDER1(ELTTYPE(ET1).FACE(1:N2,J))
+            NODE1(1:NV1)=0
+            NODE1(ORDER1(1:N2))=ELEMENT_L(I).NODE(O2NODE1(ORDER1(1:N2)))
+            N1=0
+            DO K=1,NV1
+                IF(NODE1(K)>0) THEN
+                    N1=N1+1
+                    IF(N1<K) NODE1(N1)=NODE1(K)
+                ENDIF
+            ENDDO
+
+            
+            !N1=MINLOC(F_ADJL1(:,NODE1(N2)),MASK=F_ADJL1(:,NODE1(N2))==0,DIM=1)-1
+            !IF(N1<0) THEN                
+            !    STOP "PLEASE ENLARGE ARRAY SIZE. SUB=SETUP_FACE_ADJL_MODEL"
+            !ENDIF
+            !!N2<=4
+            !IFACE1=0
+            !DO K=1,N1
+            !    if(SUM(ABS(ADJL1(1:N2-1,K,NODE1(N2))-NODE1(1:N2-1)))==0) THEN
+            !        IFACE1=F_ADJL1(K,NODE1(N2))
+            !        EXIT
+            !    ENDIF                
+            !ENDDO
+            !IF(IFACE1==0) THEN
+
+            N1=NADJL1(NODE1(N2))
+            !N2<=4
+            IFACE1=0
+            !if(i==23.and.j==3) then
+            !    print *,i
+            !endif
+            DO K=1,N1
+                DO K1=1,N2-1
+                    if(ADJL1(K1,K,NODE1(N2))-NODE1(K1)/=0) EXIT
+                ENDDO
+                IF(K1==N2) THEN
+                    IFACE1=F_ADJL1(K,NODE1(N2))
+                    EXIT
+                ENDIF 
+            ENDDO
+            IF(IFACE1==0) THEN
+                NADJL1(NODE1(N2))=N1+1
+                IF(N1+1>MAXADJL1) THEN                
+                    print *, 'MAX_FACE_ADJ NEEDS TO BE  ENLARGED BY APPENDING "MAX_FACE_ADJ=XXX" TO THE KEYWORD "SolverControl".MAX_FACEE_ADJ=',MAX_FACE_ADJ
+                    stop
+                ENDIF
+                ADJL1(1:N2-1,N1+1,NODE1(N2))=NODE1(1:N2-1)
+                NFACE_L=NFACE_L+1
+                F_ADJL1(N1+1,NODE1(N2))=NFACE_L
+                IFACE1=NFACE_L
+                !IF(NODE1(N2)==50) THEN
+                !    PRINT *, I,J,NODE1(1:N2)
+                !ENDIF            
+            ENDIF
+
+            ELEMENT_L(I).FACE(J)=IFACE1
+            
+            IF(IFACE1>SIZE(FACE_L,DIM=1)) THEN
+                CALL FACE_TYDEF_ENLARGE_AR(FACE_L,1000)
+                !MAXNFACE=MAXNFACE+1000
+            ENDIF
+            IF(.NOT.FACE_L(IFACE1).ISINI) THEN
+                FACE_L(IFACE1).SHAPE=ELTTYPE(ET1).FACE(0,J)
+                FACE_L(IFACE1).V(1:FACE_L(IFACE1).SHAPE)=ELEMENT_L(I).NODE(ELTTYPE(ET1).FACE(1:FACE_L(IFACE1).SHAPE,J))
+				FACE_L(IFACE1).EDGE(1:FACE_L(IFACE1).SHAPE)=ELEMENT_L(I).EDGE(ABS(ELTTYPE(ET1).FACEEDGE(1:FACE_L(IFACE1).SHAPE,J)))
+				!CHECK LOOP ORDER
+				DO K=1,FACE_L(IFACE1).SHAPE
+					IF(EDGE_L(FACE_L(IFACE1).EDGE(K)).V(1)/=FACE_L(IFACE1).V(K)) FACE_L(IFACE1).EDGE(K)=-FACE_L(IFACE1).EDGE(K)
+				ENDDO
+                !V1=NODE_L(:,FACE_L(IFACE1).V(2))-NODE_L(:,FACE_L(IFACE1).V(1))
+                !V2=NODE_L(:,FACE_L(IFACE1).V(3))-NODE_L(:,FACE_L(IFACE1).V(1))
+                !call r8vec_cross_3d ( v1, v2, NORMAL1(1:3) )
+                !T1 = sqrt ( sum ( ( NORMAL1 )**2 ) )
+                !if ( T1 /= 0.0D+00 ) then
+                !  NORMAL1 = NORMAL1/T1
+                !end if
+                !FACE_L(IFACE1).UNORMAL=NORMAL1
+                FACE_L(IFACE1).ISINI=.TRUE.
+                NFACE_L=IFACE1
+				DO K=1,3
+					FACE_L(NFACE_L).BBOX(1,K)=MINVAL(NODE_L(FACE_L(NFACE_L).V(1:FACE_L(NFACE_L).SHAPE)).COORD(K))-VTOL
+					FACE_L(NFACE_L).BBOX(2,K)=MAXVAL(NODE_L(FACE_L(NFACE_L).V(1:FACE_L(NFACE_L).SHAPE)).COORD(K))+VTOL
+				ENDDO
+            ENDIF
+            IF(FACE_L(IFACE1).ENUM==0) THEN
+                ALLOCATE(FACE_L(IFACE1).ELEMENT(2))
+                ALLOCATE(FACE_L(IFACE1).SUBID(2))
+            ENDIF
+            FACE_L(IFACE1).ENUM=FACE_L(IFACE1).ENUM+1
+            IF(FACE_L(IFACE1).ENUM>SIZE(FACE_L(IFACE1).ELEMENT,DIM=1)) THEN
+                CALL I_ENLARGE_AR(FACE_L(IFACE1).ELEMENT,5)
+                CALL I_ENLARGE_AR(FACE_L(IFACE1).SUBID,5)
+            ENDIF
+            
+            IF(FACE_L(IFACE1).ENUM>1) THEN
+                DO K=1,FACE_L(IFACE1).SHAPE
+                    IF(FACE_L(IFACE1).V(K)==ELEMENT_L(I).NODE(ELTTYPE(ET1).FACE(1,J))) THEN
+                        IF(FACE_L(IFACE1).V(MOD(K,FACE_L(IFACE1).SHAPE)+1)/= &
+                            ELEMENT_L(I).NODE(ELTTYPE(ET1).FACE(2,J))) THEN
+                            FACE_L(IFACE1).ELEMENT(FACE_L(IFACE1).ENUM)=-I !I��Ԫ����ķ�����face�ķ�����,Ϊ-1
+                        ELSE
+                            FACE_L(IFACE1).ELEMENT(FACE_L(IFACE1).ENUM)=I
+                        ENDIF                  
+                        EXIT
+                    ENDIF
+                ENDDO
+            ELSE
+                FACE_L(IFACE1).ELEMENT(FACE_L(IFACE1).ENUM)=I 
+            ENDIF
+            FACE_L(IFACE1).SUBID(FACE_L(IFACE1).ENUM)=J
+                
+            
+		ENDDO
+    END DO    
+    
+    
+ENDSUBROUTINE
 
 
 END MODULE

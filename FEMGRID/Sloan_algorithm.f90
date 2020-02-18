@@ -73,7 +73,7 @@ end subroutine
             call linearsoilinterpolate_tri(pehead,p)
         endif
         
-		adjE=elt(pehead).adj
+		adjE=elt(pehead).adj(1:3)
 
 	  do i=1,2
 	  	if(nelt+1>maxnelement) 	call EnlargeElement()

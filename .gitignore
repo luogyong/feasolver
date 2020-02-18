@@ -37,7 +37,10 @@
 #*.sln
 *.suo
 *.u2d
+*.manifest
 [Dd]ebug*/
 [Rr]elease*/
 /~$LGYADDIN.xlam
-/x64/LUO.ZIP
+x64/
+
+

@@ -31,9 +31,10 @@ module solverds
     
 	type element_tydef
 		integer::nnum,NEDGE=0,NFACE=0,NTET=0 !node numbers of this element
-		integer,allocatable::node(:),EDGE(:),FACE(:),TET(:) !单元的节点,TET为单元的细分单元组的下标。
-        integer,allocatable::node2(:) !为方便Bar和Beam单元的后处理，为单元集内的节点编号，将其转换成实体六面体单元后输出,当单元为zt4_spg,或zt6_spg时，node2指向gnode。
-        !当et=wellbore时，node2存储以wellbore单元第3，4节点为边的3维单元 
+		integer,allocatable::node(:),EDGE(:),FACE(:),TET(:),ADJELT(:) !单元的节点,TET为单元的细分单元组的下标。
+        integer,allocatable::node2(:),NSPLOC(:) !为方便Bar和Beam单元的后处理，为单元集内的节点编号，将其转换成实体六面体单元后输出,当单元为zt4_spg,或zt6_spg时，node2指向gnode。
+        !当et=wellbore时，node2存储以wellbore单元第3，4节点为边的3维单元,NSPLOC为井周采样点所在的单元位置 
+
 		integer::et  !单元类型
 		integer::mat,mattype  !material id and material type.the paramters is got from material(mat)
 		!for et=soilspring, mat=-1,主动侧单元，mat=-2,被动侧单元
@@ -46,7 +47,7 @@ module solverds
 					!for pe_ssp2d,ngp=i指向smnp(i).		
 		integer::nd ! the dimension of the strain-stress matrix
 		integer::id  !element id number in the set
-		integer::ec=0 !element class
+		integer::ec=0,eshape=-1 !element class,shape
 		integer::nspr=0 ! the patch number sharing the element
 		integer::layer=1 !element layer, for horizontal seepage analysis; 
 						!for sectional seepage analysis, =1, all nodes are under water table,=-1,all nodes are above water talbe,=0 cross the water table
@@ -105,8 +106,11 @@ module solverds
 		
 		!real(kind=DPN),allocatable::lamda(:) !lamda(ngp)=1.0(by default),relative k. 
 		!additional variables for upper bound analysis
-		real(kind=DPN),allocatable::A12(:,:)  ! for UBZT4 is A23
+		real(kind=DPN),allocatable::A12(:,:)  ! for UBZT4 is A23;WELLBORE,SAMPLE POINTS
 		real(kind=DPN),allocatable::X2(:)
+        
+        REAL(8)::BBOX(2,3)=0.D0 !MIN,MAX OF X,Y AND Z
+        
 	end type
 	integer::enum=0 !节点数
 	type(element_tydef),allocatable::element(:)
@@ -253,6 +257,8 @@ module solverds
         !REAL(KIND=DPN),ALLOCATABLE::ETA(:),RATIO(:)
         integer::slidedirection=right,slope_isTensionCrack=1,ISSLOPEPA=0
         real(kind=DPN)::slope_kscale=1.D0,slope_kbase=1.D0,slope_kratio=10
+        integer::wellmethod=0 !计算解析井流量时，=0，表取样点为单元节点；=1，为单元形心;=2,在单元周边均布3层采样点(两端及中间),每排采样点数为nspwell,球状流仍为单元节点。>2,均为采样点
+        integer::nspwell=12 !wellmethod=2时,每层(2*Pi)采样点数。如果井周角非2PI,范围之外的点将丢弃。
 	end type
 	type(solver_tydef)::solver_control
 	INTEGER::MAX_NODE_ADJ=50,MAX_FACE_ADJ=100
@@ -274,6 +280,7 @@ module solverds
 		integer::enums=0,enume=0 !the first and the last element number in the element() of the set. 
 		integer::ec
 		integer::et
+        integer::eshape=-1 !0,point，101=line,203=triangle,204=quadrilateral,304=tet,308=hex,306=prism
         integer::system=0
 		character(1024)::zonetitle=""
 		character(64)::grouptitle=""

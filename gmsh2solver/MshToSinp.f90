@@ -9,8 +9,12 @@
 	type(qwinfo) winfo
 	LOGICAL(4)::tof,pressed
 	integer,allocatable::IPERM(:)
-	
-	winfo%TYPE = QWIN$MAX
+	!if(nopop==0) then
+	!    winfo%TYPE = QWIN$MAX
+ !   else
+ !       winfo%TYPE = QWIN$Min
+ !   endif
+    winfo%TYPE = QWIN$Min
 	tof=SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo)
 	tof=SETWSIZEQQ(0, winfo)  
 	!NOPOPUP=0
@@ -832,6 +836,7 @@ subroutine elt_bc_load_translate()
 					    nodalBC(nnodalBC).node=n2
 					    nodalBC(nnodalBC).dof=elt_bc(i).dof
 					    nodalBC(nnodalBC).sf=elt_bc(i).sf
+                        nodalBC(nnodalBC).spg_isdual=elt_bc(i).spg_isdual
 					    nodalBC(nnodalBC).value=elt_bc(i).GETVALUE(node(n2).xy(1),node(n2).xy(2),node(n2).xy(3))
 					    nodalload1(n2)=1 !多次出现时以第一次出现的值为准。
 				    end if
@@ -848,6 +853,7 @@ subroutine elt_bc_load_translate()
 					    WELLHEAD(NWELLHEAD).node=n2
 					    WELLHEAD(NWELLHEAD).dof=elt_bc(i).dof
 					    WELLHEAD(NWELLHEAD).sf=elt_bc(i).sf
+                        WELLHEAD(NWELLHEAD).spg_isdual=elt_bc(i).spg_isdual
 					    WELLHEAD(NWELLHEAD).value=elt_bc(i).GETVALUE(node(n2).xy(1),node(n2).xy(2),node(n2).xy(3))
 					    nodalload1(n2)=1 !多次出现时以第一次出现的值为准。
 				    end if
@@ -864,7 +870,7 @@ subroutine elt_bc_load_translate()
 		do j=1,physicalgroup(elt_spgface(i).group).nel
 			n1=physicalgroup(elt_spgface(i).group).element(j)
             n3=element(n1).nnode
-            if(elt_spgface(i).iswellcondition>0) n3=element(n1).nnode/2
+            if(elt_spgface(i).iswellcondition>0) n3=element(n1).nnode/2 !井流出溢面单元与井流单元节点结构一样，都是4个节点，只有1-2节点是井壁节点。
 			do k=1,n3
 				n2=element(n1).node(k)
 				if(nodalload1(n2)==0) then

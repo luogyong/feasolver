@@ -24,7 +24,7 @@ TYPE NODE_ADJ_TYDEF
     LOGICAL::ISINI=.FALSE.
     INTEGER::NNUM=0,ENUM=0
 	INTEGER::ISDEAD=0
-    INTEGER,ALLOCATABLE::NODE(:),ELEMENT(:),SUBID(:) !SUBID IS INDEX WHICH EDGE OF THE ELEMENT IS THE NODE
+    INTEGER,ALLOCATABLE::NODE(:),ELEMENT(:),SUBID(:) !SUBID IS INDEX WHICH NODE OF THE ELEMENT IS THE NODE
 ENDTYPE
 TYPE(NODE_ADJ_TYDEF),ALLOCATABLE::SNADJL(:)
 
@@ -51,9 +51,9 @@ TYPE FACE_TYDEF
 	INTEGER::ISDEAD=0
     INTEGER,ALLOCATABLE::ELEMENT(:),SUBID(:) !SUBID IS INDEX WHICH FACE OF THE ELEMENT IS THE FACE
 ENDTYPE
-TYPE(FACE_TYDEF),ALLOCATABLE::FACE(:),MFACE(:)    
+TYPE(FACE_TYDEF),ALLOCATABLE::FACE(:),MFACE(:),SFACE(:)    
 INTEGER::NEDGE=0,NFACE=0,MAXNEDGE=10000,MAXNFACE=10000
-INTEGER::NMEDGE=0,NMFACE=0,MAXNMEDGE=10000,MAXNMFACE=10000,NSEDGE=0,MAXNSEDGE=10000 !M FOR MODEL,S FOR SOLVER MODEL 
+INTEGER::NMEDGE=0,NMFACE=0,MAXNMEDGE=10000,MAXNMFACE=10000,NSEDGE=0,MAXNSEDGE=10000,NSFACE=0,MAXNSFACE=10000 !M FOR MODEL,S FOR SOLVER MODEL 
 
 !split all element into simple 3-noded-triangle , 4-noded-tetrahedron,point and 2-noded-line element
 TYPE TET_TYDEF
@@ -104,91 +104,212 @@ INTEGER::NSZONE=1
 CONTAINS 
 
 
-SUBROUTINE SETUP_SUBZONE_TET()
+SUBROUTINE SETUP_SUBZONE_TET(MAXX,MINX,MAXY,MINY,MAXZ,MINZ,TET1)
     IMPLICIT NONE
+    REAL(8),INTENT(IN)::MAXX,MINX,MAXY,MINY,MAXZ,MINZ
+    TYPE(TET_TYDEF),INTENT(IN)::TET1(:)
     REAL(8)::DX,DY,DZ
-    INTEGER::NDX,NDY,NDZ,I,J,K,N1
+    INTEGER::NDX,NDY,NDZ,I,J,K,N1,NTET1
     
     NDX=5;NDY=5;NDZ=5
-    DX=(POSDATA.MAXX-POSDATA.MINX)/NDX
+    DX=(MAXX-MINX)/NDX
     IF(ABS(DX)<1.D-7) NDX=1
-    DY=(POSDATA.MAXY-POSDATA.MINY)/NDY
+    DY=(MAXY-MINY)/NDY
     IF(ABS(DY)<1.D-7) NDY=1
-    DZ=(POSDATA.MAXZ-POSDATA.MINZ)/NDZ
+    DZ=(MAXZ-MINZ)/NDZ
     IF(ABS(DZ)<1.D-7) NDZ=1
     
     NSZONE=NDX*NDY*NDZ
     
+    IF(ALLOCATED(SEARCHZONE)) DEALLOCATE(SEARCHZONE)
     ALLOCATE(SEARCHZONE(NSZONE))
     
-    
+    NTET1=SIZE(TET1)
 
     N1=0
     DO I=1,NDZ
         DO J=1,NDY
             DO K=1,NDX
                 N1=N1+1
-                SEARCHZONE(N1).BBOX(1,1)=POSDATA.MINX+DX*(K-1)
-                SEARCHZONE(N1).BBOX(2,1)=POSDATA.MINX+DX*K
-                SEARCHZONE(N1).BBOX(1,2)=POSDATA.MINY+DY*(J-1)
-                SEARCHZONE(N1).BBOX(2,2)=POSDATA.MINY+DY*J 
-                SEARCHZONE(N1).BBOX(1,3)=POSDATA.MINZ+DZ*(I-1)
-                SEARCHZONE(N1).BBOX(2,3)=POSDATA.MINZ+DZ*I
-                IF(.NOT.ALLOCATED(SEARCHZONE(N1).ELEMENT)) ALLOCATE(SEARCHZONE(N1).ELEMENT(NTET))
+                SEARCHZONE(N1).BBOX(1,1)=MINX+DX*(K-1)
+                SEARCHZONE(N1).BBOX(2,1)=MINX+DX*K
+                SEARCHZONE(N1).BBOX(1,2)=MINY+DY*(J-1)
+                SEARCHZONE(N1).BBOX(2,2)=MINY+DY*J 
+                SEARCHZONE(N1).BBOX(1,3)=MINZ+DZ*(I-1)
+                SEARCHZONE(N1).BBOX(2,3)=MINZ+DZ*I
+                IF(.NOT.ALLOCATED(SEARCHZONE(N1).ELEMENT)) ALLOCATE(SEARCHZONE(N1).ELEMENT(MAX(NTET1/NSZONE,100)))
                 SEARCHZONE(N1).ELEMENT=0
                 SEARCHZONE(N1).NDX=[NDX,NDY,NDZ]
             ENDDO
         ENDDO
     ENDDO
     
-    DO I=1,NTET
+    DO I=1,NTET1
         DO J=1,NSZONE
             
             IF(NDX>1) THEN
-                IF(SEARCHZONE(J).BBOX(1,1)>TET(I).BBOX(2,1)) CYCLE !MIN>MAX
-                IF(SEARCHZONE(J).BBOX(2,1)<TET(I).BBOX(1,1)) CYCLE !MAX<MIN
+                IF(SEARCHZONE(J).BBOX(1,1)>TET1(I).BBOX(2,1)) CYCLE !MIN>MAX
+                IF(SEARCHZONE(J).BBOX(2,1)<TET1(I).BBOX(1,1)) CYCLE !MAX<MIN
             ENDIF
             IF(NDY>1) THEN
-                IF(SEARCHZONE(J).BBOX(1,2)>TET(I).BBOX(2,2)) CYCLE !MIN>MAX
-                IF(SEARCHZONE(J).BBOX(2,2)<TET(I).BBOX(1,2)) CYCLE !MAX<MIN 
+                IF(SEARCHZONE(J).BBOX(1,2)>TET1(I).BBOX(2,2)) CYCLE !MIN>MAX
+                IF(SEARCHZONE(J).BBOX(2,2)<TET1(I).BBOX(1,2)) CYCLE !MAX<MIN 
             ENDIF
             IF(NDZ>1) THEN
-                IF(SEARCHZONE(J).BBOX(1,3)>TET(I).BBOX(2,3)) CYCLE !MIN>MAX
-                IF(SEARCHZONE(J).BBOX(2,3)<TET(I).BBOX(1,3)) CYCLE !MAX<MIN 
+                IF(SEARCHZONE(J).BBOX(1,3)>TET1(I).BBOX(2,3)) CYCLE !MIN>MAX
+                IF(SEARCHZONE(J).BBOX(2,3)<TET1(I).BBOX(1,3)) CYCLE !MAX<MIN 
             ENDIF
             SEARCHZONE(J).NEL=SEARCHZONE(J).NEL+1
+            IF(SIZE(SEARCHZONE(J).ELEMENT)<SEARCHZONE(J).NEL) THEN
+                CALL I_ENLARGE_AR(SEARCHZONE(J).ELEMENT,100)
+            ENDIF
             SEARCHZONE(J).ELEMENT(SEARCHZONE(J).NEL)=I
         ENDDO
     ENDDO
-    
-    
-    
-
 ENDSUBROUTINE
 
-SUBROUTINE SETUP_ADJACENT_ELEMENT_TET()
+
+
+SUBROUTINE SETUP_ADJACENT_ELEMENT_TET(EDGE1,FACE1,TET1,MODELDIM1)
 
     IMPLICIT NONE
-    INTEGER::I,J
+    TYPE(EDGE_TYDEF),INTENT(IN)::EDGE1(:)
+    TYPE(FACE_TYDEF),INTENT(IN)::FACE1(:)
+    TYPE(TET_TYDEF) ::TET1(:)
+    INTEGER,INTENT(IN)::MODELDIM1
+    INTEGER::I,J,NE1,NF1,NTET1
     
     !CAN'T NOT HANDLE 2D AND 3D COMBINATION MODEL, TO BE IMPROVED.
     
-    IF(POSDATA.NDIM==2) THEN
-        DO I=1,NEDGE
-            IF(EDGE(I).ENUM==2) THEN
-                TET(EDGE(I).ELEMENT(1)).ADJELT(EDGE(I).SUBID(1))=EDGE(I).ELEMENT(2)
-                TET(EDGE(I).ELEMENT(2)).ADJELT(EDGE(I).SUBID(2))=EDGE(I).ELEMENT(1)
-            ELSEIF(EDGE(I).ENUM>2) THEN
+    NE1=SIZE(EDGE1)
+    NF1=SIZE(FACE1)
+    NTET1=SIZE(TET1)
+    
+    
+    IF(MODELDIM1==2) THEN
+        DO I=1,NE1
+            IF(EDGE1(I).ENUM==2) THEN
+                TET1(EDGE1(I).ELEMENT(1)).ADJELT(EDGE1(I).SUBID(1))=EDGE1(I).ELEMENT(2)
+                TET1(EDGE1(I).ELEMENT(2)).ADJELT(EDGE1(I).SUBID(2))=EDGE1(I).ELEMENT(1)
+            ELSEIF(EDGE1(I).ENUM>2) THEN
                 PRINT *, 'MORE THEN 2 ELEMENTS SHARING ONE COMMON EDGE. EDGE=',I
             ENDIF    
         ENDDO 
         
-    ELSEIF(POSDATA.NDIM>2) THEN
-        DO I=1,NFACE
-            IF(FACE(I).ENUM==2) THEN            
-                TET(ABS(FACE(I).ELEMENT(1))).ADJELT(FACE(I).SUBID(1))=ABS(FACE(I).ELEMENT(2))
-                TET(ABS(FACE(I).ELEMENT(2))).ADJELT(FACE(I).SUBID(2))=ABS(FACE(I).ELEMENT(1))
-            ELSEIF(FACE(I).ENUM>2) THEN
+    ELSEIF(MODELDIM1>2) THEN
+        DO I=1,NF1
+            IF(FACE1(I).ENUM==2) THEN            
+                TET1(ABS(FACE1(I).ELEMENT(1))).ADJELT(FACE1(I).SUBID(1))=ABS(FACE1(I).ELEMENT(2))
+                TET1(ABS(FACE1(I).ELEMENT(2))).ADJELT(FACE1(I).SUBID(2))=ABS(FACE1(I).ELEMENT(1))
+            ELSEIF(FACE1(I).ENUM>2) THEN
+                PRINT *, 'MORE THEN 2 ELEMENTS SHARING ONE COMMON FACE. FACE=',I
+            ENDIF    
+        ENDDO
+    ENDIF
+ 
+    
+ENDSUBROUTINE
+
+
+SUBROUTINE SETUP_SUBZONE_SOLVER(MAXX,MINX,MAXY,MINY,MAXZ,MINZ,TET1)
+    USE solverds,ONLY:ELEMENT_TYDEF
+    IMPLICIT NONE
+    REAL(8),INTENT(IN)::MAXX,MINX,MAXY,MINY,MAXZ,MINZ
+    TYPE(ELEMENT_TYDEF),INTENT(IN)::TET1(:)
+    REAL(8)::DX,DY,DZ
+    INTEGER::NDX,NDY,NDZ,I,J,K,N1,NTET1
+    
+    NDX=5;NDY=5;NDZ=5
+    DX=(MAXX-MINX)/NDX
+    IF(ABS(DX)<1.D-7) NDX=1
+    DY=(MAXY-MINY)/NDY
+    IF(ABS(DY)<1.D-7) NDY=1
+    DZ=(MAXZ-MINZ)/NDZ
+    IF(ABS(DZ)<1.D-7) NDZ=1
+    
+    NSZONE=NDX*NDY*NDZ
+    
+    IF(ALLOCATED(SEARCHZONE)) DEALLOCATE(SEARCHZONE)
+    ALLOCATE(SEARCHZONE(NSZONE))
+    
+    NTET1=SIZE(TET1)
+
+    N1=0
+    DO I=1,NDZ
+        DO J=1,NDY
+            DO K=1,NDX
+                N1=N1+1
+                SEARCHZONE(N1).BBOX(1,1)=MINX+DX*(K-1)
+                SEARCHZONE(N1).BBOX(2,1)=MINX+DX*K
+                SEARCHZONE(N1).BBOX(1,2)=MINY+DY*(J-1)
+                SEARCHZONE(N1).BBOX(2,2)=MINY+DY*J 
+                SEARCHZONE(N1).BBOX(1,3)=MINZ+DZ*(I-1)
+                SEARCHZONE(N1).BBOX(2,3)=MINZ+DZ*I
+                IF(.NOT.ALLOCATED(SEARCHZONE(N1).ELEMENT)) ALLOCATE(SEARCHZONE(N1).ELEMENT(MAX(NTET1/NSZONE,100)))
+                SEARCHZONE(N1).ELEMENT=0
+                SEARCHZONE(N1).NDX=[NDX,NDY,NDZ]
+            ENDDO
+        ENDDO
+    ENDDO
+    
+    DO I=1,NTET1
+        DO J=1,NSZONE
+            
+            IF(NDX>1) THEN
+                IF(SEARCHZONE(J).BBOX(1,1)>TET1(I).BBOX(2,1)) CYCLE !MIN>MAX
+                IF(SEARCHZONE(J).BBOX(2,1)<TET1(I).BBOX(1,1)) CYCLE !MAX<MIN
+            ENDIF
+            IF(NDY>1) THEN
+                IF(SEARCHZONE(J).BBOX(1,2)>TET1(I).BBOX(2,2)) CYCLE !MIN>MAX
+                IF(SEARCHZONE(J).BBOX(2,2)<TET1(I).BBOX(1,2)) CYCLE !MAX<MIN 
+            ENDIF
+            IF(NDZ>1) THEN
+                IF(SEARCHZONE(J).BBOX(1,3)>TET1(I).BBOX(2,3)) CYCLE !MIN>MAX
+                IF(SEARCHZONE(J).BBOX(2,3)<TET1(I).BBOX(1,3)) CYCLE !MAX<MIN 
+            ENDIF
+            SEARCHZONE(J).NEL=SEARCHZONE(J).NEL+1
+            IF(SIZE(SEARCHZONE(J).ELEMENT)<SEARCHZONE(J).NEL) THEN
+                CALL I_ENLARGE_AR(SEARCHZONE(J).ELEMENT,100)
+            ENDIF
+            SEARCHZONE(J).ELEMENT(SEARCHZONE(J).NEL)=I
+        ENDDO
+    ENDDO
+ENDSUBROUTINE
+
+
+
+SUBROUTINE SETUP_ADJACENT_ELEMENT_SOLVER(EDGE1,FACE1,TET1,MODELDIM1)
+    USE solverds,ONLY:ELEMENT_TYDEF
+    IMPLICIT NONE
+    TYPE(EDGE_TYDEF),INTENT(IN)::EDGE1(:)
+    TYPE(FACE_TYDEF),INTENT(IN)::FACE1(:)
+    TYPE(ELEMENT_TYDEF) ::TET1(:)
+    INTEGER,INTENT(IN)::MODELDIM1
+    INTEGER::I,J,NE1,NF1,NTET1,N1
+    
+    !CAN'T NOT HANDLE 2D AND 3D COMBINATION MODEL, TO BE IMPROVED.
+    
+    NE1=SIZE(EDGE1)
+    NF1=SIZE(FACE1)
+    NTET1=SIZE(TET1)
+    
+    
+    IF(MODELDIM1==2) THEN
+        DO I=1,NE1
+            IF(EDGE1(I).ENUM==2) THEN
+                TET1(EDGE1(I).ELEMENT(1)).ADJELT(EDGE1(I).SUBID(1))=EDGE1(I).ELEMENT(2)
+                TET1(EDGE1(I).ELEMENT(2)).ADJELT(EDGE1(I).SUBID(2))=EDGE1(I).ELEMENT(1)
+            ELSEIF(EDGE1(I).ENUM>2) THEN
+                PRINT *, 'MORE THEN 2 ELEMENTS SHARING ONE COMMON EDGE. EDGE=',I
+            ENDIF    
+        ENDDO 
+        
+    ELSEIF(MODELDIM1>2) THEN
+        DO I=1,NF1
+            IF(FACE1(I).ENUM==2) THEN
+                TET1(ABS(FACE1(I).ELEMENT(1))).ADJELT(FACE1(I).SUBID(1))=ABS(FACE1(I).ELEMENT(2))
+                TET1(ABS(FACE1(I).ELEMENT(2))).ADJELT(FACE1(I).SUBID(2))=ABS(FACE1(I).ELEMENT(1))
+            ELSEIF(FACE1(I).ENUM>2) THEN
                 PRINT *, 'MORE THEN 2 ELEMENTS SHARING ONE COMMON FACE. FACE=',I
             ENDIF    
         ENDDO
@@ -338,314 +459,489 @@ END SUBROUTINE
     ENDFUNCTION  
 
     
-!SUBROUTINE SETUP_EDGE_TBL_TET()
-!    
-!    IMPLICIT NONE
-!    INTEGER::I,J,N1(2),ET1,NEDGE1,TBL_LEN
-!	CHARACTER(LEN=:),ALLOCATABLE::KEY1
-!    TYPE(DICT_DATA)::VAL1
-!    CHARACTER(64)::CKEY1
-!    INTEGER::HKEY1
-!    
-!    !IF(.NOT.ISINI_GMSHET) THEN
-!    !    
-!    !    CALL Initialize_et2numNodes()
-!    !    CALL ET_GMSH_EDGE_FACE()
-!    !    ISINI_GMSHET=.TRUE.
-!    !ENDIF
-!	
-!    IF(.NOT.ALLOCATED(EDGE)) ALLOCATE(EDGE(MAXNEDGE))
-!	
-!	TBL_LEN=2*POSDATA.NNODE	
-!    CALL EDGE_TBL.INIT(TBL_LEN)
-!	DO I=1,NTET
-!		ET1=TET(I).GMET
-!		NEDGE1=ELTTYPE(ET1).NEDGE
-!		TET(I).NE=NEDGE1
-!        !ALLOCATE(TET(I).E(NEDGE1))
-!		DO J=1,NEDGE1
-!            N1=TET(I).V(ELTTYPE(ET1).EDGE(:,J))
-!            CALL I2C_KEY_hash_tbl_sll(KEY1,N1(:),2)
-!            CKEY1=TRIM(KEY1)
-!            HKEY1 = MOD(ABS(HASH_DJB(KEY1)),EDGE_TBL%vec_len)
-!            VAL1.IEL=I;VAL1.ISE=J;VAL1.IITEM=EDGE_TBL.TBL_ID
-!			CALL EDGE_TBL.PUT(TRIM(KEY1),VAL1,HKEY1)
-!			TET(I).E(J)=VAL1.IITEM
-!            IF(VAL1.IITEM>MAXNEDGE) THEN
-!                CALL EDGE_TYDEF_ENLARGE_AR(EDGE,1000)
-!                MAXNEDGE=MAXNEDGE+1000
-!            ENDIF
-!            IF(.NOT.EDGE(VAL1.IITEM).ISINI) THEN
-!                EDGE(VAL1.IITEM).CKEY=CKEY1
-!                EDGE(VAL1.IITEM).HKEY=HKEY1
-!                EDGE(VAL1.IITEM).V=TET(I).V(ELTTYPE(ET1).EDGE(:,J))
-!                EDGE(VAL1.IITEM).DIS=NORM2(POSDATA.NODE(EDGE(VAL1.IITEM).V(1)).COORD-POSDATA.NODE(EDGE(VAL1.IITEM).V(2)).COORD)
-!                EDGE(VAL1.IITEM).ISINI=.TRUE.
-!                NEDGE=VAL1.IITEM
-!            ENDIF
-!            IF(EDGE(VAL1.IITEM).ENUM==0) ALLOCATE(EDGE(VAL1.IITEM).ELEMENT(5),EDGE(VAL1.IITEM).SUBID(5))
-!            EDGE(VAL1.IITEM).ENUM=EDGE(VAL1.IITEM).ENUM+1
-!            IF(EDGE(VAL1.IITEM).ENUM>SIZE(EDGE(VAL1.IITEM).ELEMENT,DIM=1)) THEN
-!				CALL I_ENLARGE_AR(EDGE(VAL1.IITEM).ELEMENT,5)
-!				CALL I_ENLARGE_AR(EDGE(VAL1.IITEM).SUBID,5)
-!			ENDIF
-!            EDGE(VAL1.IITEM).ELEMENT(EDGE(VAL1.IITEM).ENUM)=I			
-!            EDGE(VAL1.IITEM).SUBID(EDGE(VAL1.IITEM).ENUM)=J
-!		ENDDO
-!    END DO
-!    RETURN
-!ENDSUBROUTINE
-!
-!SUBROUTINE SETUP_FACE_TBL_TET()
-!    IMPLICIT NONE
-!   
-!    INTEGER::I,J,N1(4),ET1,NFACE1,TBL_LEN,N2,K
-!    REAL(8)::V1(3),V2(3),NORMAL1(3),T1
-!	CHARACTER(LEN=:),ALLOCATABLE::KEY1
-!    TYPE(DICT_DATA)::VAL1
-!    CHARACTER(64)::CKEY1
-!    INTEGER::HKEY1
-!    
-!    !IF(.NOT.ISINI_GMSHET) THEN
-!    !    
-!    !    CALL Initialize_et2numNodes()
-!    !    CALL ET_GMSH_EDGE_FACE()
-!    !    ISINI_GMSHET=.TRUE.
-!    !ENDIF 	
-!
-!	IF(.NOT.ALLOCATED(FACE)) ALLOCATE(FACE(MAXNFACE))
-!	
-!	TBL_LEN=2*POSDATA.NNODE	
-!    CALL FACE_TBL.INIT(TBL_LEN)
-!	DO I=1,NTET
-!		ET1=TET(I).GMET
-!		NFACE1=ELTTYPE(ET1).NFACE
-!		TET(I).NF=NFACE1
-!        !ALLOCATE(TET(I).F(NFACE1))
-!		DO J=1,NFACE1
-!            N2=ELTTYPE(ET1).FACE(0,J)
-!            N1(1:N2)=TET(I).V(ELTTYPE(ET1).FACE(1:N2,J))
-!            CALL FACE_TBL.KEY(KEY1,N1(1:N2),ELTTYPE(ET1).FACE(0,J))
-!            CKEY1=TRIM(KEY1)
-!            HKEY1 = MOD(ABS(HASH_DJB(KEY1)),FACE_TBL%vec_len)            
-!            VAL1.IEL=I;VAL1.ISE=J;VAL1.IITEM=FACE_TBL.TBL_ID
-!			CALL FACE_TBL.PUT(TRIM(KEY1),VAL1,HKEY1)
-!            TET(I).F(J)=VAL1.IITEM
-!            
-!            IF(VAL1.IITEM>MAXNFACE) THEN
-!                CALL FACE_TYDEF_ENLARGE_AR(FACE,1000)
-!                MAXNFACE=MAXNFACE+1000
-!            ENDIF
-!            IF(.NOT.FACE(VAL1.IITEM).ISINI) THEN
-!                FACE(VAL1.IITEM).CKEY=CKEY1 
-!                FACE(VAL1.IITEM).HKEY=HKEY1
-!                FACE(VAL1.IITEM).SHAPE=ELTTYPE(ET1).FACE(0,J)
-!                FACE(VAL1.IITEM).V(1:FACE(VAL1.IITEM).SHAPE)=TET(I).V(ELTTYPE(ET1).FACE(1:FACE(VAL1.IITEM).SHAPE,J))
-!				FACE(VAL1.IITEM).EDGE(1:FACE(VAL1.IITEM).SHAPE)=TET(I).E(ABS(ELTTYPE(ET1).FACEEDGE(1:FACE(VAL1.IITEM).SHAPE,J)))
-!				!CHECK LOOP ORDER
-!				DO K=1,FACE(VAL1.IITEM).SHAPE
-!					IF(EDGE(FACE(VAL1.IITEM).EDGE(K)).V(1)/=FACE(VAL1.IITEM).V(K)) FACE(VAL1.IITEM).EDGE(K)=-FACE(VAL1.IITEM).EDGE(K)
-!				ENDDO
-!                V1=POSDATA.NODE(FACE(VAL1.IITEM).V(2)).COORD-POSDATA.NODE(FACE(VAL1.IITEM).V(1)).COORD
-!                V2=POSDATA.NODE(FACE(VAL1.IITEM).V(3)).COORD-POSDATA.NODE(FACE(VAL1.IITEM).V(1)).COORD
-!                call r8vec_cross_3d ( v1, v2, NORMAL1(1:3) )
-!                T1 = sqrt ( sum ( ( NORMAL1 )**2 ) )
-!                if ( T1 /= 0.0D+00 ) then
-!                  NORMAL1 = NORMAL1/T1
-!                end if
-!                FACE(VAL1.IITEM).UNORMAL=NORMAL1
-!                FACE(VAL1.IITEM).ISINI=.TRUE.
-!                NFACE=VAL1.IITEM
-!				DO K=1,3
-!					FACE(NFACE).BBOX(1,K)=MINVAL(POSDATA.NODE(FACE(NFACE).V(1:FACE(NFACE).SHAPE)).COORD(K))-VTOL
-!					FACE(NFACE).BBOX(2,K)=MAXVAL(POSDATA.NODE(FACE(NFACE).V(1:FACE(NFACE).SHAPE)).COORD(K))+VTOL
-!				ENDDO
-!            ENDIF
-!            IF(FACE(VAL1.IITEM).ENUM==0) ALLOCATE(FACE(VAL1.IITEM).ELEMENT(2),FACE(VAL1.IITEM).SUBID(2))
-!            FACE(VAL1.IITEM).ENUM=FACE(VAL1.IITEM).ENUM+1
-!            IF(FACE(VAL1.IITEM).ENUM>SIZE(FACE(VAL1.IITEM).ELEMENT,DIM=1)) THEN
-!                CALL I_ENLARGE_AR(FACE(VAL1.IITEM).ELEMENT,5)
-!                CALL I_ENLARGE_AR(FACE(VAL1.IITEM).SUBID,5)
-!            ENDIF
-!            
-!            IF(FACE(VAL1.IITEM).ENUM>1) THEN
-!                DO K=1,FACE(VAL1.IITEM).SHAPE
-!                    IF(FACE(VAL1.IITEM).V(K)==TET(I).V(ELTTYPE(TET(I).GMET).FACE(1,J))) THEN
-!                        IF(FACE(VAL1.IITEM).V(MOD(K,FACE(VAL1.IITEM).SHAPE)+1)/= &
-!                            TET(I).V(ELTTYPE(TET(I).GMET).FACE(2,J))) THEN
-!                            FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).ENUM)=-I !I��Ԫ����ķ�����face�ķ�����,Ϊ-1
-!                        ELSE
-!                            FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).ENUM)=I
-!                        ENDIF                         
-!                        EXIT
-!                    ENDIF
-!                ENDDO
-!            ELSE
-!                FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).ENUM)=I !ͬ�� =1
-!            ENDIF
-!            FACE(VAL1.IITEM).SUBID(FACE(VAL1.IITEM).ENUM)=J
-!                
-!            
-!		ENDDO
-!    END DO    
-!    
-!    
-!ENDSUBROUTINE
-!
-!SUBROUTINE SETUP_EDGE_TBL(ELEMENT,NEL,ESET,NESET,NODE,NNODE)
-!    
-!    IMPLICIT NONE
-!	INTEGER,INTENT(IN)::NEL,NESET,NNODE
-!	TYPE(ELEMENT_TYDEF)::ELEMENT(NEL)    
-!    TYPE(ESET_TYDEF)::ESET(NESET)
-!    TYPE(NODE_TYDEF)::NODE(NNODE)
-!    
-!    INTEGER::I,J,N1(2),ET1,NEDGE1,TBL_LEN
-!	CHARACTER(LEN=:),ALLOCATABLE::KEY1
-!    TYPE(DICT_DATA)::VAL1
-!    CHARACTER(64)::CKEY1
-!    INTEGER::HKEY1
-!    
-!    !IF(.NOT.ISINI_GMSHET) THEN        
-!    !    CALL Initialize_et2numNodes()
-!    !    CALL ET_GMSH_EDGE_FACE()
-!    !    ISINI_GMSHET=.TRUE.
-!    !ENDIF
-!	
-!    IF(.NOT.ALLOCATED(MEDGE)) ALLOCATE(MEDGE(MAXNMEDGE))
-!	
-!	TBL_LEN=NNODE	
-!    CALL MEDGE_TBL.INIT(TBL_LEN)
-!	DO I=1,NEL
-!		ET1=GETGMSHET(ESET(ELEMENT(I).ISET).ET)
-!		NEDGE1=ELTTYPE(ET1).NEDGE
-!		ELEMENT(I).NEDGE=NEDGE1
-!        ALLOCATE(ELEMENT(I).EDGE(NEDGE1))
-!		DO J=1,NEDGE1
-!            N1=ELEMENT(I).NODE(ELTTYPE(ET1).EDGE(:,J))
-!            CALL I2C_KEY_hash_tbl_sll(KEY1,N1(:),2)
-!            CKEY1=TRIM(KEY1)
-!            HKEY1 = MOD(ABS(HASH_DJB(KEY1)),MEDGE_TBL%vec_len)
-!            VAL1.IEL=I;VAL1.ISE=J;VAL1.IITEM=MEDGE_TBL.TBL_ID
-!			CALL MEDGE_TBL.PUT(TRIM(KEY1),VAL1,HKEY1)
-!			ELEMENT(I).EDGE(J)=VAL1.IITEM
-!            IF(VAL1.IITEM>MAXNMEDGE) THEN
-!                CALL EDGE_TYDEF_ENLARGE_AR(MEDGE,1000)
-!                MAXNMEDGE=MAXNMEDGE+1000
-!            ENDIF
-!            IF(.NOT.MEDGE(VAL1.IITEM).ISINI) THEN
-!                MEDGE(VAL1.IITEM).CKEY=CKEY1
-!                MEDGE(VAL1.IITEM).HKEY=HKEY1
-!                MEDGE(VAL1.IITEM).V=ELEMENT(I).NODE(ELTTYPE(ET1).EDGE(:,J))
-!                MEDGE(VAL1.IITEM).DIS=NORM2(NODE(MEDGE(VAL1.IITEM).V(1)).COORD-NODE(MEDGE(VAL1.IITEM).V(2)).COORD)
-!                MEDGE(VAL1.IITEM).ISINI=.TRUE.
-!                NMEDGE=VAL1.IITEM
-!            ENDIF
-!            IF(MEDGE(VAL1.IITEM).ENUM==0) ALLOCATE(MEDGE(VAL1.IITEM).ELEMENT(5),MEDGE(VAL1.IITEM).SUBID(5))
-!            MEDGE(VAL1.IITEM).ENUM=MEDGE(VAL1.IITEM).ENUM+1
-!            IF(MEDGE(VAL1.IITEM).ENUM>SIZE(MEDGE(VAL1.IITEM).ELEMENT,DIM=1)) THEN
-!				CALL I_ENLARGE_AR(MEDGE(VAL1.IITEM).ELEMENT,5)
-!				CALL I_ENLARGE_AR(MEDGE(VAL1.IITEM).SUBID,5)
-!			ENDIF
-!            MEDGE(VAL1.IITEM).ELEMENT(MEDGE(VAL1.IITEM).ENUM)=I			
-!            MEDGE(VAL1.IITEM).SUBID(MEDGE(VAL1.IITEM).ENUM)=J
-!		ENDDO
-!    END DO
-!    RETURN
-!ENDSUBROUTINE
-!
-!SUBROUTINE SETUP_FACE_TBL(ELEMENT,NEL,ESET,NESET,NODE,NNODE)
-!    IMPLICIT NONE
-!    INTEGER,INTENT(IN)::NEL,NESET,NNODE
-!	TYPE(ELEMENT_TYDEF)::ELEMENT(NEL)    
-!    TYPE(ESET_TYDEF)::ESET(NESET)
-!    TYPE(NODE_TYDEF)::NODE(NNODE)
-!    INTEGER::I,J,N1(4),ET1,NFACE1,TBL_LEN,N2,K
-!    REAL(8)::V1(3),V2(3),NORMAL1(3),T1
-!	CHARACTER(LEN=:),ALLOCATABLE::KEY1
-!    TYPE(DICT_DATA)::VAL1
-!    CHARACTER(64)::CKEY1
-!    INTEGER::HKEY1
-!    
-!    !IF(.NOT.ISINI_GMSHET) THEN
-!    !    CALL Initialize_et2numNodes()
-!    !    CALL ET_GMSH_EDGE_FACE()
-!    !    ISINI_GMSHET=.TRUE.
-!    !ENDIF    
-!	
-!    IF(.NOT.ALLOCATED(MFACE)) ALLOCATE(MFACE(MAXNMFACE))
-!	
-!	TBL_LEN=NNODE	
-!    CALL MFACE_TBL.INIT(TBL_LEN)
-!	DO I=1,NEL
-!		ET1=GETGMSHET(ESET(ELEMENT(I).ISET).ET)
-!		NFACE1=ELTTYPE(ET1).NFACE
-!		ELEMENT(I).NFACE=NFACE1
-!        ALLOCATE(ELEMENT(I).FACE(NFACE1))
-!		DO J=1,NFACE1
-!            N2=ELTTYPE(ET1).FACE(0,J)
-!            N1(1:N2)=ELEMENT(I).NODE(ELTTYPE(ET1).FACE(1:N2,J))
-!            CALL MFACE_TBL.KEY(KEY1,N1(1:N2),ELTTYPE(ET1).FACE(0,J))
-!            CKEY1=TRIM(KEY1)
-!            HKEY1 = MOD(ABS(HASH_DJB(KEY1)),MFACE_TBL%vec_len)            
-!            VAL1.IEL=I;VAL1.ISE=J;VAL1.IITEM=MFACE_TBL.TBL_ID
-!			CALL MFACE_TBL.PUT(TRIM(KEY1),VAL1,HKEY1)
-!            ELEMENT(I).FACE(J)=VAL1.IITEM
-!            
-!            IF(VAL1.IITEM>MAXNMFACE) THEN
-!                CALL FACE_TYDEF_ENLARGE_AR(MFACE,1000)
-!                MAXNMFACE=MAXNMFACE+1000
-!            ENDIF
-!            IF(.NOT.MFACE(VAL1.IITEM).ISINI) THEN
-!                MFACE(VAL1.IITEM).CKEY=CKEY1 
-!                MFACE(VAL1.IITEM).HKEY=HKEY1
-!                MFACE(VAL1.IITEM).SHAPE=ELTTYPE(ET1).FACE(0,J)
-!                MFACE(VAL1.IITEM).V(1:MFACE(VAL1.IITEM).SHAPE)=ELEMENT(I).NODE(ELTTYPE(ET1).FACE(1:MFACE(VAL1.IITEM).SHAPE,J))
-!				MFACE(VAL1.IITEM).EDGE(1:MFACE(VAL1.IITEM).SHAPE)=ELEMENT(I).EDGE(ABS(ELTTYPE(ET1).FACEEDGE(1:MFACE(VAL1.IITEM).SHAPE,J)))
-!				!CHECK LOOP ORDER
-!				DO K=1,MFACE(VAL1.IITEM).SHAPE
-!					IF(MEDGE(MFACE(VAL1.IITEM).EDGE(K)).V(1)/=MFACE(VAL1.IITEM).V(K)) MFACE(VAL1.IITEM).EDGE(K)=-MFACE(VAL1.IITEM).EDGE(K)
-!				ENDDO
-!                V1=NODE(MFACE(VAL1.IITEM).V(2)).COORD-NODE(MFACE(VAL1.IITEM).V(1)).COORD
-!                V2=NODE(MFACE(VAL1.IITEM).V(3)).COORD-NODE(MFACE(VAL1.IITEM).V(1)).COORD
-!                call r8vec_cross_3d ( v1, v2, NORMAL1(1:3) )
-!                T1 = sqrt ( sum ( ( NORMAL1 )**2 ) )
-!                if ( T1 /= 0.0D+00 ) then
-!                  NORMAL1 = NORMAL1/T1
-!                end if
-!                MFACE(VAL1.IITEM).UNORMAL=NORMAL1
-!                MFACE(VAL1.IITEM).ISINI=.TRUE.
-!                NMFACE=VAL1.IITEM
-!            ENDIF
-!            IF(MFACE(VAL1.IITEM).ENUM==0) ALLOCATE(MFACE(VAL1.IITEM).ELEMENT(2),MFACE(VAL1.IITEM).SUBID(2))
-!            MFACE(VAL1.IITEM).ENUM=MFACE(VAL1.IITEM).ENUM+1
-!            IF(MFACE(VAL1.IITEM).ENUM>SIZE(MFACE(VAL1.IITEM).ELEMENT,DIM=1)) THEN
-!                CALL I_ENLARGE_AR(MFACE(VAL1.IITEM).ELEMENT,5)
-!                CALL I_ENLARGE_AR(MFACE(VAL1.IITEM).SUBID,5)
-!            ENDIF
-!            IF(MFACE(VAL1.IITEM).ENUM>1) THEN
-!                DO K=1,MFACE(VAL1.IITEM).SHAPE
-!                    IF(MFACE(VAL1.IITEM).V(K)==ELEMENT(I).NODE(ELTTYPE(GETGMSHET(ESET(ELEMENT(I).ISET).ET)).FACE(1,J))) THEN
-!                        IF(MFACE(VAL1.IITEM).V(MOD(K,MFACE(VAL1.IITEM).SHAPE)+1)/= &
-!                            ELEMENT(I).NODE(ELTTYPE(GETGMSHET(ESET(ELEMENT(I).ISET).ET)).FACE(2,J))) THEN
-!                            MFACE(VAL1.IITEM).ELEMENT(MFACE(VAL1.IITEM).ENUM)=-I !I?????????????face???????,?-1
-!                        ELSE
-!                            MFACE(VAL1.IITEM).ELEMENT(MFACE(VAL1.IITEM).ENUM)=I
-!                        ENDIF                  
-!                        EXIT
-!                    ENDIF
-!                ENDDO
-!            ELSE
-!                MFACE(VAL1.IITEM).ELEMENT(MFACE(VAL1.IITEM).ENUM)=I !??? =1
-!            ENDIF
-!            MFACE(VAL1.IITEM).SUBID(MFACE(VAL1.IITEM).ENUM)=J
-!                
-!            
-!		ENDDO
-!    END DO    
-!    
-!    
-!ENDSUBROUTINE
+!search method:element-by-element，it is robust but may be comparily slow.
+!if tryiel>0, it the element and its nerghborhood will be searched firstly.
+INTEGER FUNCTION POINTlOC(PT,TRYIEL)
+	!USE MESHGEO
+	IMPLICIT NONE
+	REAL(8),INTENT(IN)::PT(3)
+    INTEGER,INTENT(IN)::TRYIEL
+	INTEGER::I,J,K,ELT1(-10:0)
+	!LOGICAL,EXTERNAL::PtInTri,PtInTET
+    LOGICAL::ISFOUND=.FALSE.
+	!INTEGER::SEARCHLIST(NTET)
+	!I=INT(1+(RANDOM(1))(NFACE-1))
+    
+    ISFOUND=.FALSE.    
+    
+    DO J=1,NSZONE
+        IF(SEARCHZONE(J).NEL<1) CYCLE
+        IF(SEARCHZONE(J).NDX(1)>1) THEN
+            IF(PT(1)<SEARCHZONE(J).BBOX(1,1)) CYCLE
+            IF(PT(1)>SEARCHZONE(J).BBOX(2,1)) CYCLE
+        ENDIF
+        IF(SEARCHZONE(J).NDX(2)>1) THEN
+            IF(PT(2)<SEARCHZONE(J).BBOX(1,2)) CYCLE
+            IF(PT(2)>SEARCHZONE(J).BBOX(2,2)) CYCLE
+        ENDIF        
+        IF(SEARCHZONE(J).NDX(3)>1) THEN
+            IF(PT(3)<SEARCHZONE(J).BBOX(1,3)) CYCLE
+            IF(PT(3)>SEARCHZONE(J).BBOX(2,3)) CYCLE
+        ENDIF     
+        
+        IF(TRYIEL>0) THEN
+            ELT1(-TET(TRYIEL).NV)=TRYIEL
+            DO K=1,TET(TRYIEL).NV
+                ELT1(-TET(TRYIEL).NV+K)=TET(TRYIEL).ADJELT(K)
+            ENDDO
+            K=-TET(TRYIEL).NV
+        ELSE
+            K=1
+        ENDIF
+        
+	    do K=K,SEARCHZONE(J).NEL
+            IF(K>0) THEN
+                I=SEARCHZONE(J).ELEMENT(K) 
+            ELSE
+                I=ELT1(K)
+            ENDIF
+            IF(I<1) CYCLE
+		    IF(TET(I).ISDEAD==1) CYCLE
+		    IF(TET(I).BBOX(2,1)>=PT(1).and.TET(I).BBOX(1,1)<=PT(1)) then
+			    IF(TET(I).BBOX(2,2)>=PT(2).and.TET(I).BBOX(1,2)<=PT(2)) then
+				    IF(POSDATA.NDIM>2) THEN
+					    IF(TET(I).BBOX(2,3)<PT(3).and.TET(I).BBOX(1,3)>PT(3)) CYCLE
+				    ENDIF
+				    IF(TET(I).DIM==2) THEN
+					    IF(PtInTri(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD)) THEN
+                            ISFOUND=.TRUE.
+                            EXIT
+                        ENDIF
+				    ELSEIF(TET(I).DIM==3) THEN
+					    IF(PtInTET(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD,POSDATA.NODE(TET(I).V(4)).COORD)) THEN
+                            ISFOUND=.TRUE.
+                            EXIT
+                        ENDIF
+				    ENDIF
+			    ENDIF
+		    endif
+	    ENDDO
+        
+
+    ENDDO
+	
+	IF(.NOT.ISFOUND) I=0
+    LASTLOC=I
+    POINTlOC=I
+	RETURN
+ENDFUNCTION
+
+INTEGER FUNCTION PTINTRIlOC(PT)
+    !USE solverds
+	!USE MESHGEO
+	IMPLICIT NONE
+	REAL(8),INTENT(IN)::PT(3)
+	INTEGER::I
+	!LOGICAL,EXTERNAL::PtInTri,PtInTET
+    REAL(8)::TOF1
+	
+	!I=INT(1+(RANDOM(1))(NFACE-1))
+    
+	do i=1,NFACE
+		IF(FACE(I).ISDEAD==1) CYCLE
+		IF(FACE(I).BBOX(2,1)>=PT(1).and.FACE(I).BBOX(1,1)<=PT(1)) then
+			IF(FACE(I).BBOX(2,2)>=PT(2).and.FACE(I).BBOX(1,2)<=PT(2)) then
+				IF(POSDATA.NDIM>2) THEN
+					IF(FACE(I).BBOX(2,3)<PT(3).and.FACE(I).BBOX(1,3)>PT(3)) CYCLE
+				ENDIF
+				IF(PtInTri(PT, POSDATA.NODE(FACE(I).V(1)).COORD, POSDATA.NODE(FACE(I).V(2)).COORD, POSDATA.NODE(FACE(I).V(3)).COORD)) EXIT
+				
+			ENDIF
+		endif
+	ENDDO
+	
+	IF(I>NFACE) I=0
+	PTINTRIlOC=I
+	RETURN
+ENDFUNCTION
+
+! 
+! Barycentric coordinates search method.
+!if fail, recheck by searching one-by-one method (POINTlOC)
+integer function POINTlOC_BC(Pt,TRYiel)
+
+    USE IFPORT
+    implicit none
+    real(8),intent(in)::pt(3)
+    integer,intent(in)::TRYiel
+    real(8)::shpfun(4)
+    integer::IEL,n1,N2,I,N3,IEL1
+    !INTEGER,EXTERNAL::POINTlOC
+    integer::N2E1(1:4,3:4)=reshape([2,3,1,0,3,4,2,1],[4,2])
+    
+    LOGICAL::ISSEARCHED(0:NTET)
+    
+    
+    ISSEARCHED=.FALSE.
+    ISSEARCHED(0)=.TRUE.
+    N2=0
+    POINTlOC_BC=0
+    IEL=0
+    if(TRYiel<1) THEN
+        DO I=1,NSZONE
+            IF(SEARCHZONE(I).NEL<1) CYCLE
+            IF(SEARCHZONE(I).NDX(1)>1) THEN
+                IF(PT(1)<SEARCHZONE(I).BBOX(1,1)) CYCLE
+                IF(PT(1)>SEARCHZONE(I).BBOX(2,1)) CYCLE
+            ENDIF
+            IF(SEARCHZONE(I).NDX(2)>1) THEN
+                IF(PT(2)<SEARCHZONE(I).BBOX(1,2)) CYCLE
+                IF(PT(2)>SEARCHZONE(I).BBOX(2,2)) CYCLE
+            ENDIF        
+            IF(SEARCHZONE(I).NDX(3)>1) THEN
+                IF(PT(3)<SEARCHZONE(I).BBOX(1,3)) CYCLE
+                IF(PT(3)>SEARCHZONE(I).BBOX(2,3)) CYCLE
+            ENDIF                
+        
+            iel=SEARCHZONE(I).ELEMENT(MAX(INT(rand(1)*SEARCHZONE(I).NEL),1))
+
+            EXIT
+        ENDDO
+        IF(IEL==0) THEN
+            RETURN
+        ENDIF
+        
+        !iel=(MAX(INT(rand(1)*NTET),1))
+    ELSE
+        IEL=TRYiel
+    ENDIF
+    N3=0
+    ISSEARCHED(IEL)=.TRUE.
+    do while(N3<=NTET)
+        N3=N3+1
+        
+        call tetshapefun(Pt,iel,shpfun)
+        n2=tet(iel).nv
+        
+        n1=minloc(shpfun(1:n2),dim=1)
+        if(shpfun(n1)<0.d0) then            
+            IEL1=IEL
+            iel=tet(iel).adjelt(N2E1(n1,n2))
+            
+            !IF ISSEARCHED(IEL)=.TRUE. DEAD CYCLE.            
+            if(iel==0.OR.ISSEARCHED(IEL)) then
+                !RECHECK BY THE FINAL METHOD.
+                POINTlOC_BC=POINTlOC(PT,IEL1)                
+                exit
+            endif
+            ISSEARCHED(IEL)=.TRUE.
+        else
+            POINTlOC_BC=iel
+            exit
+        endif
+        !ISSEARCH(IEL)=IEL
+    enddo
+    
+    !if(.not.isfound) iel=0
+    
+end function
+
+! Barycentric coordinates search method.
+!if fail, recheck by searching one-by-one method (POINTlOC)
+integer function POINTlOC_BC_SOLVER(Pt,TRYiel)
+    
+    USE solverds,ONLY:node,element,enum,ndimension
+    USE IFPORT
+    implicit none
+    real(8),intent(in)::pt(3)
+    integer,intent(in)::TRYiel
+    real(8)::shpfun(4)
+    integer::IEL,n1,N2,I,N3,IEL1
+    !INTEGER,EXTERNAL::POINTlOC
+    integer::N2E1(1:4,3:4)=reshape([2,3,1,0,3,4,2,1],[4,2])
+    
+    LOGICAL::ISSEARCHED(0:ENUM)
+    
+    
+    ISSEARCHED=.FALSE.
+    ISSEARCHED(0)=.TRUE.
+    N2=0
+    POINTlOC_BC_SOLVER=0
+    IEL=0
+    if(TRYiel<1) THEN
+        DO I=1,NSZONE
+            IF(SEARCHZONE(I).NEL<1) CYCLE
+            IF(SEARCHZONE(I).NDX(1)>1) THEN
+                IF(PT(1)<SEARCHZONE(I).BBOX(1,1)) CYCLE
+                IF(PT(1)>SEARCHZONE(I).BBOX(2,1)) CYCLE
+            ENDIF
+            IF(SEARCHZONE(I).NDX(2)>1) THEN
+                IF(PT(2)<SEARCHZONE(I).BBOX(1,2)) CYCLE
+                IF(PT(2)>SEARCHZONE(I).BBOX(2,2)) CYCLE
+            ENDIF        
+            IF(SEARCHZONE(I).NDX(3)>1) THEN
+                IF(PT(3)<SEARCHZONE(I).BBOX(1,3)) CYCLE
+                IF(PT(3)>SEARCHZONE(I).BBOX(2,3)) CYCLE
+            ENDIF                
+        
+            iel=SEARCHZONE(I).ELEMENT(MAX(INT(rand(1)*SEARCHZONE(I).NEL),1))
+
+            EXIT
+        ENDDO
+        IF(IEL==0) THEN
+            RETURN
+        ENDIF
+        
+        !iel=(MAX(INT(rand(1)*ENUM),1))
+    ELSE
+        IEL=TRYiel
+    ENDIF
+    N3=0
+    ISSEARCHED(IEL)=.TRUE.
+
+    do while(N3<=ENUM)
+        N3=N3+1
+        
+        call tetshapefun_solver(Pt,iel,shpfun)
+        n2=ELEMENT(IEL).nnum
+        
+        n1=minloc(shpfun(1:n2),dim=1)
+        if(shpfun(n1)<0.d0) then            
+            IEL1=IEL
+            iel=ELEMENT(IEL).adjelt(N2E1(n1,n2))
+            !IF ISSEARCHED(IEL)=.TRUE. DEAD CYCLE.            
+            if(iel==0.OR.ISSEARCHED(IEL)) then
+                !RECHECK BY THE FINAL METHOD.
+                POINTlOC_BC_SOLVER=POINTlOC_SOLVER(PT,IEL1)                
+                exit
+            endif
+            ISSEARCHED(IEL)=.TRUE.
+        else
+            POINTlOC_BC_SOLVER=iel
+            exit
+        endif
+        !ISSEARCH(IEL)=IEL
+    enddo
+    
+contains
+
+   
+    !search method:element-by-element，it is robust but may be comparily slow.
+    !if tryiel>0, it the element and its nerghborhood will be searched firstly.
+    INTEGER FUNCTION POINTlOC_Solver(PT,TRYIEL)
+	    IMPLICIT NONE
+	    REAL(8),INTENT(IN)::PT(3)
+        INTEGER,INTENT(IN)::TRYIEL
+	    INTEGER::I,J,K,ELT1(-10:0)
+	    !LOGICAL,EXTERNAL::PtInTri,PtInTET
+        LOGICAL::ISFOUND=.FALSE.
+	    !INTEGER::SEARCHLIST(NTET)
+	    !I=INT(1+(RANDOM(1))(NFACE-1))
+    
+    
+        ISFOUND=.FALSE.    
+    
+        DO J=1,NSZONE
+            IF(SEARCHZONE(J).NEL<1) CYCLE
+            IF(SEARCHZONE(J).NDX(1)>1) THEN
+                IF(PT(1)<SEARCHZONE(J).BBOX(1,1)) CYCLE
+                IF(PT(1)>SEARCHZONE(J).BBOX(2,1)) CYCLE
+            ENDIF
+            IF(SEARCHZONE(J).NDX(2)>1) THEN
+                IF(PT(2)<SEARCHZONE(J).BBOX(1,2)) CYCLE
+                IF(PT(2)>SEARCHZONE(J).BBOX(2,2)) CYCLE
+            ENDIF        
+            IF(SEARCHZONE(J).NDX(3)>1) THEN
+                IF(PT(3)<SEARCHZONE(J).BBOX(1,3)) CYCLE
+                IF(PT(3)>SEARCHZONE(J).BBOX(2,3)) CYCLE
+            ENDIF     
+        
+            IF(TRYIEL>0) THEN
+                ELT1(-ELEMENT(TRYIEL).NNUM)=TRYIEL
+                DO K=1,ELEMENT(TRYIEL).NNUM
+                    ELT1(-ELEMENT(TRYIEL).NNUM+K)=ELEMENT(TRYIEL).ADJELT(K)
+                ENDDO
+                K=-ELEMENT(TRYIEL).NNUM
+            ELSE
+                K=1
+            ENDIF
+        
+	        do K=K,SEARCHZONE(J).NEL
+                IF(K>0) THEN
+                    I=SEARCHZONE(J).ELEMENT(K) 
+                ELSE
+                    I=ELT1(K)
+                ENDIF
+                IF(I<1) CYCLE
+		        IF(ELEMENT(I).isactive==0) CYCLE
+                if(ELEMENT(I).eshape/=203.and.ELEMENT(I).eshape/=304) CYCLE !目前只能处理三角形和四面体
+
+		        IF(ELEMENT(I).BBOX(2,1)>=PT(1).and.ELEMENT(I).BBOX(1,1)<=PT(1)) then
+			        IF(ELEMENT(I).BBOX(2,2)>=PT(2).and.ELEMENT(I).BBOX(1,2)<=PT(2)) then
+				        IF(ndimension>2) THEN
+					        IF(ELEMENT(I).BBOX(2,3)<PT(3).and.ELEMENT(I).BBOX(1,3)>PT(3)) CYCLE
+				        ENDIF
+				        IF(ndimension==2) THEN
+					        IF(PtInTri(PT, NODE(ELEMENT(I).NODE(1)).COORD, NODE(ELEMENT(I).NODE(2)).COORD, NODE(ELEMENT(I).NODE(3)).COORD)) THEN
+                                ISFOUND=.TRUE.
+                                EXIT
+                            ENDIF
+				        ELSEIF(ndimension==3) THEN
+					        IF(PtInTET(PT, NODE(ELEMENT(I).NODE(1)).COORD, NODE(ELEMENT(I).NODE(2)).COORD, NODE(ELEMENT(I).NODE(3)).COORD,NODE(ELEMENT(I).NODE(4)).COORD)) THEN
+                                ISFOUND=.TRUE.
+                                EXIT
+                            ENDIF
+				        ENDIF
+			        ENDIF
+		        endif
+	        ENDDO
+        
+
+        ENDDO
+	
+	    IF(.NOT.ISFOUND) I=0
+        LASTLOC=I
+        POINTlOC_Solver=I
+	    RETURN
+    ENDFUNCTION    
+    
+    
+end function
+
+
+ subroutine getval_solver(Pt,itet,val,pval)
+    use solverds,only:element
+    implicit none
+    integer,intent(in)::itet
+    real(8),intent(in)::Pt(3),pval(:,:) !pval(nnode,npval)
+    real(8)::val(size(pval,dim=2))
+    real(8)::shpfun(4),val1(4)
+    integer::i,n1,np1
+    
+    call tetshapefun_solver(Pt,itet,shpfun)
+    n1=element(itet).nnum
+    np1=size(pval,dim=2)
+    do i=1,np1       
+        val(i)=dot_product(pval(:,i),shpfun(1:n1))
+    enddo
+    
+ endsubroutine
+
+ subroutine tetshapefun_solver(Pt,itet,shpfun) 
+    use solverds,only:node,element,ndimension
+    use SolverMath,only:determinant
+    implicit none
+    integer,intent(in)::itet
+    real(8),intent(in)::Pt(3)
+    real(8),dimension(4)::shpfun
+    real(8)::Va1(3,4),v1(3),v2(3),v3(3),vol1
+    integer::i,vi1(3,4),n1
+    !real(8),EXTERNAL::determinant
+     
+    do i=1,element(itet).nnum
+        Va1(:,i)=NODE(element(itet).node(i)).coord
+    enddo
+    if(ndimension==2) then
+        v1=va1(:,2)-va1(:,1)
+        v2=va1(:,3)-va1(:,1) 
+        call r8vec_cross_3d ( v1, v2, v3 )
+        n1=maxloc(abs(v3),dim=1)
+        vol1=v3(n1)
+        if(abs(vol1)<1e-7) then
+            print *, "Error. the tet(itet) Area is 0. sub=tetshapefun,itet=",itet
+            stop
+        endif
+        shpfun(3)=1.0d0
+        do i=1,2
+            v1=va1(:,mod(i,3)+1)-Pt
+            v2=va1(:,mod(i+1,3)+1)-Pt
+            call r8vec_cross_3d ( v1, v2, v3 )
+            !shpfun(i)=max(min(norm2(v3)/vol1,1.d0),0.d0) !0-1
+            shpfun(i)=v3(n1)/vol1
+            shpfun(3)=shpfun(3)-shpfun(i)
+        enddo
+        
+        
+    elseif(ndimension==3) then
+		vi1=reshape([2,4,3,1,3,4,1,4,2,1,2,3],([3,4]))
+	
+        v1=va1(:,2)-va1(:,1)
+        v2=va1(:,3)-va1(:,1) 
+        v3=va1(:,4)-va1(:,1) 
+        vol1=determinant(reshape([v1,v2,v3],([3,3])))
+        shpfun(4)=1.d0
+        do i=1,3
+            v1=va1(:,vi1(1,i))-Pt
+            v2=va1(:,vi1(2,i))-Pt
+            v3=va1(:,vi1(3,i))-Pt
+            !shpfun(i)=min(max(abs(determinant(reshape([v1,v2,v3],([3,3])))/vol1),0.d0),1.d0)
+            shpfun(i)=determinant(reshape([v2,v1,v3],([3,3])))/vol1
+            shpfun(4)=shpfun(4)-shpfun(i)
+        enddo
+    endif
+    
+    
+    
+endsubroutine
+ 
+ 
+subroutine tetshapefun(Pt,itet,shpfun) 
+    !use solverds
+    !use MESHGEO
+    use SolverMath,only:determinant
+    implicit none
+    integer,intent(in)::itet
+    real(8),intent(in)::Pt(3)
+    real(8),dimension(4)::shpfun
+    real(8)::Va1(3,4),v1(3),v2(3),v3(3),vol1
+    integer::i,vi1(3,4),n1
+    !real(8),EXTERNAL::determinant
+     
+    do i=1,tet(itet).nv
+        Va1(:,i)=POSDATA.NODE(tet(itet).v(i)).coord
+    enddo
+    if(tet(itet).dim==2) then
+        v1=va1(:,2)-va1(:,1)
+        v2=va1(:,3)-va1(:,1) 
+        call r8vec_cross_3d ( v1, v2, v3 )
+        n1=maxloc(abs(v3),dim=1)
+        vol1=v3(n1)
+        if(abs(vol1)<1e-7) then
+            print *, "Error. the tet(itet) Area is 0. sub=tetshapefun,itet=",itet
+            stop
+        endif
+        shpfun(3)=1.0d0
+        do i=1,2
+            v1=va1(:,mod(i,3)+1)-Pt
+            v2=va1(:,mod(i+1,3)+1)-Pt
+            call r8vec_cross_3d ( v1, v2, v3 )
+            !shpfun(i)=max(min(norm2(v3)/vol1,1.d0),0.d0) !0-1
+            shpfun(i)=v3(n1)/vol1
+            shpfun(3)=shpfun(3)-shpfun(i)
+        enddo
+        
+        
+    elseif(tet(itet).dim==3) then
+		vi1=reshape([2,4,3,1,3,4,1,4,2,1,2,3],([3,4]))
+	
+        v1=va1(:,2)-va1(:,1)
+        v2=va1(:,3)-va1(:,1) 
+        v3=va1(:,4)-va1(:,1) 
+        vol1=determinant(reshape([v1,v2,v3],([3,3])))
+        shpfun(4)=1.d0
+        do i=1,3
+            v1=va1(:,vi1(1,i))-Pt
+            v2=va1(:,vi1(2,i))-Pt
+            v3=va1(:,vi1(3,i))-Pt
+            !shpfun(i)=min(max(abs(determinant(reshape([v1,v2,v3],([3,3])))/vol1),0.d0),1.d0)
+            shpfun(i)=determinant(reshape([v2,v1,v3],([3,3])))/vol1
+            shpfun(4)=shpfun(4)-shpfun(i)
+        enddo
+    endif
+    
+    
+    
+endsubroutine
 
 
 SUBROUTINE FACE_TYDEF_ENLARGE_AR(AVAL,DSTEP)
@@ -1143,6 +1439,147 @@ SUBROUTINE R_ENLARGE_AR(AVAL,DSTEP)
     DEALLOCATE(VAL1)
 END SUBROUTINE
 
+logical function PtInTri (pt, v1, v2, v3)
+	implicit none
+	integer b1, b2
+	real(8),intent(in)::pt(3),v1(3),v2(3),v3(3)
+    !integer,EXTERNAL::isacw
+    
+	PtInTri=.false.
+    b1 = isacw(pt(1),pt(2),pt(3),v1(1),v1(2),v1(3),v2(1),v2(2),v2(3)) ;
+    if(b1==2) then
+        PtInTri=.true.
+        return
+    endif
+    b2 = isacw(pt(1),pt(2),pt(3),v2(1),v2(2),v2(3),v3(1),v3(2),v3(3)) ;
+    if(b2==2) then
+        PtInTri=.true.
+        return
+    endif    
+	if(b1/=b2) return
+    b1 = isacw(pt(1),pt(2),pt(3),v3(1),v3(2),v3(3),v1(1),v1(2),v1(3)) ;
+    if(b1==2) then
+        PtInTri=.true.
+        return
+    endif    
+    if(b1/=b2) return
+    
+	PtInTri=.true.	
+end function
+
+
+integer function Isfront(V)
+!v(:,1-3) are face, and v(:,4) is point to be tested
+    use SolverMath,only:determinant
+	implicit none
+	real(8),intent(in)::V(3,4)
+	real(8)::V1(3,3)
+	integer::I
+    real(8)::T1
+    !real(8),EXTERNAL::determinant
+    
+    Isfront=0
+	do i=1,3
+		v1(:,i)=v(:,i+1)-v(:,1)
+	enddo
+    
+    t1=determinant(v1)
+    
+	if(t1>0.d0) Isfront=1
+    
+    if(abs(t1)<1e-10) then
+        ISFRONT=3 !4点共面
+        if(PtInTri (v(:,4), v(:,1), v(:,2), v(:,3))) Isfront=2 !on the TRIsurface        
+    endif
+    
+
+end function
+
+logical function PtInTet(pt, v1, v2, v3,v4)
+    !假定四面体四个面的正向一致，都为正向(节点逆时针)或负向
+	implicit none
+	integer:: b1, b2
+	real(8),intent(in)::pt(3),v1(3),v2(3),v3(3),v4(3)
+	!integer,EXTERNAL::ISFRONT
+    
+	PtInTet=.false.
+    b1 = Isfront([v2,v1,v3,pt]) 
+    if(b1==2) then
+        PtInTet=.true.
+        return
+    endif
+    b2 = Isfront([v1,v2,v4,pt]) 
+    if(b2==2) then
+        PtInTet=.true.
+        return
+    endif    
+	if(b1/=b2) return
+    b1 = Isfront([v2,v3,v4,pt])
+    if(b1==2) then
+        PtInTet=.true.
+        return
+    endif
+	if(b1/=b2) return	
+	b1 = Isfront([v3,v1,v4,pt])
+    if(b1==2) then
+        PtInTet=.true.
+        return
+    endif    
+	if(b1/=b2) return
+    
+    PtInTet=.true.
+
+end function
+
+
+
+
+
+
+integer function isacw(x1,y1,z1,x2,y2,z2,x3,y3,z3)
+	implicit none
+	real(8),intent(in)::x1,y1,z1,x2,y2,z2,x3,y3,z3
+    real(8)::t1,yn2,xn2,zn2,yn3,xn3,zn3,norm1(3),t2
+	
+	isacw=0
+    !isacw=1,=2,onedge,=3,coline;
+    
+	yn2=y2-y1
+	xn2=x2-x1
+    zn2=z2-z1
+	yn3=y3-y1
+	xn3=x3-x1    
+    zn3=z3-z1
+    norm1=[yn2*zn3-zn2*yn3,-(xn2*zn3-zn2*xn3),xn2*yn3-yn2*xn3]
+    t2=norm2(norm1)
+    if(t2<1e-10) then !共线
+        ISACW=3
+        if(x1<min(x3,x2)) return
+        if(X1>max(x3,x2)) return
+        if(Y1<min(y3,y2)) return
+        if(Y1>max(y3,y2)) return 
+        if(Z1<min(z3,z2)) return
+        if(Z1>max(z3,z2)) return 
+        isacw=2 !on the edge
+    else
+        !t1=(xn2*yn3-yn2*xn3)+(yn2*zn3-zn2*yn3)-(xn2*zn3-zn2*xn3)
+        !if(abs(t1)<1.d-10) then 
+            !与(1,1,1)垂直            
+        if(abs(norm1(3))>1e-10) then
+            isacw=sign(1.,norm1(3)) !从+z看
+        elseif(abs(norm1(1))>1e-10) then
+            isacw=sign(1.,norm1(1)) !从+x看
+        elseif(abs(norm1(2))>1e-10) then
+            isacw=sign(1.,norm1(2)) !从+y看
+        endif
+        !else
+            !从(1,1,1)方向看
+        !    isacw=sign(1.,t1)
+        !endif
+    endif
+	
+
+end function
 
 
 
@@ -1150,7 +1587,13 @@ END SUBROUTINE
 
 ENDMODULE
 
- 
+
+
+
+
+
+
+
 
 
 

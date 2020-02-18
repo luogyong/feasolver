@@ -2,7 +2,7 @@
 	!INTEGER,PARAMETER::DPN=KIND(1.0D0)
 	integer,parameter::inactive=-9999999
 	integer,parameter::MNDOF=9
-	integer,parameter::maximat=50,maxiet=500,maxilf=10,maxset=100
+	integer,parameter::maximat=50,maxiet=500,maxilf=10,maxset=500
 	integer,parameter::MaxNumRead=1000 !when input data, data numbers in each line is restricted to the MaxNumRead
 												!Care should be taken when the following input way is used in SUB:strtoint: 1-5 or 1*100 
 	!DEFINE PARAMETER 

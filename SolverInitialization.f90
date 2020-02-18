@@ -29,9 +29,17 @@ subroutine Initialization()
 	rpi=pi()
 
 	!open(2,file='fea_dug.dat',status='replace')
+    
+    do i=1,enum
+        do k=1,ndimension
+		    element(i).bbox(1,k)=MINVAL(NODE(element(i).node).COORD(K))
+            element(i).bbox(2,k)=MAXVAL(NODE(element(i).node).COORD(K))
+        enddo
+    ENDDO
 	
 	do i=1,enum
-		
+
+        
 		select case(element(i).et)
 			case(CONDUCT1D) !activated dof is 4
 				node(element(i).node(1:element(i).nnum)).dof(4)=0

@@ -475,7 +475,7 @@ subroutine solvercommand(term,unit)
 	type(mat_tydef),allocatable::mat1(:)
 	type(element_tydef),allocatable::element1(:),element2(:)
 	type(bc_tydef),allocatable::bf1(:),bf2(:)
-	integer::enum1=0,nnum1=0,et1=0,set1=0,material1=0,&
+	integer::enum1=0,nnum1=0,et1=0,set1=0,material1=0,eshp1,&
 		ndof1=0,nd1=0,ngp1=0,matid1=0,nset=0,sf1=0,system1=0,nbf1=0
 	integer::ec1=0,id1=0,excelformat=0
 	character(16)::stype
@@ -847,7 +847,7 @@ subroutine solvercommand(term,unit)
 !						if(et1>maxet) maxet=et1
 !						if(et1<minet) minet=et1
 						!according to the element type, return the element node number,and the dofs number
-						call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1)
+						call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1,eshp1)
 					case('material')
 						material1=int(property(i).value)
 					case('mat','matid','material id')
@@ -925,6 +925,7 @@ subroutine solvercommand(term,unit)
 				element1(i).nd=nd1
 				element1(i).ec=ec1
 				element1(i).sf=sf1
+                element1(i).eshape=eshp1
 				if(et1==beam) element1(i).system=system1
         !        if(element1(i).et==wellbore) then  !wellbore 单元有两种情况，2节点和4节点
 				    !element1(i).ndof=n1
@@ -937,6 +938,7 @@ subroutine solvercommand(term,unit)
 			eset(set1).grouptitle=name1
 			eset(set1).et=et1
 			eset(set1).ec=ec1
+            eset(set1).eshape=eshp1
             eset(set1).system=system1
 			eset(set1).enums=enum+1
             eset(set1).coupleset=n2
@@ -1543,9 +1545,11 @@ subroutine solvercommand(term,unit)
                     case('max_node_adj')
                         max_node_adj=int(property(i).value)  
                     case('max_face_adj')
-                        max_face_adj=int(property(i).value)     
-					!case('ispostcal')
-					!	solver_control.ispostcal=int(property(i).value)
+                        max_face_adj=int(property(i).value)  
+                    case('wellmethod')
+                        solver_control.wellmethod=int(property(i).value)  
+					case('nspwell')
+						solver_control.nspwell=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -2721,13 +2725,13 @@ subroutine translatetoproperty(term)
 end subroutine
 
 
-subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
+subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1,eshape1)
 !according to the element type return how many nodes for each this type element, and how many dofs
 !for each this type element
 !initializing the element class property
 	use solverds
 	implicit none
-	integer::et1,nnum1,ndof1,ngp1,nd1,EC1
+	integer::et1,nnum1,ndof1,ngp1,nd1,EC1,eshape1
 	character(16)::stype
 
 	ngp1=0
@@ -2739,32 +2743,38 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ndof1=2
 			stype='FELINESEG'
 			ec1=CND
+            eshape1=102
 		case(UB3)
 			nnum1=3
 			ndof1=6
 			stype='FETRIANGLE'
 			ec1=LMT
+            eshape1=203
 		case(UBZT4)
 			nnum1=4
 			ndof1=8
 			stype='FEQUADRILATERAL'
 			ec1=LMT
+            eshape1=204
 		case(LB3)
 			nnum1=3
 			ndof1=9
 			stype='FETRIANGLE'
 			ec1=LMT
+            eshape1=203
 		case(LBZT4)
 			nnum1=4
 			ndof1=12
 			stype='FEQUADRILATERAL'
 			ec1=LMT
+            eshape1=204
 		case(CPE3,CPS3,CAX3)
 			nnum1=3
 			ndof1=6
 			ngp1=1
 			nd1=4
 			stype='FETRIANGLE'
+            eshape1=203
 			if(et1==cpe3)then
 				EC1=CPE
 			end if
@@ -2779,6 +2789,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ngp1=3
 			nd1=4
 			stype='FETRIANGLE'
+            eshape1=203
 			if(et1==cpe6) then
 				ec1=CPE
 			end if
@@ -2793,6 +2804,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ngp1=4			
 			nd1=4
 			stype='FEQUADRILATERAL'
+            eshape1=204
 			if(et1==cpe4) then
 				ec1=CPE
 			end if
@@ -2806,7 +2818,8 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ndof1=8
 			ngp1=1			
 			nd1=4
-			stype='FEQUADRILATERAL'	
+			stype='FEQUADRILATERAL'
+            eshape1=204
 			if(et1==cpe4r) then
 				ec1=CPE
 			end if
@@ -2821,6 +2834,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ngp1=9
 			nd1=4
 			stype='FEQUADRILATERAL'
+            eshape1=204
 			if(et1==cpe8) then
 				ec1=CPE
 			end if
@@ -2835,6 +2849,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ngp1=4
 			nd1=4
 			stype='FEQUADRILATERAL'
+            eshape1=204
 			if(et1==cpe8r) then
 				ec1=CPE
 			end if
@@ -2849,6 +2864,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ngp1=12
 			nd1=4
 			stype='FETRIANGLE'
+            eshape1=203
 			if(et1==cpe15) then
 				ec1=CPE
 			end if
@@ -2887,6 +2903,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ngp1=1
 			
 			stype='FETRIANGLE'
+            eshape1=203
 			IF(ET1==CPE3_SPG) then
 				EC1=SPG2D;NDOF1=3;nd1=2
 			endif
@@ -2907,7 +2924,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ngp1=3
 			
 			stype='FETRIANGLE'
-            
+            eshape1=203
 			IF(ET1==CPE6_SPG) THEN
 				EC1=SPG2D;NDOF1=6;nd1=2
 			ENDIF
@@ -2927,6 +2944,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ngp1=4			
 			
 			stype='FEQUADRILATERAL'
+            eshape1=204
 			IF(ET1==CPE4_SPG.OR.ET1==ZT4_SPG) THEN
 				EC1=SPG2D;NDOF1=4;nd1=2
 			ENDIF
@@ -2945,7 +2963,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			nnum1=4
 			!ndof1=4
 			ngp1=1			
-			
+			eshape1=204
 			stype='FEQUADRILATERAL'	
 			IF(ET1==CPE4R_SPG) THEN
 			EC1=SPG2D;NDOF1=4;nd1=2
@@ -2965,7 +2983,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			nnum1=8
 			!ndof1=8
 			ngp1=9
-			
+			eshape1=204
 			stype='FEQUADRILATERAL'
 			IF(ET1==CPE8_SPG) THEN
 			EC1=SPG2D;NDOF1=8;nd1=2
@@ -2985,7 +3003,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			nnum1=8
 			!ndof1=8
 			ngp1=4
-			
+			eshape1=204
 			stype='FEQUADRILATERAL'
 			IF(ET1==CPE8R_SPG) THEN
 			EC1=SPG2D;NDOF1=8;nd1=2
@@ -3005,7 +3023,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			nnum1=15
 			!ndof1=15
 			ngp1=12
-			
+			eshape1=204
 			stype='FETRIANGLE'
 			IF(ET1==CPE15_SPG) THEN
 			EC1=SPG2D;NDOF1=15;nd1=2
@@ -3026,6 +3044,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ngp1=2
 			!nd1=3
 			stype='FETETRAHEDRON'
+            eshape1=306
 			IF(ET1==PRM6_SPG.OR.ET1==ZT6_SPG) THEN
 			EC1=SPG;NDOF1=6;nd1=3
 			ENDIF
@@ -3042,6 +3061,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ngp1=9
 			!nd1=3
 			stype='FETETRAHEDRON' !
+            eshape1=306
 			IF(ET1==PRM15_SPG) THEN
 			EC1=SPG;NDOF1=15;nd1=3
 			ENDIF
@@ -3056,7 +3076,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			nnum1=4
 			!ndof1=4
 			ngp1=1
-			
+			eshape1=304
 			stype='FETETRAHEDRON'
 			IF(ET1==TET4_SPG) THEN
 			ec1=SPG;NDOF1=4;nd1=3
@@ -3072,7 +3092,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			nnum1=10
 			!ndof1=10
 			ngp1=4
-			
+			eshape1=304
 			stype='FETETRAHEDRON'
 			
 			IF(ET1==TET10_SPG) THEN
@@ -3091,12 +3111,14 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			nd1=6
 			stype='FEBRICK' !
 			EC1=STRU
+            eshape1=102
 			!call EL_SFR2(ET1)
 		case(BAR2D) !3d BAR ELEMENT
 			nnum1=2
 			ndof1=4
 			nd1=4
 			stype='FEBRICK' !
+            eshape1=102
 			EC1=STRU			
 		case(BEAM) !3D Beam element
 			nnum1=2
@@ -3109,12 +3131,14 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			ndof1=6
 			nd1=6
 			stype='FEBRICK'
+            eshape1=102
 			EC1=STRU
 		case(PE_SSP2D)
 			nnum1=2
 			ndof1=2
 			nd1=2
 			stype='FELINESEG'
+            eshape1=102
 			EC1=PE
 		case(SSP2D1) !2D Beam element
 			nnum1=2
@@ -3122,44 +3146,49 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1)
 			nd1=10
 			stype='FEBRICK'
 			EC1=STRU
-
+            eshape1=102
 		case(SHELL3,SHELL3_KJB)
 			NNUM1=3
 			NDOF1=18
 			ND1=3
 			STYPE='FETRIANGLE'
 			EC1=STRU
+            eshape1=203
 		case(DKT3)
 			NNUM1=3
 			NDOF1=9
 			ND1=3
 			STYPE='FETRIANGLE'
 			EC1=STRU
+            eshape1=203
 		case(wellbore,wellbore_SPGFACE)
 			NNUM1=4
 			NDOF1=4
 			ND1=4
 			STYPE='FEQUADRILATERAL'
 			EC1=SPG
+            eshape1=204
 		case(PIPE2,sphflow,semi_sphflow)
 			NNUM1=2
 			NDOF1=2
 			ND1=2
 			STYPE='FELINESEG'
 			EC1=SPG            
-        
+            eshape1=102
 		case(springx,springy,springz,springmx,springmy,springmz)
 			nnum1=1
 			ndof1=1
 			nd1=1
 			stype='FELINESEG'
 			ec1=spring
+            eshape1=102
 		case(SOILSPRINGX,SOILSPRINGY,SOILSPRINGZ)
 			nnum1=1
 			ndof1=1
 			nd1=1
 			stype='FELINESEG'
 			ec1=soilspring
+            eshape1=102
         CASE DEFAULT
             PRINT *, "NO SUCH ELEMENT TYPE. IN SUB ettonnum. TO BE IMPROVED."
             STOP

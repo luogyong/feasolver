@@ -481,6 +481,17 @@ subroutine kwcommand(term,unit)
                         STOP
                     ENDIF
                 endif
+                
+                do j=1,nset
+                    call lowcase(set(j))
+                    select case(trim(adjustl(set(j))))
+                        case('spg_dual')
+                            elt_bc(n1).spg_isdual=1
+                        case default
+                            print *, trim(set(j)),'is unexpected.'
+                    end select
+                enddo
+                
 			end do
 		case('endelt_bc')
 			strL1=LEN('ELT_BC')
@@ -680,7 +691,9 @@ subroutine kwcommand(term,unit)
                 IF(nread>7) then
                     WELLBORE(I).NSPG_FACE=INT(AR(8)) 
                 endif                
-                
+                IF(nread>8) then
+                    WELLBORE(I).MAT=INT(AR(9)) 
+                endif                  
                  
                 IF(WELLBORE(I).NSEMI_SF>0) THEN
                     ALLOCATE(WELLBORE(I).SEMI_SF_IPG(WELLBORE(I).NSEMI_SF),WELLBORE(I).DIR_VECTOR(3,WELLBORE(I).NSEMI_SF))
@@ -1076,27 +1089,7 @@ end subroutine
    end subroutine
 
 
-!translate all the characters in term into lowcase character string
-subroutine lowcase(term,iterm)
-	use dflib
-	implicit none
-	integer i,in,nA,nZ,nc,nd,iterm
-	character(1)::ch
-	character(iterm)::term
-	
-	term=adjustl(trim(term))
-	nA=ichar('A')
-	nZ=ichar('Z')
-	nd=ichar('A')-ichar('a')
-	in=len_trim(term)
-	do i=1,in
-		ch=term(i:i)
-		nc=ichar(ch)
-		if(nc>=nA.and.nc<=nZ) then
-			term(i:i)=char(nc-nd)
-		end if
-	end do
-end subroutine
+
 
 subroutine Tosolver()
 	use DS_Gmsh2Solver
@@ -1155,7 +1148,7 @@ subroutine Tosolver()
 		write(unit,130) nnodalbc
 		write(unit, 132) 
 		do i=1,nnodalBC
-			write(unit,131) node(nodalBC(i).node).inode,nodalBC(i).dof,nodalBC(i).value,nodalBC(i).sf
+			write(unit,131) node(nodalBC(i).node).inode,nodalBC(i).dof,nodalBC(i).value,nodalBC(i).sf,nodalBC(i).spg_isdual
 		end do
 	end if
 
@@ -1228,8 +1221,8 @@ subroutine Tosolver()
 124 FORMAT(<ITEM>(I7,1X),<MODELDIMENSION>(F24.16,1X))
 
 130 FORMAT(/'BC,NUM=',I7,',ISINC=0') 
-131 FORMAT(I7,1X,I2,1X,E15.7,1X,I4)
-132 FORMAT("// ","NODE DOF VALUE [STEPFUNC.]")
+131 FORMAT(I7,1X,I2,1X,E15.7,1X,I4,1X,I4)
+132 FORMAT("// ","NODE DOF VALUE [STEPFUNC.,SPG_ISDUAL]")
 
 133 FORMAT(/'BC,NUM=',I7,',ISINC=0,ISWELLHEAD=1') 
 

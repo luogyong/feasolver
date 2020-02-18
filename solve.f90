@@ -685,7 +685,7 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
      SumForce_SPG=DSQRT(SumForce_SPG)
  endif
  
- if(abs(SumForce)<1.d-14) then
+ if(abs(SumForce)<1.d-7) then
      if(abs(resdis)<1.d-7) then
          !iscon=.true.
 		 convratio=TOL*0.1
@@ -696,7 +696,7 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
 	convratio=resdis/SumForce
  end if
  if(ndofhead>0) then
-     if(abs(SumForce_SPG)<1.d-14) then
+     if(abs(SumForce_SPG)<1.d-7) then
          if(abs(resdis_SPG)<1.d-7) then
              !iscon_SPG=.true.
 		     convratio=MAX(TOL*0.1,convratio)

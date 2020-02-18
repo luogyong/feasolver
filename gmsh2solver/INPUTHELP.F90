@@ -55,13 +55,14 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD ELT_LOAD IS USED TO DEFINE THE LOAD APPLIED ON THE ELEMENT GROUP."//'"'
 	README(IPP(I))="//NOTE THAT, IF THE NDIM=1,2 OR 3, THE FINAL BC VALUE OF A NODE IS THE SUM OF ALL THE ELEMENT SHARING THE NODE."
 	README(IPP(I)) = "//{NELT_LOAD} "
-	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE,[A,B,C,D]}  // NDIM=0,1,2,3 分别表示点、线、面、体的荷载."
+	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE,[A,B,C,D],['SPG_DUAL']}  // NDIM=0,1,2,3 分别表示点、线、面、体的荷载."
 	README(IPP(I)) =  "//{......}   //共NELT_LOAD行. "
 	README(IPP(I)) ="//目前可处理:NDIM=0(点荷载); "
 	README(IPP(I)) ="//			 NDIM=1的情况目前可处理作用在2节点、3节点以及5节点的单元边，且仅限于均布线荷载;"
 	README(IPP(I)) ="//			 NDIM=2的情况目前可处理作用在3节点（三角形）、4节点（四边形）、6节点（二次三角形）、8节点（二次四边形）以及15节点（四次三角形）的单元面，且仅限于均布面荷载;"
 	README(IPP(I)) ="//			 NDIM=3的情况目前可处理作用在4节点（四面体）、10节点（二次四面体）、6节点(Prism)、8节点(长方体)，且仅限于均布体荷载;"
     README(IPP(I))=  "//[A,B,C,D] IS FOR LINEAR FIELD FUNCTION CALCULATION. IF THEY ARE PRESENT THEN VALUE=A*X+B*Y+C*Z+D. "
+    README(IPP(I))=  "//当输入字符串'SPG_DUAL'时,表明当边界水头低于位置水头时，当出溢边界中也包含此边界时，此边界就会转化为出溢边界。当水头边界与出溢边界可能出现相互转化时，可使用此功能。 "
     README(IPP(I))=  "//NOTE: FOR THE LAYERED MODEL, THE GROUP IDS OF EACH EXTRUDED LAYERED IS REFERED AS GROUP_BASEMESH*100+ILAYER.AS SHOWN BELOW." 
 	README(IPP(I))=  "//   -----------------								"
 	README(IPP(I))=  "//   |               |                                "
@@ -119,7 +120,7 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//$WELLBORE"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD WELLBORE IS USED TO DEFINE THE WELLBORE PARAMETERS."//'"'
 	README(IPP(I)) = "//{NWELLBORE}   // 井集数"
-    README(IPP(I)) = "//{Wellbore_GROUPID,WELL_HEAD_BC_TYPE,WellNODE_GroupID,VALUE [,SFN_GROUDID,NSEMI_SFN_GROUPS,PIPEFLOW_GroupID,NWELLSEEPAGEFACE]}" 
+    README(IPP(I)) = "//{Wellbore_GROUPID,WELL_HEAD_BC_TYPE,WellNODE_GroupID,VALUE [,SFN_GROUDID,NSEMI_SFN_GROUPS,PIPEFLOW_GroupID,NWELLSEEPAGEFACE,MATID]}" 
     README(IPP(I)) = "//{[SEMI_SFN_GROUDID,DIRECTION_VECTOR]} //ONLY NEED WHEN NSEMI_SFN_GROUPS>0 " 
     README(IPP(I)) = "//{[WELL_SEEPAGE_FACE_LINE_GROUPID,SINKNODE_GROUPID]} //ONLY NEED WHEN NWELLSEEPAGEFACE>0 " 
     README(IPP(I)) = "//WELL_HEAD_BC_TYPE,WellNODE_GroupID and Value:井点的边界类型、施加边界的节点GROUDID及数值。WELL_HEAD_BC_TYPE=0,1,2分别表示：自流井水头(水只出不进,但迭代过程中出现井流量为流入时，强制流量为0)，流量边界，常规定水头边界(不进行流量的正负检查);"
@@ -127,7 +128,9 @@ subroutine write_readme_gmsh2sinp()
     README(IPP(I)) = "//NSEMI_SFN_GROUPS,半球状流的点集的个数，模拟非完整井。=0，无(默认，井为完整井)，=GROUPID(>0),半球状流的节点和方向由SEMI_SFN_GROUP和DIRECTION_VECTOR(半球区域方向矢量)中单元决定" 
     README(IPP(I)) = "//PIPEFLOW_GroupID,=0(默认全长均为滤管)，>0,管流管的位置由PHYSICALGROUP中单元决定 " 
     README(IPP(I)) = "//WELL_SEEPAGE_FACE_LINE_GROUPID和SINKNODE_GROUPID为潜水井井壁出溢线集和对应的井点(即各出溢点的流量汇入点)，每个潜水井对应一个出溢线集合和一个井点，所以SINKNODE_GROUPID只包含一个节点"
-    README(IPP(I)) = "建议井线附近单元的大小为井半径10倍以上，不要小于井半5倍，不然可能计算失败。"
+    README(IPP(I)) = "//MATID,参数的材料号,如此处不输入，则应在GROUPPARAMETER中输入。井参数包括:"
+    README(IPP(I)) ="//PROPERTY(1)=R(井半径). (2)Temp. (3)=Kr(relative roughness of the  inner surface of the pipe ),.(4)=time unit (day=0(default),second=1), .(5)=g (gravity acc. =0(SET by default, 73156608000.00 m/day2. ), .(6)PIPE-FLOW MODEL(=0,Darcy(no porous effect,DEFAULT);=1,Siwon; =2,OUYang EFFECT;=3,Input by user); .(7)泥皮的厚度和渗透系数的比L/K.=0(默认,不考虑井损));.(8)=f(Darcy Friction factor(井壁摩阻系数),=0,由计算定(默认)，一般为0.02-0.03左右,当model=3时输入。);.(9)=POROSITY OF THE WELLBORE(当model=1时输入)"C
+    README(IPP(I)) = "//建议井线附近单元的大小为井半径10倍以上，不要小于井半5倍，不然可能计算失败。"
 	README(IPP(I)) = "//$ENDWELLBORE"	    
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C

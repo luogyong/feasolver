@@ -449,7 +449,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 	implicit none
 	integer::i,j,k,K1,IAR(500),NAR=500,NNODE1=0,NEL1=0,N1=0,N2=0,IDP,JDP,IPILE,ISP1,IAC1
 	real(double)::DPOINT1(3,1000)=0,t1
-	INTEGER::et1,nnum1,ndof1,ngp1,nd1,ec1,iset1
+	INTEGER::et1,nnum1,ndof1,ngp1,nd1,ec1,iset1,eshp1
 	CHARACTER(16)::STYPE,CH1,CH2
     CHARACTER(32)::TITLE1=""
     !integer,allocatable::kpelement(:)
@@ -472,7 +472,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		NEL1=0
 		
 		ET1=BEAM2D		
-		call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1)
+		call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1,eshp1)
 		
 		do j=1,PILE(IPILE).nseg	
 
@@ -517,6 +517,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 					element1(NEL1).ngp=ngp1
 					element1(NEL1).nd=nd1
 					element1(NEL1).ec=ec1
+                    element1(NEL1).eshape=eshp1
 					ELEMENT1(NEL1).SET=ISET1!!!!
 					!ELEMENT(NEL1).SYSTEM=0  !!!!!
                 ENDDO				
@@ -533,6 +534,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		eset(ISET1).grouptitle="BEAM"
 		eset(ISET1).et=et1
 		eset(ISET1).ec=ec1
+        eset(ISET1).eshape=eshp1
 		eset(ISET1).system=0  !!!!!
 		eset(ISET1).enums=enum+1
         eset(ISET1).coupleset=ISET1
@@ -610,11 +612,12 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		allocate(element(n1).node(1))
 		element(n1).node(1)=pile(ipile).node(pile(ipile).nnode)
 		et1=springy
-		call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1)
+		call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1,eshp1)
 		element(n1).ndof=ndof1
 		element(n1).ngp=ngp1
 		element(n1).nd=nd1
 		element(n1).ec=ec1
+        element(n1).eshape=eshp1
 		element(n1).set=iset1
         
 		element(n1).property(1)=0.d0
@@ -628,6 +631,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		eset(ISET1).grouptitle="soilspring"
 		eset(ISET1).et=springy
 		eset(ISET1).ec=ec1
+        eset(ISET1).eshape=eshp1
 		eset(ISET1).system=0  !!!!!
 		eset(ISET1).enums=N1
 	    eset(ISET1).enume=N1
@@ -643,13 +647,14 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		neset=neset+1
         ISET1=ESET_GETFREEID()
 		et1=SOILSPRINGX
-		call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1)
+		call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1,eshp1)
 		element(N1:).nnum=1
 		element(N1:).et=SOILSPRINGX
 		element(N1:).ndof=ndof1
 		element(N1:).ngp=ngp1
 		element(N1:).nd=nd1
 		element(N1:).ec=ec1
+        element(N1:).eshape=eshp1
 		element(N1:).isactive=0
         element(N1:).set=iset1
 		do j=1,pile(ipile).nnode						
@@ -667,6 +672,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		eset(ISET1).grouptitle="soilspring"
 		eset(ISET1).et=et1
 		eset(ISET1).ec=ec1
+        eset(ISET1).eshape=eshp1
 		eset(ISET1).system=0  !!!!!
 		eset(ISET1).enums=N1
 	    eset(ISET1).enume=enum
@@ -767,13 +773,14 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 				ELSE
 					et1=SPRINGX+ACTION(IAC1).DOF
 				ENDIF
-				call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1)
+				call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1,eshp1)
 				element(N1:).nnum=1
 				element(N1:).et=et1
 				element(N1:).ndof=ndof1
 				element(N1:).ngp=ngp1
 				element(N1:).nd=nd1
 				element(N1:).ec=ec1
+                element(N1:).eshape=eshp1
                 ELEMENT(N1:).SET=ISET1
                 
                 esetid(neset)=ISET1
@@ -782,6 +789,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		        eset(ISET1).grouptitle="ACTION_SPRING"
 		        eset(ISET1).et=et1
 		        eset(ISET1).ec=ec1
+                eset(ISET1).eshape=eshp1
 		        eset(ISET1).system=0  !!!!!
 		        eset(ISET1).enums=N1
 	            eset(ISET1).enume=enum
@@ -850,13 +858,14 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		ELEMENT(N1+J-1).MAT=STRUT(J).MAT
 		STRUT(J).ELEMENT=N1+J-1
 
-		call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1)
+		call ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,ec1,eshp1)
 		element(N1+J-1).nnum=NNUM1
 		element(N1+J-1).et=et1
 		element(N1+J-1).ndof=ndof1
 		element(N1+J-1).ngp=ngp1
 		element(N1+J-1).nd=nd1
-		element(N1+J-1).ec=ec1				
+		element(N1+J-1).ec=ec1
+        element(N1+J-1).eshape=eshp1
 		ELEMENT(N1+J-1).SET=ISET1
         
         esetid(neset)=ISET1
@@ -865,6 +874,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		eset(ISET1).grouptitle="STRUCT"
 		eset(ISET1).et=et1
 		eset(ISET1).ec=ec1
+        eset(ISET1).eshape=eshp1
 		eset(ISET1).system=0  !!!!!
 		eset(ISET1).enums=N1+J-1
 	    eset(ISET1).enume=N1+J-1

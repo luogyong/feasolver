@@ -107,6 +107,7 @@ module DS_Gmsh2Solver
 		integer::n1=0,n2=0 !for spgface output
         real(8)::LFC(4)=0.d0 !FIELD=AX+BY+CY+D LFC()=[A,B,C,D]
         integer::ISWELLCONDITION=0 !是否为井的边界，或出溢面
+        integer::spg_isdual=0
     CONTAINS
         PROCEDURE::GETVALUE=>LINEARFILEDCAL
 	end type
@@ -118,6 +119,7 @@ module DS_Gmsh2Solver
 		integer::sf=0 !step function for this load
 		integer::isdead=0 !for seepage face iterative, =1,the condition is no longer on work. 
 		real(8)::value=0
+        integer::spg_isdual=0
 	end type
 	type(bc_tydef),allocatable::nodalLoad(:),nodalBC(:),spgface(:),Wellhead(:),WellSpgface(:)
 	integer::nnodalLoad=0,maxnnodalLoad=1000
@@ -185,8 +187,8 @@ module DS_Gmsh2Solver
     INTEGER::ISGENTRISURFACE=0,ISGEO=0,ISSTL=0,ISOFF=0
     
     TYPE WELLBORE_TYDEF
-                                INTEGER::IGP=0,WELLNODE=0,NWELLBORESEG=-1,BCTYPE=0,NWNODE=0,PIPEFLOW=-1,SPHERICALFLOW=0,NSEMI_SF=0
-        INTEGER::NSPG_FACE=0
+        INTEGER::IGP=0,WELLNODE=0,NWELLBORESEG=-1,BCTYPE=0,NWNODE=0,PIPEFLOW=-1,SPHERICALFLOW=0,NSEMI_SF=0
+        INTEGER::NSPG_FACE=0,MAT=0
         REAL(8)::R,VALUE=0.D0
         INTEGER,ALLOCATABLE::SEMI_SF_IPG(:),SPG_FACE(:),SINK_NODE_SPG_FACE(:)
         REAL(8),ALLOCATABLE::DIR_VECTOR(:,:)        
@@ -369,7 +371,7 @@ module DS_Gmsh2Solver
         !   |           |
         ! 4 +           + 3
         ! Node 1 and 2: Line element simulating well flow along the well.
-        ! Element 1-4 and 2-3 : virtual branch element to simulate 
+        ! Element 1-4 and 2-3 : virtual branch element 
         
         
         
@@ -381,7 +383,7 @@ module DS_Gmsh2Solver
         ELSE
             IA1=[SELF.IGP,SELF.PIPEFLOW]
         ENDIF
-        
+
         DO IJ1=1,N3
             
             N1=IA1(IJ1)
@@ -397,9 +399,10 @@ module DS_Gmsh2Solver
             ENDIF
             
             PHYSICALGROUP(N1).ISMODEL=.TRUE.
+            PHYSICALGROUP(N1).MAT(1)=SELF.MAT
             
             IF(PHYSICALGROUP(N1).MAT(1)==0.AND.IA1(1)>0) THEN
-                PHYSICALGROUP(N1).MAT(1)=PHYSICALGROUP(IA1(1)).MAT(1)            
+                PHYSICALGROUP(N1).MAT(1)=PHYSICALGROUP(IA1(1)).MAT(1)  !!!!          
             ENDIF
             IF(PHYSICALGROUP(N1).MAT(1)==0.AND.IA1(2)>0) THEN
                 PHYSICALGROUP(N1).MAT(1)=PHYSICALGROUP(IA1(2)).MAT(1)            
@@ -580,5 +583,29 @@ module DS_Gmsh2Solver
   !  SUBROUTINE SET_ELEMENT_FACE(THIS)
   !      CLASS(element_type)::THIS
   !      
-  !  END SUBROUTINE    
+  !  END SUBROUTINE 
+!translate all the characters in term into lowcase character string
+    subroutine lowcase(term,iterm)
+	    use dflib
+	    implicit none
+	    integer i,in,nA,nZ,nc,nd
+        integer,optional::iterm
+	    character(1)::ch
+	    character::term*(*)
+	
+	    term=adjustl(trim(term))
+	    nA=ichar('A')
+	    nZ=ichar('Z')
+	    nd=ichar('A')-ichar('a')
+	    in=len_trim(term)
+	    do i=1,in
+		    ch=term(i:i)
+		    nc=ichar(ch)
+		    if(nc>=nA.and.nc<=nZ) then
+			    term(i:i)=char(nc-nd)
+		    end if
+	    end do
+    end subroutine    
+    
+    
 end module
