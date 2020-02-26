@@ -1,8 +1,8 @@
 
-!±¾ÎÄ¼şµÄËùÓĞËã·¨¾ßÌåÇë²Î¿¼£º
+!æœ¬æ–‡ä»¶çš„æ‰€æœ‰ç®—æ³•å…·ä½“è¯·å‚è€ƒï¼š
 !Sloan, S.W., (1987b), A fast algorithm for constructing Delaunay triangulations in the plane. Advances in Engineering Software, 9, 34-55.
 
-   !ÕÒµ½°üº¬(xy,yp)µÄÈı½ÇĞÎµ¥Ôª(°üÀ¨ÔÚ±ßÉÏ),ÒÔPEHeadµÄĞÎÊ½·µ»Ø
+   !æ‰¾åˆ°åŒ…å«(xy,yp)çš„ä¸‰è§’å½¢å•å…ƒ(åŒ…æ‹¬åœ¨è¾¹ä¸Š),ä»¥PEHeadçš„å½¢å¼è¿”å›
 subroutine TRILOC(xp,yp)
 	use meshds
 	implicit none
@@ -14,7 +14,7 @@ subroutine TRILOC(xp,yp)
 	
 	do i=1,nelt
 		if(elt(i).isdel)cycle
-		!¿ìËÙÅÅ³â
+		!å¿«é€Ÿæ’æ–¥
 		xmin1=min(node(elt(i).node(1)).x,node(elt(i).node(2)).x,node(elt(i).node(3)).x)
 		if(xp<xmin1) cycle
 		xmax1=max(node(elt(i).node(1)).x,node(elt(i).node(2)).x,node(elt(i).node(3)).x)
@@ -58,9 +58,9 @@ subroutine TRILOC(xp,yp)
 	end do
 end subroutine
 
-   !¸ù¾İ·µ»ØµÄPEHEAD,Éú³ÉÈı¸öµ¥Ôª£¬·Ö±ğ´æÔÚPehead,nelt-1ºÍetaielt(L).next
-   !Í¬Ê±¸üĞÂÕâÈı¸öµ¥ÔªµÄÁÚ½Ó±í
-   !p,ĞÂ²åÈëµãÔÚnode()µÄÏÂ±ê£¬Ò²¾ÍÊÇtnode.number
+   !æ ¹æ®è¿”å›çš„PEHEAD,ç”Ÿæˆä¸‰ä¸ªå•å…ƒï¼Œåˆ†åˆ«å­˜åœ¨Pehead,nelt-1å’Œetaielt(L).next
+   !åŒæ—¶æ›´æ–°è¿™ä¸‰ä¸ªå•å…ƒçš„é‚»æ¥è¡¨
+   !p,æ–°æ’å…¥ç‚¹åœ¨node()çš„ä¸‹æ ‡ï¼Œä¹Ÿå°±æ˜¯tnode.number
    subroutine GNM_Sloan(p)
 	  use meshds
 	  implicit none
@@ -83,7 +83,7 @@ end subroutine
 	  end do
 	  
 		
-	  !Éú³ÉÈı¸öµ¥Ôª£¬£¬·Ö±ğ´æÔÚPehead,nelt-1ºÍetail
+	  !ç”Ÿæˆä¸‰ä¸ªå•å…ƒï¼Œï¼Œåˆ†åˆ«å­˜åœ¨Pehead,nelt-1å’Œetail
 	  v1=node(elt(pehead).node(1)).number
 	  v2=node(elt(pehead).node(2)).number
 	  v3=node(elt(pehead).node(3)).number
@@ -152,40 +152,40 @@ end subroutine
 		elt(nelt).edge(3)=nedge-2
 	
 
-	  !°ÑĞÂÉú³ÉµÄÈı¸öµ¥Ôª¼Óµ½ÔÚstackÖĞ,¸üĞÂajb,ajcµÄÁÚ½Óµ¥Ôª(ajaµÄÁÚ½Ó±í±£³Ö²»±ä)
+	  !æŠŠæ–°ç”Ÿæˆçš„ä¸‰ä¸ªå•å…ƒåŠ åˆ°åœ¨stackä¸­,æ›´æ–°ajb,ajcçš„é‚»æ¥å•å…ƒ(ajaçš„é‚»æ¥è¡¨ä¿æŒä¸å˜)
 	  if(adjE(1)/=-1) then
 		 call PUSH(pehead)
 		 !call EKCD(pehead)
 	  else
-		 call EKCD(pehead) !ÎÒ¼ÓµÄ
+		 call EKCD(pehead) !æˆ‘åŠ çš„
 	  end if
 	  if(adjE(2)/=-1) then
 		 call EDG(adjE(2),pehead,nelt-1,iflag)
 		 call PUSH(nelt-1)
 		 !call EKCD(nelt-1)
 	  else
-		 call EKCD(nelt-1) !ÎÒ¼ÓµÄ
+		 call EKCD(nelt-1) !æˆ‘åŠ çš„
 	  end if
 	  if(adjE(3)/=-1) then
 		 call EDG(adjE(3),pehead,nelt,iflag)
 		 call PUSH(nelt)
 		 !call EKCD(etail)
 	  else
-		 call EKCD(nelt) !ÎÒ¼ÓµÄ
+		 call EKCD(nelt) !æˆ‘åŠ çš„
 	  end if
 
 	  !LOOP WHILE STACK IS NOT EMPTY
-	  !Î¬»¤Delaunay×¼Ôò
+	  !ç»´æŠ¤Delaunayå‡†åˆ™
 	  do while(topstk>0) 
 		 
 		 L=stack(topstk)
 		 topstk=topstk-1
 		 R=elt(L).adj(2)
 		 
-		 !°ÑRµ¥ÔªÈı¸ö½ÚµãµÄ±àºÅ¸³¸øV1,V2,V3.ÆäÔ­ÔòÊÇ£¬ÓëL¹²ÓĞµÄ±ßµÄÁ½¸ö½ÚµãÎªv1,v2.
-		 !v1,v2,v3ÄæÊ±Õë·Ö²¼¡£
-		 !Í¬Ê±¸üĞÂaja,adjE(2),ajc,¾ßÌå²Î¿¼:Sloan, S.W., (1987b), A fast algorithm for constructing Delaunay triangulations in the plane. Advances in Engineering Software, 9, 34-55.
-		 !ÖĞµÄFig.7
+		 !æŠŠRå•å…ƒä¸‰ä¸ªèŠ‚ç‚¹çš„ç¼–å·èµ‹ç»™V1,V2,V3.å…¶åŸåˆ™æ˜¯ï¼Œä¸Lå…±æœ‰çš„è¾¹çš„ä¸¤ä¸ªèŠ‚ç‚¹ä¸ºv1,v2.
+		 !v1,v2,v3é€†æ—¶é’ˆåˆ†å¸ƒã€‚
+		 !åŒæ—¶æ›´æ–°aja,adjE(2),ajc,å…·ä½“å‚è€ƒ:Sloan, S.W., (1987b), A fast algorithm for constructing Delaunay triangulations in the plane. Advances in Engineering Software, 9, 34-55.
+		 !ä¸­çš„Fig.7
 		 do i=1,3
 			 if(elt(R).adj(i)==L) then
 			 	n1=i
@@ -207,12 +207,12 @@ end subroutine
 	  
 		 if(swap(node(v1).x,node(v1).y,node(v2).x,node(v2).y,node(v3).x,node(v3).y,node(p).x,node(p).y)) then
 		 
-			!¸üĞÂelt(L).xy3Îªv3,elt(L).adj(2)Îªaja,elt(L).adj(3)ÎªR
+			!æ›´æ–°elt(L).xy3ä¸ºv3,elt(L).adj(2)ä¸ºaja,elt(L).adj(3)ä¸ºR
 			elt(L).node(3)=v3
 			elt(L).adj(2)=adjE(1)
 			elt(L).adj(3)=R
 	 
-			!¸üĞÂR
+			!æ›´æ–°R
 			elt(R).node(1)=p
 			elt(R).node(2)=v3
 			elt(R).node(3)=v1
@@ -234,8 +234,8 @@ end subroutine
 			edge(elt(R).edge(3)).e(2)=adjE(3)	
 			call Removeadjlist(v1,v2)		
 			call addadjlist(p,v3,Redge(1))
-			!°ÑL,R¼ÓÈëµ½stackÖĞ
-			!¸üĞÂaja,ºÍajcµÄÁÚ½Ó±í
+			!æŠŠL,RåŠ å…¥åˆ°stackä¸­
+			!æ›´æ–°aja,å’Œajcçš„é‚»æ¥è¡¨
 			if(adjE(1)/=-1) then
 			   call EDG(adjE(1),R,L,iflag)
 			   call PUSH(L)
@@ -251,7 +251,7 @@ end subroutine
 			   call EDG(adjE(3),L,R,iflag)			
 			end if
 		 else		 	 
-			call EKCD(L) !ÎÒ¼ÓµÄ
+			call EKCD(L) !æˆ‘åŠ çš„
 		 end if
 
 	  end do
@@ -259,7 +259,7 @@ end subroutine
 	  
    end subroutine
 
-   !°Ñµ¥Ôªept1¼ÓÈëµ½stackÖĞ¡£
+   !æŠŠå•å…ƒept1åŠ å…¥åˆ°stackä¸­ã€‚
    subroutine push(ept1)
 	  use meshds
 	  implicit none
@@ -275,7 +275,7 @@ end subroutine
    end subroutine
 
    
-   !°Ñµ¥ÔªLÖĞÔ­À´ÓëTÏàÁ¬µÄ±ß¸üĞÂÎªÓëEPT1ÏàÁ¬
+   !æŠŠå•å…ƒLä¸­åŸæ¥ä¸Tç›¸è¿çš„è¾¹æ›´æ–°ä¸ºä¸EPT1ç›¸è¿
    !iflag==1 ept1=>null()
    subroutine EDG(L,T,EPT1,IFlag)
 	  use meshds
@@ -299,7 +299,7 @@ end subroutine
 
    end subroutine
 
-   !ÅĞ¶Ïµã(xp,yp)ÊÇ·ñÔÚÈı½ÇĞÎ((x1,y1),(x2,y2),(x3,y3))Íâ½ÓÔ²ÄÚ,Èç¹ûÊÇ£¬swap=.true.,else, swap=.false..
+   !åˆ¤æ–­ç‚¹(xp,yp)æ˜¯å¦åœ¨ä¸‰è§’å½¢((x1,y1),(x2,y2),(x3,y3))å¤–æ¥åœ†å†…,å¦‚æœæ˜¯ï¼Œswap=.true.,else, swap=.false..
    function swap(x1,y1,x2,y2,x3,y3,xp,yp)
 	  implicit none
 	  logical::swap

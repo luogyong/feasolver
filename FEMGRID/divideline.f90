@@ -19,7 +19,7 @@
 		yj=yb
 		sj=sb	
 
-		if(xa>xb) then  !´Óx,yĞ¡µÄµã¿ªÊ¼»®·Ö
+		if(xa>xb) then  !ä»x,yå°çš„ç‚¹å¼€å§‹åˆ’åˆ†
 			tof1=.false.
 			xi=xb
 			yi=yb

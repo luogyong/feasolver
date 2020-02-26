@@ -25,7 +25,7 @@ module DS_Gmsh2Solver
         INTEGER::V(4)=0,EDGE(4)=0
         INTEGER::HKEY=-1
         CHARACTER(64)::CKEY="" 		
-        INTEGER::ISTRISURFACE=0 !<-1 Óëface·´Ïò
+        INTEGER::ISTRISURFACE=0 !<-1 ä¸Žfaceåå‘
         REAL(8)::UNORMAL(3)=0.D0		
         INTEGER::NEL=0
         INTEGER,ALLOCATABLE::ELEMENT(:),SUBID(:) !SUBID IS INDEX WHICH FACE OF THE ELEMENT IS THE FACE       
@@ -68,7 +68,7 @@ module DS_Gmsh2Solver
 	
 	type physicalGroup_type
 		integer::isini=0,SF=0
-		integer::ndim,COUPLESET=0 !COUPLESET>0 AND <>itself£¬±í´Ëµ¥Ôª×éµÄµ¥ÔªÓëphysicalgroup(COUPLESET)µÄµ¥ÔªÏàÍ¬¡£ by default it was set to be itself
+		integer::ndim,COUPLESET=0 !COUPLESET>0 AND <>itselfï¼Œè¡¨æ­¤å•å…ƒç»„çš„å•å…ƒä¸Žphysicalgroup(COUPLESET)çš„å•å…ƒç›¸åŒã€‚ by default it was set to be itself
 		logical::ismodel=.FALSE.,ISMASTER=.TRUE. !phgpnum(:) OUPLESET>0 AND <>itself, ismaster=.false. then let elemnt=coupleset.element
 		integer::ET_GMSH=0 
 		character(32)::name=''
@@ -93,8 +93,8 @@ module DS_Gmsh2Solver
 		!edge(2,nedge),
 		!face: use node index to represent face. face(0:4,nface),face(0,:)==3,triangular face,==4, quadrilateral face
 		!FaceEdge: use edge index to represent face. FaceEdge(0:4,nface),FaceEdge(0,:)==3,triangular face, ==4, quadrilateral face
-		real(8),allocatable::weight(:,:) !·Ö²¼µ¥ÔªºÉÔØ¸÷½Úµã·Ö²¼ÏµÊý, weight(:,1) Æ½Ãæ¾ù²¼ºÉÔØ£»weight(:,2) Æ½ÃæÈý½ÇÐÎºÉÔØ;weight(:,3) Öá¶Ô³Æ¾ù²¼ºÉÔØ£»weight(:,4) Öá¶Ô³ÆÈý½ÇÐÎºÉÔØ£¬
-													!Ä¿Ç°Ö»ÄÜ´¦ÀíÆ½ÃæÓ¦±äµÄÁ½ÖÖÇé¿ö¡£
+		real(8),allocatable::weight(:,:) !åˆ†å¸ƒå•å…ƒè·è½½å„èŠ‚ç‚¹åˆ†å¸ƒç³»æ•°, weight(:,1) å¹³é¢å‡å¸ƒè·è½½ï¼›weight(:,2) å¹³é¢ä¸‰è§’å½¢è·è½½;weight(:,3) è½´å¯¹ç§°å‡å¸ƒè·è½½ï¼›weight(:,4) è½´å¯¹ç§°ä¸‰è§’å½¢è·è½½ï¼Œ
+													!ç›®å‰åªèƒ½å¤„ç†å¹³é¢åº”å˜çš„ä¸¤ç§æƒ…å†µã€‚
 	end type
 	type(et_type)::elttype(100)
 	
@@ -103,10 +103,10 @@ module DS_Gmsh2Solver
 		integer::ndim=0 !=0,point load; =1,line load; =2, planar load; =3,volume load;
 		integer::dof
 		integer::sf=0
-		real(8)::value=0  !µ±ÊäÈëseepagefaceÊ±£¬value=1,2,3 ·Ö±ð±íÊ¾½ÚµãµÄË®Í·ÖµµÈÓÚ×ø±êx,y,z.
+		real(8)::value=0  !å½“è¾“å…¥seepagefaceæ—¶ï¼Œvalue=1,2,3 åˆ†åˆ«è¡¨ç¤ºèŠ‚ç‚¹çš„æ°´å¤´å€¼ç­‰äºŽåæ ‡x,y,z.
 		integer::n1=0,n2=0 !for spgface output
         real(8)::LFC(4)=0.d0 !FIELD=AX+BY+CY+D LFC()=[A,B,C,D]
-        integer::ISWELLCONDITION=0 !ÊÇ·ñÎª¾®µÄ±ß½ç£¬»ò³öÒçÃæ
+        integer::ISWELLCONDITION=0 !æ˜¯å¦ä¸ºäº•çš„è¾¹ç•Œï¼Œæˆ–å‡ºæº¢é¢
         integer::spg_isdual=0
     CONTAINS
         PROCEDURE::GETVALUE=>LINEARFILEDCAL
@@ -140,9 +140,9 @@ module DS_Gmsh2Solver
     
     type out_data_typdef
         integer::Group
-        integer::SPGroup !Startpoint Group,Õâ¸öGroupÖ»ÓÐÒ»¸öµã¡£
+        integer::SPGroup !Startpoint Group,è¿™ä¸ªGroupåªæœ‰ä¸€ä¸ªç‚¹ã€‚
 		integer::order=0
-        integer::issumq=0 !/=0, ±íÊ¾½öÊä³ö¸÷½ÚµãµÄÁ÷Á¿ºÍ¡£
+        integer::issumq=0 !/=0, è¡¨ç¤ºä»…è¾“å‡ºå„èŠ‚ç‚¹çš„æµé‡å’Œã€‚
         integer::nnode=0
         integer,allocatable::node(:)        
     end type
@@ -434,7 +434,7 @@ module DS_Gmsh2Solver
                 IF(IJ1==2) THEN
                     PHYSICALGROUP(N1).ET_GMSH=1
                 ELSE
-                    !ÂË¹Ü¾®µ¥Ôª,¾®Á÷³öÒçÃæµ¥Ôª              
+                    !æ»¤ç®¡äº•å•å…ƒ,äº•æµå‡ºæº¢é¢å•å…ƒ              
                     ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE
                     NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1]
                     DEALLOCATE(ELEMENT(IEL1).NODE)
@@ -445,23 +445,23 @@ module DS_Gmsh2Solver
                 
                 !SELECT CASE(IJ1)
                 !CASE(1)                   
-                ! !ÂË¹Ü¾®µ¥Ôª           
+                ! !æ»¤ç®¡äº•å•å…ƒ           
                 !    ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE
                 !    NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1]
                 !    DEALLOCATE(ELEMENT(IEL1).NODE)
                 !    N2=ELEMENT(IEL1).NNODE/2
                 !    ALLOCATE(ELEMENT(IEL1).NODE,SOURCE=NODE1([1:N2,ELEMENT(IEL1).NNODE:N2+1:-1]))
                 !    PHYSICALGROUP(N1).ET_GMSH=3   
-                !CASE(2) !¹ÜÁ÷µ¥Ôª
+                !CASE(2) !ç®¡æµå•å…ƒ
                 !    !NOTHING TO DO
                 !    PHYSICALGROUP(N1).ET_GMSH=1
-                !CASE DEFAULT !¾®Á÷³öÒçÃæµ¥Ôª                    
+                !CASE DEFAULT !äº•æµå‡ºæº¢é¢å•å…ƒ                    
                 !    ! :>>>>>>>>>>>>>>>>>>>>>>:
-                !    ! 1...........2>>>>>>>>>>5(SinkNode(ÂË¹Ü×îÉÏÃæµÄ±ß½ç½Úµã))   (¾®±Ú²à)  !Êµ¼ÊÎª1-4ºÍ2-3Á½¸öÏßµ¥Ôª£¬µÚ5¸ö½ÚµãÖ»ÊÇÎªÍ³¼Æ¾®Á÷Á¿ÓÃ¡£
+                !    ! 1...........2>>>>>>>>>>5(SinkNode(æ»¤ç®¡æœ€ä¸Šé¢çš„è¾¹ç•ŒèŠ‚ç‚¹))   (äº•å£ä¾§)  !å®žé™…ä¸º1-4å’Œ2-3ä¸¤ä¸ªçº¿å•å…ƒï¼Œç¬¬5ä¸ªèŠ‚ç‚¹åªæ˜¯ä¸ºç»Ÿè®¡äº•æµé‡ç”¨ã€‚
                 !    ! |           |
                 !    ! 4           3                                                
                 !    ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE+1
-                !    N4=ELEMENT(PHYSICALGROUP(SELF.SINK_NODE_SPG_FACE(IJ1-2)).ELEMENT(1)).NODE(1) !´Ë¼¯Ö»º¬Ò»¸öµ¥½ÚµãµÄµ¥Ôª
+                !    N4=ELEMENT(PHYSICALGROUP(SELF.SINK_NODE_SPG_FACE(IJ1-2)).ELEMENT(1)).NODE(1) !æ­¤é›†åªå«ä¸€ä¸ªå•èŠ‚ç‚¹çš„å•å…ƒ
                 !    N4=NODE(N4).N1
                 !    NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1,N4]
                 !    DEALLOCATE(ELEMENT(IEL1).NODE)
@@ -546,7 +546,7 @@ module DS_Gmsh2Solver
             ELT_BC(NELT_BC).NDIM=0
             ELT_BC(NELT_BC).DOF=4
             ELT_BC(NELT_BC).VALUE=SELF.VALUE
-            IF(SELF.BCTYPE==0) ELT_BC(NELT_BC).ISWELLCONDITION=1 !×ÔÁ÷¼õÑ¹¾®Ë®Í·±ß½ç£¬Æä³öË®Á¿Ö»³ö²»½ø
+            IF(SELF.BCTYPE==0) ELT_BC(NELT_BC).ISWELLCONDITION=1 !è‡ªæµå‡åŽ‹äº•æ°´å¤´è¾¹ç•Œï¼Œå…¶å‡ºæ°´é‡åªå‡ºä¸è¿›
         ELSE            
             NELT_LOAD=NELT_LOAD+1
             IF(NELT_LOAD>SIZE(ELT_LOAD,DIM=1)) CALL ENLARGE_AR(ELT_LOAD,10)

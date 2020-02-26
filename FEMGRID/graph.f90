@@ -57,12 +57,12 @@ subroutine graph
 	result = INSERTMENUQQ (7, 0, $MENUCHECKED, 'Element'c, nul)
 	result = INSERTMENUQQ (7, 1, $MENUENABLED, 'TRIELEMENTS'c, tri_element)
 	result = INSERTMENUQQ (7, 2, $MENUENABLED, 'DISCONTINUITIES'c, DISCONTINUITIES)
-	result = INSERTMENUQQ (7, 3, $MENUENABLED, '·ÀÉøÇ½µ¥Ôª'c, cut_off_wall_element)
-	result = INSERTMENUQQ (7, 4, $MENUENABLED, 'Ô½Á÷µ¥Ôª'c, nul)
-	result = INSERTMENUQQ (7, 5, $MENUENABLED, '½Ó´¥µ¥Ôª'c, contact_element)
+	result = INSERTMENUQQ (7, 3, $MENUENABLED, 'é˜²æ¸—å¢™å•å…ƒ'c, cut_off_wall_element)
+	result = INSERTMENUQQ (7, 4, $MENUENABLED, 'è¶Šæµå•å…ƒ'c, nul)
+	result = INSERTMENUQQ (7, 5, $MENUENABLED, 'æ¥è§¦å•å…ƒ'c, contact_element)
 	result = INSERTMENUQQ (7, 6, $MENUENABLED, 'et7'c, sple_element)
 	result = INSERTMENUQQ (7, 7, $MENUENABLED, 'penaltyelement'c, penaltyelementshow)
-	result = INSERTMENUQQ (7, 8, $MENUENABLED, 'ËùÓĞµ¥Ôª'c, all_element)
+	result = INSERTMENUQQ (7, 8, $MENUENABLED, 'æ‰€æœ‰å•å…ƒ'c, all_element)
 
 	result = INSERTMENUQQ (8, 0, $MENUENABLED, 'Update'c, nul)
 	!	result = INSERTMENUQQ (8, 1, $MENUENABLED, 'Boundarycondition'c, Updatebc)
@@ -681,7 +681,7 @@ subroutine graph
 	  end do
 
 	  print *, 'Element Quality statistics:'
-	  print *, '    Çø¼ä    ','       µ¥ÔªÊı     ','     %     '
+	  print *, '    åŒºé—´    ','       å•å…ƒæ•°     ','     %     '
 	  write(*,'(a12,i14,f9.2)') '[0,0.1)',ar(0),ar(0)/real(sum)*100
 	  write(*,'(a12,i14,f9.2)') '[0.1,0.2)',ar(1),ar(1)/real(sum)*100
 	  write(*,'(a12,i14,f9.2)') '[0.2,0.3)',ar(2),ar(2)/real(sum)*100
@@ -696,7 +696,7 @@ subroutine graph
    end subroutine
 
 
-	!¸ø³öµ¥ÔªELµÄĞÎ×´ÏµÊıcoe£º2Ri/Rc,Rc,Ri·Ö±ğÈı½ÇĞÎµ¥ÔªµÄÍâ½ÓÔ²ºÍÄÚ½ÓÔ²°ë¾¶¡£
+	!ç»™å‡ºå•å…ƒELçš„å½¢çŠ¶ç³»æ•°coeï¼š2Ri/Rc,Rc,Riåˆ†åˆ«ä¸‰è§’å½¢å•å…ƒçš„å¤–æ¥åœ†å’Œå†…æ¥åœ†åŠå¾„ã€‚
 	subroutine Rr(el,coe)
 	   use meshds
 	   implicit none

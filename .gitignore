@@ -42,5 +42,7 @@
 [Rr]elease*/
 /~$LGYADDIN.xlam
 x64/
+*.bak
+
 
 

@@ -7,7 +7,7 @@ module geomodel
     private
     public out_volume_to_gmsh
     
-    INTEGER,ALLOCATABLE::BEDGE(:) !Çø±ß½çinode¶ÔÓ¦µÄÃ¿¸ö½ÚµãÉú³ÉµÄedgeµÄÕûÌå±àºÅ,
+    INTEGER,ALLOCATABLE::BEDGE(:) !åŒºè¾¹ç•Œinodeå¯¹åº”çš„æ¯ä¸ªèŠ‚ç‚¹ç”Ÿæˆçš„edgeçš„æ•´ä½“ç¼–å·,
     TYPE OFF_MODEL_TYDEF
         INTEGER::NNODE=0,NFACE=0
         REAL(8),ALLOCATABLE::NODE(:,:)

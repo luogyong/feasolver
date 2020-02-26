@@ -1,7 +1,7 @@
 
-  ! ½ÚµãÖØĞÂÅÅºÅÒÔÈ¡µÃ½ÏĞ¡µÄ´ø¿í
-  ! Êä³öµÄÄÚÈİÎª½ÚµãÊı£¬µ¥ÔªÊı£¬½Úµã×ø±ê¼°ÆäÊôĞÔÖµ£¬µ¥Ôª½ÚµãºÅ
-  ! Êä³ö¸ñÊ½Îªtocplot¸ñÊ½£¬ÒÔ±ãÓÃÆä½øĞĞºó´¦Àí
+  ! èŠ‚ç‚¹é‡æ–°æ’å·ä»¥å–å¾—è¾ƒå°çš„å¸¦å®½
+  ! è¾“å‡ºçš„å†…å®¹ä¸ºèŠ‚ç‚¹æ•°ï¼Œå•å…ƒæ•°ï¼ŒèŠ‚ç‚¹åæ ‡åŠå…¶å±æ€§å€¼ï¼Œå•å…ƒèŠ‚ç‚¹å·
+  ! è¾“å‡ºæ ¼å¼ä¸ºtocplotæ ¼å¼ï¼Œä»¥ä¾¿ç”¨å…¶è¿›è¡Œåå¤„ç†
 
   subroutine meshoutput()
      use meshDS
@@ -13,7 +13,7 @@
 	 real(8)::ccw
 	 real(8),allocatable::ele(:),inmat(:,:)
 	 integer,allocatable::ar(:)
-	 integer::ns,ne,a1,a2,a3,ng,ng1,ng2,ng3 !ng,ng1È«Óò°üÀ¨×ÓÓò±ß½çµÄµÄ¶¥µãÊı
+	 integer::ns,ne,a1,a2,a3,ng,ng1,ng2,ng3 !ng,ng1å…¨åŸŸåŒ…æ‹¬å­åŸŸè¾¹ç•Œçš„çš„é¡¶ç‚¹æ•°
 	 logical::tof1,tof
 	 character*8 char_time
 	 character*64 term
@@ -31,9 +31,9 @@
      !   TNODE=NNODE
      !endif
      TNODE=NNODE*(SOILLAYER+1)
-	 !½ÚµãÖØ±àºÅÒÔÓÅ»¯´ø¿í
+	 !èŠ‚ç‚¹é‡ç¼–å·ä»¥ä¼˜åŒ–å¸¦å®½
      call time(char_time)
-	 print *, 'ÕıÔÚÓÅ»¯½Úµã±àºÅ£¬ÇëÉÔºò¡­: ', char_time	
+	 print *, 'æ­£åœ¨ä¼˜åŒ–èŠ‚ç‚¹ç¼–å·ï¼Œè¯·ç¨å€™â€¦: ', char_time	
 	!activate nodes
 	node.subbw=-999 !-999 suggesting deadth. 
     
@@ -75,9 +75,9 @@
      open(unit,file=resultfile,status='replace')
 	
 	 	
-!È«ÓòÊä³ö½ÚµãºÍµ¥Ôª 
+!å…¨åŸŸè¾“å‡ºèŠ‚ç‚¹å’Œå•å…ƒ 
 	call time(char_time)
-	print *, 'ÕıÔÚÊä³ö½ÚµãºÍµ¥ÔªµÄĞÅÏ¢£¬ÇëÉÔºò¡­: ', char_time
+	print *, 'æ­£åœ¨è¾“å‡ºèŠ‚ç‚¹å’Œå•å…ƒçš„ä¿¡æ¯ï¼Œè¯·ç¨å€™â€¦: ', char_time
 	call node_element_out(unit,noutputorder,ng)
 
 	 if(tt>1) then
@@ -105,7 +105,7 @@
 
 		
 		do i=1,dln
-			!Í³¼Æ¸ÃÊı¾İÊä³öÏßÉÏ½ÚµãµÄ¸öÊı
+			!ç»Ÿè®¡è¯¥æ•°æ®è¾“å‡ºçº¿ä¸ŠèŠ‚ç‚¹çš„ä¸ªæ•°
 			
 			cpp=>cpphead(dataline(i))
 			n1=0
@@ -115,7 +115,7 @@
 				if(.not.associated(cpp).or.associated(cpp,cpphead(dataline(i))).or.associated(cpp,bnhead)) exit 
 			end do
 			if(dataline(i)==0.or.csl(dataline(i)).flag==1) then
-				n2=1 !Êı¾İÊä³öÏßÊÇ±ÕºÏµÄ£¬ÔòÊ×Î²Á½½ÚµãÖØºÏ¡£
+				n2=1 !æ•°æ®è¾“å‡ºçº¿æ˜¯é—­åˆçš„ï¼Œåˆ™é¦–å°¾ä¸¤èŠ‚ç‚¹é‡åˆã€‚
 			else
 				n2=0
 			end if
@@ -123,7 +123,7 @@
 			outstring=''
 			cpp=>cpphead(dataline(i))
 			
-			do j=1,n1	!Ã¿20¸öÊıÒ»ĞĞ½øĞĞÊä³ö¡£
+			do j=1,n1	!æ¯20ä¸ªæ•°ä¸€è¡Œè¿›è¡Œè¾“å‡ºã€‚
 				write(term,'(i10)') cpp.npt.number
 				outstring=trim(outstring)//trim(adjustL(term))//','
 				cpp=>cpp.next
@@ -156,7 +156,7 @@
 	end if
 
 	 close(unit)
-	 !¼¤»îÊä³öµ½TecplotµÄ°´Å¥¡£
+	 !æ¿€æ´»è¾“å‡ºåˆ°Tecplotçš„æŒ‰é’®ã€‚
 	 msg = MODIFYMENUFLAGSQQ (10, 2, $MENUENABLED)
 	 msg = MODIFYMENUFLAGSQQ (10, 3, $MENUENABLED)
      term="SAVE DATA COMPLETED! Click Yes to Exit,No to Continue"
@@ -166,9 +166,9 @@
 
   end subroutine
 
-  	!Êä³ö½Úµãnode(norder(j)),j=1,nnum.
-	!Êä³öµ¥Ôªelementhead
-	!enum:µ¥²ãËùÓĞµ¥ÔªµÄ¸öÊı£¬enum_tri:µ¥²ãÈı½ÇĞÎµ¥ÔªµÄ¸öÊı
+  	!è¾“å‡ºèŠ‚ç‚¹node(norder(j)),j=1,nnum.
+	!è¾“å‡ºå•å…ƒelementhead
+	!enum:å•å±‚æ‰€æœ‰å•å…ƒçš„ä¸ªæ•°ï¼Œenum_tri:å•å±‚ä¸‰è§’å½¢å•å…ƒçš„ä¸ªæ•°
 	subroutine node_element_out(unit,norder,nnum)
 		use meshds
         use BC_HANDLE
@@ -291,7 +291,7 @@
 	integer::i,j,c1,c2,c3
 	integer::count
 	logical::tof
-	real(8)::xt,yt,xm,ym  !xt,yt,Îªµ¥ÔªµÄĞÎĞÄ×ø±ê£¬xm,ym=ytÎªÒ»¸ö×ã¹»Ô¶µÄµã£¬È¡Îªxm=-10e10,Á½Õß¹¹ÔìÁËÒ»ÌõË®Æ½ÉäÏß
+	real(8)::xt,yt,xm,ym  !xt,yt,ä¸ºå•å…ƒçš„å½¢å¿ƒåæ ‡ï¼Œxm,ym=ytä¸ºä¸€ä¸ªè¶³å¤Ÿè¿œçš„ç‚¹ï¼Œå–ä¸ºxm=-10e10,ä¸¤è€…æ„é€ äº†ä¸€æ¡æ°´å¹³å°„çº¿
 	real(8)::xa,ya,xb,yb  !
 	real(8)::t1,t2,t3,t4
 	type(zone_tydef)::zone_t
@@ -336,8 +336,8 @@
 	 end if
    end subroutine
  
-     !¼ÆËã¸÷µãµÄ´ø¿í
-	 !elementhead,iflag=0;È«Óò£¬iflag=others,ÆäËü³¬µ¥Ôª
+     !è®¡ç®—å„ç‚¹çš„å¸¦å®½
+	 !elementhead,iflag=0;å…¨åŸŸï¼Œiflag=others,å…¶å®ƒè¶…å•å…ƒ
    subroutine csb(nnode,node,nelt,elt)
 
 	  use meshds,only:point_tydef,element_tydef,et_prm,et_tet
@@ -348,7 +348,7 @@
 	  
       integer::i,j,a2,n1,n2,nomin,ept
 	  logical::tof1
-	  !¼ÆËãÍø¸ñ½Úµã²ãÊı£¬¸÷Ç¿Í¸Ë®²ãÎªÒ»²ã¡£
+	  !è®¡ç®—ç½‘æ ¼èŠ‚ç‚¹å±‚æ•°ï¼Œå„å¼ºé€æ°´å±‚ä¸ºä¸€å±‚ã€‚
 
     n2=1
  	  node(1:nnode).bw=0
@@ -369,8 +369,8 @@
    end subroutine
 
 
-    !ÅĞ¶ÏÔÚtnodeÖĞÔÚÏß¶Îxi,xjÉÏµÄÓĞĞ§µã£¬²¢ĞÎ³ÉÊı×éar,Ê¹ar°üº¬tnodeÖĞÔÚÏß¶Îxi,xjÉÏµÄËùÓĞµã
-   !ÒÔn4·µ»Ø¸ÃÊı×éµÄ´óĞ¡
+    !åˆ¤æ–­åœ¨tnodeä¸­åœ¨çº¿æ®µxi,xjä¸Šçš„æœ‰æ•ˆç‚¹ï¼Œå¹¶å½¢æˆæ•°ç»„ar,ä½¿aråŒ…å«tnodeä¸­åœ¨çº¿æ®µxi,xjä¸Šçš„æ‰€æœ‰ç‚¹
+   !ä»¥n4è¿”å›è¯¥æ•°ç»„çš„å¤§å°
    subroutine aovis2d_out(xi,yi,xj,yj,ar,iar) !any other vertex inside the segment?
       use meshds
 	  use ds_t
@@ -401,7 +401,7 @@
 
    end subroutine
 
-   !n1Îªnode()Êı×éÖĞÈ«Óò½Úµã×ÜÊı
+   !n1ä¸ºnode()æ•°ç»„ä¸­å…¨åŸŸèŠ‚ç‚¹æ€»æ•°
    subroutine reorder_nodal_number(IPERM,nnum,node,nelt,elt)
 	  use meshds,only:point_tydef,element_tydef,maxadj
 	  use dflib
@@ -418,8 +418,8 @@
 	  real(8)::t1
 	  COMMON /MC40I/ LP,MP
 
-	  !¶ÔÓÚÃ¿¸ö½Úµã£¬´æ´¢ºÍÆäÏàÁÚ(¶¨ÒåÎª×Ü¸ÕÖĞ£¬ÕâÁ½¸ö½Úµã¶ÔÓ¦µÄÔªËØ²»ÎªÁã¡£)ÇÒ±àºÅĞ¡ÓÚ¸Ã½Úµã×ÔÉí±àºÅµÄ½Úµã±àºÅ
-	  !ÕâÀï¼Ù¶¨Ò»¸ö½Úµã×î¶àÓĞmaxadj¸öÓëÖ®ÏàÁÚÇÒ±àºÅĞ¡ÓÚ¸Ã½Úµã×ÔÉí±àºÅµÄ½Úµã¡£
+	  !å¯¹äºæ¯ä¸ªèŠ‚ç‚¹ï¼Œå­˜å‚¨å’Œå…¶ç›¸é‚»(å®šä¹‰ä¸ºæ€»åˆšä¸­ï¼Œè¿™ä¸¤ä¸ªèŠ‚ç‚¹å¯¹åº”çš„å…ƒç´ ä¸ä¸ºé›¶ã€‚)ä¸”ç¼–å·å°äºè¯¥èŠ‚ç‚¹è‡ªèº«ç¼–å·çš„èŠ‚ç‚¹ç¼–å·
+	  !è¿™é‡Œå‡å®šä¸€ä¸ªèŠ‚ç‚¹æœ€å¤šæœ‰maxadjä¸ªä¸ä¹‹ç›¸é‚»ä¸”ç¼–å·å°äºè¯¥èŠ‚ç‚¹è‡ªèº«ç¼–å·çš„èŠ‚ç‚¹ã€‚
 	
 	  
 	  allocate(adjL(maxadj,nnum)) !adjL(11,)
@@ -428,7 +428,7 @@
 	  allocate(ICPTR(nnum+1))
 	  allocate(IW(3*nnum+2))
 
-	  !½¨Á¢ÁÚ½Ó±í
+	  !å»ºç«‹é‚»æ¥è¡¨
 	  !call setadjL(adjL)
 
 	  
@@ -437,7 +437,7 @@
 	  	if(.not.elt(ept).ismodel) cycle
 		 select case(elt(ept).et)
             case(-1,2,5)
-			!xy1ºÍxy2ÓĞÁªÏµ£¬xy3ºÍxy4ÓĞÁªÏµ£¬ÆäËüÃ»ÓĞÁªÏµ
+			!xy1å’Œxy2æœ‰è”ç³»ï¼Œxy3å’Œxy4æœ‰è”ç³»ï¼Œå…¶å®ƒæ²¡æœ‰è”ç³»
 			if(node(elt(ept).node(1)).number>node(elt(ept).node(2)).number) then
 			   call addtoadjL(node(elt(ept).node(2)).number,adjL(:,node(elt(ept).node(1)).number))
 			else
@@ -453,7 +453,7 @@
 			
 			
 
-			!´Ó´óµ½Ğ¡ÅÅĞò
+			!ä»å¤§åˆ°å°æ’åº
 			!if(elt(ept).et==0) then
 			!	n1=3
 			!	ar(1:n1)=node(elt(ept).node(1:n1)).number
@@ -490,7 +490,7 @@
 		 end select
 	  end do
 	  
-	  !Í³¼ÆadjL()ÖĞ·ÇÁãÔªËØµÄ¸öÊı¡£
+	  !ç»Ÿè®¡adjL()ä¸­éé›¶å…ƒç´ çš„ä¸ªæ•°ã€‚
 	  NNZ=count(adjL>0)
 	  allocate(IRN(2*NNZ))
 	  allocate(JCN(NNZ))
@@ -547,7 +547,7 @@
 	  return	
    end subroutine
 
-   !Èç¹ûiar(:)ÖĞÃ»ÓĞn1,Ôò°Ñn1¼ÓÈëµ½iar(:)ÖĞ¡£
+   !å¦‚æœiar(:)ä¸­æ²¡æœ‰n1,åˆ™æŠŠn1åŠ å…¥åˆ°iar(:)ä¸­ã€‚
    subroutine addtoadjL(n1,iar)
 	  use meshds
 	  implicit none
@@ -563,7 +563,7 @@
 			end if
 		 end do
 	  else
-		 print *, 'Óë½ÚµãÏàÁÚÇÒ±àºÅĞ¡ÓÚ¸Ã½Úµã×ÔÉí±àºÅµÄ½ÚµãÊıÔÚ>maxadj,adjLµÄÔ­¶¨¿Õ¼ä²»×ã.'
+		 print *, 'ä¸èŠ‚ç‚¹ç›¸é‚»ä¸”ç¼–å·å°äºè¯¥èŠ‚ç‚¹è‡ªèº«ç¼–å·çš„èŠ‚ç‚¹æ•°åœ¨>maxadj,adjLçš„åŸå®šç©ºé—´ä¸è¶³.'
 		 stop
 	  end if
 
@@ -571,8 +571,8 @@
    end subroutine
 
 
-	!¸ù¾İÈı½ÇĞÎµÄÈı¸ö¶¥µã×ø±êxy(2:3),xy(1,1)=x1,xy(2,1)=y1...,
-   !·µ»ØÈı½ÇĞÎµÄÈı¸öÄÚµãang(3),ang(1)Îª¶¥µãxy(:,1)µÄ½Ç(»¡¶È)
+	!æ ¹æ®ä¸‰è§’å½¢çš„ä¸‰ä¸ªé¡¶ç‚¹åæ ‡xy(2:3),xy(1,1)=x1,xy(2,1)=y1...,
+   !è¿”å›ä¸‰è§’å½¢çš„ä¸‰ä¸ªå†…ç‚¹ang(3),ang(1)ä¸ºé¡¶ç‚¹xy(:,1)çš„è§’(å¼§åº¦)
    subroutine vta(xy,ang)
      implicit none
 	 integer::i,j,k,a1
@@ -590,7 +590,7 @@
 		t(i)=((xy(1,j)-xy(1,k))**2+(xy(2,j)-xy(2,k))**2)**0.5
 	 end do
 	 
-	 !ÓÉÓÚarcsinµÄ·¶Î§Îªpi/2µ½-pi/2,¿¼ÂÇ´¦Àí¶Û½ÇÈı½ÇĞÎ£¬ÓÉ´ó±ß¶Ô´ó½ÇÕÒµ½¸Ã¶Û½Ç¡£
+	 !ç”±äºarcsinçš„èŒƒå›´ä¸ºpi/2åˆ°-pi/2,è€ƒè™‘å¤„ç†é’è§’ä¸‰è§’å½¢ï¼Œç”±å¤§è¾¹å¯¹å¤§è§’æ‰¾åˆ°è¯¥é’è§’ã€‚
 	 t4=t(1)
 	 a1=1
 	 do i=2,3
@@ -879,7 +879,7 @@ subroutine elementgroup()
 !		n1=zone(physicalgroup(i).IZONE).ntrie3n
 !		node(1:nnode).subbw=-999
 !		do j=1,n1
-!			node(elt(zone(physicalgroup(i).IZONE).trie3n(j)).node(1:3)).subbw=0 !Ä¿Ç°Ö»¿¼ÂÇÏßĞÔÈı½ÇĞÎµ¥Ôª
+!			node(elt(zone(physicalgroup(i).IZONE).trie3n(j)).node(1:3)).subbw=0 !ç›®å‰åªè€ƒè™‘çº¿æ€§ä¸‰è§’å½¢å•å…ƒ
 !		end do
 !		
 !		n1=count(node(1:nnode).subbw==0,dim=1)

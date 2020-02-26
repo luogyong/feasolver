@@ -1,34 +1,34 @@
 module ds_hyjump
     
     type segment_tydef
-        integer::Unode,Dnode !hjump.node(:),ÏÂ±ê£¬¼´ÎªÄÚ²¿±àºÅ
+        integer::Unode,Dnode !hjump.node(:),ä¸‹æ ‡ï¼Œå³ä¸ºå†…éƒ¨ç¼–å·
         character(2)::profileshape(2)="" !M1,M2,M3,S1,S2,S3,H2,H3,A2,A3,C1,C3
         !integer::issubcritical() !1Y0N
-        integer::dyDdx(2) !dy/dx>0(ÛÕË®),=1,dy/dx<0(½µË®),=-1
-        real(8)::So=0.D0,n        !ÆÂÂÊ£¬²ÚÂÊ
-        real(8)::yn,yc    !ÊúÖ±·½ÏòµÄÕı³£ÓëÁÙ½çË®Éî  
+        integer::dyDdx(2) !dy/dx>0(å£…æ°´),=1,dy/dx<0(é™æ°´),=-1
+        real(8)::So=0.D0,n        !å¡ç‡ï¼Œç³™ç‡
+        real(8)::yn,yc    !ç«–ç›´æ–¹å‘çš„æ­£å¸¸ä¸ä¸´ç•Œæ°´æ·±  
     end type
     
     type hjumpinfo_typdef
         character(1)::jumptype='D' !A,B,D
-        character(16)::JLengthMethod="ioyy",HJConjDepth='ioyy' !¼ÆËãÔ¾³¤¡¢Ô¾ºóË®ÉîµÄ·½·¨
-        integer::HJnode(2)=0!Ô¾Ç°¡¢ºó½ÚµãºÅ,´ËÇø¼ä¸÷½ÚµãË®Éî¸ù¾İÔ¾Ç°ºÍÔ¾ºóË®Éî½øĞĞÏß²å¡£
-        real(8)::info(4,2)=0.0 !x,y,yw,fr, info(:1)ÎªÔ¾Ê×£¬info(:,2)ÎªÔ¾ºó
-        real(8)::JLength=0.0 !Ô¾³¤
-        real(8)::JConjDepth=0.0 !Ô¾ºóË®Éî¡£
+        character(16)::JLengthMethod="ioyy",HJConjDepth='ioyy' !è®¡ç®—è·ƒé•¿ã€è·ƒåæ°´æ·±çš„æ–¹æ³•
+        integer::HJnode(2)=0!è·ƒå‰ã€åèŠ‚ç‚¹å·,æ­¤åŒºé—´å„èŠ‚ç‚¹æ°´æ·±æ ¹æ®è·ƒå‰å’Œè·ƒåæ°´æ·±è¿›è¡Œçº¿æ’ã€‚
+        real(8)::info(4,2)=0.0 !x,y,yw,fr, info(:1)ä¸ºè·ƒé¦–ï¼Œinfo(:,2)ä¸ºè·ƒå
+        real(8)::JLength=0.0 !è·ƒé•¿
+        real(8)::JConjDepth=0.0 !è·ƒåæ°´æ·±ã€‚
         
     end type    
     
     type BC_hyjump_RC_tydef
-        integer::caltype=0,Method=1 !caltype=1,Ö»Ëã¼±Á÷¡¢=2Ö»Ëã»ºÁ÷£¬=0£¬Á½Õß¶¼Ëã. 
+        integer::caltype=0,Method=1 !caltype=1,åªç®—æ€¥æµã€=2åªç®—ç¼“æµï¼Œ=0ï¼Œä¸¤è€…éƒ½ç®—. 
             !method=1,2,3,4(Kinds,WangXG,Ohtsu,Chow)
-		integer::issub=0 !ÊÇ·ñ¿¼ÂÇÏÂÓÎË®ÃæÏßµÄ±ä»¯¡£ 1Y0N.
+		integer::issub=0 !æ˜¯å¦è€ƒè™‘ä¸‹æ¸¸æ°´é¢çº¿çš„å˜åŒ–ã€‚ 1Y0N.
         real(8)::g=9.8D0,kn=1.0D0
-        real(8)::Q,B,Uybc,Dybc !Á÷Á¿¡¢Á÷µÀ¿í¡¢ÉÏÓÎ±ß½ç£¨¼±Á÷£©(ÊúÖ±·½Ïò)£¬ÏÂÓÎ±ß½ç£¨»ºÁ÷£©(ÊúÖ±·½Ïò)
-		integer::Uybc_type=0,Dybc_type=0 !type=-1,±íÊ¾ÒÔÁÙ½çË®ÉîÎª±ß½ç£¬=-2£¬ÒÔÕı³£Ë®ÉîÎª±ß½ç
-        integer::Q_SF=0,Uybc_SF=0,Dybc_SF=0 !Á÷Á¿¡¢ÉÏÏÂÓÎ±ß½çµÄstepfunction.
-        real(8),allocatable::hjump(:,:) !Ô¾Ç°£¬Ô¾ºóµÄxy().
-        integer::HJnode(2)=0!Ô¾Ç°¡¢ºó½ÚµãºÅ,´ËÇø¼ä¸÷½ÚµãË®Éî¸ù¾İÔ¾Ç°ºÍÔ¾ºóË®Éî½øĞĞÏß²å¡£
+        real(8)::Q,B,Uybc,Dybc !æµé‡ã€æµé“å®½ã€ä¸Šæ¸¸è¾¹ç•Œï¼ˆæ€¥æµï¼‰(ç«–ç›´æ–¹å‘)ï¼Œä¸‹æ¸¸è¾¹ç•Œï¼ˆç¼“æµï¼‰(ç«–ç›´æ–¹å‘)
+		integer::Uybc_type=0,Dybc_type=0 !type=-1,è¡¨ç¤ºä»¥ä¸´ç•Œæ°´æ·±ä¸ºè¾¹ç•Œï¼Œ=-2ï¼Œä»¥æ­£å¸¸æ°´æ·±ä¸ºè¾¹ç•Œ
+        integer::Q_SF=0,Uybc_SF=0,Dybc_SF=0 !æµé‡ã€ä¸Šä¸‹æ¸¸è¾¹ç•Œçš„stepfunction.
+        real(8),allocatable::hjump(:,:) !è·ƒå‰ï¼Œè·ƒåçš„xy().
+        integer::HJnode(2)=0!è·ƒå‰ã€åèŠ‚ç‚¹å·,æ­¤åŒºé—´å„èŠ‚ç‚¹æ°´æ·±æ ¹æ®è·ƒå‰å’Œè·ƒåæ°´æ·±è¿›è¡Œçº¿æ’ã€‚
         Character(16)::JLengthMethod='ioyy'
         Character(1)::HJType='N'
         real(8)::Jlength=0.0
@@ -37,18 +37,18 @@ module ds_hyjump
         
         type(segment_tydef),allocatable::segment(:)
         integer::nseg=0
-        real(8),allocatable::xy(:,:) !x,y,ywsup,ywsub Esup,Esub,Msup,Msub,y+Yw,Frsup,Frsub, !´æ´¢Ë³ĞòÎªÉÏÓÎÍùÏÂÓÎ
+        real(8),allocatable::xy(:,:) !x,y,ywsup,ywsub Esup,Esub,Msup,Msub,y+Yw,Frsup,Frsub, !å­˜å‚¨é¡ºåºä¸ºä¸Šæ¸¸å¾€ä¸‹æ¸¸
 		real(8),allocatable::JTinfo(:,:)  !(1),direction, 1 for down, -1 for up
 								!(2),type, 1 for A, 2 for B, 3 for D
 								!(3), tail water elevation; (4), predicted tail water elevation; (5), Jumplenth
-        !ywsup or ywsub=-999,±íÃ÷´ËµãµÄ¼±Á÷»ò»ºÁ÷µÄË®ÃæÏß²»´æÔÚ¡£
-        !Yw:Ô¾Ê×Ö®Ç°È¡¼±Á÷Ë®Éî£¬Ô¾ºóÖ®ºóÈ¡»ºÁ÷Ë®Éî£¬ÖĞ¼äÏß²å¡£
-		!×¢Òâ£¬Îª¿¼ÂÇÆÂ±ÈµÄÓ°Ïì£¬ywsup,ywsub,y+yw:ÊúÖ±·½ÏòµÄË®Éî¡£
-        integer,allocatable::node(:),bc_node(:) !¸÷½ÚµãÔÚnodeÖĞµÄÏÂ±ê£¬bc_nodeÎª¸÷½ÚµãÔÚBC_DISPÖĞµÄÏÂ±ê¡£
+        !ywsup or ywsub=-999,è¡¨æ˜æ­¤ç‚¹çš„æ€¥æµæˆ–ç¼“æµçš„æ°´é¢çº¿ä¸å­˜åœ¨ã€‚
+        !Yw:è·ƒé¦–ä¹‹å‰å–æ€¥æµæ°´æ·±ï¼Œè·ƒåä¹‹åå–ç¼“æµæ°´æ·±ï¼Œä¸­é—´çº¿æ’ã€‚
+		!æ³¨æ„ï¼Œä¸ºè€ƒè™‘å¡æ¯”çš„å½±å“ï¼Œywsup,ywsub,y+yw:ç«–ç›´æ–¹å‘çš„æ°´æ·±ã€‚
+        integer,allocatable::node(:),bc_node(:) !å„èŠ‚ç‚¹åœ¨nodeä¸­çš„ä¸‹æ ‡ï¼Œbc_nodeä¸ºå„èŠ‚ç‚¹åœ¨BC_DISPä¸­çš„ä¸‹æ ‡ã€‚
         integer::nnode=0        
     end type
     type(BC_hyjump_RC_tydef),allocatable::HJump(:)
-    integer::nHJump,HJump_CP=0 !HJump_CP=1,½ö¼ÆËãË®ÃæÏß£¬²»×÷ÆäËü¼ÆËã¡£
+    integer::nHJump,HJump_CP=0 !HJump_CP=1,ä»…è®¡ç®—æ°´é¢çº¿ï¼Œä¸ä½œå…¶å®ƒè®¡ç®—ã€‚
 
     character(1024)::hydraulicjumpfile
     integer::unit_hj=19
@@ -103,7 +103,7 @@ subroutine HJ_WaterSurfaceProfile_RC(iHJump,iStep,isubts)
     if(HJump(iHJump).DYBC_Type==-1) DYBC1=HJump(iHJump).segment(HJump(iHJump).nseg).yc
     if(HJump(iHJump).UYBC_Type==-2) UYBC1=HJump(iHJump).segment(1).yn
     if(HJump(iHJump).DYBC_Type==-2) DYBC1=HJump(iHJump).segment(HJump(iHJump).nseg).yn
-	if(HJump(iHJump).UYBC_Type==0) then !type=1Ê±£¬ÓÉyc,yn×Ô¶¯¸üĞÂÁË
+	if(HJump(iHJump).UYBC_Type==0) then !type=1æ—¶ï¼Œç”±yc,ynè‡ªåŠ¨æ›´æ–°äº†
 		UYBC1=HJump(iHJump).Uybc**tsfactor_total(HJump(iHJump).UYBC_SF,istep,isubts)
 	end if
 	if(HJump(iHJump).DYBC_Type==0) then
@@ -111,7 +111,7 @@ subroutine HJ_WaterSurfaceProfile_RC(iHJump,iStep,isubts)
 	end if
 
 	if(abs(Q1)<1e-7) then
-		!Èç¹ûQ1=0,Ë®ÃæÏßÈ¡ÎªÏÂÓÎË®Î»¡£
+		!å¦‚æœQ1=0,æ°´é¢çº¿å–ä¸ºä¸‹æ¸¸æ°´ä½ã€‚
 		hjump(ihjump).xy(9,:)=hjump(iHJump).xy(2,hjump(iHJump).nnode)+DYBC1
 		return
 	end if	
@@ -123,12 +123,12 @@ subroutine HJ_WaterSurfaceProfile_RC(iHJump,iStep,isubts)
     do i0=1,icycles
         if((HJump(iHJump).caltype==0.and.i0==1).or.HJump(iHJump).caltype==1) then
            
-            ft1=1 !¼±Á÷
+            ft1=1 !æ€¥æµ
             is=1
             ie=HJump(iHJump).nseg
             di=1
 			
-            !if(HJump(iHJump).UYBC_Type==0) then !type=1Ê±£¬ÓÉyc,yn×Ô¶¯¸üĞÂÁË
+            !if(HJump(iHJump).UYBC_Type==0) then !type=1æ—¶ï¼Œç”±yc,ynè‡ªåŠ¨æ›´æ–°äº†
 			!	UYBC1=HJump(iHJump).Uybc**tsfactor_total(HJump(iHJump).UYBC_SF,istep,isubts)
 			!end if
 			HJump(iHJump).xy(3,1)=UYBC1
@@ -138,7 +138,7 @@ subroutine HJ_WaterSurfaceProfile_RC(iHJump,iStep,isubts)
         end if
         
         if((HJump(iHJump).caltype==0.and.i0==2).or.HJump(iHJump).caltype==2) then
-            ft1=2 !»ºÁ÷
+            ft1=2 !ç¼“æµ
             is=HJump(iHJump).nseg
             ie=1
             di=-1
@@ -166,9 +166,9 @@ subroutine HJ_WaterSurfaceProfile_RC(iHJump,iStep,isubts)
             if(HJump(iHJump).segment(i).profileshape(ft1)=="") HJump(iHJump).segment(i).profileshape(ft1)=profiletype(HJump(iHJump).xy(pyw,js-dj), HJump(iHJump).segment(i).yc, &
                                                                                         HJump(iHJump).segment(i).yn, HJump(iHJump).segment(i).So)
             If (HJump(iHJump).segment(i).profileshape(ft1)(2:2)=="2" ) Then
-                HJump(iHJump).segment(i).dyDdx(ft1) = -1 !½µË®ÇúÏß£¬dy/dx>0
+                HJump(iHJump).segment(i).dyDdx(ft1) = -1 !é™æ°´æ›²çº¿ï¼Œdy/dx>0
             Else
-                HJump(iHJump).segment(i).dyDdx(ft1) = 1 !ÛÕË®ÇúÏß£¬dy/dx<0
+                HJump(iHJump).segment(i).dyDdx(ft1) = 1 !å£…æ°´æ›²çº¿ï¼Œdy/dx<0
             End If
 
             cos_slope=1./(1+HJump(ihjump).segment(i).So**2)**0.5
@@ -187,7 +187,7 @@ subroutine HJ_WaterSurfaceProfile_RC(iHJump,iStep,isubts)
                 R1=A1/(HJump(iHJump).B+2*HJump(iHJump).xy(pyw,jb)*cos_slope)
                 SF1 = (HJump(iHJump).segment(i).n/HJump(iHJump).kn * V1)**2/R1**(4/3.)
                 dx1=abs(HJump(iHJump).xy(1,j)-HJump(iHJump).xy(1,jb))/cos_slope
-                if(ft1==2) then !»ºÁ÷
+                if(ft1==2) then !ç¼“æµ
                     HJump(iHJump).xy(PE1,jb)=HJump(iHJump).xy(pyw,jb)*cos_slope**2+V1**2/(2*HJump(iHJump).g)+ &
                                     0.5*dx1*SF1-dx1*HJump(iHJump).segment(i).So
                 else
@@ -208,7 +208,7 @@ subroutine HJ_WaterSurfaceProfile_RC(iHJump,iStep,isubts)
                     end if    
                     goto 10
                 else
-                    !¼ÆËãFrouder Number
+                    !è®¡ç®—Frouder Number
                     
                 end if
              end do 
@@ -217,14 +217,14 @@ subroutine HJ_WaterSurfaceProfile_RC(iHJump,iStep,isubts)
         
 10  end do
     
-    !×îºóÒ»µãµÄMsup
+    !æœ€åä¸€ç‚¹çš„Msup
     if(HJump(iHJump).xy(3,HJump(iHJump).nnode)/=-999) then
         !A1=HJump(iHJump).B*HJump(iHJump).xy(3,HJump(iHJump).nnode)
         !HJump(iHJump).xy(7,HJump(iHJump).nnode)=Q1**2/(HJump(iHJump).g*A1)+A1*HJump(iHJump).xy(3,HJump(iHJump).nnode)/2.
 		HJump(iHJump).xy(7,HJump(iHJump).nnode)=HJump(iHJump).B*((Q1/HJump(iHJump).B)**2/(HJump(iHJump).g*HJump(iHJump).xy(3,HJump(iHJump).nnode)) &
 												+(HJump(iHJump).xy(3,HJump(iHJump).nnode)*cos_slope**2)**2/2.)
 	end if
-    !µÚÒ»µãµÄMsub
+    !ç¬¬ä¸€ç‚¹çš„Msub
     if(HJump(iHJump).xy(4,1)/=-999) then
         !A1=HJump(iHJump).B*HJump(iHJump).xy(4,1)
         !HJump(iHJump).xy(8,1)=Q1**2/(HJump(iHJump).g*A1)+A1*HJump(iHJump).xy(4,1)/2.
@@ -232,7 +232,7 @@ subroutine HJ_WaterSurfaceProfile_RC(iHJump,iStep,isubts)
 												+(HJump(iHJump).xy(4,1)*cos_slope**2)**2/2.)	
     end if    
     
-    !¶¨Î»Ô¾Ç°ºÍÔ¾ºó
+    !å®šä½è·ƒå‰å’Œè·ƒå
     if(hjump(ihjump).method==4) then
 		CALL HJUMP_TOE_TAIL(iHJump,istep,ISUBTS)
 	else
@@ -241,7 +241,7 @@ subroutine HJ_WaterSurfaceProfile_RC(iHJump,iStep,isubts)
      
 end subroutine
 
-!¶¨Î»Ô¾Ç°ºÍÔ¾ºó
+!å®šä½è·ƒå‰å’Œè·ƒå
 SUBROUTINE HJUMP_TOE_TAIL(iHJump,iStep,isubts)
     use solverds
     USE ds_hyjump
@@ -264,11 +264,11 @@ SUBROUTINE HJUMP_TOE_TAIL(iHJump,iStep,isubts)
                 CYCLE
             end if
             
-            if(isfindtail) then !Ô¾ºóÎ»ÖÃÌõ¼şÔ¾Ê×+Ô¾³¤
+            if(isfindtail) then !è·ƒåä½ç½®æ¡ä»¶è·ƒé¦–+è·ƒé•¿
                 !psup=3
                 !psub=4
                 ft1=2
-                !Ô¾Î²
+                !è·ƒå°¾
                 T1=HJump(iHJump).hjump(1,1)+HJump(iHJump).jlength
                 if(HJump(iHJump).xy(1,i+1)<t1) then
                     i=i+1
@@ -283,7 +283,7 @@ SUBROUTINE HJUMP_TOE_TAIL(iHJump,iStep,isubts)
                  !WRITE(UNIT_HJ,120) IHJUMP,istep,isubts,HJump(iHJump).hjump(1:8,ft1)
                 EXIT
                 
-            else    !Ô¾Ç°Î»ÖÃÌõ¼ş Îª Msup=Msub
+            else    !è·ƒå‰ä½ç½®æ¡ä»¶ ä¸º Msup=Msub
                 psup=7
                 psub=8
                 ft1=1
@@ -311,12 +311,12 @@ SUBROUTINE HJUMP_TOE_TAIL(iHJump,iStep,isubts)
                 !WRITE(UNIT_HJ,100) IHJUMP,istep,isubts,HJump(iHJump).hjump(1:8,ft1)
                 HJump(iHJump).HJnode(ft1)=I+1
                 ISFINDTAIL=.TRUE.  
-                !Ô¾³¤£º
+                !è·ƒé•¿ï¼š
                 select case(HJump(iHJump).JLengthMethod)
                     
                 case("ioyy") !Iwao Ohtsu and Youichi Yasuda
 
-                    !Ô¾Ê×ÔÚµÚ¼¸¶Î
+                    !è·ƒé¦–åœ¨ç¬¬å‡ æ®µ
                     do j=1,HJump(iHJump).nseg
                         if(HJump(iHJump).hJnode(1)<HJump(iHJump).segment(j).Dnode)  exit                      
                     end do
@@ -327,7 +327,7 @@ SUBROUTINE HJUMP_TOE_TAIL(iHJump,iStep,isubts)
                     H2_a=HJump(iHJump).hjump(3,1)*((1+8*fr1**2)**0.5-1)/2
                     
                     if(HJump(iHJump).segment(j).So>0) then
-                        !DĞÍ»òBĞÍ 0<theta<19.
+                        !Då‹æˆ–Bå‹ 0<theta<19.
                            HJump(iHJump).Jlength=(5.75*HJump(iHJump).segment(j).So+5.7)*H2_a  !Lj_D_Ohtsu
     
                            F1 = Q1 / (HJump(iHJump).B * HJump(iHJump).hjump(3,1)*cos_slope) / (HJump(iHJump).g * HJump(iHJump).hjump(3,1)*cos_slope**2 ) ** 0.5
@@ -390,7 +390,7 @@ SUBROUTINE HJUMP_TOE_TAIL(iHJump,iStep,isubts)
 		else
 			
 			write(*,150) IHJUMP,istep,isubts
-			!Ë®ÃæÏßÈ¡M´óµÄË®ÃæÏß
+			!æ°´é¢çº¿å–Må¤§çš„æ°´é¢çº¿
 			do i=1,Hjump(iHJump).nnode
 				if(Hjump(iHJump).xy(7,i)>Hjump(iHJump).xy(8,i)) then
 					j=3
@@ -409,7 +409,7 @@ SUBROUTINE HJUMP_TOE_TAIL(iHJump,iStep,isubts)
         end if
 		
     end if
-    !µÚÒ»´ÎÊä³ö±äÁ¿Ãû³Æ
+    !ç¬¬ä¸€æ¬¡è¾“å‡ºå˜é‡åç§°
     if(ISTEP==1.and.ISUBTS==1.AND.IHJUMP==1) WRITE(UNIT_HJ,160) 
     DO I=1,HJUMP(IHJUMP).NNODE
         WRITE(UNIT_HJ,170) IHJUMP,I,HJUMP(IHJUMP).XY(1:2,I),HJUMP(IHJUMP).XY(9,I),HJUMP(IHJUMP).XY(3:4,I),HJUMP(IHJUMP).XY(7:8,I), &
@@ -492,7 +492,7 @@ end function
 
 REAL(8) Function WSP_RC(Q, B, n, kn,ds, E, So, yini,g,issubcritical,dyDdx,yc,yn,profiletype)
     implicit none
-    real(8),intent(in)::Q,B,n,kn,ds,E,So,yini,g,yc,yn  !dsÎªÁ÷Ïß·½ÏòµÄ³¤¶È£¬ds=dx/cos_slope
+    real(8),intent(in)::Q,B,n,kn,ds,E,So,yini,g,yc,yn  !dsä¸ºæµçº¿æ–¹å‘çš„é•¿åº¦ï¼Œds=dx/cos_slope
     integer,intent(in)::dyDdx,issubcritical
 	character(2),intent(in)::profiletype
     
@@ -503,7 +503,7 @@ REAL(8) Function WSP_RC(Q, B, n, kn,ds, E, So, yini,g,issubcritical,dyDdx,yc,yn,
     theta = 1.
 	cos_slope=1./(1+So**2)**0.5
 	!ds=dx/cos_slope
-    If(issubcritical == 2) Then !»ºÁ÷
+    If(issubcritical == 2) Then !ç¼“æµ
         
         If (dyDdx == 1) Then
             theta = 0.9
@@ -511,7 +511,7 @@ REAL(8) Function WSP_RC(Q, B, n, kn,ds, E, So, yini,g,issubcritical,dyDdx,yc,yn,
             theta = 1.1
         End If
     
-    Else !¼±Á÷
+    Else !æ€¥æµ
         
         If (dyDdx == 1) Then
             theta = 1.1
@@ -535,7 +535,7 @@ REAL(8) Function WSP_RC(Q, B, n, kn,ds, E, So, yini,g,issubcritical,dyDdx,yc,yn,
 
 
     
-    If(ds < 0.01) theta = 1. !'Á½½ÚµãÖ®¼äµÄ½ÏÎª½Ó½üÊ±£¬y~yini
+    If(ds < 0.01) theta = 1. !'ä¸¤èŠ‚ç‚¹ä¹‹é—´çš„è¾ƒä¸ºæ¥è¿‘æ—¶ï¼Œy~yini
 	
 	
     y = theta * yini
@@ -596,7 +596,7 @@ End Function
 
 Character(2) Function profiletype(y, yc, yn, So)
     implicit none
-    real(8),intent(in)::y,yc,yn,So  !y,yc,yn¾ùÎªÊúÖ±·½ÏòµÄÁ¿	
+    real(8),intent(in)::y,yc,yn,So  !y,yc,ynå‡ä¸ºç«–ç›´æ–¹å‘çš„é‡	
 
 
     If (y == yc .Or. y == yn) Then
@@ -652,7 +652,7 @@ End Function
 
 Function JumpType(Q, B, ht, Xtrial, Ytrial, N1_trial,ThetaD,method,g,Xturn,Yturn,N1_turn,Xsub,htSub) RESULT(JTinfo)
 	implicit none
-    !Ä¬ÈÏË®Á÷·½Ïò´Ó×óµ½ÓÒ¡£Ë®Æ½¶ÎÓëĞ±ÆÂ¶ÎµÄ½»µã×ø±êÎª(Xturn,Yturn)
+    !é»˜è®¤æ°´æµæ–¹å‘ä»å·¦åˆ°å³ã€‚æ°´å¹³æ®µä¸æ–œå¡æ®µçš„äº¤ç‚¹åæ ‡ä¸º(Xturn,Yturn)
 	real(8)::JTinfo(5) !(1),direction, 1 for down, -1 for up
 						!(2),type, 1 for A, 2 for B, 3 for D
 						!(3), tail water elevation; (4), predicted tail water elevation; (5), Jumplenth
@@ -692,7 +692,7 @@ Function JumpType(Q, B, ht, Xtrial, Ytrial, N1_trial,ThetaD,method,g,Xturn,Yturn
        If (theta /= 0) Then
            Xht = Xturn - ht / Tan(theta)
        End If
-	   !(Xht,Yht)ÎªÏÂÓÎË®ÃæÓëĞ±ÆÂµÄ½»µã£¬½üËÆÎªÖ±Ïß´¦Àí
+	   !(Xht,Yht)ä¸ºä¸‹æ¸¸æ°´é¢ä¸æ–œå¡çš„äº¤ç‚¹ï¼Œè¿‘ä¼¼ä¸ºç›´çº¿å¤„ç†
        
        fr1_Xturn = Q / (B * N1_turn) / (g * N1_turn) ** 0.5
        
@@ -707,7 +707,7 @@ Function JumpType(Q, B, ht, Xtrial, Ytrial, N1_trial,ThetaD,method,g,Xturn,Yturn
        h2_Xturn = h2_Xturn * (1 - 0.7 * (Log(R1_star)) ** (-2.5) * Exp(fr1_Xturn / 8.))
        
        h2_Xturn = h2_Xturn * (1 - 3.25 * Omega * (Log(R1_star)) ** (-3.) * Exp(fr1_Xturn / 7.))
-       !ht >h2_Xturn, Ô¾Ê×Ö»ÄÜÔÚĞ±ÆÂ¶Î£¬ht<=h2_Xturn,Ô¾Ê×Ö»ÄÜÔÚË®Æ½¶Î
+       !ht >h2_Xturn, è·ƒé¦–åªèƒ½åœ¨æ–œå¡æ®µï¼Œht<=h2_Xturn,è·ƒé¦–åªèƒ½åœ¨æ°´å¹³æ®µ
        If ((ht > h2_Xturn .And. Xtrial> Xturn) .Or. (ht <= h2_Xturn .And. Ytrial - Yturn > 0.0000001)) Then
 		
            return
@@ -816,7 +816,7 @@ Function JumpType(Q, B, ht, Xtrial, Ytrial, N1_trial,ThetaD,method,g,Xturn,Yturn
  
         Case ("WangXG")
         
-         !WXG,ÍõÑ§¹¦, ×ó¶Øºñ. Ë³ÆÂÕÛÆÂË®Ô¾·½³ÌµÄÆÀÊöÓë¸Ä½ø. Ë®ÀûÑ§±¨. 1999:45-50.
+         !WXG,ç‹å­¦åŠŸ, å·¦æ•¦åš. é¡ºå¡æŠ˜å¡æ°´è·ƒæ–¹ç¨‹çš„è¯„è¿°ä¸æ”¹è¿›. æ°´åˆ©å­¦æŠ¥. 1999:45-50.
     
             F1 = Q / (B * N1_trial) / (g * N1_trial) ** 0.5
             F1 = (3.9954 * Tan(theta) + 0.9814) * F1
@@ -869,7 +869,7 @@ Function JumpType(Q, B, ht, Xtrial, Ytrial, N1_trial,ThetaD,method,g,Xturn,Yturn
             ht_B = ht
         End If
         
-        y2 = Yturn !Ë®Æ½
+        y2 = Yturn !æ°´å¹³
         JTINFO(3) = ht_B + y2
         JTINFO(4) = ht_B_pr + y2
         JTINFO(5) = Lj_B
@@ -915,7 +915,7 @@ Real(8) Function GetY(Xi,X,Y)
 
 End Function
 
-!¶¨Î»Ô¾Ç°ºÍÔ¾ºó
+!å®šä½è·ƒå‰å’Œè·ƒå
 SUBROUTINE Locate_The_TOE_NewMethod(iHJump,iStep,isubts)
     use solverds
     USE ds_hyjump
@@ -944,13 +944,13 @@ SUBROUTINE Locate_The_TOE_NewMethod(iHJump,iStep,isubts)
 			N1_trial=hjump(ihjump).xy(3,i)*cos(thetaD/180.*pi())
 			
 			
-			!Ä¬ÈÏË®Æ½¶ÎÓëĞ±ÆÂ¶ÎµÄ½»µãÎªµÚ¶ş¶ÎµÄµÚÒ»¸ö½Úµã¡£
+			!é»˜è®¤æ°´å¹³æ®µä¸æ–œå¡æ®µçš„äº¤ç‚¹ä¸ºç¬¬äºŒæ®µçš„ç¬¬ä¸€ä¸ªèŠ‚ç‚¹ã€‚
 			if(hjump(ihjump).nseg>=2) then
 				Xturn=hjump(ihjump).xy(1,hjump(ihjump).segment(2).Unode)
 				Yturn=hjump(ihjump).xy(2,hjump(ihjump).segment(2).Unode)
 				N1_turn=hjump(ihjump).xy(3,hjump(ihjump).segment(2).Unode)
 				if(HJump(iHJump).issub==0) then
-					ht=HJump(iHJump).xy(4,hjump(ihjump).nnode) !È¡Îª×îÏÂÓÎË®Éî¡£
+					ht=HJump(iHJump).xy(4,hjump(ihjump).nnode) !å–ä¸ºæœ€ä¸‹æ¸¸æ°´æ·±ã€‚
 					HJump(iHJump).JTinfo(:,i)=JumpType(Q1,HJump(iHJump).B,ht, Xtrial, Ytrial, N1_trial,ThetaD,method,hjump(ihjump).g,Xturn,Yturn,N1_turn)
 				else
 					HJump(iHJump).JTinfo(:,i)=JumpType(Q1,HJump(iHJump).B,ht, Xtrial, Ytrial, N1_trial,ThetaD,method,hjump(ihjump).g,Xturn,Yturn,N1_turn, &
@@ -958,7 +958,7 @@ SUBROUTINE Locate_The_TOE_NewMethod(iHJump,iStep,isubts)
 				end if
 			else
 				if(HJump(iHJump).issub==0) then
-					ht=HJump(iHJump).xy(4,hjump(ihjump).nnode) !È¡Îª×îÏÂÓÎË®Éî¡£
+					ht=HJump(iHJump).xy(4,hjump(ihjump).nnode) !å–ä¸ºæœ€ä¸‹æ¸¸æ°´æ·±ã€‚
 					HJump(iHJump).JTinfo(:,i)=JumpType(Q1,HJump(iHJump).B,ht, Xtrial, Ytrial, N1_trial,ThetaD,method,hjump(ihjump).g)
 				else
 					HJump(iHJump).JTinfo(:,i)=JumpType(Q1,HJump(iHJump).B,ht, Xtrial, Ytrial, N1_trial,ThetaD,method,hjump(ihjump).g, &
@@ -1053,7 +1053,7 @@ SUBROUTINE Locate_The_TOE_NewMethod(iHJump,iStep,isubts)
 		else
 			
 			write(*,150) IHJUMP,istep,isubts
-			!Ë®ÃæÏßÈ¡M´óµÄË®ÃæÏß
+			!æ°´é¢çº¿å–Må¤§çš„æ°´é¢çº¿
 			do i=1,Hjump(iHJump).nnode
 				if(Hjump(iHJump).xy(7,i)>Hjump(iHJump).xy(8,i)) then
 					j=3
@@ -1073,7 +1073,7 @@ SUBROUTINE Locate_The_TOE_NewMethod(iHJump,iStep,isubts)
 		
     end if
 	
-    !µÚÒ»´ÎÊä³ö±äÁ¿Ãû³Æ
+    !ç¬¬ä¸€æ¬¡è¾“å‡ºå˜é‡åç§°
     if(ISTEP==1.and.ISUBTS==1.AND.IHJUMP==1) WRITE(UNIT_HJ,160) 
     DO I=1,HJUMP(IHJUMP).NNODE
         WRITE(UNIT_HJ,170) IHJUMP,I,HJUMP(IHJUMP).XY(1:2,I),HJUMP(IHJUMP).XY(9,I),HJUMP(IHJUMP).XY(3:4,I),HJUMP(IHJUMP).XY(7:8,I), &

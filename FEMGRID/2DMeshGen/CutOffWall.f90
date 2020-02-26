@@ -6,19 +6,19 @@ implicit none
 private
     
 type cutoffwall_type
-    integer::NCP=0,mat=1 !iclΪ����ǽ���ڵĿ����߱��
+    integer::NCP=0,mat=1 !icl为防渗墙所在的控制线编号
     
-    real(8)::thick=0 !ǽ��
-    integer,allocatable::cp(:) !���Ƶ������������б��
-    real(8),allocatable::be(:) !�׸߳�
+    real(8)::thick=0 !墙厚
+    integer,allocatable::cp(:) !控制点在输入数组中编号
+    real(8),allocatable::be(:) !底高程
         
         
     character(512):: helpstring= &
-    'CUTOFFWALL�������ʽΪ: \n &
-        & 1)NCOW(����ǽ����); \n & 
-        & 2.1) NCP(�߽���Ƶ���),MAT(���Ϻ�),THICKNESS(ǽ��) \n &
-        & 2.2) CP(1:NCP)(�����Ƶ��) \n &
-        & 2.3) BE(1:NCP)(�����Ƶ��ǽ�׸߳�) \n'C    
+    'CUTOFFWALL的输入格式为: \n &
+        & 1)NCOW(防渗墙个数); \n & 
+        & 2.1) NCP(边界控制点数),MAT(材料号),THICKNESS(墙厚) \n &
+        & 2.2) CP(1:NCP)(各控制点号) \n &
+        & 2.3) BE(1:NCP)(各控制点的墙底高程) \n'C    
     contains
         procedure,nopass::help=>write_help
         PROCEDURE::READIN=>COW_read
@@ -76,7 +76,7 @@ subroutine GEN_COW_ELEMENT(this)
     
     !gen new nodes
     n1=0
-    node.subbw=0 !����
+    node.subbw=0 !借用
     node.layer=0
     isclose=this.cp(1)==this.cp(this.ncp)
     do i=1,this.ncp-1
@@ -107,7 +107,7 @@ subroutine GEN_COW_ELEMENT(this)
     !split elements
     n1=size(edge2);n2=n1
     if(.not.isclose) n2=n2-1
-    EDGE1=SPREAD(0,1,N2) !����   
+    EDGE1=SPREAD(0,1,N2) !借用   
     !n1=0
     do j=1,n2
         n3=mod(j,n2)+1
@@ -178,7 +178,7 @@ subroutine GEN_COW_ELEMENT(this)
         
         
         
-        !�ѵ�ԪL��ԭ����T�����ı߸���Ϊ��EPT1����
+        !把单元L中原来与T相连的边更新为与EPT1相连
         !iflag==1 ept1=>null()
         IF(IELT2>0) call EDG(ielt1,ielt2,nelt,IFlag) 
         IF(IELT1>0) call edg(ielt2,ielt1,nelt,iflag)
@@ -215,8 +215,8 @@ endsubroutine
 
 
 FUNCTION find_ELT_ON_HEADING_LEFT(V,BE1,BE2) RESULT(ELT1)
-!������VΪ���㣬BE1-BE2ǰ��������ߵ����е�Ԫ,BE1,BE2����V��������ı�
-!���û�У�����ELT1(1)=-1
+!返回以V为顶点，BE1-BE2前进方向左边的所有单元,BE1,BE2是以V公共顶点的边
+!如果没有，返回ELT1(1)=-1
 IMPLICIT NONE
 INTEGER,INTENT(IN)::V,BE1,BE2
 INTEGER,ALLOCATABLE::ELT1(:)
@@ -238,7 +238,7 @@ DO I=1,2
     IELT1=EDGE(BE1).E(I)
     IF(IELT1>0.AND.IELT2==0) THEN
         DO J=1,3
-            !T1=((NODE(ELT(IELT1).NODE(J)).X-NODE(V0).X)**2+(NODE(ELT(IELT1).NODE(J)).Y-NODE(V0).Y)**2)**0.5 !V0�ܿ����Ѿ�����������غϵĽڵ㡣
+            !T1=((NODE(ELT(IELT1).NODE(J)).X-NODE(V0).X)**2+(NODE(ELT(IELT1).NODE(J)).Y-NODE(V0).Y)**2)**0.5 !V0很可能已经分离出两个重合的节点。
         
             IF(ELT(IELT1).NODE(J)==V0.AND.ELT(IELT1).NODE(MOD(J,3)+1)==V) THEN
                 IELT2=IELT1

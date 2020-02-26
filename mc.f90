@@ -378,11 +378,11 @@ END SUBROUTINE vmdpl
 
 !yield surface gradients a
 !let Sbar=sqrt(J2); Sita=Lode angle
-! a=?F/?¦Ò=C1*?¦Òm/?¦Ò+C2*?Sbar/?¦Ò+C3*?J3/?¦Ò
-!C1=?F/?¦Òm
+! a=?F/?ï¿½ï¿½=C1*?ï¿½ï¿½m/?ï¿½ï¿½+C2*?Sbar/?ï¿½ï¿½+C3*?J3/?ï¿½ï¿½
+!C1=?F/?ï¿½ï¿½m
 !C2=?F/?Sbar-tan(3*sita)/Sbar*?F/?(sqrt(Sita)
 !C3=-sqrt(3.0)/(2.0*Sbar**3*cos(3*sita))*?F/?sita
-!REF TO:Abbo AJ, Lyamin AV, Sloan SW, Hambleton JP. A C2 continuous approximation to the Mohr¨CCoulomb yield surface. International Journal of Solids and Structures. 2011;48(21):3001-10.
+!REF TO:Abbo AJ, Lyamin AV, Sloan SW, Hambleton JP. A C2 continuous approximation to the Mohrï¿½CCoulomb yield surface. International Journal of Solids and Structures. 2011;48(21):3001-10.
 subroutine YieldSurfaceGradient_MC(DY,INV,DFINV,M)
 !INV=P,Q,LODE
 	IMPLICIT NONE
@@ -392,7 +392,7 @@ subroutine YieldSurfaceGradient_MC(DY,INV,DFINV,M)
 	
 
 	J2=INV(2)**2/3.0
-	!CHANGE  ?J2/?¦Ò TO ?(SQRT(J2))/?¦Ò
+	!CHANGE  ?J2/?ï¿½ï¿½ TO ?(SQRT(J2))/?ï¿½ï¿½
 	M2=M(:,2)/(2.*sqrt(J2)) 
 	
 	DY=DFINV(1)*M(:,1)+DFINV(2)*M2+(J2*DFINV(3))*(M(:,3)/J2)
@@ -400,7 +400,7 @@ subroutine YieldSurfaceGradient_MC(DY,INV,DFINV,M)
 ENDSUBROUTINE
 
 
-PURE FUNCTION PARA_MC_CLAUSEN(MATID,ISTEP) RESULT(PARA)
+ FUNCTION PARA_MC_CLAUSEN(MATID,ISTEP) RESULT(PARA)
     USE solverds
     IMPLICIT NONE
     INTEGER,INTENT(IN)::MATID,ISTEP
@@ -415,8 +415,8 @@ PURE FUNCTION PARA_MC_CLAUSEN(MATID,ISTEP) RESULT(PARA)
     PARA(3)=(1+T2)/(1-T2) !M
 ENDFUNCTION
 
-!REF TO :Abbo AJ, Lyamin AV, Sloan SW, Hambleton JP. A C2 continuous approximation to the Mohr¨CCoulomb yield surface. International Journal of Solids and Structures. 2011;48(21):3001-10.
-PURE SUBROUTINE KSITA_MC_C2(KSITA,LODE,SITA,PHI)
+!REF TO :Abbo AJ, Lyamin AV, Sloan SW, Hambleton JP. A C2 continuous approximation to the Mohrï¿½CCoulomb yield surface. International Journal of Solids and Structures. 2011;48(21):3001-10.
+ SUBROUTINE KSITA_MC_C2(KSITA,LODE,SITA,PHI)
 !LODE IN RAD,SITA IN RAD, TRANSITIONAL ANGLE.
 	IMPLICIT NONE
 	REAL(8),INTENT(IN)::LODE,SITA,PHI
@@ -470,7 +470,7 @@ PURE SUBROUTINE KSITA_MC_C2(KSITA,LODE,SITA,PHI)
 	KSITA(4)=A;KSITA(5)=B;KSITA(6)=C;
 ENDSUBROUTINE
 
-!REF TO :Abbo AJ, Lyamin AV, Sloan SW, Hambleton JP. A C2 continuous approximation to the Mohr¨CCoulomb yield surface. International Journal of Solids and Structures. 2011;48(21):3001-10.
+!REF TO :Abbo AJ, Lyamin AV, Sloan SW, Hambleton JP. A C2 continuous approximation to the Mohrï¿½CCoulomb yield surface. International Journal of Solids and Structures. 2011;48(21):3001-10.
 SUBROUTINE C123_MC(DFINV,INV,KSITA,SITA,PHI,SMALLA)
 !LODE IN RAD,SITA IN RAD, TRANSITIONAL ANGLE.
 	IMPLICIT NONE
@@ -502,12 +502,12 @@ ENDSUBROUTINE
 
 !yield surface gradients a
 !let Sbar=sqrt(J2); Sita=Lode angle
-! a=?F/?¦Ò=C1*?¦Òm/?¦Ò+C2*?Sbar/?¦Ò+C3*?J3/?¦Ò
-!C1=?F/?¦Òm
+! a=?F/?ï¿½ï¿½=C1*?ï¿½ï¿½m/?ï¿½ï¿½+C2*?Sbar/?ï¿½ï¿½+C3*?J3/?ï¿½ï¿½
+!C1=?F/?ï¿½ï¿½m
 !C2=?F/?Sbar-tan(3*sita)/Sbar*?F/?(sqrt(Sita)
 !C3=-sqrt(3.0)/(2.0*Sbar**3*cos(3*sita))*?F/?sita
-!?a/?¦Ò=?C2/?¦Ò*?Sbar/?¦Ò+C2*?2Sbar/?¦Ò2+?C3/?¦Ò*?J3/?¦Ò+C3*?2J3/?¦Ò2
-!REF TO:[1] Abbo AJ, Lyamin AV, Sloan SW, Hambleton JP. A C2 continuous approximation to the Mohr¨CCoulomb yield surface. International Journal of Solids and Structures. 2011;48(21):3001-10.
+!?a/?ï¿½ï¿½=?C2/?ï¿½ï¿½*?Sbar/?ï¿½ï¿½+C2*?2Sbar/?ï¿½ï¿½2+?C3/?ï¿½ï¿½*?J3/?ï¿½ï¿½+C3*?2J3/?ï¿½ï¿½2
+!REF TO:[1] Abbo AJ, Lyamin AV, Sloan SW, Hambleton JP. A C2 continuous approximation to the Mohrï¿½CCoulomb yield surface. International Journal of Solids and Structures. 2011;48(21):3001-10.
 
 subroutine GradientDERIVATIVE_MC(DDF,INV,C,M,DM,DC)
 !PHI IN RAD,SITA IN RAD, TRANSITIONAL ANGLE.
@@ -526,8 +526,8 @@ subroutine GradientDERIVATIVE_MC(DDF,INV,C,M,DM,DC)
 	
 ENDSUBROUTINE
 
-!?c2/?¦Ò AND ?C3/?¦Ò
-!REF TO:[1] Abbo AJ, Lyamin AV, Sloan SW, Hambleton JP. A C2 continuous approximation to the Mohr¨CCoulomb yield surface. International Journal of Solids and Structures. 2011;48(21):3001-10.
+!?c2/?ï¿½ï¿½ AND ?C3/?ï¿½ï¿½
+!REF TO:[1] Abbo AJ, Lyamin AV, Sloan SW, Hambleton JP. A C2 continuous approximation to the Mohrï¿½CCoulomb yield surface. International Journal of Solids and Structures. 2011;48(21):3001-10.
 !EPS=SMALLA*SIN(PHI)
 SUBROUTINE second_deriv_C_MC(DC,DFINV,M,INV,KSITA,SITA,EPS)
 	IMPLICIT NONE
@@ -563,7 +563,7 @@ ENDSUBROUTINE
 
 !according to the stress vector(stress)calculate the second derivertives of the SQRT(J2),J3
 !stress(1-6)=sx,sy,sz,sxy,syz,sxz.
-! ref to: Abbo AJ, Lyamin AV, Sloan SW, Hambleton JP. A C2 continuous approximation to the Mohr¨CCoulomb yield surface. International Journal of Solids and Structures. 2011;48(21):3001-10.
+! ref to: Abbo AJ, Lyamin AV, Sloan SW, Hambleton JP. A C2 continuous approximation to the Mohrï¿½CCoulomb yield surface. International Journal of Solids and Structures. 2011;48(21):3001-10.
 subroutine second_deriv_sinv_2nd(secM,stress,inv)
 	implicit none
 	real(8),intent(in)::stress(6),inv(3)

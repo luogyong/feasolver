@@ -71,7 +71,7 @@ subroutine solve_SLD()
 	bdylds=0.0D0;PDDIS=0.0D0
 	stepload=0.0D0
 	Tload=0.0D0
-	exdis=tdisp !ÓÃÓÚ´æ´¢ÉÏÒ»ºÉÔØ²½µÄ×ÜÎ»ÒÆ¡£
+	exdis=tdisp !ç”¨äºå­˜å‚¨ä¸Šä¸€è·è½½æ­¥çš„æ€»ä½ç§»ã€‚
 	NI_NodalForce=0.D0
 	NormRes=1.d20
 	istep=1	
@@ -132,7 +132,7 @@ subroutine solve_SLD()
             !if(iincs==4) solver_control.niteration=4
 			do while(iiter<=solver_control.niteration)
 				NYITER=0
-				MYFVAL=-1E7
+				MYFVAL=-1E3
 				iiter=iiter+1
 				call solver_initialization(kref,iincs,iiter)
 
@@ -165,7 +165,7 @@ subroutine solve_SLD()
 						!STOP_TIME= DCLOCK()
 						!write(99,20) iincs,iiter,STOP_TIME-START_TIME
 					else
-						! Factor the matrix.£¡MKL_DSS_POSITIVE_DEFINITE
+						! Factor the matrix.ï¼MKL_DSS_POSITIVE_DEFINITE
                         error = DSS_FACTOR_REAL( handle, MKL_DSS_POSITIVE_DEFINITE,km)
                         IF (error /= MKL_DSS_SUCCESS) THEN
                             !PRINT *, 'MKL_DSS_POSITIVE_DEFINITE FAILED.TRY MKL_DSS_INDEFINITE OPTION.'
@@ -318,7 +318,7 @@ subroutine solve_SLD()
 			IF(IINCS==0) STEPDIS=0
             Qstorted_ini=Qstored
 			
-            !¸÷Ê±¼ä×Ó²½Ö®¼äµÄÎ»ÒÆ¸üĞÂ¡£
+            !å„æ—¶é—´å­æ­¥ä¹‹é—´çš„ä½ç§»æ›´æ–°ã€‚
 			!IF(SOLVER_CONTROL.TYPE==SPG) THEN
 			!	Qstorted_ini=Qstored
 			!	do concurrent (i=1:enum)
@@ -1496,7 +1496,7 @@ end function
 
 !according to the stress vector(stress)calculate the derivertives of the p,J2,J3 
 !stress(1-6)=sx,sy,sz,sxy,syz,sxz.
-PURE subroutine deriv_sinv(m,stress)
+ subroutine deriv_sinv(m,stress)
 	implicit none
 	REAL(8),INTENT(IN)::STRESS(6)
 	real(8),INTENT(OUT)::m(6,3)
@@ -1524,7 +1524,7 @@ end subroutine
 
 
 !according to the stress, calculate the stress invarants(p,(3J2)**0.5=q,Lode angle)
-PURE subroutine INVARIANT(stress,inv)
+ subroutine INVARIANT(stress,inv)
 	implicit none
 	real(8),intent(in)::stress(6)
 	real(8),intent(out)::inv(3)
@@ -1555,7 +1555,7 @@ PURE subroutine INVARIANT(stress,inv)
 	
 end subroutine
 
-PURE SUBROUTINE MC_KSITA(LODE,SITA,PHI,A,B,KSITA,D_KSITA)
+ SUBROUTINE MC_KSITA(LODE,SITA,PHI,A,B,KSITA,D_KSITA)
 	IMPLICIT NONE
 	REAL(8),INTENT(IN)::LODE,SITA,A(2),B(2),PHI
 	REAL(8),INTENT(OUT)::KSITA,D_KSITA
@@ -1573,7 +1573,7 @@ PURE SUBROUTINE MC_KSITA(LODE,SITA,PHI,A,B,KSITA,D_KSITA)
 ENDSUBROUTINE
 
 !according to the material(mat).type and stress invarants,calculate the value of the yield functions(vyt)
-PURE subroutine yieldfun(vyf,mat,inv,ayf,ev,ISTEP)
+subroutine yieldfun(vyf,mat,inv,ayf,ev,ISTEP)
 	use solverds	
 	implicit none
 	INTEGER,INTENT(IN)::MAT,AYF,ISTEP
@@ -1620,7 +1620,7 @@ end subroutine
 !and the derivatives of invarants w.r.t. sigma which stored in "m",
 !calculate the derivative of yield functions or potential function w.r.t.
 !stress, sigma.
-PURE subroutine deriv_yf(dyf,dywi,m)
+ subroutine deriv_yf(dyf,dywi,m)
 	use solverds
 	implicit none
 	REAL(8),INTENT(IN)::dywi(3),M(6,3)
@@ -1632,7 +1632,7 @@ end subroutine
 
 !according to material(mat).type and stress invarants, calculate the 
 !derivative of yield function with respect to the stress invarants(sigma_m,J2,J3).
-PURE subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev,ISTEP)
+subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev,ISTEP)
 	use solverds
 	implicit none
 	INTEGER,INTENT(IN)::MAT,AYF,ISTEP
@@ -1684,7 +1684,7 @@ end subroutine
 
 !according to material(mat).type and stress invarants, calculate the 
 !derivative of potential function with respect to the stress invarants(sigma_m,J2,J3).
-PURE subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev,ISTEP)
+subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev,ISTEP)
 	use solverds
 	implicit none
 	INTEGER,INTENT(IN)::MAT,AYF,ISTEP
@@ -1874,12 +1874,12 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
             element(ienum).UW(j)=MAX((element(ienum).UW(j)-ELEMENT(IENUM).XYGP(NDIMENSION,J))*9.8,0.D0) !UNSATURATED SOIL IS NOT CONSIDERED.            
         ENDIF
         UW1(1:NDIMENSION)=element(ienum).UW(j) 
-        if(iiter==1) Dstress1=Dstress1+uw1  !Dstress-(-uw1) !µÚÒ»´Îµü´úÊ±£¬ºÉÔØ²úÉúµÄÓ¦Á¦¾ùÎª×ÜÓ¦Á¦£¬´ËÊ±¼õÈ¥¿×Ñ¹·Öµ£µÄÓ¦Á¦,ÒòÎªÔÚ´Ë¼òµ¥¼ÆËãµÃµ½µÄUW²»ÊÇÔöÁ¿¡£ 
+        if(iiter==1) Dstress1=Dstress1+uw1  !Dstress-(-uw1) !ç¬¬ä¸€æ¬¡è¿­ä»£æ—¶ï¼Œè·è½½äº§ç”Ÿçš„åº”åŠ›å‡ä¸ºæ€»åº”åŠ›ï¼Œæ­¤æ—¶å‡å»å­”å‹åˆ†æ‹…çš„åº”åŠ›,å› ä¸ºåœ¨æ­¤ç®€å•è®¡ç®—å¾—åˆ°çš„UWä¸æ˜¯å¢é‡ã€‚ 
 		Tstress1=Dstress1+element(ienum).stress(:,j)
         
         
         
-        IF(istep>0) THEN !IINCS==0,¼Ù¶¨Ö»½¨Á¢µ¯ĞÔÓ¦Á¦³¡¡£
+        IF(istep>0) THEN !IINCS==0,å‡å®šåªå»ºç«‹å¼¹æ€§åº”åŠ›åœºã€‚
             IF(MATERIAL(ELEMENT(IENUM).MAT).TYPE==MC.AND.solver_control.bfgm==consistent) THEN
                 PlasPar=PARA_MC_CLAUSEN(ELEMENT(IENUM).MAT,ISTEP)
                 SIGMAB(1:4)=TSTRESS1(1:4);
@@ -2035,7 +2035,7 @@ subroutine element_activate(istep)
     do concurrent (i=1:enum)
         if(element(i).ec/=soilspring) then
 			if(geostatic.isgeo.and.istep==0) then
-                !Ä¬ÈÏ(base==1)µ¥Ôª¶¼²ÎÓëµØÓ¦Á¦¼ÆËã¡£
+                !é»˜è®¤(base==1)å•å…ƒéƒ½å‚ä¸åœ°åº”åŠ›è®¡ç®—ã€‚
                 if(sf(element(i).sf).base==1) sf(element(i).sf).factor(0)=1.d0
             endif
             if(abs(sf(element(i).sf).factor(istep))>1e-7) then

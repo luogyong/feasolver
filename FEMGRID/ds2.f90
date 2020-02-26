@@ -4,8 +4,8 @@
 	implicit none
 
 	integer,allocatable::b(:),kp1(:)
-    integer::inpn ! 输入点的个数
-    type arr_tydef  !临时数组，存在所有的必须包含在网格中的点
+    integer::inpn ! 杈撳叆鐐圭殑涓暟
+    type arr_tydef  !涓存椂鏁扮粍锛屽瓨鍦ㄦ墍鏈夌殑蹇呴』鍖呭惈鍦ㄧ綉鏍间腑鐨勭偣
 	    integer::num,iss=0,ISAU=1		
 		real(8)::x,y,s=1.D0
 		real(8)::mins=1E10

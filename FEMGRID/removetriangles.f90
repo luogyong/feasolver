@@ -23,14 +23,14 @@
 	
   end subroutine
 
-  !if(callbybuilding==.true.) Ôò»¹ÒªÉ¾³ı¶à±ßĞÎcsltÄÚµÄ½Úµã(ÓÉÓÚ¸Ã²Ù×÷¶Ô±ß½çÉÏµÄ½ÚµãÍ¬ÑùÆğ×÷ÓÃ£¬Ó¦×¢ÒâĞŞ¸´)£¬ÁîÆäsub=9999
+  !if(callbybuilding==.true.) åˆ™è¿˜è¦åˆ é™¤å¤šè¾¹å½¢csltå†…çš„èŠ‚ç‚¹(ç”±äºè¯¥æ“ä½œå¯¹è¾¹ç•Œä¸Šçš„èŠ‚ç‚¹åŒæ ·èµ·ä½œç”¨ï¼Œåº”æ³¨æ„ä¿®å¤)ï¼Œä»¤å…¶sub=9999
   subroutine executeRemoveT(cslt,callbybuilding)
     use meshDS
 	implicit none
 	integer::i,j,c1,c2,c3,iflag
 	integer::count
 	logical::tof,callbybuilding
-	real(8)::xt,yt,xm,ym,xmin1,ymin1,xmax1,ymax1  !xt,yt,Îªµ¥ÔªµÄĞÎĞÄ×ø±ê£¬xm,ym=ytÎªÒ»¸ö×ã¹»Ô¶µÄµã£¬È¡Îªxm=-10e10,Á½Õß¹¹ÔìÁËÒ»ÌõË®Æ½ÉäÏß
+	real(8)::xt,yt,xm,ym,xmin1,ymin1,xmax1,ymax1  !xt,yt,ä¸ºå•å…ƒçš„å½¢å¿ƒåæ ‡ï¼Œxm,ym=ytä¸ºä¸€ä¸ªè¶³å¤Ÿè¿œçš„ç‚¹ï¼Œå–ä¸ºxm=-10e10,ä¸¤è€…æ„é€ äº†ä¸€æ¡æ°´å¹³å°„çº¿
 	real(8)::xa,ya,xb,yb  !
 	real(8)::t1,t2,t3,t4
 	type(constrainline_tydef)::cslt

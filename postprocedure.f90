@@ -28,7 +28,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	
 !	call GS2LS_Displacement()
     !RESET ISACTIVE=2    
-    !¸½Êôµ¥ÔªµÄÒÀ¸½µ¥Ôª±ØĞëÊä³ö£¬¼´Ê¹Æä×´Ì¬isactive=0£¬ÎªÊ¹ÆäÄÜ¹»Êä³ö£¬ÔİÊ±Áîisactive/=0(=2)
+    !é™„å±å•å…ƒçš„ä¾é™„å•å…ƒå¿…é¡»è¾“å‡ºï¼Œå³ä½¿å…¶çŠ¶æ€isactive=0ï¼Œä¸ºä½¿å…¶èƒ½å¤Ÿè¾“å‡ºï¼Œæš‚æ—¶ä»¤isactive/=0(=2)
     
     DO I=1,ENUM
         IF(ELEMENT(I).ISACTIVE==0 &
@@ -113,7 +113,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 		iset1=esetid(i)
 		if(sf(eset(iset1).sf).factor(iincs)==0) cycle
         IF(ESET(ISET1).COUPLESET>0 &            
-            .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !¸½Êôµ¥Ôª²»Êä³ö !!!!!!!
+            .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !é™„å±å•å…ƒä¸è¾“å‡º !!!!!!!
 		write(file_unit,'(a1024)') eset(iset1).zonetitle
 		!if(anybarfamily) write(file_diagram,'(a1024)') eset(iset1).zonetitle
 		
@@ -234,12 +234,12 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 		
     end do
     
-    !»Ö¸´¸½Êôµ¥ÔªµÄÒÀ¸½µ¥ÔªµÄ×´Ì¬
+    !æ¢å¤é™„å±å•å…ƒçš„ä¾é™„å•å…ƒçš„çŠ¶æ€
     DO I=1,ENUM
         IF(ELEMENT(I).ISACTIVE==2) THEN
             ELEMENT(I).ISACTIVE=0
             NODE(ELEMENT(I).NODE).ISACTIVE=0
-            SF(ELEMENT(I).SF).FACTOR(IINCS)=1 !±¾À´Ó¦»Ö¸´Îª0£¬µ«ÎªºóĞøplot funcÄÜ´¦Àí´Ë´ÎÊä³ö£¬ÁîÆäÎª1. 
+            SF(ELEMENT(I).SF).FACTOR(IINCS)=1 !æœ¬æ¥åº”æ¢å¤ä¸º0ï¼Œä½†ä¸ºåç»­plot funcèƒ½å¤„ç†æ­¤æ¬¡è¾“å‡ºï¼Œä»¤å…¶ä¸º1. 
         ENDIF    
     ENDDO
 		
@@ -272,7 +272,7 @@ SUBROUTINE NODAL_ACTIVE_DOF(INODE,DOFS,ADOFS,NDOFS)
 	
 ENDSUBROUTINE
 
-subroutine BC_RHS_OUT(inc,iter,ISUBTS) !Êä³ö½ÚµãºÉÔØ£¨Á¦¡¢Á÷Á¿£©
+subroutine BC_RHS_OUT(inc,iter,ISUBTS) !è¾“å‡ºèŠ‚ç‚¹è·è½½ï¼ˆåŠ›ã€æµé‡ï¼‰
 	use solverds
 	implicit none
 	INTEGER,INTENT(IN)::INC,ITER,ISUBTS
@@ -418,7 +418,7 @@ subroutine tecplot_variables(cstring)
 		nvo=nvo+1
 		vo(nvo)=i
 		outvar(i).ivo=nvo
-		nvo=nvo+outvar(i).nval-1 !Ò»¸ö±äÁ¿°üº¬¶à¸öÊıµÄÇé¿ö
+		nvo=nvo+outvar(i).nval-1 !ä¸€ä¸ªå˜é‡åŒ…å«å¤šä¸ªæ•°çš„æƒ…å†µ
 		cstring=trim(adjustL(cstring))//'"'//trim(adjustL(outvar(i).name))//'",'
 	end do
 
@@ -767,7 +767,7 @@ subroutine pointout_barfamily(file_unit,ieset)
 				end do
 
 			case(Qx,Qy,Qz) !56,57,58
-				!ÔÚ¾Ö²¿×ø±êÏÂ£¬Qx=QMILS(:,1),Qy=QMILS(:,2),Qz=QMILS(:,3),Mx=QMILS(:,4),,My=QMILS(:,5),Mz=QMILS(:,6)
+				!åœ¨å±€éƒ¨åæ ‡ä¸‹ï¼ŒQx=QMILS(:,1),Qy=QMILS(:,2),Qz=QMILS(:,3),Mx=QMILS(:,4),,My=QMILS(:,5),Mz=QMILS(:,6)
 				
 				idof=vo(i)-55
 !				if(vo(i)==Qz) idof=vo(i)-54
@@ -803,13 +803,13 @@ subroutine pointout_barfamily(file_unit,ieset)
 	end do
 	
 	do i=1,n1
-		!1¸ö½Úµã¶ÔÓ¦4¸ö½Úµã£¬Õâ4¸ö½ÚµãÖ»ÊÇx,y,z²»Í¬£¬ÆäËü½ÚµãÁ¿ÏàÍ¬¡£
+		!1ä¸ªèŠ‚ç‚¹å¯¹åº”4ä¸ªèŠ‚ç‚¹ï¼Œè¿™4ä¸ªèŠ‚ç‚¹åªæ˜¯x,y,zä¸åŒï¼Œå…¶å®ƒèŠ‚ç‚¹é‡ç›¸åŒã€‚
         inode1=eset(ieset).outorder(i)
 		do k=1,4
 		
 			x1=nodalQ(i,1,nnodalq)+eset(ieset).xyz_section(1,k)
 			y1=nodalQ(i,2,nnodalq)+eset(ieset).xyz_section(2,k)
-			z1=nodalQ(i,3,nnodalq)+eset(ieset).xyz_section(3,k) !¶ÔÓÚ¸ËÏµµ¥Ôª£¬ÔÚÃüÁîoutdataÖĞ£¬±ØĞëº¬ÓĞZ.
+			z1=nodalQ(i,3,nnodalq)+eset(ieset).xyz_section(3,k) !å¯¹äºæ†ç³»å•å…ƒï¼Œåœ¨å‘½ä»¤outdataä¸­ï¼Œå¿…é¡»å«æœ‰Z.
 			write(file_unit,999) x1,y1,z1,(NodalQ(inode1,j,nnodalq),j=4,nvo)
 		
 		end do
@@ -863,7 +863,7 @@ subroutine Shear_Moment_ILS_barfamily(ieset,QM)
 	
 	do i=1,n1
 		
-		n2=eset(ieset).elist(1,i) !eset(ieset).elist(1) ¿Ï¶¨²»ÎªÁã£»elist(2)ÎªÁã»òÓëelist(1)·´ºÅ¡£
+		n2=eset(ieset).elist(1,i) !eset(ieset).elist(1) è‚¯å®šä¸ä¸ºé›¶ï¼›elist(2)ä¸ºé›¶æˆ–ä¸elist(1)åå·ã€‚
 		n3=eset(ieset).elist(2,i)
 		if(n3/=0) then
 			if(n2>0) then
@@ -871,19 +871,19 @@ subroutine Shear_Moment_ILS_barfamily(ieset,QM)
 				n3=eset(ieset).elist(1,i)
 			end if
 			
-			!µÚ(-n2)µ¥ÔªÖĞ£¬µÚ2¸ö½ÚµãÎªeset(ieset).noutorder(i)
-			!µÚn3µ¥ÔªÖĞ£¬µÚ1¸ö½ÚµãÎªeset(ieset).noutorder(i)		
+			!ç¬¬(-n2)å•å…ƒä¸­ï¼Œç¬¬2ä¸ªèŠ‚ç‚¹ä¸ºeset(ieset).noutorder(i)
+			!ç¬¬n3å•å…ƒä¸­ï¼Œç¬¬1ä¸ªèŠ‚ç‚¹ä¸ºeset(ieset).noutorder(i)		
 			do j=1,n4
 				QM(i,j)=(element(-n2).gforceILS(j+n4)+element(n3).gforceILS(j))/2.
 			end do
 		else
 			if(n2<0) then
-				!µÚ(-n2)µ¥ÔªÖĞ£¬µÚ2¸ö½ÚµãÎªeset(ieset).noutorder(i)
+				!ç¬¬(-n2)å•å…ƒä¸­ï¼Œç¬¬2ä¸ªèŠ‚ç‚¹ä¸ºeset(ieset).noutorder(i)
 				do j=1,n4
 					QM(i,j)=element(-n2).gforceILS(j+n4)
 				end do				
 			else 
-				!µÚ(n2)µ¥ÔªÖĞ£¬µÚ1¸ö½ÚµãÎªeset(ieset).noutorder(i)
+				!ç¬¬(n2)å•å…ƒä¸­ï¼Œç¬¬1ä¸ªèŠ‚ç‚¹ä¸ºeset(ieset).noutorder(i)
 				do j=1,n4
 					QM(i,j)=element(n2).gforceILS(j)
 				end do				
@@ -1084,7 +1084,7 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 		isbarfamily=eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam.or.eset(iset1).et==beam2d.or.eset(iset1).et==ssp2d
 		
 		if(isbarfamily) then
-			write(cword2,*) 4*eset(iset1).noutorder !½«¸ËÏµµ¥ÔªÒÔÁùÃæÌåÊµÌåµ¥ÔªÊä³ö£¬·½±ãºó´¦Àí¡£
+			write(cword2,*) 4*eset(iset1).noutorder !å°†æ†ç³»å•å…ƒä»¥å…­é¢ä½“å®ä½“å•å…ƒè¾“å‡ºï¼Œæ–¹ä¾¿åå¤„ç†ã€‚
 		else
 			write(cword2,*) nnum
 		end if
@@ -1288,7 +1288,7 @@ subroutine generate_brickelement_bar_beam(ieset)
 	allocate(eset(ieset).xyz_section(3,4))
     eset(ieset).xyz_section=0.d0
 	
-	!!!!¼Ù¶¨Í¬Ò»µ¥Ôª¼¯µÄ²ÄÁÏÊÇÒ»ÑùµÄ,¾Ö²¿×ø±êÊÇÒ»Ñù¡£
+	!!!!å‡å®šåŒä¸€å•å…ƒé›†çš„ææ–™æ˜¯ä¸€æ ·çš„,å±€éƒ¨åæ ‡æ˜¯ä¸€æ ·ã€‚
 	if(eset(ieset).et==bar.or.eset(ieset).et==bar2d) hy1=material(element(n1).mat).property(3)
 	if(eset(ieset).et==beam.or.eset(ieset).et==beam2d.or.eset(ieset).et==ssp2d) hy1=material(element(n1).mat).property(7)
 	if(eset(ieset).et==bar.or.eset(ieset).et==bar2d) hz1=material(element(n1).mat).property(4)
@@ -1296,7 +1296,7 @@ subroutine generate_brickelement_bar_beam(ieset)
 	
 	if(abs(hy1)<1e-7) hy1=0.1
 	if(abs(hz1)<1e-7) hz1=0.1
-	!!!!ÔÚ¾Ö²¿×ø±êÏÂµÄ×ø±ê
+	!!!!åœ¨å±€éƒ¨åæ ‡ä¸‹çš„åæ ‡
 	eset(ieset).xyz_section(2,1)=-hy1/2.
 	eset(ieset).xyz_section(3,1)=-hz1/2.
 	eset(ieset).xyz_section(2,2)=hy1/2.
@@ -1306,7 +1306,7 @@ subroutine generate_brickelement_bar_beam(ieset)
 	eset(ieset).xyz_section(2,4)=-hy1/2.
 	eset(ieset).xyz_section(3,4)=hz1/2.
 	
-	!!!!¼Ù¶¨Í¬Ò»µ¥Ôª¼¯µÄ¾Ö²¿×ø±êÊÇÒ»Ñù¡£
+	!!!!å‡å®šåŒä¸€å•å…ƒé›†çš„å±€éƒ¨åæ ‡æ˜¯ä¸€æ ·ã€‚
 	transm1=transpose(element(n1).g2l)
 	
 	do i=1,4
@@ -1350,7 +1350,7 @@ subroutine generate_brickelement_bar_beam(ieset)
 			n4=minloc(abs(eset(ieset).elist(:,n3)),dim=1)
 			
 			if(j==1) eset(ieset).elist(n4,n3)=i
-			if(j==2) eset(ieset).elist(n4,n3)=-i !±íÊ¾µÚi¸öµ¥ÔªµÄµÚ2¸ö½ÚµãÎªn3.
+			if(j==2) eset(ieset).elist(n4,n3)=-i !è¡¨ç¤ºç¬¬iä¸ªå•å…ƒçš„ç¬¬2ä¸ªèŠ‚ç‚¹ä¸ºn3.
 		end do
 	end do
 	
@@ -1405,7 +1405,7 @@ subroutine pointout_barfamily_diagram()
             iset1=esetid(i)
 			IF(eset(iset1).EC/=STRU) CYCLE
 			
-			!Í¬Ò»µ¥Ôª¼¯ÖĞµÄËùÓĞµ¥ÔªµÄ¾Ö²¿×ø±êÒ»Ñù
+			!åŒä¸€å•å…ƒé›†ä¸­çš„æ‰€æœ‰å•å…ƒçš„å±€éƒ¨åæ ‡ä¸€æ ·
 			v1=(/0.d0,1.d0,0.d0/)
 			v1=matmul(transpose(element(eset(iset1).enums).g2l),v1)
 			
@@ -1537,7 +1537,7 @@ subroutine pointout_barfamily_diagram()
         IF(eset(iset1).EC/=STRU) CYCLE
         LCS=0.D0
 
-        !Í¬Ò»¼¯µÄ¾Ö²¿×ø±êÏµÏàÍ¬
+        !åŒä¸€é›†çš„å±€éƒ¨åæ ‡ç³»ç›¸åŒ
                 
         lcs(1:ndimension,1:ndimension)=transpose(element(eset(iset1).enums).g2l(1:ndimension,1:ndimension))*T1
                                       

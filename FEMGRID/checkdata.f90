@@ -149,7 +149,7 @@
 	  scale=1
 
 	  if(allocated(b)) deallocate(b)
-	  allocate(b(inpn)) !����bȥ�жϸõ��Ƿ��Ѿ����
+	  allocate(b(inpn)) !利用b去判断该点是否已经输出
 	  b=0
 	  if(i4>=0) then
          call getwindowcoord(ixpos-15, iypos-15,wxy)
@@ -200,7 +200,7 @@
 		bp=>bp.next
 	 end do
 
-	  !������Ĵ�������ĸ���֮��
+	  !各子域的从属子域的个数之和
 	  n1=0
 
 	  do i=1,cln-ccln-n1

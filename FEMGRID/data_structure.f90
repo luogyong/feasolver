@@ -11,7 +11,7 @@ module meshDS
 					maxntetelt=10000,&
                     modeldimension=3,&
                     INPMethod=1,& !=1,linear, =0, membrance
-                    Zorder=0 !=0ÍÁ²ã¸ß³Ì´ÓÏÂÍùÉÏÊäÈë,=1,·´Ö®¡£
+                    Zorder=0 !=0åœŸå±‚é«˜ç¨‹ä»ä¸‹å¾€ä¸Šè¾“å…¥,=1,åä¹‹ã€‚
     integer,parameter:: ET_PRM=63,&
                     ET_TET=43,Linear=1,Membrance=0
     logical::ismeminpdone=.false.
@@ -25,9 +25,9 @@ module meshDS
     END INTERFACE 
 
 	type point_tydef
-     integer::number,bw !µãµÄ±àºÅ,semibandwidth£¨´ø¿í£©,ºÉÔØÒò×Ó±àºÅ¡£
-	   real(8) x,y,z !µãµÄ×ø±ê
-	   real(8)::s  !¸Ãµã¸½½üµÄµ¥Ôª´óĞ¡
+     integer::number,bw !ç‚¹çš„ç¼–å·,semibandwidthï¼ˆå¸¦å®½ï¼‰,è·è½½å› å­ç¼–å·ã€‚
+	   real(8) x,y,z !ç‚¹çš„åæ ‡
+	   real(8)::s  !è¯¥ç‚¹é™„è¿‘çš„å•å…ƒå¤§å°
 	   INTEGER::SUBBW  !=-999 ,the node is dead.
 	   integer::layer=0,onbdy=0 !nodal layer
        integer::havesoildata=0 ![0,1,2] 0,no;1,partially;2,completely yes.(all soillayers have elevation(no -999)) 
@@ -36,24 +36,24 @@ module meshDS
 	end type
 	type(point_tydef),allocatable,target::node(:)
 	type(point_tydef),allocatable::cp(:)  !control point
-	integer::nnode=0,tnode=0 !µ¥²ã½ÚµãÊı£¬×Ü½ÚµãÊı
+	integer::nnode=0,tnode=0 !å•å±‚èŠ‚ç‚¹æ•°ï¼Œæ€»èŠ‚ç‚¹æ•°
 
 	                            										
 	type BP_tydef !bounded points
 	   type(point_tydef),pointer::npt=>null()
-	   type(BP_tydef),pointer::next=>null()  !previousÖ¸ÏòÇ°Ò»¸öµ¥Ôª£¬nextÖ¸ÏòºóÒ»¸öµ¥Ôª
+	   type(BP_tydef),pointer::next=>null()  !previousæŒ‡å‘å‰ä¸€ä¸ªå•å…ƒï¼ŒnextæŒ‡å‘åä¸€ä¸ªå•å…ƒ
 	end type
 
 	type constrainline_tydef
-	   real(8),pointer::conpoint(:,:)=>null() !¿ØÖÆÏßÉÏ¸÷µãµÄ×ø±ê£¨x,y£©
-	   integer::flag=0,hole=0  !ÊÇ·ñ±ÕºÏ,ÊÇ·ñÊÇÁô¶´ 0Îª·ñ£¬1ÎªÕæ
-	   integer::num,material=0  !¿ØÖÆÏßµãµÄÊıÄ¿,materialÖ»¶Ô·ÀÉøÇ½ÓĞÓÃÎª£¬Îª·ÀÉøÇ½µÄ²ÄÁÏºÅ,
+	   real(8),pointer::conpoint(:,:)=>null() !æ§åˆ¶çº¿ä¸Šå„ç‚¹çš„åæ ‡ï¼ˆx,yï¼‰
+	   integer::flag=0,hole=0  !æ˜¯å¦é—­åˆ,æ˜¯å¦æ˜¯ç•™æ´ 0ä¸ºå¦ï¼Œ1ä¸ºçœŸ
+	   integer::num,material=0  !æ§åˆ¶çº¿ç‚¹çš„æ•°ç›®,materialåªå¯¹é˜²æ¸—å¢™æœ‰ç”¨ä¸ºï¼Œä¸ºé˜²æ¸—å¢™çš„ææ–™å·,
        integer,allocatable::point(:)
 	end type
 	
 
 	type element_tydef
-	   !type(point_tydef),pointer::xy1,xy2,xy3,xy4   !µ¥Ôª¶¥µãµÄ×ø±ê
+	   !type(point_tydef),pointer::xy1,xy2,xy3,xy4   !å•å…ƒé¡¶ç‚¹çš„åæ ‡
 	   logical::isdel=.false.
        INTEGER::NNUM=3
 	   integer::node(15) !6-noded/15-noded triangleelement node in node().
@@ -64,16 +64,16 @@ module meshDS
                                 !42,quadrangle element
 	   integer::zn=1,number,ZN2=-1,mat=-1
 	   integer::edge(3)=0,ORIENT(3)=1 !the edge number in edge set.
-	   real(8)::property(5)=0    !µ¥ÔªÊôĞÔÖµ
-	   integer::kcd=0,Maxedge=0  !µ¥ÔªµÄ¿É·Ö¶È,
+	   real(8)::property(5)=0    !å•å…ƒå±æ€§å€¼
+	   integer::kcd=0,Maxedge=0  !å•å…ƒçš„å¯åˆ†åº¦,
 	   integer::adj(4)=-1 !if =-1,no adjacent element
        INTEGER::MOTHER=0,iLAYER=0,ISMODEL=1
 	end type
-!	type(element_tydef),pointer::Ehead,Ept,element,Etail!Ç°ËÄ¸öÖ¸Ïò»®·ÖºÃµÄµ¥Ôª£¬ºóÁ½¸öÖ¸Ïò°üº¬²åÈëµãµÄÈı½ÇĞÎµ¥Ôª
+!	type(element_tydef),pointer::Ehead,Ept,element,Etail!å‰å››ä¸ªæŒ‡å‘åˆ’åˆ†å¥½çš„å•å…ƒï¼Œåä¸¤ä¸ªæŒ‡å‘åŒ…å«æ’å…¥ç‚¹çš„ä¸‰è§’å½¢å•å…ƒ
 	type(element_tydef),target,allocatable::ELT(:)
 	integer::nelt=0,Pehead=-1,PEpt=-1,IEpt=-1,ept=-1
 	
-	!type PrismElement_tydef !ÅÉÉúµ¥Ôª
+	!type PrismElement_tydef !æ´¾ç”Ÿå•å…ƒ
 	!	logical::isdel=.false.
 	!    integer::nnum
 	!    integer,allocatable::node(:)
@@ -81,7 +81,7 @@ module meshDS
 	!    integer::et=63   !6-noded prism element: 63; 15-noded prism element:153;
 	!                                 !4-noded tetrahedral element:43, second order tetrahedral element: 103
 	!    integer::mat !material 
-	!    integer::nlayer(2)=0 !nlayer(1£¬2) ·Ö±ğÎª¶¥²¿ºÍµ×²¿½Úµã²ãºÅ
+	!    integer::nlayer(2)=0 !nlayer(1ï¼Œ2) åˆ†åˆ«ä¸ºé¡¶éƒ¨å’Œåº•éƒ¨èŠ‚ç‚¹å±‚å·
  !               
 	!end type 
 	!type(PrismElement_tydef),allocatable::PRMELT(:),TetELT(:)
@@ -89,9 +89,9 @@ module meshDS
 	
 	type physicalGroup_type
 		integer::ndim=0
-		integer::icl=-1 !ÓÃcl¿ØÖÆÏß½øĞĞ¶¨Òå
-		integer::nvseg=-1 !ÓÃsegment½øĞĞ¶¨ÒåµÄphysicalgroup  
-		integer::izone=-1 !ÓÃzone½øĞĞ¶¨Òå
+		integer::icl=-1 !ç”¨clæ§åˆ¶çº¿è¿›è¡Œå®šä¹‰
+		integer::nvseg=-1 !ç”¨segmentè¿›è¡Œå®šä¹‰çš„physicalgroup  
+		integer::izone=-1 !ç”¨zoneè¿›è¡Œå®šä¹‰
 		integer::ET_GMSH=0 
 		character(32)::name,ET
 		integer::nelt=0
@@ -106,30 +106,30 @@ module meshDS
 
 	type modelgroup_type
         integer::izone=1,ilayer=0,mat=1,coupleset=-1,sf=0 
-        !¶ÔÓÚ2DµÄÃæµ¥Ôª,ilayer=i,±íÊ¾µÚi¸ö¸ß³ÌÃæ¡£
-        !¶ÔÓÚ2DµÄÃæµ¥Ôª,ilayer=i,±íÊ¾µÚi²ãµ¥Ôª¡£×¢Òâ£¬n²ãµ¥Ôª£¬ÓĞn+1¸ß³ÌÃæ£¬µÚi²ãµ¥ÔªÓÉi-1¼°i²ã¸ß³ÌÃæ×é³É(ÀâÖùµ¥Ôª)¡£
+        !å¯¹äº2Dçš„é¢å•å…ƒ,ilayer=i,è¡¨ç¤ºç¬¬iä¸ªé«˜ç¨‹é¢ã€‚
+        !å¯¹äº2Dçš„é¢å•å…ƒ,ilayer=i,è¡¨ç¤ºç¬¬iå±‚å•å…ƒã€‚æ³¨æ„ï¼Œnå±‚å•å…ƒï¼Œæœ‰n+1é«˜ç¨‹é¢ï¼Œç¬¬iå±‚å•å…ƒç”±i-1åŠiå±‚é«˜ç¨‹é¢ç»„æˆ(æ£±æŸ±å•å…ƒ)ã€‚
         character(32)::et=''
         character(32)::name=''
     endtype
     type(modelgroup_type),allocatable::model(:)
     integer::nmgroup=0
 
-	type size_point_tydef  !µ¥Ôª³ß´ç¿ØÖÆµã
-	    real(8)::x,y,a,d !×ø±ê£¬µÈ²îµÄµÚÒ»Ïî£¬µÈ²î
+	type size_point_tydef  !å•å…ƒå°ºå¯¸æ§åˆ¶ç‚¹
+	    real(8)::x,y,a,d !åæ ‡ï¼Œç­‰å·®çš„ç¬¬ä¸€é¡¹ï¼Œç­‰å·®
 	end type
 
 	type zone_tydef
-	   integer::num,k,OutGmshType=1,iElevation=1 !OutGmshType=1 Physical Volume only; =2 Physical Surface only; =3, both;if OutGmshType=2/3, iElevationÖ¸¶¨Êä³öÄÄ¸ö¸ß³ÌµÄÃæ¡£       
+	   integer::num,k,OutGmshType=1,iElevation=1 !OutGmshType=1 Physical Volume only; =2 Physical Surface only; =3, both;if OutGmshType=2/3, iElevationæŒ‡å®šè¾“å‡ºå“ªä¸ªé«˜ç¨‹çš„é¢ã€‚       
 	   real(8),allocatable::point(:,:)
 	   real(8)::xmin=1e15,ymin=1e15,xmax=-1e15,ymax=-1e15
 	   integer,allocatable::item(:),trie3n(:),Dise4n(:), trie6n(:),trie15n(:)
 	   integer::nitem=0,ntrie3n=0,ndise4n=0,ntrie6n=0,ntrie15n=0  !restriction:nitem=ntrie3n+ndise4n
-	   integer,allocatable::bedge(:),mat(:) !boundary edges id(point to edge),mat=Ã¿²ãÍÁµÄ²ÄÁÏºÅ
+	   integer,allocatable::bedge(:),mat(:) !boundary edges id(point to edge),mat=æ¯å±‚åœŸçš„ææ–™å·
 	   integer::nbe=0 !number of bedge
-       !µ±Éú³ÉPRMºÍTETÊ±£¬ÒÔÏÂ¸÷Á¿»áÓÃµ½
+       !å½“ç”ŸæˆPRMå’ŒTETæ—¶ï¼Œä»¥ä¸‹å„é‡ä¼šç”¨åˆ°
        
        integer,allocatable::NPrm(:),NTet(:),PRM(:,:),TET(:,:),ISMODEL(:) 
-       !ÇøÄÚÃ¿²ãÍÁµÄÀâÖùµ¥ÔªºÍËÄÃæÌåµ¥ÔªµÄ¸öÊı,PRM,Ã¿²ãÀâÖùµ¥ÔªÔÚPRM_ELTÖĞµÄÏÂ±ê,TETÀàËÆ¡£
+       !åŒºå†…æ¯å±‚åœŸçš„æ£±æŸ±å•å…ƒå’Œå››é¢ä½“å•å…ƒçš„ä¸ªæ•°,PRM,æ¯å±‚æ£±æŸ±å•å…ƒåœ¨PRM_ELTä¸­çš„ä¸‹æ ‡,TETç±»ä¼¼ã€‚
        !ISmodel=1,yes output in element form. 
        character(32),allocatable::solver_et(:),NAME(:)
 	end type
@@ -137,17 +137,17 @@ module meshDS
    
  
 	type material_tydef
-	  real(8)::kx=0,ky=0,u=0,angle=0 !Á½¸öÖ÷·½ÏòµÄÉøÍ¸ÏµÊıºÍÖüË®ÏµÊı,angleÎªÉøÍ¸ÏµÊıµÄÖ÷·½ÏòÓë¼¸ºÎ×ø±êµÄ¼Ğ½Ç¡£ÒÔ¶ÈÊäÈë(ÊäÈëºó×ªÎª»¡¶È)£¬Ä¬ÈÏÍ¬Ïò£¬ÄæÊ±Õë·½ÏòÎªÕı¡£
+	  real(8)::kx=0,ky=0,u=0,angle=0 !ä¸¤ä¸ªä¸»æ–¹å‘çš„æ¸—é€ç³»æ•°å’Œè´®æ°´ç³»æ•°,angleä¸ºæ¸—é€ç³»æ•°çš„ä¸»æ–¹å‘ä¸å‡ ä½•åæ ‡çš„å¤¹è§’ã€‚ä»¥åº¦è¾“å…¥(è¾“å…¥åè½¬ä¸ºå¼§åº¦)ï¼Œé»˜è®¤åŒå‘ï¼Œé€†æ—¶é’ˆæ–¹å‘ä¸ºæ­£ã€‚
 	end type
 
 	type ccl_tydef !circular control line
 	   integer::point
-       integer::hole  !ÊÇ·ñÊÇÁô¶´ 0Îª·ñ£¬1ÎªÕæ
+       integer::hole  !æ˜¯å¦æ˜¯ç•™æ´ 0ä¸ºå¦ï¼Œ1ä¸ºçœŸ
 	   real(8)::r
 	   !real(8)::s
 	end type
 
-	type aupoint_tydef !Íø¸ñ»®·Ö¸¨Öúµã
+	type aupoint_tydef !ç½‘æ ¼åˆ’åˆ†è¾…åŠ©ç‚¹
 	   integer::point
 	   real(8)::s
 	end type
@@ -181,11 +181,11 @@ module meshDS
 	
 	type InsertPoint_3DModel
 		real(8)::x,y,z
-		real(8)::ratio=0 !Çó½»µãµÄ±ÈÀıÏµÊı
+		real(8)::ratio=0 !æ±‚äº¤ç‚¹çš„æ¯”ä¾‹ç³»æ•°
 		integer::isMesh=0 !Is the apoint a existing node in the mesh? 0=No;
 		!>0,Yes,the existing point=node(ismesh)
 		integer::InsertingLayer(2)=0 !the two crossing layers generating the point
-		integer::isRepeated=0 !ÊÇ·ñÎªÖØµã£¬0£¬NO¡£>0 ,ÖØµã£¬=ÓëÆäÖØÈ«µÄµÚÒ»¸öµãµÄÏÂ±ê£¬NIP3DM,
+		integer::isRepeated=0 !æ˜¯å¦ä¸ºé‡ç‚¹ï¼Œ0ï¼ŒNOã€‚>0 ,é‡ç‚¹ï¼Œ=ä¸å…¶é‡å…¨çš„ç¬¬ä¸€ä¸ªç‚¹çš„ä¸‹æ ‡ï¼ŒNIP3DM,
 	end type
 	type(InsertPoint_3DModel),pointer::InsertPoint_3DM(:)=>null()
 	integer::nIP3DM=0
@@ -223,11 +223,11 @@ module meshDS
 	
 	
 	Type meminp_tydef
-		integer::icl,nnum !cpphead(icl),control line number£¬control points of icl.
-		integer::nvb !Ï¸·Öºó¿ØÖÆÏßÉÏµãµÄ¸öÊı¡£
+		integer::icl,nnum !cpphead(icl),control line numberï¼Œcontrol points of icl.
+		integer::nvb !ç»†åˆ†åæ§åˆ¶çº¿ä¸Šç‚¹çš„ä¸ªæ•°ã€‚
 		integer,allocatable::cp(:) !for meminp2 to input the control points,cp(nnum)
 		integer,allocatable::nbc(:),niseg(:) !nbc(nvb)
-		real(8),allocatable::elevation(:,:) !elevation(nnum,0:soillayer) £¡¿ØÖÆÏßiclÉÏ¸÷µãµÄ¸ß³Ì¡£
+		real(8),allocatable::elevation(:,:) !elevation(nnum,0:soillayer) ï¼æ§åˆ¶çº¿iclä¸Šå„ç‚¹çš„é«˜ç¨‹ã€‚
 		real(8),allocatable::lincof(:,:,:) !lincof(2,n1,0:soillyger) !if csl(icl).flag==1,n1=nnum,==0,n1=nnum-1
 		real(8),allocatable::vbc(:,:) !vbc(nvb,0:soillyger)
 	end type
@@ -235,17 +235,17 @@ module meshDS
 	integer::nmeminp=0,nmeminp2=0
 
 	integer,allocatable::segindex(:,:) 
-	!´æ´¢Ä£ĞÍÏß¶ÎµÄ£¨²»ÊÇµ¥Ôª±ß£©ÔÚsegÖĞµÄÎ»ÖÃ£¨²»°üÀ¨ÒÔcclĞÎÊ½ÊäÈëµÄ¿ØÖÆÏß£¬ÒòÎªÕâÀà¿ØÖÆÏßÉÏµÄµã²»ÔÚÊäÈëÊı×éÀïÃæ£©¡£
+	!å­˜å‚¨æ¨¡å‹çº¿æ®µçš„ï¼ˆä¸æ˜¯å•å…ƒè¾¹ï¼‰åœ¨segä¸­çš„ä½ç½®ï¼ˆä¸åŒ…æ‹¬ä»¥cclå½¢å¼è¾“å…¥çš„æ§åˆ¶çº¿ï¼Œå› ä¸ºè¿™ç±»æ§åˆ¶çº¿ä¸Šçš„ç‚¹ä¸åœ¨è¾“å…¥æ•°ç»„é‡Œé¢ï¼‰ã€‚
 	type seg_type
         private
-		integer::icl !¸ÃÏß¶ÎÖĞcpphead(icl)ÖĞÎ»ÖÃ
-		integer::sv=0,ev=0 !½ÚµãÔÚÊäÈëÊı×éÖĞµÄÎ»ÖÃ¡£
+		integer::icl !è¯¥çº¿æ®µä¸­cpphead(icl)ä¸­ä½ç½®
+		integer::sv=0,ev=0 !èŠ‚ç‚¹åœ¨è¾“å…¥æ•°ç»„ä¸­çš„ä½ç½®ã€‚
         logical::isini=.false.
-		!integer::isA2Z=1 !ÊÇ·ñÊÇË³Ğò£¬1ÎªË³Ğò£¬¼´ÔÚcpphead(icl)Á´±íÖĞÎªsv-ev. 0Îª·´Ğò£¬ev-sv. 
-		!integer::isT2H=0 !ÊÇ·ñÊÇÎ²Ê×ÏàÁ¬µÄ¶Î¡£=1,yes.
-		integer::nnum=0,nedge=0 !Ï¸·Öºó´ËÏß¶ÎµÄ½Úµã¸öÊı¡£
-		integer,allocatable::node(:),edge(:) !Ï¸·Öºó´ËÏß¶ÎµÄ½ÚµãÔÚtnodeµÄÏÂ±ê,°üÀ¨¶Ë½Úµã¡£
-		!type(BP_tydef),pointer::svp,evp !´Ë½ÚµãÔÚcpphead(icl)ÖĞµÄÎ»ÖÃ
+		!integer::isA2Z=1 !æ˜¯å¦æ˜¯é¡ºåºï¼Œ1ä¸ºé¡ºåºï¼Œå³åœ¨cpphead(icl)é“¾è¡¨ä¸­ä¸ºsv-ev. 0ä¸ºååºï¼Œev-sv. 
+		!integer::isT2H=0 !æ˜¯å¦æ˜¯å°¾é¦–ç›¸è¿çš„æ®µã€‚=1,yes.
+		integer::nnum=0,nedge=0 !ç»†åˆ†åæ­¤çº¿æ®µçš„èŠ‚ç‚¹ä¸ªæ•°ã€‚
+		integer,allocatable::node(:),edge(:) !ç»†åˆ†åæ­¤çº¿æ®µçš„èŠ‚ç‚¹åœ¨tnodeçš„ä¸‹æ ‡,åŒ…æ‹¬ç«¯èŠ‚ç‚¹ã€‚
+		!type(BP_tydef),pointer::svp,evp !æ­¤èŠ‚ç‚¹åœ¨cpphead(icl)ä¸­çš„ä½ç½®
     contains
         procedure::setparas=>seg_set_parameters
         procedure::getparas=>seg_get_parameters
@@ -273,10 +273,10 @@ module meshDS
 	end type
 	type(solver_typdef)::SolverInfo
 
-	type(BP_tydef),pointer::BNhead,BNpt,BP !È·¶¨Ä£ĞÍÍâ±ß½çµÄ¹Ø¼üµã
+	type(BP_tydef),pointer::BNhead,BNpt,BP !ç¡®å®šæ¨¡å‹å¤–è¾¹ç•Œçš„å…³é”®ç‚¹
 	type(constrainline_tydef),allocatable::csl(:)
 	type(BP_tydef),pointer::cpp,cpptail
-	type(BP_tydef),allocatable,target::cpphead(:) !Ö¸ÏòĞÎ³É¿ØÖÆÏßµÄµãµÄ¶ÓÁĞ£¬Îª¼ì²é¿ØÖÆÏßÊÇ·ñÔÚÈı½ÇĞÎµÄ±ßÉÏ×ö×¼±¸
+	type(BP_tydef),allocatable,target::cpphead(:) !æŒ‡å‘å½¢æˆæ§åˆ¶çº¿çš„ç‚¹çš„é˜Ÿåˆ—ï¼Œä¸ºæ£€æŸ¥æ§åˆ¶çº¿æ˜¯å¦åœ¨ä¸‰è§’å½¢çš„è¾¹ä¸Šåšå‡†å¤‡
 !	type(element_tydef),target::element
  	type(size_point_tydef),allocatable::s_P(:)
 	type(zone_tydef),TARGET,allocatable::zone(:)
@@ -290,42 +290,42 @@ module meshDS
 
    ! type(element_tydef)::CE(20)
 	integer::isnorefined=0
-   	integer::ENUMBER=0  !µ¥ÔªµÄ¸öÊı
-!	integer::nnode !ÓĞĞ§µÄ½ÚµãÊı
+   	integer::ENUMBER=0  !å•å…ƒçš„ä¸ªæ•°
+!	integer::nnode !æœ‰æ•ˆçš„èŠ‚ç‚¹æ•°
     integer::keypn  !key point numbers
     integer::cnn   !control point numbers
 	integer::cln  !constrainline numbers
 	real(8)::winxul,winxlr,winyul,winylr !for graphic
-	real(8)::triangle(2,3) !Íâ°üÈı½ÇĞÎÈı¸ö¶¥µã×ø±ê
+	real(8)::triangle(2,3) !å¤–åŒ…ä¸‰è§’å½¢ä¸‰ä¸ªé¡¶ç‚¹åæ ‡
 	integer(4)::i4
-	integer::sizepoint  !!µ¥Ôª³ß´ç¿ØÖÆµãµÄ¸öÊı¡£
-	integer::znum=1   !ÇøÓòÊı,·ÖÇøÓò»®·ÖÊı¡£µ¥ÇøÓò»®·ÖÊ±£¬zone²»ÄÜÎª¿Õ¡£
-	integer::mnum   !²ÄÁÏÊı
-	integer::hqnum  !¸ø¶¨Ë®Í·µÄ±ß±ß½ç
-	integer::ccln   !Ô²ĞÎ¿ØÖÆÏßµÄ¸öÊı
+	integer::sizepoint  !!å•å…ƒå°ºå¯¸æ§åˆ¶ç‚¹çš„ä¸ªæ•°ã€‚
+	integer::znum=1   !åŒºåŸŸæ•°,åˆ†åŒºåŸŸåˆ’åˆ†æ•°ã€‚å•åŒºåŸŸåˆ’åˆ†æ—¶ï¼Œzoneä¸èƒ½ä¸ºç©ºã€‚
+	integer::mnum   !ææ–™æ•°
+	integer::hqnum  !ç»™å®šæ°´å¤´çš„è¾¹è¾¹ç•Œ
+	integer::ccln   !åœ†å½¢æ§åˆ¶çº¿çš„ä¸ªæ•°
 	integer::aupn
-	character(256)::resultfile,checkfile,title,path_name	!Êä³öÎÄ¼şµÄÎÄ¼şÃû
-	integer,allocatable::cclincsl(:) !coffwnum(:)¼ÇÂ¼·ÀÉøÇ½ÔÚcslÊı×éÖĞµÄÎ»ÖÃ,buildingincsl(:)¼ÇÂ¼½á¹¹ÎïÔÚÔÚcslÊı×éÖĞµÄÎ»ÖÃ
-	integer,allocatable::Noutputorder(:) !¼ÇÂ¼node(i)Êı×éµÄÊä³öË³Ğò£¬Èç¹ûnoutputorder(j)=i£¬Ôò½Úµãnode(i)Êä³öË³ĞòÎªÎªj.
+	character(256)::resultfile,checkfile,title,path_name	!è¾“å‡ºæ–‡ä»¶çš„æ–‡ä»¶å
+	integer,allocatable::cclincsl(:) !coffwnum(:)è®°å½•é˜²æ¸—å¢™åœ¨cslæ•°ç»„ä¸­çš„ä½ç½®,buildingincsl(:)è®°å½•ç»“æ„ç‰©åœ¨åœ¨cslæ•°ç»„ä¸­çš„ä½ç½®
+	integer,allocatable::Noutputorder(:) !è®°å½•node(i)æ•°ç»„çš„è¾“å‡ºé¡ºåºï¼Œå¦‚æœnoutputorder(j)=iï¼Œåˆ™èŠ‚ç‚¹node(i)è¾“å‡ºé¡ºåºä¸ºä¸ºj.
 	integer::topstk=0,dln=0
-	integer::tt=1,slrn  !tt,Îª×Ü²½Êı,slrnÎªslrnµÄ¸öÊı
+	integer::tt=1,slrn  !tt,ä¸ºæ€»æ­¥æ•°,slrnä¸ºslrnçš„ä¸ªæ•°
 !	integer,allocatable::edge(:,:) !store two end points of edges of all triangle elements.  edge(nedge,2)
 !	integer::nedge=0 !the edges of all triangle element 
 	
 	integer::maxadj=100  !the maximum adjacent vertice 
 
-	real(8),allocatable::STR(:) ! STEP-TIME RELATIONSHIP,¼ÇÂ¼Ã¿Ò»²½µÄ²½³¤¡£Ö»ÓĞÒ»¸ö¡£Êı×éÏÂ±êÊÇ²½Êı
-	real(8),allocatable::SLR(:,:)  ! STEP-LOAD RELATIONSHIP, ¼ÇÂ¼µÚÒ»²½µÄºÉÔØÒò×Ó.µÚÒ»¸öÊı×éÏÂ±êÊÇ²½Êı¡£µÚ¶ş¸öÏÂ±êÊÇ¹ØÏµÊı£¬¿ÉÓĞ¶à¸öslr¹ØÏµ£¬Ó¦ÓÃÔÚ²»Í¬µÄ±ß½çÉÏ¡£
-	integer,allocatable::SOR(:) ! STEP-OUT RELATIONSHIP ±êÊ¾ÄÄ¼¸²½ÊÇÒªÊä³öµÄ,1,Êä³ö,0,²»Êä³ö¡£SRT,SLR,SORµÄµÚÒ»¸öÏÂ±ê´óĞ¡Ó¦Ò»ÖÂ¡£	
-	real(8)::ic=0. !³õÊ¼Ìõ¼ş¡£-999ÔÚÇó½âÆ÷ÖĞ´ÓÎÄ¼ş¶ÁÈë£¬-9999,±íÊ¾³õÊ¼Ìõ¼şÎªÊäÈë³õÊ¼Ë®Î»¡£
-	integer,allocatable::dataline(:)!Ö¸³öÒªÊä³öÊı¾İµÄÊı¾İÏßÔÚcpphead(i)ÖĞµÄi£¬Ò²ÊÇÖ¸ÔÚcsl(i)ÖĞµÄi,Íâ±ß½çµÄi=0
-	integer::issupel=0,bnum=0,inum=0,saupn=0,iskpm=0 !saupn,³¬µ¥ÔªÄÚ²¿±£Áô½ÚµãµÄ¸öÊı;iskbm,±ß½çµãÊÇ·ñÒª½øÒ»²½Ï¸·Ö£¬0:yes,others:No. default value:yes.
+	real(8),allocatable::STR(:) ! STEP-TIME RELATIONSHIP,è®°å½•æ¯ä¸€æ­¥çš„æ­¥é•¿ã€‚åªæœ‰ä¸€ä¸ªã€‚æ•°ç»„ä¸‹æ ‡æ˜¯æ­¥æ•°
+	real(8),allocatable::SLR(:,:)  ! STEP-LOAD RELATIONSHIP, è®°å½•ç¬¬ä¸€æ­¥çš„è·è½½å› å­.ç¬¬ä¸€ä¸ªæ•°ç»„ä¸‹æ ‡æ˜¯æ­¥æ•°ã€‚ç¬¬äºŒä¸ªä¸‹æ ‡æ˜¯å…³ç³»æ•°ï¼Œå¯æœ‰å¤šä¸ªslrå…³ç³»ï¼Œåº”ç”¨åœ¨ä¸åŒçš„è¾¹ç•Œä¸Šã€‚
+	integer,allocatable::SOR(:) ! STEP-OUT RELATIONSHIP æ ‡ç¤ºå“ªå‡ æ­¥æ˜¯è¦è¾“å‡ºçš„,1,è¾“å‡º,0,ä¸è¾“å‡ºã€‚SRT,SLR,SORçš„ç¬¬ä¸€ä¸ªä¸‹æ ‡å¤§å°åº”ä¸€è‡´ã€‚	
+	real(8)::ic=0. !åˆå§‹æ¡ä»¶ã€‚-999åœ¨æ±‚è§£å™¨ä¸­ä»æ–‡ä»¶è¯»å…¥ï¼Œ-9999,è¡¨ç¤ºåˆå§‹æ¡ä»¶ä¸ºè¾“å…¥åˆå§‹æ°´ä½ã€‚
+	integer,allocatable::dataline(:)!æŒ‡å‡ºè¦è¾“å‡ºæ•°æ®çš„æ•°æ®çº¿åœ¨cpphead(i)ä¸­çš„iï¼Œä¹Ÿæ˜¯æŒ‡åœ¨csl(i)ä¸­çš„i,å¤–è¾¹ç•Œçš„i=0
+	integer::issupel=0,bnum=0,inum=0,saupn=0,iskpm=0 !saupn,è¶…å•å…ƒå†…éƒ¨ä¿ç•™èŠ‚ç‚¹çš„ä¸ªæ•°;iskbm,è¾¹ç•Œç‚¹æ˜¯å¦è¦è¿›ä¸€æ­¥ç»†åˆ†ï¼Œ0:yes,others:No. default value:yes.
 	real(8)::precision=1e-7
 
 	integer,allocatable::isLM(:) ! the islm(i)=a, zone is to be meshed into a limit analaysis grid.
 	integer::nislm=0,nninseg=0,isoffset=0
 	real(8)::xyscale=1.0D0
-	!real(8),allocatable::GeoElevation(:,:) !geoelevation(nnode,nlayer),´æ´¢¸÷½ÚµãµØ²ã¸ß³ÌĞÅÏ¢£¬´ÓÉÏ¶øÏÂ´æ´¢¡£
+	!real(8),allocatable::GeoElevation(:,:) !geoelevation(nnode,nlayer),å­˜å‚¨å„èŠ‚ç‚¹åœ°å±‚é«˜ç¨‹ä¿¡æ¯ï¼Œä»ä¸Šè€Œä¸‹å­˜å‚¨ã€‚
 	!integer::nlayer=1 !soil layer
 	real(8),allocatable::elevation(:,:)
 	integer,allocatable::nlayer(:,:) !elevation data of each node. the value of 
@@ -338,14 +338,14 @@ module meshDS
     character(512)::COPYFILE(100)
 	INTEGER::NCOPYFILE=0
 contains
-   !°Ñ×Ö·û´®ÖĞÏàµ±µÄÊı×Ö×Ö·û(°üÀ¨¸¡µãĞÍ)×ª»¯Îª¶ÔÓ¦µÄÊı×Ö
-   !Èç '123'×ªÎª123,'14-10'×ªÎª14,13,12,11,10
-   !stringÖĞ×ª»¯ºóµÄÊı×ÖÒÔÊı×éar(n1)·µ»Ø£¬ÆäÖĞ,n1Îª×Ö·û´®ÖĞÊı×ÖµÄ¸öÊı:(×¢¡¡1-3×ª»¯ºóÎª3¸öÊı×Ö£º1,2,3)
-   !nmaxÎªÊı×éarµÄ´óĞ¡,stringÄ¬ÈÏ×Ö·û³¤¶ÈÎª256¡£
-   !num_readÎªÒª¶ÁÈëÊı¾İµÄ¸öÊı¡£
-   !unitÎªÎÄ¼şºÅ
-   !Ã¿´ÎÖ»¶ÁÈëÒ»¸öÓĞĞ§ĞĞ£¨²»ÒÔ'/'¿ªÍ·µÄĞĞ£©
-   !Ã¿ĞĞºóÃæÒÔ'/'¿ªÊ¼µÄºóÃæµÄ×Ö·ûÊÇÎŞĞ§µÄ¡£
+   !æŠŠå­—ç¬¦ä¸²ä¸­ç›¸å½“çš„æ•°å­—å­—ç¬¦(åŒ…æ‹¬æµ®ç‚¹å‹)è½¬åŒ–ä¸ºå¯¹åº”çš„æ•°å­—
+   !å¦‚ '123'è½¬ä¸º123,'14-10'è½¬ä¸º14,13,12,11,10
+   !stringä¸­è½¬åŒ–åçš„æ•°å­—ä»¥æ•°ç»„ar(n1)è¿”å›ï¼Œå…¶ä¸­,n1ä¸ºå­—ç¬¦ä¸²ä¸­æ•°å­—çš„ä¸ªæ•°:(æ³¨ã€€1-3è½¬åŒ–åä¸º3ä¸ªæ•°å­—ï¼š1,2,3)
+   !nmaxä¸ºæ•°ç»„arçš„å¤§å°,stringé»˜è®¤å­—ç¬¦é•¿åº¦ä¸º256ã€‚
+   !num_readä¸ºè¦è¯»å…¥æ•°æ®çš„ä¸ªæ•°ã€‚
+   !unitä¸ºæ–‡ä»¶å·
+   !æ¯æ¬¡åªè¯»å…¥ä¸€ä¸ªæœ‰æ•ˆè¡Œï¼ˆä¸ä»¥'/'å¼€å¤´çš„è¡Œï¼‰
+   !æ¯è¡Œåé¢ä»¥'/'å¼€å§‹çš„åé¢çš„å­—ç¬¦æ˜¯æ— æ•ˆçš„ã€‚
    subroutine  strtoint(unit,ar,nmax,n1,num_read,isall)
 	  implicit none
 	  integer::i,j,k,strl,ns,ne,n1,n2,n3,step,nmax,num_read,unit,ef,n4
@@ -376,7 +376,7 @@ contains
 
 		 if(string(1:1)/='/') then
 			
-			!Ã¿ĞĞºóÃæÒÔ'/'¿ªÊ¼µÄºóÃæµÄ×Ö·ûÊÇÎŞĞ§µÄ¡£
+			!æ¯è¡Œåé¢ä»¥'/'å¼€å§‹çš„åé¢çš„å­—ç¬¦æ˜¯æ— æ•ˆçš„ã€‚
 			if(index(string,'/')/=0) then
 				strL=index(string,'/')-1
 				string=string(1:strL)
@@ -410,7 +410,7 @@ contains
 				    if(n3>1) then
 				         tof1=(substring(n3-1:n3-1)/='e'.and.substring(n3-1:n3-1)/='E')
 				    end if				  
-				  if(tof1) then !´¦ÀíÀàËÆÓÚ'1-5'ÕâÑùµÄĞÎÊ½µÄ¶ÁÈëÊı¾İ
+				  if(tof1) then !å¤„ç†ç±»ä¼¼äº'1-5'è¿™æ ·çš„å½¢å¼çš„è¯»å…¥æ•°æ®
 					 read(substring(1:n3-1),'(i8)') ns
 					 read(substring(n3+1:n2),'(i8)') ne
 					 if(ns>ne) then
@@ -427,7 +427,7 @@ contains
 				         if(n4>1) then
 				             tof2=(substring(n4-1:n4-1)/='e'.and.substring(n4-1:n4-1)/='E')
 				         end if					 
-					 if(tof2) then !´¦ÀíÀàËÆÓÚ'1*5'(±íÊ¾5¸ö1)ÕâÑùµÄĞÎÊ½µÄ¶ÁÈëÊı¾İ
+					 if(tof2) then !å¤„ç†ç±»ä¼¼äº'1*5'(è¡¨ç¤º5ä¸ª1)è¿™æ ·çš„å½¢å¼çš„è¯»å…¥æ•°æ®
 						 read(substring(1:n4-1),*) t1
 						 read(substring(n4+1:n2),'(i8)') ne
 						 ar((n1+1):(n1+ne))=t1
@@ -577,7 +577,7 @@ ENDSUBROUTINE
         xj=arr_t(this.ev).x;yj=arr_t(this.ev).y
         n1=0;nnode1=0
         
-        node.subbw=0!½èÓÃ
+        node.subbw=0!å€Ÿç”¨
         node.layer=0
         do j=1,ncedge
             if(cedge(j).cl/=this.icl) cycle

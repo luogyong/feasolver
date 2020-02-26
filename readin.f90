@@ -196,7 +196,7 @@
 		do i=0,nstep
 			timestep(I).nsubts=1
 			allocate(timestep(i).subts(1)) 
-			timestep(i).subts(1)=1.d0  !ÈçÎªÎÈÌ¬·ÖÎö£¬Ôò´ËÊ±¼ä²½³¤ÎªĞé²½³¤¡£
+			timestep(i).subts(1)=1.d0  !å¦‚ä¸ºç¨³æ€åˆ†æï¼Œåˆ™æ­¤æ—¶é—´æ­¥é•¿ä¸ºè™šæ­¥é•¿ã€‚
 		end do  
 		timestep(0).nsubts=0
 		Timestep(0).subts(1)=0.d0 
@@ -276,8 +276,8 @@
 		end do
 	end if
 	
-	!!!ÒÔË®Í·ÎªÎ´ÖªÁ¿µÄÉøÁ÷Ä£ĞÍ£¬Ë®Í·²»¾ßÓĞµş¼ÓĞÔ£¬µ¼ÖÂÆä¶à²½Çó½âÊ±ÓëÒÔÎ»ÒÆÎªÎ´ÖªÁ¿µÄÆäËüÄ£ĞÍ²»Í¬£¬±ØĞë×¢Òâ¡£
-    !!!¼Ù¶¨£¬Èç¹ûÎªÉøÁ÷Ä£ĞÍ£¬ÔòÄ£ĞÍÖĞËùÓĞµÄµ¥Ôª¾ùÎªÉøÁ÷µ¥Ôª¡£
+	!!!ä»¥æ°´å¤´ä¸ºæœªçŸ¥é‡çš„æ¸—æµæ¨¡å‹ï¼Œæ°´å¤´ä¸å…·æœ‰å åŠ æ€§ï¼Œå¯¼è‡´å…¶å¤šæ­¥æ±‚è§£æ—¶ä¸ä»¥ä½ç§»ä¸ºæœªçŸ¥é‡çš„å…¶å®ƒæ¨¡å‹ä¸åŒï¼Œå¿…é¡»æ³¨æ„ã€‚
+    !!!å‡å®šï¼Œå¦‚æœä¸ºæ¸—æµæ¨¡å‹ï¼Œåˆ™æ¨¡å‹ä¸­æ‰€æœ‰çš„å•å…ƒå‡ä¸ºæ¸—æµå•å…ƒã€‚
 	!if(solver_control.type/=spg.and.(element(1).ec==spg2d.or.element(1).ec==spg.or.element(1).ec==cax_spg)) then
 	!	solver_control.type=spg
 	!end if
@@ -306,7 +306,7 @@
 		do j=1,bl_num
 			if(bc_load(j).node==smnp(i).master.and.bc_load(j).dof==smnp(i).mdof) then
 				smnp(i).nmbl=smnp(i).nmbl+1
-				if(smnp(i).nmbl>10) stop "smnp(i).nmbl>10.×÷ÓÃÔÚmaster½Úµãmdof¶ÈµÄºÉÔØ¸öÊı×î¶à10."
+				if(smnp(i).nmbl>10) stop "smnp(i).nmbl>10.ä½œç”¨åœ¨masterèŠ‚ç‚¹mdofåº¦çš„è·è½½ä¸ªæ•°æœ€å¤š10."
 				smnp(i).mbl(smnp(i).nmbl)=j
 			end if
 		end do
@@ -394,7 +394,7 @@ subroutine read_execute(unit,itype,keyword,COMMAND_PARSER)
 			strL=len_trim(term2)
 			if(strL==0.or.term2(1:2)=='//'.or.term2(1:1)=='#') cycle		
 
-			!Ã¿ĞĞºóÃæÒÔ'/'¿ªÊ¼µÄºóÃæµÄ×Ö·ûÊÇÎŞĞ§µÄ¡£
+			!æ¯è¡Œåé¢ä»¥'/'å¼€å§‹çš„åé¢çš„å­—ç¬¦æ˜¯æ— æ•ˆçš„ã€‚
 			if(index(term2,'//')/=0) then
 				strL=index(term2,'//')-1
 				term2=term2(1:strL)
@@ -927,7 +927,7 @@ subroutine solvercommand(term,unit)
 				element1(i).sf=sf1
                 element1(i).eshape=eshp1
 				if(et1==beam) element1(i).system=system1
-        !        if(element1(i).et==wellbore) then  !wellbore µ¥ÔªÓĞÁ½ÖÖÇé¿ö£¬2½ÚµãºÍ4½Úµã
+        !        if(element1(i).et==wellbore) then  !wellbore å•å…ƒæœ‰ä¸¤ç§æƒ…å†µï¼Œ2èŠ‚ç‚¹å’Œ4èŠ‚ç‚¹
 				    !element1(i).ndof=n1
 				    !element1(i).nd=n1                    
         !            if(n1==2) element1(i).et=pipe2
@@ -1068,8 +1068,8 @@ subroutine solvercommand(term,unit)
 						ENDIF
 					case(eip_bar)
 						if(n1<=4) then
-							material(matid1).property(5)=-1.0D20 !×î´óÖáÏòÑ¹Á¦
-							material(matid1).property(6)=1.0D20	 !×î´óµÄÖáÏòÀ­Á¦
+							material(matid1).property(5)=-1.0D20 !æœ€å¤§è½´å‘å‹åŠ›
+							material(matid1).property(6)=1.0D20	 !æœ€å¤§çš„è½´å‘æ‹‰åŠ›
 						end if
 				end select
 				
@@ -1116,7 +1116,7 @@ subroutine solvercommand(term,unit)
 				bf1(i).sf=n4								
 				if(n1>=4) bf1(i).sf=int(ar(4))
 				bf1(i).isdual=n3
-				if(n1>=5) bf1(i).isdual=int(ar(5)) !Í¬ÊÇÒ²¿ÉÄÜÊÇ³öÒç±ß½ç
+				if(n1>=5) bf1(i).isdual=int(ar(5)) !åŒæ˜¯ä¹Ÿå¯èƒ½æ˜¯å‡ºæº¢è¾¹ç•Œ
 				bf1(i).ssp_onepile=n2
 				if(n1>=6) bf1(i).ssp_onepile=int(ar(6))
                 IF(N1>=7) bf1(i).isincrement=int(ar(7))
@@ -1159,7 +1159,7 @@ subroutine solvercommand(term,unit)
 				bf1(i).sf=n4								
 				if(n1>=4) bf1(i).sf=int(ar(4))
 				bf1(i).isdual=n3
-				if(n1>=5) bf1(i).isdual=int(ar(5)) !Í¬ÊÇÒ²¿ÉÄÜÊÇ³öÒç±ß½ç
+				if(n1>=5) bf1(i).isdual=int(ar(5)) !åŒæ˜¯ä¹Ÿå¯èƒ½æ˜¯å‡ºæº¢è¾¹ç•Œ
 				bf1(i).ssp_onepile=n2
 				if(n1>=6) bf1(i).ssp_onepile=int(ar(6))
 
@@ -1264,7 +1264,7 @@ subroutine solvercommand(term,unit)
 				bf1(i).sf=n4								
 				if(n1>=4) bf1(i).sf=int(ar(4))
 				bf1(i).isdual=n3
-				if(n1>=5) bf1(i).isdual=int(ar(5)) !Í¬ÊÇÒ²¿ÉÄÜÊÇ³öÒç±ß½ç
+				if(n1>=5) bf1(i).isdual=int(ar(5)) !åŒæ˜¯ä¹Ÿå¯èƒ½æ˜¯å‡ºæº¢è¾¹ç•Œ
 				bf1(i).ssp_onepile=n2
 				if(n1>=6) bf1(i).ssp_onepile=int(ar(6))
                 if(n1>=7) bf1(i).isincrement=int(ar(7))
@@ -1670,7 +1670,7 @@ subroutine solvercommand(term,unit)
                         slopeparameter.BCEXIT(1:3,I)=[slopeparameter.NODE(1,nint(AR(1:2))),AR(3)]
                     endif
                     IF(N1>3.AND.N1<=6) THEN
-                        slopeparameter.BCEXIT(4:N1,I)=AR(4:N1) !ENTRY(3,)=-9999,then its value is cal by A*x+B*y+C£¬ and A B C  is input here.
+                        slopeparameter.BCEXIT(4:N1,I)=AR(4:N1) !ENTRY(3,)=-9999,then its value is cal by A*x+B*y+Cï¼Œ and A B C  is input here.
                         !slopeparameter.BCEXIT(3,I)=-9999.D0
                     ENDIF
                     call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
@@ -1690,11 +1690,11 @@ subroutine solvercommand(term,unit)
             !call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
             !slopeparameter.xcl=ar(1)
             !slopeparameter.xcr=ar(2) 
-            !slopeparameter.xcv=ar(3) !-999,°´Ô­Öµ£¬²»±ä
+            !slopeparameter.xcv=ar(3) !-999,æŒ‰åŸå€¼ï¼Œä¸å˜
             !call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
             !slopeparameter.xtl=ar(1)
             !slopeparameter.xtr=ar(2) 
-            !slopeparameter.xtv=ar(3) !-999,°´Ô­Öµ£¬²»±ä           
+            !slopeparameter.xtv=ar(3) !-999,æŒ‰åŸå€¼ï¼Œä¸å˜           
             !!if(n1>3) then
             !!    slopeparameter.entry_fun=ar(4:6)
             !!endif
@@ -2506,14 +2506,14 @@ end subroutine
 
 
 
-   !°Ñ×Ö·û´®ÖĞÏàµ±µÄÊı×Ö×Ö·û(°üÀ¨¸¡µãĞÍ)×ª»¯Îª¶ÔÓ¦µÄÊı×Ö
-   !Èç '123'×ªÎª123,'14-10'×ªÎª14,13,12,11,10
-   !stringÖĞ×ª»¯ºóµÄÊı×ÖÒÔÊı×éar(n1)·µ»Ø£¬ÆäÖĞ,n1Îª×Ö·û´®ÖĞÊı×ÖµÄ¸öÊı:(×¢¡¡1-3×ª»¯ºóÎª3¸öÊı×Ö£º1,2,3)
-   !nmaxÎªÊı×éarµÄ´óĞ¡,stringÄ¬ÈÏ×Ö·û³¤¶ÈÎª1024¡£
-   !num_readÎªÒª¶ÁÈëÊı¾İµÄ¸öÊı¡£
-   !unitÎªÎÄ¼şºÅ
-   !Ã¿´ÎÖ»¶ÁÈëÒ»¸öÓĞĞ§ĞĞ£¨²»ÒÔ'/'¿ªÍ·µÄĞĞ£©
-   !Ã¿ĞĞºóÃæÒÔ'/'¿ªÊ¼µÄºóÃæµÄ×Ö·ûÊÇÎŞĞ§µÄ¡£
+   !æŠŠå­—ç¬¦ä¸²ä¸­ç›¸å½“çš„æ•°å­—å­—ç¬¦(åŒ…æ‹¬æµ®ç‚¹å‹)è½¬åŒ–ä¸ºå¯¹åº”çš„æ•°å­—
+   !å¦‚ '123'è½¬ä¸º123,'14-10'è½¬ä¸º14,13,12,11,10
+   !stringä¸­è½¬åŒ–åçš„æ•°å­—ä»¥æ•°ç»„ar(n1)è¿”å›ï¼Œå…¶ä¸­,n1ä¸ºå­—ç¬¦ä¸²ä¸­æ•°å­—çš„ä¸ªæ•°:(æ³¨ã€€1-3è½¬åŒ–åä¸º3ä¸ªæ•°å­—ï¼š1,2,3)
+   !nmaxä¸ºæ•°ç»„arçš„å¤§å°,stringé»˜è®¤å­—ç¬¦é•¿åº¦ä¸º1024ã€‚
+   !num_readä¸ºè¦è¯»å…¥æ•°æ®çš„ä¸ªæ•°ã€‚
+   !unitä¸ºæ–‡ä»¶å·
+   !æ¯æ¬¡åªè¯»å…¥ä¸€ä¸ªæœ‰æ•ˆè¡Œï¼ˆä¸ä»¥'/'å¼€å¤´çš„è¡Œï¼‰
+   !æ¯è¡Œåé¢ä»¥'/'å¼€å§‹çš„åé¢çš„å­—ç¬¦æ˜¯æ— æ•ˆçš„ã€‚
    subroutine  strtoint(unit,ar,nmax,n1,num_read,set,maxset,nset)
 	  implicit none
       INTEGER,INTENT(IN)::unit,nmax,num_read,maxset
@@ -2554,7 +2554,7 @@ end subroutine
 
 		 if(string(1:2)/='//'.and.string(1:1)/='#') then
 			
-			!Ã¿ĞĞºóÃæÒÔ'/'¿ªÊ¼µÄºóÃæµÄ×Ö·ûÊÇÎŞĞ§µÄ¡£
+			!æ¯è¡Œåé¢ä»¥'/'å¼€å§‹çš„åé¢çš„å­—ç¬¦æ˜¯æ— æ•ˆçš„ã€‚
 			if(index(string,'//')/=0) then
 				strL=index(string,'//')-1
 				string=string(1:strL)
@@ -2587,7 +2587,7 @@ end subroutine
 				if(n3>1) then
 				    tof1=(substring(i)(n3-1:n3-1)/='e'.and.substring(i)(n3-1:n3-1)/='E')
 				end if
-				if(tof1) then !´¦ÀíÀàËÆÓÚ'1-5'ÕâÑùµÄĞÎÊ½µÄ¶ÁÈëÊı¾İ
+				if(tof1) then !å¤„ç†ç±»ä¼¼äº'1-5'è¿™æ ·çš„å½¢å¼çš„è¯»å…¥æ•°æ®
 					read(substring(i)(1:n3-1),'(i8)') ns
 					read(substring(i)(n3+1:n2),'(i8)') ne
 					if(ns>ne) then
@@ -2604,7 +2604,7 @@ end subroutine
 				     if(n4>1) then
 				             tof2=(substring(i)(n4-1:n4-1)/='e'.and.substring(i)(n4-1:n4-1)/='E')
 				     end if
-					if(tof2) then !´¦ÀíÀàËÆÓÚ'1*5'(±íÊ¾5¸ö1)ÕâÑùµÄĞÎÊ½µÄ¶ÁÈëÊı¾İ
+					if(tof2) then !å¤„ç†ç±»ä¼¼äº'1*5'(è¡¨ç¤º5ä¸ª1)è¿™æ ·çš„å½¢å¼çš„è¯»å…¥æ•°æ®
 						read(substring(i)(1:n4-1),*) t1
 						read(substring(i)(n4+1:n2),'(i8)') ne
 						ar((n1+1):(n1+ne))=t1
@@ -2659,7 +2659,7 @@ subroutine translatetoproperty(term)
 	integer::ns,ne,nc
 	character(128)::str(50)
 	
-	if(index(term,'//')/=0) then !Ã¿Ò»ĞĞ¡®/¡¯ºóÃæµÄÄÚÈİÊÇÎŞĞ§µÄ¡£
+	if(index(term,'//')/=0) then !æ¯ä¸€è¡Œâ€˜/â€™åé¢çš„å†…å®¹æ˜¯æ— æ•ˆçš„ã€‚
 		strL=index(term,'//')-1
 		term=term(1:strL)
 	end if
@@ -3266,10 +3266,10 @@ end subroutine
 !=============================================================  
 subroutine StringSplit(InStr,delimiter,StrArray,nsize)  
 !----------------------------------------------  
-!---½«×Ö·û´®InStr½øĞĞ·Ö¸î,½á¹û·ÅÈëStrArrayÖĞ  
-!---delimiter::·Ö¸ô·ûºÅ,ÀıÈç';,,' Ê¹ÓÃ;ºÍ,·Ö¸î×Ö·û´®  
-!---nsize:·Ö¸îÊıÄ¿  
-!---ÎâĞìÆ½2011-04-29(wxp07@qq.com)  
+!---å°†å­—ç¬¦ä¸²InStrè¿›è¡Œåˆ†å‰²,ç»“æœæ”¾å…¥StrArrayä¸­  
+!---delimiter::åˆ†éš”ç¬¦å·,ä¾‹å¦‚';,,' ä½¿ç”¨;å’Œ,åˆ†å‰²å­—ç¬¦ä¸²  
+!---nsize:åˆ†å‰²æ•°ç›®  
+!---å´å¾å¹³2011-04-29(wxp07@qq.com)  
 !----------------------------------------------  
 implicit none  
 character(len = *) , Intent( IN ) :: InStr  
@@ -3284,7 +3284,7 @@ do i=1,LEN(InStr)
     do j=1,LEN(delimiter)  
         if (InStr(i:i) == delimiter(j:j)) then  
             if (istart == i) then  
-            istart=i+1 ! ---¿É·ÀÖ¹·Ö¸ô·ûÏàÁ¬µÄÇé¿ö  
+            istart=i+1 ! ---å¯é˜²æ­¢åˆ†éš”ç¬¦ç›¸è¿çš„æƒ…å†µ  
             end if  
             if (istart<i) then  
                 nsize=nsize+1  
@@ -3294,14 +3294,14 @@ do i=1,LEN(InStr)
         end if  
     end do  
 end do  
-! ---Æ¥Åä×îºóÒ»¸ö×Ó×Ö·û´®  
+! ---åŒ¹é…æœ€åä¸€ä¸ªå­å­—ç¬¦ä¸²  
 if (nsize>0) then  
     if (istart<LEN(InStr)) then  
         nsize=nsize+1  
         StrArray(nsize)=InStr(istart:LEN(InStr))  
     end if  
 end if  
-! ---Èç¹ûÎŞ¿É·Ö¸îµÄ×Ó×Ö·û´®,Ôò°üº¬Õû¸ö×Ö·û´®ÎªÊı×éµÄµÚÒ»ÔªËØ  
+! ---å¦‚æœæ— å¯åˆ†å‰²çš„å­å­—ç¬¦ä¸²,åˆ™åŒ…å«æ•´ä¸ªå­—ç¬¦ä¸²ä¸ºæ•°ç»„çš„ç¬¬ä¸€å…ƒç´   
 if ( (nsize<1) .AND. (LEN(TRIM(InStr)) > 0 )) then  
         nsize=1  
         StrArray(1)=InStr  

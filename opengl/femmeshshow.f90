@@ -63,7 +63,7 @@ TYPE(SLICE_TYDEF)::SLICE(30)
 INTEGER::NSLICE=0
 
 INTEGER::IVO(3)=0 !FOR VECTOR PAIR LOCATION IN POSDATA.NODALQ
-INTEGER::IEL_STREAMLINE=0 !µ±Ç°»ý·ÖµãËùÔÚµÄµ¥Ôª
+INTEGER::IEL_STREAMLINE=0 !ï¿½ï¿½Ç°ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½ÚµÄµï¿½Ôª
 INTEGER,PARAMETER::streamline_location_click=1,Plot_streamline_CLICK=2,&
                    Reset_streamline_CLICK=3,Enlarger_StrokeFontSize_CLICK=4,&
                    Smaller_StrokeFontSize_CLICK=5,SHOW_STREAMLINE_NODE_CLICK=6,OUTPUT_SHOWNSTREAMLINE_CLICK=7
@@ -238,7 +238,7 @@ LOGICAL::ISSTREAMLINESLOPE=.FALSE.,IsFilterLocalMinimalMode=.false.,isProbeState
 TYPE TIMESTEPINFO_TYDEF
     INTEGER::ISTEP=1,NSTEP=1
     REAL(8),ALLOCATABLE::TIME(:)
-	!INTEGER,ALLOCATABLE::CALSTEP(:) !µ±Ç°²½¶ÔÓ¦µÄ¼ÆËã²½£¬×¢Òâ£¬¼ÆËã²½Óë»æÍ¼²½ÍùÍù²»Ò»ÖÂ¡£
+	!INTEGER,ALLOCATABLE::CALSTEP(:) !ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½Ó¦ï¿½Ä¼ï¿½ï¿½ã²½ï¿½ï¿½×¢ï¿½â£¬ï¿½ï¿½ï¿½ã²½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½Â¡ï¿½
     LOGICAL::ISSHOWN=.TRUE.
 	REAL(8)::VSCALE(NVECTORPAIR)=1.0D0,VMIN(NVECTORPAIR),VMAX(NVECTORPAIR)
     CHARACTER(256)::INFO=''
@@ -929,7 +929,7 @@ subroutine slope_handler(selection)
                 STREAMLINE(NSTREAMLINE).V(1:2,J)=AR2D2(:,J)
                 IEL1=POINTlOC_BC(STREAMLINE(NSTREAMLINE).V(:,j),TRYIEL1)
                 TRYIEL1=IEL1
-                IF(IEL1>0) THEN !ÊäÈëµÄ»¬ÏßÍ·Î²¿ÉÄÜÔÚÇøÓòÍâ£¬È¥µô¡£
+                IF(IEL1>0) THEN !ï¿½ï¿½ï¿½ï¿½Ä»ï¿½ï¿½ï¿½Í·Î²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½â£¬È¥ï¿½ï¿½ï¿½
                     N3=N3+1
                     call getval(STREAMLINE(NSTREAMLINE).V(:,J),iel1,STREAMLINE(NSTREAMLINE).VAL(:,N3))
                     IF(J/=N3) STREAMLINE(NSTREAMLINE).V(:,N3)=STREAMLINE(NSTREAMLINE).V(:,J)
@@ -2348,7 +2348,7 @@ subroutine myreshape(w,h)
 	call glLoadIdentity();
 
 
-    !glortho and gluperspective µÄ²ÎÊý¶¼ÊÇÏà¶ÔÓÚeye×ø±êµÄ¡£
+    !glortho and gluperspective ï¿½Ä²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½eyeï¿½ï¿½ï¿½ï¿½Ä¡ï¿½
     
 	if(IsPerspect) then
         call gluPerspective(30.0_gldouble, R, near, far)

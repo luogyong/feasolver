@@ -11,7 +11,7 @@ Module DS_SlopeStability
     real(double),allocatable::Xslice(:),Yslice(:,:)
     integer::nXslice=0
     
-    real(double),ALLOCATABLE::InsectGC(:,:) !‘≤–Œª¨ª°”Îµÿ÷ œﬂµƒΩªµ„
+    real(double),ALLOCATABLE::InsectGC(:,:) !ÂúÜÂΩ¢ÊªëÂºß‰∏éÂú∞Ë¥®Á∫øÁöÑ‰∫§ÁÇπ
     INTEGER::NIGC=0
     
     type slope_load_tydef
@@ -20,14 +20,14 @@ Module DS_SlopeStability
     endtype
     
     type slice_line_tydef
-        integer::NV=0,IRTPOINT=0,MATB=0!IRTP>0,±Ì√˜¥ÀΩ⁄µ„¥¶”⁄“ª ˙÷±∆¬√Êœﬂ÷–£¨∏√∆¬√Êœﬂµƒ∆¬Ω≈µ„Œ™rtpoint(irtpoing)
-		!MATB=ª¨ª°Ωªµ„À˘¥¶µƒ≤ƒ¡œ°£
+        integer::NV=0,IRTPOINT=0,MATB=0!IRTP>0,Ë°®ÊòéÊ≠§ËäÇÁÇπÂ§Ñ‰∫é‰∏ÄÁ´ñÁõ¥Âù°Èù¢Á∫ø‰∏≠ÔºåËØ•Âù°Èù¢Á∫øÁöÑÂù°ËÑöÁÇπ‰∏∫rtpoint(irtpoing)
+		!MATB=ÊªëÂºß‰∫§ÁÇπÊâÄÂ§ÑÁöÑÊùêÊñô„ÄÇ
 		
         INTEGER,ALLOCATABLE::MAT(:)
 		
         REAL(DOUBLE)::WATERLEVEL=-1.0D6
         REAL(DOUBLE)::VB(2)=0.D0 !THE Y AND TOTAL VERTICAL STRESS AT THE BOTTOM OF A SLICE SURFACE.        
-        REAL(DOUBLE),ALLOCATABLE::V(:,:) !V(1,),Y;V(2,):SIGMAT( ˙œÚ◊‹”¶¡¶);   
+        REAL(DOUBLE),ALLOCATABLE::V(:,:) !V(1,),Y;V(2,):SIGMAT(Á´ñÂêëÊÄªÂ∫îÂäõ);   
         !TYPE(slope_load_tydef),ALLOCATABLE::LOAD(:) !APPLIED DISTRIBUTED SURFACE LOAD(WATER PRESSURE EXCLUDED.).
     endtype
 	TYPE(slice_line_tydef),ALLOCATABLE::sliceLine(:),SLICELINE_C(:) 
@@ -43,7 +43,7 @@ Module DS_SlopeStability
     TYPE SLICE_TYPDEF
 		INTEGER::NSL,NSR  !SLICE LINE ID 
 		REAL(DOUBLE)::YBL,YBR !SLICE BOTTOM Y COORDINATES.
-		REAL(DOUBLE)::BETA,ALPHA,THETA !∆¬√Ê°¢∆¬µ◊”ÎÀÆ∆Ω√Êµƒº–Ω«,Ω˛»Û√Ê”ÎÀÆ∆Ω√Êµƒº–Ω«°£
+		REAL(DOUBLE)::BETA,ALPHA,THETA !Âù°Èù¢„ÄÅÂù°Â∫ï‰∏éÊ∞¥Âπ≥Èù¢ÁöÑÂ§πËßí,Êµ∏Ê∂¶Èù¢‰∏éÊ∞¥Âπ≥Èù¢ÁöÑÂ§πËßí„ÄÇ
 		REAL(DOUBLE)::WX=0.D0,WY=0.D0,XW=0.0D0,YW=0.0D0 !WEIGHT AND COORDINATES OF SLICE  IN X AND Y DIRECTIONS.
 		REAL(DOUBLE)::ZLX=0.D0,ZLY=0.D0,XZL=0.D0,YZL=0.D0 !INTERSLICE FORCES AND THE CORRESPONDING COORDINATS ON THE LEFT SLICE LINE.
 		REAL(DOUBLE)::ZRX=0.D0,ZRY=0.D0,XZR=0.D0,YZR=0.D0  !INTERSLICE FORCES AND THE CORRESPONDING COORDINATS ON THE RIGHT SLICE LINE.
@@ -65,12 +65,12 @@ Module DS_SlopeStability
           INTEGER::OPTMETHOD=1 !=1,GRID;2;MONTECARLO
           INTEGER::SLIDEDIRECTION=1  !-1, LEFT; 1,RIGHT
           INTEGER::NTRIALS=0
-          REAL(DOUBLE)::SLICEWIDTH=1.0D0,UWIDTH=1.0D0 !Õ¡ÃıøÌ∂»£¨±ﬂ∆¬º∆À„∫Ò∂»£®∆Ω√ÊºŸ∂®£©
+          REAL(DOUBLE)::SLICEWIDTH=1.0D0,UWIDTH=1.0D0 !ÂúüÊù°ÂÆΩÂ∫¶ÔºåËæπÂù°ËÆ°ÁÆóÂéöÂ∫¶ÔºàÂπ≥Èù¢ÂÅáÂÆöÔºâ
           REAL(DOUBLE)::KX=0.D0,KY=0.0D0 !SEISMIC COEFFICIENT TO ACCOUNT FOR A DYNAMIC HORIZONTAL FORCE.
           REAL(DOUBLE)::XMIN_MC=1.D20,XMAX_MC=-1.D20
           LOGICAL::ISYDWZ=.FALSE. !INDICATE WHETHER THE YDOWNWARDZONE IS ACTIVATED.
           REAL(DOUBLE)::YDOWNWARDZONE=0.D0 !IF Y=A, THE FAILUE SURFACE DIRECTION IS SWITCH TO ANOTHER(THERE ARE TWO OPTIMAL DIRETION) WHEN THE NODE IN THE ZONE Y>A 
-          REAL(DOUBLE)::TOEZONE(3)=0.D0 !AX+BY+C<=0,Œ™∆¬Ω≈«¯£¨A,B,C”… ‰»Îµƒ¡Ωµ„∏¯≥ˆ°£»Áπ˚TOEZONE(:)=0.D0,‘Ú±Ì∆¬Ω≈«¯√ª∂®“Â°£
+          REAL(DOUBLE)::TOEZONE(3)=0.D0 !AX+BY+C<=0,‰∏∫Âù°ËÑöÂå∫ÔºåA,B,CÁî±ËæìÂÖ•ÁöÑ‰∏§ÁÇπÁªôÂá∫„ÄÇÂ¶ÇÊûúTOEZONE(:)=0.D0,ÂàôË°®Âù°ËÑöÂå∫Ê≤°ÂÆö‰πâ„ÄÇ
           INTEGER::NBCPA=0,IBCPA=0,NNODE=0 
           REAL(DOUBLE),ALLOCATABLE::NODE(:,:),BCENTRY(:,:),BCEXIT(:,:) !FOR ENTRY AND EXIT,(XL,XR,XV,A,B,C). FOR NODE, NODE(2,NNODE) X,Y,
     endtype
@@ -246,7 +246,7 @@ SUBROUTINE SLICEINITIALIZE(ISLICE)
     !TYPE SLICE_TYPDEF
 	!	INTEGER::NSL,NSR  !SLICE LINE ID 
 	!	REAL(DOUBLE)::YBL,YBR !SLICE BOTTOM Y COORDINATES.
-	!	REAL(DOUBLE)::BETA,ALPHA£¨THETA !∆¬√Ê°¢∆¬µ◊”ÎÀÆ∆Ω√Êµƒº–Ω«
+	!	REAL(DOUBLE)::BETA,ALPHAÔºåTHETA !Âù°Èù¢„ÄÅÂù°Â∫ï‰∏éÊ∞¥Âπ≥Èù¢ÁöÑÂ§πËßí
 	!	REAL(DOUBLE)::WX=0.D0,WY=0.D0,XW=0.0D0,YW=0.0D0 !TOTAL WEIGHT AND COORDINATES OF SLICE  IN X AND Y DIRECTIONS.
 	!	REAL(DOUBLE)::ZLX=0.D0,ZLY=0.D0,XZL=0.D0,YZL=0.D0 !INTERSLICE FORCES AND THE CORRESPONDING COORDINATS ON THE LEFT SLICE LINE.
 	!	REAL(DOUBLE)::ZRX=0.D0,ZRY=0.D0,XZR=0.D0,YZR=0.D0  !INTERSLICE FORCES AND THE CORRESPONDING COORDINATS ON THE RIGHT SLICE LINE.
@@ -355,8 +355,8 @@ SUBROUTINE CIRCLE_SLICE(XC,YC,RC,NS,NE)
 		
     ENDDO
 	
-	!ºŸ∂®ª¨ª° «¡¨–¯µƒ£¨º»≈≈≥˝“ª∏ˆª¨ª°«–≥ˆ∂‡∏ˆ–°±ﬂ∆¬µƒ«Èøˆ°£
-	!∂‘”⁄“ª∏ˆª¨ª°«–≥ˆ∂‡∏ˆ–°±ﬂ∆¬µƒ«Èøˆ£¨ø…»ÀŒ™µ˜’˚ª¨ª°≥ˆ»Îµ„µƒŒª÷√Ω¯––∑÷Œˆ°£
+	!ÂÅáÂÆöÊªëÂºßÊòØËøûÁª≠ÁöÑÔºåÊó¢ÊéíÈô§‰∏Ä‰∏™ÊªëÂºßÂàáÂá∫Â§ö‰∏™Â∞èËæπÂù°ÁöÑÊÉÖÂÜµ„ÄÇ
+	!ÂØπ‰∫é‰∏Ä‰∏™ÊªëÂºßÂàáÂá∫Â§ö‰∏™Â∞èËæπÂù°ÁöÑÊÉÖÂÜµÔºåÂèØ‰∫∫‰∏∫Ë∞ÉÊï¥ÊªëÂºßÂá∫ÂÖ•ÁÇπÁöÑ‰ΩçÁΩÆËøõË°åÂàÜÊûê„ÄÇ
 	IF(NS/=0.AND.(SUM(ISLICE1)/=NE-NS+1)) NS=0
 	
 	
@@ -511,7 +511,7 @@ SUBROUTINE SLICELINEDATA(YSLE,NYSLE,SLEDATA,NSLEDATA)
         DO J=1,NGEOLINE-1
             DO K=J+1,NGEOLINE
                 IF(Y1(K)>Y1(J).OR.(ABS(Y1(K)-Y1(J))<1.D-6 .AND. MAT1(K)<MAT1(J))) THEN 
-				!µ±Õ¨“ª∏ﬂ≥Ãµƒ∏˜µ„£¨∞—≤ƒ¡œ∫≈¥Ûµƒ∑≈‘⁄∫Û√Ê£¨º»Õ¨∏ﬂ≥Ã∏˜µ„£¨œ¬≤„≤ƒ¡œ»°æˆ”⁄¥Àµ„≤ƒ¡œ∫≈¥Ûµƒ≤ƒ¡œ°£
+				!ÂΩìÂêå‰∏ÄÈ´òÁ®ãÁöÑÂêÑÁÇπÔºåÊääÊùêÊñôÂè∑Â§ßÁöÑÊîæÂú®ÂêéÈù¢ÔºåÊó¢ÂêåÈ´òÁ®ãÂêÑÁÇπÔºå‰∏ãÂ±ÇÊùêÊñôÂèñÂÜ≥‰∫éÊ≠§ÁÇπÊùêÊñôÂè∑Â§ßÁöÑÊùêÊñô„ÄÇ
                     T1=Y1(J)
                     Y1(J)=Y1(K)
                     Y1(K)=T1
@@ -609,7 +609,7 @@ SUBROUTINE  GenSurfaceLoad(IFLAG,ISLICELINE)
 	
 	DO I=N2,N3
 		SSLOAD(I).QX=0.D0;SSLOAD(I).QY=0.D0;SSLOAD(I).M=0.D0
-		!æ˘≤ºœﬂ∫…‘ÿ£¨ºŸ∂®∆‰◊˜”√µ„‘⁄Õ¡Ãı÷–º‰
+		!ÂùáÂ∏ÉÁ∫øËç∑ËΩΩÔºåÂÅáÂÆöÂÖ∂‰ΩúÁî®ÁÇπÂú®ÂúüÊù°‰∏≠Èó¥
 		SELECT CASE(IFLAG)
 			CASE(1) !EXIT POINT
 				XL1=XSLICE(0);XR1=XSLICE(ISLICELINE)
@@ -636,7 +636,7 @@ SUBROUTINE  GenSurfaceLoad(IFLAG,ISLICELINE)
 			ENDIF
 			T1=MultiSegInterpolate(KPOINT(N1,ACTION(J).KPOINT(1:ACTION(J).NKP)),ACTION(J).VALUE(1:ACTION(J).NKP),ACTION(J).NKP,T2)
 			IF(ABS(T1-ERRORVALUE)>1.D-6) THEN
-				!±ﬂ∆¬º∆À„∫Ò∂»ºŸ∂®Œ™1.0d0
+				!ËæπÂù°ËÆ°ÁÆóÂéöÂ∫¶ÂÅáÂÆö‰∏∫1.0d0
 				IF(ACTION(J).DOF==1) SSLOAD(I).QX=SSLOAD(I).QX+T1*ABS(GL1-GR1)*SLOPEPARAMETER.UWIDTH !!!!
 			ELSE
 				IF(ACTION(J).DOF==2) SSLOAD(I).QY=SSLOAD(I).QY+T1*ABS(XL1+XR1)*SLOPEPARAMETER.UWIDTH !!!!
@@ -646,9 +646,9 @@ SUBROUTINE  GenSurfaceLoad(IFLAG,ISLICELINE)
         !SURFACE WATER PRESSURE 
         T1=(MAX((SLICELINE(I).WATERLEVEL-GL1),0.D0)+MAX((SLICELINE(I+1).WATERLEVEL-GR1),0.D0))/2.D0*GA
 		SSLOAD(I).QX=SSLOAD(I).QX+T1*(GR1-GL1)*SLOPEPARAMETER.UWIDTH  
-        SSLOAD(I).QY=SSLOAD(I).QY-T1*ABS(XR1-XL1)*SLOPEPARAMETER.UWIDTH !œÚœ¬
+        SSLOAD(I).QY=SSLOAD(I).QY-T1*ABS(XR1-XL1)*SLOPEPARAMETER.UWIDTH !Âêë‰∏ã
 		
-		!ºØ÷–∫…‘ÿ\
+		!ÈõÜ‰∏≠Ëç∑ËΩΩ\
 		QP1=0.D0
 		 
 		IF(I==1) THEN
@@ -745,7 +745,7 @@ ENDSUBROUTINE
     
     
 SUBROUTINE SliceGrid(XSLE,YSLE,nXSLE,nYSLE)
-!FIND INTERSECTION POINTS (YSEL(NGEOLINE,NXSLE)) BETWEEN GEOLINE(NGEOLINE) AND SLICE LINES£®XSLE(NXSLE)£©  
+!FIND INTERSECTION POINTS (YSEL(NGEOLINE,NXSLE)) BETWEEN GEOLINE(NGEOLINE) AND SLICE LINESÔºàXSLE(NXSLE)Ôºâ  
 
 !Assume: only one intersection between one line and one sliceline.
 
@@ -765,7 +765,7 @@ SUBROUTINE SliceGrid(XSLE,YSLE,nXSLE,nYSLE)
     
     do i=1,nGEOline
         
-        !Assumption of GeoLine£∫1)points must be ordered from a2z. 2) no reverse is allowed.
+        !Assumption of GeoLineÔºö1)points must be ordered from a2z. 2) no reverse is allowed.
         do j=1,GEOline(i).npoint-1
             X1=kpoint(1,GEOline(i).point(j))
             Y1=kpoint(2,GEOline(i).point(j))
@@ -795,7 +795,7 @@ SUBROUTINE SliceGrid(XSLE,YSLE,nXSLE,nYSLE)
 
 END SUBROUTINE
 
-    !‘≤ª°”Îµÿ÷ œﬂµƒΩªµ„
+    !ÂúÜÂºß‰∏éÂú∞Ë¥®Á∫øÁöÑ‰∫§ÁÇπ
 SUBROUTINE CIRCLE_GEOLINE(XC,YC,RC)
     USE DS_SlopeStability
     USE Geometry
@@ -810,7 +810,7 @@ SUBROUTINE CIRCLE_GEOLINE(XC,YC,RC)
 	INSECTGC=0.D0
 	
     do i=1,nGEOline
-        !Assumption of GeoLine£∫1)points must be ordered from a2z. 2) no reverse is allowed.
+        !Assumption of GeoLineÔºö1)points must be ordered from a2z. 2) no reverse is allowed.
         do j=1,GEOline(i).npoint-1
             X1=kpoint(1,GEOline(i).point(j))
             Y1=kpoint(2,GEOline(i).point(j))
@@ -953,7 +953,7 @@ function MultiSegInterpolate(x,y,nx,xi)
         if((xi<=x(i+1).and.xi>=x(i)).or.(xi<=x(i).and.xi>=x(i+1))) then
 	        t1=x(i+1)-x(i)
 	        if(abs(t1)<1e-7) then
-		        print *, "Warning! ∑÷ƒ∏=0,function=MultiSegInterpolate()"
+		        print *, "Warning! ÂàÜÊØç=0,function=MultiSegInterpolate()"
 		        MultiSegInterpolate=(y(i)+y(i+1))/2.0d0
 	        else
 		        MultiSegInterpolate=(y(i+1)-y(i))/(t1)*(xi-x(i))+y(i)

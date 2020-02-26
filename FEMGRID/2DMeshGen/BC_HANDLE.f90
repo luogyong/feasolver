@@ -15,26 +15,26 @@ MODULE BC_HANDLE
 		integer::NELT=0
 		integer,allocatable::NBC(:) 
         real(8),allocatable::vbc(:) !vbc(nvb/4)
-		integer,allocatable::ELT(:,:),ESEG(:) !line elt(2,nelt),ESEG(nelt),µ¥ÔªËùÊôµÄÏß¶Î¡£
-        integer::ISWELLCONDITION=0 !ÊÇ·ñÎª¾®µÄ±ß½ç£¬»ò³öÒçÃæ
+		integer,allocatable::ELT(:,:),ESEG(:) !line elt(2,nelt),ESEG(nelt),å•å…ƒæ‰€å±çš„çº¿æ®µã€‚
+        integer::ISWELLCONDITION=0 !æ˜¯å¦ä¸ºäº•çš„è¾¹ç•Œï¼Œæˆ–å‡ºæº¢é¢
 		real(8),allocatable::lincof(:)
         INTEGER::NNODE=0
         integer,allocatable::NODE(:)
 		REAL(8),ALLOCATABLE::NVAL(:)
         character(512):: helpstring= &
-        'LINEBCµÄÊäÈë¸ñÊ½Îª: \n &
-            & 1)Ïß±ß½çÊı(nLBC); \n & 
-            & 2.1) ¿ØÖÆ²ÎÊı[NCP(±ß½ç¿ØÖÆµãÊı),ILAYER,LOC,BCTYPE,NDIM,DOF,STEPFUNC(0),ISFIELD(0) \n &
-            & 2.2) ¿ØÖÆµãºÅ(CP)*ncp \n &
-            & 2.3) ±ß½çÖµ(VBC)*(MAX(ncp,4)) \\¸÷µãÖ®¼äÄ¬ÈÏÏß²å,ISFIELD==1,ÔòÊäÈëA,B,C,DËÄ¸öÊı¼´¿É¡£ \n &
+        'LINEBCçš„è¾“å…¥æ ¼å¼ä¸º: \n &
+            & 1)çº¿è¾¹ç•Œæ•°(nLBC); \n & 
+            & 2.1) æ§åˆ¶å‚æ•°[NCP(è¾¹ç•Œæ§åˆ¶ç‚¹æ•°),ILAYER,LOC,BCTYPE,NDIM,DOF,STEPFUNC(0),ISFIELD(0) \n &
+            & 2.2) æ§åˆ¶ç‚¹å·(CP)*ncp \n &
+            & 2.3) è¾¹ç•Œå€¼(VBC)*(MAX(ncp,4)) \\å„ç‚¹ä¹‹é—´é»˜è®¤çº¿æ’,ISFIELD==1,åˆ™è¾“å…¥A,B,C,Då››ä¸ªæ•°å³å¯ã€‚ \n &
             & NOTE: \n &
-            &   a) NDIM=[0,1(11,12,13),2(21,22,23)] ·Ö±ğ±íÊ¾µã¡¢Ïß¡¢Ãæ(ÓÉ´ËÏßÀ­ÉìĞÎ³ÉµÄÃæ)µÄÔ¼Êø. ÒòÎª±ß½çÌõ¼ş£¨ÈçÎ»ÒÆ£¬Ë®Í·µÈ£©²»¾ßµş¼ÓĞÔ£¬ËùÒÔNDIMÈ¡Öµ¶Ô±ß½çÌõ¼şÎŞÓ°Ïì. \n &
-            &      (21,22,23)·Ö±ğ±íÊ¾Ãæµ¥ÔªÑØx,y,zÆ½ÃæµÄÍ¶Ó°Ãæ»ı,2±íÈ«Ãæ»ı¡£(11,12,13)·Ö±ğ±íÊ¾Ïßµ¥ÔªÑØx,y,zÖáµÄÍ¶Ó°³¤¶È£¬1±íÈ«³¤¶È¡£ \n &
-            &   b) DOF=4(Ë®Í·)£¬ÇÒVALUE=-999,±íÊ¾½ÚµãµÄË®Í·±ß½çÖµÎª½Úµã¸ß³ÌÖµ¡£(Ä£Äâ±©Óê¹¤¿ö¡£) \n &
-            &   c) DOF(I)=1,2,...,7,·Ö±ğ±íÊ¾Ô¼ÊøX,Y,Z,H,MX,MY,MZ. \n &
-            &   d) [A,B,C,D] Æ½Ãæ³¡·½³Ì¼ÆËã²ÎÊı£¬±ß½çÖµVALUE=A*X+B*Y+C*Z+D. \n &
-            &   e) BCTYPE=[0,1,2] ·Ö±ğ±íÊ¾Î»ÒÆÀà£¬Á¦Àà£¬³öÒçÃæÀà±ß½ç¡£ \n &
-            &   f) LOC=[1,0] ·Ö±ğ±íÊ¾ILAYERÖ¸ÏòµÄÊÇµÚilayer¸ß³ÌÃæµÄ½Úµã£¬·ñÔòÖ¸ÏòµÄÊÇµÚilayerµ¥Ôª²ã½Úµã(»òÃæ)¡£'C 
+            &   a) NDIM=[0,1(11,12,13),2(21,22,23)] åˆ†åˆ«è¡¨ç¤ºç‚¹ã€çº¿ã€é¢(ç”±æ­¤çº¿æ‹‰ä¼¸å½¢æˆçš„é¢)çš„çº¦æŸ. å› ä¸ºè¾¹ç•Œæ¡ä»¶ï¼ˆå¦‚ä½ç§»ï¼Œæ°´å¤´ç­‰ï¼‰ä¸å…·å åŠ æ€§ï¼Œæ‰€ä»¥NDIMå–å€¼å¯¹è¾¹ç•Œæ¡ä»¶æ— å½±å“. \n &
+            &      (21,22,23)åˆ†åˆ«è¡¨ç¤ºé¢å•å…ƒæ²¿x,y,zå¹³é¢çš„æŠ•å½±é¢ç§¯,2è¡¨å…¨é¢ç§¯ã€‚(11,12,13)åˆ†åˆ«è¡¨ç¤ºçº¿å•å…ƒæ²¿x,y,zè½´çš„æŠ•å½±é•¿åº¦ï¼Œ1è¡¨å…¨é•¿åº¦ã€‚ \n &
+            &   b) DOF=4(æ°´å¤´)ï¼Œä¸”VALUE=-999,è¡¨ç¤ºèŠ‚ç‚¹çš„æ°´å¤´è¾¹ç•Œå€¼ä¸ºèŠ‚ç‚¹é«˜ç¨‹å€¼ã€‚(æ¨¡æ‹Ÿæš´é›¨å·¥å†µã€‚) \n &
+            &   c) DOF(I)=1,2,...,7,åˆ†åˆ«è¡¨ç¤ºçº¦æŸX,Y,Z,H,MX,MY,MZ. \n &
+            &   d) [A,B,C,D] å¹³é¢åœºæ–¹ç¨‹è®¡ç®—å‚æ•°ï¼Œè¾¹ç•Œå€¼VALUE=A*X+B*Y+C*Z+D. \n &
+            &   e) BCTYPE=[0,1,2] åˆ†åˆ«è¡¨ç¤ºä½ç§»ç±»ï¼ŒåŠ›ç±»ï¼Œå‡ºæº¢é¢ç±»è¾¹ç•Œã€‚ \n &
+            &   f) LOC=[1,0] åˆ†åˆ«è¡¨ç¤ºILAYERæŒ‡å‘çš„æ˜¯ç¬¬ilayeré«˜ç¨‹é¢çš„èŠ‚ç‚¹ï¼Œå¦åˆ™æŒ‡å‘çš„æ˜¯ç¬¬ilayerå•å…ƒå±‚èŠ‚ç‚¹(æˆ–é¢)ã€‚'C 
     contains
         procedure,nopass::help=>write_help
         procedure::initialize=>LineBC_initialize
@@ -52,29 +52,29 @@ MODULE BC_HANDLE
 		INTEGER::ndim=0 !=0,point load; =1,line load; =2, planar load; =3,volume load;
 		integer::dof
 		integer::sf=0
-		real(8)::value=0  !µ±ÊäÈëseepagefaceÊ±£¬value=1,2,3 ·Ö±ğ±íÊ¾½ÚµãµÄË®Í·ÖµµÈÓÚ×ø±êx,y,z.
+		real(8)::value=0  !å½“è¾“å…¥seepagefaceæ—¶ï¼Œvalue=1,2,3 åˆ†åˆ«è¡¨ç¤ºèŠ‚ç‚¹çš„æ°´å¤´å€¼ç­‰äºåæ ‡x,y,z.
 		integer::n1=0,n2=0 !for spgface output
         real(8)::LFC(4)=0.d0 !FIELD=AX+BY+CY+D LFC()=[A,B,C,D]
-        integer::ISWELLCONDITION=0 !ÊÇ·ñÎª¾®µÄ±ß½ç£¬»ò³öÒçÃæ
+        integer::ISWELLCONDITION=0 !æ˜¯å¦ä¸ºäº•çš„è¾¹ç•Œï¼Œæˆ–å‡ºæº¢é¢
         integer::ilayer=0,BCtype=-1!BCTYPE=0,bc,=1;load;=2,spgface
-        INTEGER::LOC=1 !IF LOCATION=1, ILAYERÖ¸µÄÊÇµÚilayer¸ß³ÌÃæ£¬·ñÔòÖ¸µÄÊÇµÚilayerµ¥Ôª²ã
-        !¾ßÌåµÄ±ß½ç½Úµã¼°Æä¶ÔÓ¦µÄÖµ
+        INTEGER::LOC=1 !IF LOCATION=1, ILAYERæŒ‡çš„æ˜¯ç¬¬ilayeré«˜ç¨‹é¢ï¼Œå¦åˆ™æŒ‡çš„æ˜¯ç¬¬ilayerå•å…ƒå±‚
+        !å…·ä½“çš„è¾¹ç•ŒèŠ‚ç‚¹åŠå…¶å¯¹åº”çš„å€¼
         integer::nnode=0
         integer,allocatable::node(:)
         real(8),allocatable::nval(:)
         character(512):: helpstring= &
-        'ZoneBCµÄÊäÈë¸ñÊ½Îª: \n &
-            & 1)×éÊı(nbc); \n & 
+        'ZoneBCçš„è¾“å…¥æ ¼å¼ä¸º: \n &
+            & 1)ç»„æ•°(nbc); \n & 
             & 2)[IZONE,ILAYER,LOC,BCTYPE,NDIM,DOF,STEPFUNC(0),VALUE,[A,B,C,D]]*nbc \n &
             & NOTE: \n &
-            &   a) NDIM=[0,1(11,12,13),2(21,22,23),3] ·Ö±ğ±íÊ¾µã¡¢Ïß¡¢Ãæ¡¢ÌåµÄÔ¼Êø. ÒòÎª±ß½çÌõ¼ş£¨ÈçÎ»ÒÆ£¬Ë®Í·µÈ£©²»¾ßµş¼ÓĞÔ£¬ËùÒÔNDIMÈ¡Öµ¶Ô±ß½çÌõ¼şÎŞÓ°Ïì. \n &
-            &      (21,22,23)·Ö±ğ±íÊ¾Ãæµ¥ÔªÑØx,y,zÆ½ÃæµÄÍ¶Ó°Ãæ»ı,2±íÈ«Ãæ»ı¡£(11,12,13)·Ö±ğ±íÊ¾Ïßµ¥ÔªÑØx,y,zÖáµÄÍ¶Ó°³¤¶È£¬1±íÈ«³¤¶È¡£ \n &
-            &   b) DOF=4(Ë®Í·)£¬ÇÒVALUE=-999,±íÊ¾½ÚµãµÄË®Í·±ß½çÖµÎª½Úµã¸ß³ÌÖµ¡£(Ä£Äâ±©Óê¹¤¿ö¡£) \n &
-            &   c) DOF(I)=1,2,...,7,·Ö±ğ±íÊ¾Ô¼ÊøX,Y,Z,H,MX,MY,MZ. \n &
-            &   d) [A,B,C,D] Æ½Ãæ³¡·½³Ì¼ÆËã²ÎÊı£¬±ß½çÖµVALUE=A*X+B*Y+C*Z+D. \n &
-            &   e) BCTYPE=[0,1,2] ·Ö±ğ±íÊ¾Î»ÒÆÀà£¬Á¦Àà£¬³öÒçÃæÀà±ß½ç¡£ \n &
-            &   f) IZONE, ÎªzoneµÄÏÂ±ê(ZONE(IGROUP) \n &
-            &   g) LOC=[1,0] ·Ö±ğ±íÊ¾ILAYERÖ¸ÏòµÄÊÇµÚilayer¸ß³ÌÃæ£¬·ñÔòÖ¸ÏòµÄÊÇµÚilayerµ¥Ôª²ã¡£'C
+            &   a) NDIM=[0,1(11,12,13),2(21,22,23),3] åˆ†åˆ«è¡¨ç¤ºç‚¹ã€çº¿ã€é¢ã€ä½“çš„çº¦æŸ. å› ä¸ºè¾¹ç•Œæ¡ä»¶ï¼ˆå¦‚ä½ç§»ï¼Œæ°´å¤´ç­‰ï¼‰ä¸å…·å åŠ æ€§ï¼Œæ‰€ä»¥NDIMå–å€¼å¯¹è¾¹ç•Œæ¡ä»¶æ— å½±å“. \n &
+            &      (21,22,23)åˆ†åˆ«è¡¨ç¤ºé¢å•å…ƒæ²¿x,y,zå¹³é¢çš„æŠ•å½±é¢ç§¯,2è¡¨å…¨é¢ç§¯ã€‚(11,12,13)åˆ†åˆ«è¡¨ç¤ºçº¿å•å…ƒæ²¿x,y,zè½´çš„æŠ•å½±é•¿åº¦ï¼Œ1è¡¨å…¨é•¿åº¦ã€‚ \n &
+            &   b) DOF=4(æ°´å¤´)ï¼Œä¸”VALUE=-999,è¡¨ç¤ºèŠ‚ç‚¹çš„æ°´å¤´è¾¹ç•Œå€¼ä¸ºèŠ‚ç‚¹é«˜ç¨‹å€¼ã€‚(æ¨¡æ‹Ÿæš´é›¨å·¥å†µã€‚) \n &
+            &   c) DOF(I)=1,2,...,7,åˆ†åˆ«è¡¨ç¤ºçº¦æŸX,Y,Z,H,MX,MY,MZ. \n &
+            &   d) [A,B,C,D] å¹³é¢åœºæ–¹ç¨‹è®¡ç®—å‚æ•°ï¼Œè¾¹ç•Œå€¼VALUE=A*X+B*Y+C*Z+D. \n &
+            &   e) BCTYPE=[0,1,2] åˆ†åˆ«è¡¨ç¤ºä½ç§»ç±»ï¼ŒåŠ›ç±»ï¼Œå‡ºæº¢é¢ç±»è¾¹ç•Œã€‚ \n &
+            &   f) IZONE, ä¸ºzoneçš„ä¸‹æ ‡(ZONE(IGROUP) \n &
+            &   g) LOC=[1,0] åˆ†åˆ«è¡¨ç¤ºILAYERæŒ‡å‘çš„æ˜¯ç¬¬ilayeré«˜ç¨‹é¢ï¼Œå¦åˆ™æŒ‡å‘çš„æ˜¯ç¬¬ilayerå•å…ƒå±‚ã€‚'C
     CONTAINS
         procedure,nopass::help=>write_help
         PROCEDURE::GETVALUE=>LINEARFIELDCAL
@@ -92,7 +92,7 @@ MODULE BC_HANDLE
 		!edge(2,nedge),
 		!face: use node index to represent face. face(0:4,nface),face(0,:)==3,triangular face,==4, quadrilateral face
 		!FaceEdge: use edge index to represent face. FaceEdge(0:4,nface),FaceEdge(0,:)==3,triangular face, ==4, quadrilateral face
-		real(8),allocatable::weight(:,:) !·Ö²¼µ¥ÔªºÉÔØ¸÷½Úµã·Ö²¼ÏµÊı, weight(:,1) Æ½Ãæ¾ù²¼ºÉÔØ£»weight(:,2) Æ½ÃæÈı½ÇĞÎºÉÔØ;weight(:,3) Öá¶Ô³Æ¾ù²¼ºÉÔØ£»weight(:,4) Öá¶Ô³ÆÈı½ÇĞÎºÉÔØ£¬!Ä¿Ç°Ö»ÄÜ´¦ÀíÆ½ÃæÓ¦±äµÄÁ½ÖÖÇé¿ö
+		real(8),allocatable::weight(:,:) !åˆ†å¸ƒå•å…ƒè·è½½å„èŠ‚ç‚¹åˆ†å¸ƒç³»æ•°, weight(:,1) å¹³é¢å‡å¸ƒè·è½½ï¼›weight(:,2) å¹³é¢ä¸‰è§’å½¢è·è½½;weight(:,3) è½´å¯¹ç§°å‡å¸ƒè·è½½ï¼›weight(:,4) è½´å¯¹ç§°ä¸‰è§’å½¢è·è½½ï¼Œ!ç›®å‰åªèƒ½å¤„ç†å¹³é¢åº”å˜çš„ä¸¤ç§æƒ…å†µ
 	contains
         procedure::GETGMSHET=>GETGMSHET
         procedure::GETWeight=>not_nodal_force_weight
@@ -270,18 +270,18 @@ subroutine write_help(helpstring,unit)
 	write(*,'(A)') trim(helpstring)
 	oldcolor = SETTEXTCOLOR(INT2(15)) 
 
-!10 FORMAT('BCµÄÊäÈë¸ñÊ½Îª:' \ &
-!            '1)×éÊı(nbc);' \ & 
+!10 FORMAT('BCçš„è¾“å…¥æ ¼å¼ä¸º:' \ &
+!            '1)ç»„æ•°(nbc);' \ & 
 !            '2)[BASE,IGROUP,ILAYER,LOC,BCTYPE,NDIM,DOF,STEPFUNC(0),VALUE,[A,B,C,D]]*nbc' \ &
 !            'NOTE:' \ &
-!            '   a) NDIM=[0,1,2,3] ·Ö±ğ±íÊ¾µã¡¢Ïß¡¢Ãæ¡¢ÌåµÄÔ¼Êø. ÒòÎª±ß½çÌõ¼ş£¨ÈçÎ»ÒÆ£¬Ë®Í·µÈ£©²»¾ßµş¼ÓĞÔ£¬ËùÒÔNDIMÈ¡Öµ¶Ô±ß½çÌõ¼şÎŞÓ°Ïì.' \ &
-!            '   b) DOF=4(Ë®Í·)£¬ÇÒVALUE=-999,±íÊ¾½ÚµãµÄË®Í·±ß½çÖµÎª½Úµã¸ß³ÌÖµ¡£(Ä£Äâ±©Óê¹¤¿ö¡£)' \ &
-!            '   c) DOF(I)=1,2,...,7,·Ö±ğ±íÊ¾Ô¼ÊøX,Y,Z,H,MX,MY,MZ.' \ &
-!            '   d) [A,B,C,D] Æ½Ãæ³¡·½³Ì¼ÆËã²ÎÊı£¬±ß½çÖµVALUE=A*X+B*Y+C*Z+D.' \ &
-!            '   e) BCTYPE=[0,1,2] ·Ö±ğ±íÊ¾Î»ÒÆÀà£¬Á¦Àà£¬³öÒçÃæÀà±ß½ç¡£' \ &
-!            '   f) BASE=[1,0] ·Ö±ğ±íÊ¾±ß½çÊÇ¶¨ÒåÔÚZONEÉÏ£¬»¹ÊÇÔÚCL (control line)ÉÏ¡£' \ &
-!            '   g) LOC=[1,0] ·Ö±ğ±íÊ¾ILAYERÖ¸ÏòµÄÊÇµÚilayer¸ß³ÌÃæ£¬·ñÔòÖ¸ÏòµÄÊÇµÚilayerµ¥Ôª²ã¡£' \ &
-!            '   h) IGROUP, IGROUPÎªzoneµÄÏÂ±ê(ZONE(IGROUP))')
+!            '   a) NDIM=[0,1,2,3] åˆ†åˆ«è¡¨ç¤ºç‚¹ã€çº¿ã€é¢ã€ä½“çš„çº¦æŸ. å› ä¸ºè¾¹ç•Œæ¡ä»¶ï¼ˆå¦‚ä½ç§»ï¼Œæ°´å¤´ç­‰ï¼‰ä¸å…·å åŠ æ€§ï¼Œæ‰€ä»¥NDIMå–å€¼å¯¹è¾¹ç•Œæ¡ä»¶æ— å½±å“.' \ &
+!            '   b) DOF=4(æ°´å¤´)ï¼Œä¸”VALUE=-999,è¡¨ç¤ºèŠ‚ç‚¹çš„æ°´å¤´è¾¹ç•Œå€¼ä¸ºèŠ‚ç‚¹é«˜ç¨‹å€¼ã€‚(æ¨¡æ‹Ÿæš´é›¨å·¥å†µã€‚)' \ &
+!            '   c) DOF(I)=1,2,...,7,åˆ†åˆ«è¡¨ç¤ºçº¦æŸX,Y,Z,H,MX,MY,MZ.' \ &
+!            '   d) [A,B,C,D] å¹³é¢åœºæ–¹ç¨‹è®¡ç®—å‚æ•°ï¼Œè¾¹ç•Œå€¼VALUE=A*X+B*Y+C*Z+D.' \ &
+!            '   e) BCTYPE=[0,1,2] åˆ†åˆ«è¡¨ç¤ºä½ç§»ç±»ï¼ŒåŠ›ç±»ï¼Œå‡ºæº¢é¢ç±»è¾¹ç•Œã€‚' \ &
+!            '   f) BASE=[1,0] åˆ†åˆ«è¡¨ç¤ºè¾¹ç•Œæ˜¯å®šä¹‰åœ¨ZONEä¸Šï¼Œè¿˜æ˜¯åœ¨CL (control line)ä¸Šã€‚' \ &
+!            '   g) LOC=[1,0] åˆ†åˆ«è¡¨ç¤ºILAYERæŒ‡å‘çš„æ˜¯ç¬¬ilayeré«˜ç¨‹é¢ï¼Œå¦åˆ™æŒ‡å‘çš„æ˜¯ç¬¬ilayerå•å…ƒå±‚ã€‚' \ &
+!            '   h) IGROUP, IGROUPä¸ºzoneçš„ä¸‹æ ‡(ZONE(IGROUP))')
 endsubroutine
 
 subroutine  LineBC_read(this,unit)
@@ -371,7 +371,7 @@ subroutine ZoneBC_load_translate(this)
 	real(8),allocatable::load1(:)
 	INTEGER,POINTER::ELT1(:)
     TYPE(ET_TYPE)::ETWEIGHT1
-	! ºÉÔØ¾ß¿Éµş¼Ó£¬±ß½çÌõ¼ş²»¾ßÓĞ¿É¼ÓĞÔ¡£·Ö²¼Á¦×ª»¯Îª½ÚµãÁ¦Ê±Òª»ı·Ö£¬µ«·Ö²¼Î»ÒÆ×ª»¯Îª½ÚµãÎ»ÒÆÊ±²»Ğè»ı·Ö£¬½ÚµãÎ»ÒÆµÈÓÚ·Ö²¼Î»ÒÆ¡£
+	! è·è½½å…·å¯å åŠ ï¼Œè¾¹ç•Œæ¡ä»¶ä¸å…·æœ‰å¯åŠ æ€§ã€‚åˆ†å¸ƒåŠ›è½¬åŒ–ä¸ºèŠ‚ç‚¹åŠ›æ—¶è¦ç§¯åˆ†ï¼Œä½†åˆ†å¸ƒä½ç§»è½¬åŒ–ä¸ºèŠ‚ç‚¹ä½ç§»æ—¶ä¸éœ€ç§¯åˆ†ï¼ŒèŠ‚ç‚¹ä½ç§»ç­‰äºåˆ†å¸ƒä½ç§»ã€‚
     
    
 	allocate(nodalload1(tnode))
@@ -397,7 +397,7 @@ subroutine ZoneBC_load_translate(this)
     SELECT CASE(THIS.BCTYPE) 
     CASE(1)        
 		select case(THIS.ndim)
-			case(0) !ndim=0,ÊÇµãºÉÔØ£¬¸÷¸öµ¥ÔªÖĞµÄÍ¬Ò»½Úµã£¬²»¾ß¿É¼ÓĞÔ£¬¾ùÖ¸Í¬Ò»Öµ¡£
+			case(0) !ndim=0,æ˜¯ç‚¹è·è½½ï¼Œå„ä¸ªå•å…ƒä¸­çš„åŒä¸€èŠ‚ç‚¹ï¼Œä¸å…·å¯åŠ æ€§ï¼Œå‡æŒ‡åŒä¸€å€¼ã€‚
 				nodalload1=0
 				do j=1,nelt1
 					n1=elt1(j)
@@ -435,7 +435,7 @@ subroutine ZoneBC_load_translate(this)
 					LAV1=LAV1*t1
 					do k=1,elt(n1).nnum
 						n2=elt(n1).node(k)+NINC1
-						load1(n2)=load1(n2)+ETWEIGHT1.WEIGHT(K,1)*LAV1 !¾ù²¼ºÉÔØ                        								 				
+						load1(n2)=load1(n2)+ETWEIGHT1.WEIGHT(K,1)*LAV1 !å‡å¸ƒè·è½½                        								 				
 					end do
 					
 				end do				
@@ -500,7 +500,7 @@ subroutine LineBC_load_translate(this)
 	real(8),allocatable::load1(:)
 	INTEGER,POINTER::ELT1(:)
     TYPE(ET_TYPE)::ETWEIGHT1
-	! ºÉÔØ¾ß¿Éµş¼Ó£¬±ß½çÌõ¼ş²»¾ßÓĞ¿É¼ÓĞÔ¡£·Ö²¼Á¦×ª»¯Îª½ÚµãÁ¦Ê±Òª»ı·Ö£¬µ«·Ö²¼Î»ÒÆ×ª»¯Îª½ÚµãÎ»ÒÆÊ±²»Ğè»ı·Ö£¬½ÚµãÎ»ÒÆµÈÓÚ·Ö²¼Î»ÒÆ¡£
+	! è·è½½å…·å¯å åŠ ï¼Œè¾¹ç•Œæ¡ä»¶ä¸å…·æœ‰å¯åŠ æ€§ã€‚åˆ†å¸ƒåŠ›è½¬åŒ–ä¸ºèŠ‚ç‚¹åŠ›æ—¶è¦ç§¯åˆ†ï¼Œä½†åˆ†å¸ƒä½ç§»è½¬åŒ–ä¸ºèŠ‚ç‚¹ä½ç§»æ—¶ä¸éœ€ç§¯åˆ†ï¼ŒèŠ‚ç‚¹ä½ç§»ç­‰äºåˆ†å¸ƒä½ç§»ã€‚
     
    
 	allocate(nodalload1(tnode))
@@ -509,11 +509,11 @@ subroutine LineBC_load_translate(this)
     NELT1=this.nelt
     NINC1=NNODE*THIS.ILAYER
 	IF(THIS.LOC==1) THEN !ELEVATION SURFACE
-        ET1=21 !Ò»Î¬Ïßµ¥Ôª
+        ET1=21 !ä¸€ç»´çº¿å•å…ƒ
         nnum1=2
         !ELT1=>ZONE(THIS.IZONE).TRIE3N
     ELSE
-        ET1=42 !¶şÎ¬ËÄ±ßĞÎµ¥Ôª
+        ET1=42 !äºŒç»´å››è¾¹å½¢å•å…ƒ
         Nnum1=4
     ENDIF
     
@@ -522,7 +522,7 @@ subroutine LineBC_load_translate(this)
     SELECT CASE(THIS.BCTYPE) 
     CASE(1)        
 		select case(THIS.ndim)
-			case(0) !ndim=0,ÊÇµãºÉÔØ£¬¸÷¸öµ¥ÔªÖĞµÄÍ¬Ò»½Úµã£¬²»¾ß¿É¼ÓĞÔ£¬¾ùÖ¸Í¬Ò»Öµ¡£
+			case(0) !ndim=0,æ˜¯ç‚¹è·è½½ï¼Œå„ä¸ªå•å…ƒä¸­çš„åŒä¸€èŠ‚ç‚¹ï¼Œä¸å…·å¯åŠ æ€§ï¼Œå‡æŒ‡åŒä¸€å€¼ã€‚
 				nodalload1=0
 				do j=1,nelt1
                 
@@ -565,7 +565,7 @@ subroutine LineBC_load_translate(this)
 					LAV1=LAV1*t1
 					do k=1,nnum1
 						n2=node1(k)
-						load1(n2)=load1(n2)+ETWEIGHT1.WEIGHT(K,1)*LAV1 !¾ù²¼ºÉÔØ                        								 				
+						load1(n2)=load1(n2)+ETWEIGHT1.WEIGHT(K,1)*LAV1 !å‡å¸ƒè·è½½                        								 				
 					end do
 					
 				end do				
@@ -695,7 +695,7 @@ end subroutine
 !
 !end subroutine
 
-subroutine Element_LAV_Cal(ienum,LAV,ndim,node1,et1,nnum1) !¼ÆËãµ¥ÔªµÄ³¤¶È¡¢Ãæ»ı»òÌå»ı
+subroutine Element_LAV_Cal(ienum,LAV,ndim,node1,et1,nnum1) !è®¡ç®—å•å…ƒçš„é•¿åº¦ã€é¢ç§¯æˆ–ä½“ç§¯
 	!use DS_Gmsh2Solver
 	implicit none	
 	integer,intent(in)::ienum
@@ -732,7 +732,7 @@ subroutine Element_LAV_Cal(ienum,LAV,ndim,node1,et1,nnum1) !¼ÆËãµ¥ÔªµÄ³¤¶È¡¢Ãæ»ı
                 a1(:,1)=0;a1(:,2)=0    
             endif
 			LAV=norm2(a1(1,:)-a1(2,:))
-		case(0,6,15) !Èı½ÇĞÎÃæ»ı
+		case(0,6,15) !ä¸‰è§’å½¢é¢ç§¯
 						
 			do i=1,3
 				a1(i,:)=[node(node2(i)).x,node(node2(i)).y,node(node2(i)).z]
@@ -745,7 +745,7 @@ subroutine Element_LAV_Cal(ienum,LAV,ndim,node1,et1,nnum1) !¼ÆËãµ¥ÔªµÄ³¤¶È¡¢Ãæ»ı
                 a1(:,3)=0   
             endif            
 			LAV=TRIAREA(A1(1:3,1:3))
-		case(42) !ËÄ±ßĞÎÃæ»ı
+		case(42) !å››è¾¹å½¢é¢ç§¯
 			do i=1,4
 				a1(i,:)=[node(node2(i)).x,node(node2(i)).y,node(node2(i)).z]
 			end do
@@ -762,7 +762,7 @@ subroutine Element_LAV_Cal(ienum,LAV,ndim,node1,et1,nnum1) !¼ÆËãµ¥ÔªµÄ³¤¶È¡¢Ãæ»ı
 			A1(2,:)=A1(1,:)
 			LAV=LAV+TRIAREA(A1(2:4,1:3))
 			
-		case(43,103) !ËÄÃæÌåÌå»ı
+		case(43,103) !å››é¢ä½“ä½“ç§¯
 
                 do i=1,4
 				    a1(i,:)=[node(node2(i)).x,node(node2(i)).y,node(node2(i)).z]
@@ -787,7 +787,7 @@ subroutine Element_LAV_Cal(ienum,LAV,ndim,node1,et1,nnum1) !¼ÆËãµ¥ÔªµÄ³¤¶È¡¢Ãæ»ı
 
 end subroutine
 
-!xyz(1:3,:) Èı½ÇĞÎÈı¸ö½ÚµãµÄ¿Õ¼ä×ø±ê,µÚÒ»Î¬Îª½Úµã¡£
+!xyz(1:3,:) ä¸‰è§’å½¢ä¸‰ä¸ªèŠ‚ç‚¹çš„ç©ºé—´åæ ‡,ç¬¬ä¸€ç»´ä¸ºèŠ‚ç‚¹ã€‚
 real(8) function TriArea(xyz)  
 	implicit none
 	real(8),intent(in)::xyz(3,3)
@@ -807,7 +807,7 @@ real(8) function TriArea(xyz)
 
 end function
 
-!xyz(1:4,:) ËÄÃæÌåËÄ¸ö½ÚµãµÄ¿Õ¼ä×ø±ê,µÚÒ»Î¬Îª½Úµã¡£
+!xyz(1:4,:) å››é¢ä½“å››ä¸ªèŠ‚ç‚¹çš„ç©ºé—´åæ ‡,ç¬¬ä¸€ç»´ä¸ºèŠ‚ç‚¹ã€‚
 real(8) function TetVOL(xyz)  
 	implicit none
 	real(8),intent(in)::xyz(4,3)

@@ -60,7 +60,7 @@ if (draw_surface_solid) then
 
     do i=1,nface
         !if(face(i).shape/=3) cycle
-		!Ö»¶ÔÍâ±ß½ç¼°²ÄÁÏ±ß½ç½øÐÐäÖÈ¾¡£
+		!åªå¯¹å¤–è¾¹ç•ŒåŠææ–™è¾¹ç•Œè¿›è¡Œæ¸²æŸ“ã€‚
 		IF(FACE(I).ISDEAD==1) CYCLE
 		MAT1(1:FACE(I).ENUM)=POSDATA.ELEMENT(TET(ABS(FACE(I).ELEMENT)).MOTHER).ISET !
         IF(FACE(I).ENUM>1) THEN			
@@ -312,7 +312,7 @@ subroutine ContourLine(EDGE_L,NEDGE_L,FACE_L,NFACE_L,TET_L,NTET_L,XYZ,&
         T1=VC-V1;T2=VC-V2;T3=V2-V1
         IF(ABS(T3)<1.D-7)THEN
             !IF(ABS(T1)<1.D-14) THEN                
-            !    ISPVC1(I)=2 !Á½¸ö½Úµã¶¼ÊÇ
+            !    ISPVC1(I)=2 !ä¸¤ä¸ªèŠ‚ç‚¹éƒ½æ˜¯
             !    PVC1(:,I)=NODE(V2).COORD
             !ENDIF        
         ELSE
@@ -373,7 +373,7 @@ subroutine ContourLine(EDGE_L,NEDGE_L,FACE_L,NFACE_L,TET_L,NTET_L,XYZ,&
         ENDDO        
         
         NTRI=NTRI+1
-		IF(NTRI+1>MAXNTRI1) THEN !ÖÁÉÙÓÐÁ½¸ö¿Õ¼ä
+		IF(NTRI+1>MAXNTRI1) THEN !è‡³å°‘æœ‰ä¸¤ä¸ªç©ºé—´
             CALL I2_ENLARGE_AR(TRI,500,3)
             MAXNTRI1=MAXNTRI1+500
         ENDIF

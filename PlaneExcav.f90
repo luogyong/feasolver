@@ -18,7 +18,7 @@ Module Geometry
     type(line_tydef),allocatable::line(:),Geoline(:)
     type(line_tydef)::waterlevel
     integer::nline=0,nGEOline=0
-    !Assumption of GeoLine£º1)points must be ordered from a2z. 2) no revserse is allowed. 
+    !Assumption of GeoLineï¼š1)points must be ordered from a2z. 2) no revserse is allowed. 
     
 	
     type lineloop_tydef
@@ -42,9 +42,9 @@ Module ExcaDS
     !INTEGER,PARAMETER::Double=KIND(1.0D0)
     INTEGER::showvalue,CGSTEP=0
     REAL(DOUBLE)::DEFAULTSIZE=0.2D0
-    INTEGER::BGC=1,linecolor=0,IsMarker=0,IsThinLine=0 !»æÍ¼±³¾°É«£ºÄ¬ÈÏºÚÉ«£¬=0£¬°×É«
+    INTEGER::BGC=1,linecolor=0,IsMarker=0,IsThinLine=0 !ç»˜å›¾èƒŒæ™¯è‰²ï¼šé»˜è®¤é»‘è‰²ï¼Œ=0ï¼Œç™½è‰²
 !    type soil_tydef
- !       real(double)::c=0.d0,fi=0.d0,g=0.d0,Eo=0.d0,v=0.d0,k=-1.d0,ks=0.d0 !ğ¤¾ÛÁ¦£¬Ä¦²Á½Ç£¬ÖØ¶È£¬±äĞÎÄ£Á¿£¬²´ËÉ±È,ÉøÍ¸ÏµÊı£¬Ë®Æ½»ù´²ÏµÊı
+ !       real(double)::c=0.d0,fi=0.d0,g=0.d0,Eo=0.d0,v=0.d0,k=-1.d0,ks=0.d0 !é»èšåŠ›ï¼Œæ‘©æ“¦è§’ï¼Œé‡åº¦ï¼Œå˜å½¢æ¨¡é‡ï¼Œæ³Šæ¾æ¯”,æ¸—é€ç³»æ•°ï¼Œæ°´å¹³åŸºåºŠç³»æ•°
               
  !   end type
     !integer::nsoil=0
@@ -55,25 +55,25 @@ Module ExcaDS
     
 	
     type soillayer_tydef
-        integer::z(2)=0,mat=1,sf=0,wpflag=1,nnode=0,nel=0,soiltype=0  !ÍÁ²ãºÅ£¬²½º¯ÊıºÅ£¬ÊÇ·ñË®ÍÁ·ÖËã£¨1Yes0NO£©,´Ë¶Î·¶Î§ÄÚÍÁ²ãËùÒÀ¸½µÄÖ§»¤ÁºµÄ½Úµã¸öÊı,µ¥ÔªÊı
-        integer::IUNSET=-1,IUESET=-1 !´Ë¶Î·¶Î§ÄÚÍÁ²ãËùÒÀ¸½µÄÖ§»¤ÁºµÄ½Úµã¼¯ºÍµ¥Ôª¼¯±àºÅ
-		real(double)::ko=0.d0,ka=0.d0,kp=0.d0,Pv=0.d0 !¾²Ö¹¡¢Ö÷¶¯¡¢±»¶¯ÍÁÑ¹Á¦ÏµÊı,×÷ÓÃÓÚ¸ÃÍÁ²ãÃæµÄ³¬ÔØ£¨ÏòÏÂÎªÕı£© 
+        integer::z(2)=0,mat=1,sf=0,wpflag=1,nnode=0,nel=0,soiltype=0  !åœŸå±‚å·ï¼Œæ­¥å‡½æ•°å·ï¼Œæ˜¯å¦æ°´åœŸåˆ†ç®—ï¼ˆ1Yes0NOï¼‰,æ­¤æ®µèŒƒå›´å†…åœŸå±‚æ‰€ä¾é™„çš„æ”¯æŠ¤æ¢çš„èŠ‚ç‚¹ä¸ªæ•°,å•å…ƒæ•°
+        integer::IUNSET=-1,IUESET=-1 !æ­¤æ®µèŒƒå›´å†…åœŸå±‚æ‰€ä¾é™„çš„æ”¯æŠ¤æ¢çš„èŠ‚ç‚¹é›†å’Œå•å…ƒé›†ç¼–å·
+		real(double)::ko=0.d0,ka=0.d0,kp=0.d0,Pv=0.d0 !é™æ­¢ã€ä¸»åŠ¨ã€è¢«åŠ¨åœŸå‹åŠ›ç³»æ•°,ä½œç”¨äºè¯¥åœŸå±‚é¢çš„è¶…è½½ï¼ˆå‘ä¸‹ä¸ºæ­£ï¼‰ 
         real(double)::SigmaVT(2),SigmaV(2),Sigmako(2),Sigmaka(2),Sigmakp(2),PW(2)=0.0d0,KS(2)=0.D0		
-        !£¨ÊúÏòÓ¦Á¦£¬ÓĞĞ§ÊúÏòÓ¦Á¦£¬¾²Ö¹ÍÁÑ¹Á¦£¬Ö÷¶¯ÍÁÑ¹Á¦£¬±»¶¯ÍÁÑ¹Á¦£¬¿×Ñ¹£©¡£1±í²ã¶¥µÄÖµ£¬2Îª²ãµ×µÄÖµ¡£
+        !ï¼ˆç«–å‘åº”åŠ›ï¼Œæœ‰æ•ˆç«–å‘åº”åŠ›ï¼Œé™æ­¢åœŸå‹åŠ›ï¼Œä¸»åŠ¨åœŸå‹åŠ›ï¼Œè¢«åŠ¨åœŸå‹åŠ›ï¼Œå­”å‹ï¼‰ã€‚1è¡¨å±‚é¡¶çš„å€¼ï¼Œ2ä¸ºå±‚åº•çš„å€¼ã€‚
 		
     endtype
     
     type soilprofile_tydef
-        integer::nasoil=0,npsoil=0,beam=1,spm=0,naction=0,nstrut=0,kmethod=0,soilspringmodel=10 !spm=ÍÁÑ¹Á¦¼ÆËã·½·¨,0=ÀÉ¿Ï¡£ 
-		!kmethod,Ë®Æ½»ù´²µÄ¼ÆËã·½·¨: =0,m·¨(¹æ·¶·½·¨)£»=1(E£¬v·½·¨£¬);
-        integer::sf_awL=0,sf_pwL=0,sf_aLoad=0,sf_pLoad=0 !Ö÷±»²àË®Î»µÄ²½³¤º¯Êı£¬Ö÷±»¶¯²à³¬ÔØµÄ²½º¯Êı
-		real(DOUBLE)::awL,pwL,aLoad=0,pLoad=0 !Ö÷±»²àË®Î»,Ö÷±»¶¯²àµØ±í³¬ÔØ£¨ÏòÏÂÎªÕı£©
-		integer::za=0,zp=0 !¸÷Ê±¼ä²½Ö÷¶¯²àºÍ±»¶¯²àµØ±í¸ß³Ì¡£
-		integer::aside=1 !aside=1,±íÖ÷¶¯²àµÄÍÁÑ¹Á¦Õı£¬±»¶¯²àµÄÎª¸º¡£
+        integer::nasoil=0,npsoil=0,beam=1,spm=0,naction=0,nstrut=0,kmethod=0,soilspringmodel=10 !spm=åœŸå‹åŠ›è®¡ç®—æ–¹æ³•,0=éƒè‚¯ã€‚ 
+		!kmethod,æ°´å¹³åŸºåºŠçš„è®¡ç®—æ–¹æ³•: =0,mæ³•(è§„èŒƒæ–¹æ³•)ï¼›=1(Eï¼Œvæ–¹æ³•ï¼Œ);
+        integer::sf_awL=0,sf_pwL=0,sf_aLoad=0,sf_pLoad=0 !ä¸»è¢«ä¾§æ°´ä½çš„æ­¥é•¿å‡½æ•°ï¼Œä¸»è¢«åŠ¨ä¾§è¶…è½½çš„æ­¥å‡½æ•°
+		real(DOUBLE)::awL,pwL,aLoad=0,pLoad=0 !ä¸»è¢«ä¾§æ°´ä½,ä¸»è¢«åŠ¨ä¾§åœ°è¡¨è¶…è½½ï¼ˆå‘ä¸‹ä¸ºæ­£ï¼‰
+		integer::za=0,zp=0 !å„æ—¶é—´æ­¥ä¸»åŠ¨ä¾§å’Œè¢«åŠ¨ä¾§åœ°è¡¨é«˜ç¨‹ã€‚
+		integer::aside=1 !aside=1,è¡¨ä¸»åŠ¨ä¾§çš„åœŸå‹åŠ›æ­£ï¼Œè¢«åŠ¨ä¾§çš„ä¸ºè´Ÿã€‚
         CHARACTER(64)::TITLE=""
 		type(soillayer_tydef),allocatable::asoil(:),psoil(:)
         integer,allocatable::asoilstep(:,:),psoilstep(:,:)
-        !asoilstep(isoil,istep):µÚistepÊ±£¬Ö÷¶¯²à¼¤»î¸÷ÍÁ²ã´ÓÉÏÍùÏÂµÄ±àºÅ¡£
+        !asoilstep(isoil,istep):ç¬¬istepæ—¶ï¼Œä¸»åŠ¨ä¾§æ¿€æ´»å„åœŸå±‚ä»ä¸Šå¾€ä¸‹çš„ç¼–å·ã€‚
 		integer,allocatable::iaction(:),istrut(:)
         real(double),allocatable::stepload(:,:)
 		
@@ -85,13 +85,13 @@ Module ExcaDS
 		integer::nseg=1,nnode=0,nel=0,system=0
         integer,allocatable::mat(:),kpoint(:)        
 		integer,allocatable::node(:),element(:)
-		integer,allocatable::element_sp(:,:) !½ÚµãµÄÍÁµ¯»Éµ¥ÔªºÅ
+		integer,allocatable::element_sp(:,:) !èŠ‚ç‚¹çš„åœŸå¼¹ç°§å•å…ƒå·
 		integer,allocatable::node2BCload(:)
         real(double),allocatable::Beamresult(:,:,:) !(node,13,istep),/dis,M,Q,Load/
 		INTEGER::NVA=14
-		real(double),allocatable::Nlength(:) !½ÚµãËùÏ½µÄ³¤¶È
-		!element_sp(2,nnode),element_sp(1,i)=½ÚµãiÖ÷¶¯²àµ¯»Éµ¥ÔªÔÚelementµÄÎ»ÖÃ
-		!element_sp(2,i)=½Úµã±»¶¯²àµ¯»Éµ¥ÔªÔÚelementµÄÎ»ÖÃ
+		real(double),allocatable::Nlength(:) !èŠ‚ç‚¹æ‰€è¾–çš„é•¿åº¦
+		!element_sp(2,nnode),element_sp(1,i)=èŠ‚ç‚¹iä¸»åŠ¨ä¾§å¼¹ç°§å•å…ƒåœ¨elementçš„ä½ç½®
+		!element_sp(2,i)=èŠ‚ç‚¹è¢«åŠ¨ä¾§å¼¹ç°§å•å…ƒåœ¨elementçš„ä½ç½®
     endtype
     
 	type(beam_tydef),allocatable::pile(:)
@@ -107,17 +107,17 @@ Module ExcaDS
 	
 	type Action_tydef
 		integer::nkp=0,type=0,dof=0,ndim=0,sf=0,IUNSET=-1,IUESET=-1,nstiffelement=0,nbcnode=0,nloadnode=0
-		!iunset,iuesetÎª´Ë×÷ÓÃËùÒÀ¸½µÄÖ§»¤Áºµ¥ÔªµÄ½Úµã×éºÏµ¥Ôª×é
+		!iunset,iuesetä¸ºæ­¤ä½œç”¨æ‰€ä¾é™„çš„æ”¯æŠ¤æ¢å•å…ƒçš„èŠ‚ç‚¹ç»„åˆå•å…ƒç»„
 		CHARACTER(64)::TITLE=""
 		!type=0,force;type=1,displacement;=2,spring.
-		!dof,Ê©¼ÓÔÚÄÄ¸ö×ÔÓÉ¶ÈÉÏ¡£
-        !ActionµÄÎ¬¶È£¬0=point,1=line.
-		integer,allocatable::kpoint(:),vsf(:),NODE(:) !¿ØÖÆµãºÅ,¸÷¿ØÖÆµãµÄ²½º¯Êı,¿ØÖÆµãÔÚnode()ÖĞµÄ±àºÅ
-		real(double),allocatable::value(:) !¿ØÖÆµãÉÏµÄÖµ¡£
-		real(double),allocatable::exvalue(:,:) !Èç¹ûÎªµ¯»É£¬Îªµ¯»ÉÁ¦µÄÉÏÏÂÏŞÖµ¡£
-		integer::istiffelement=0 !IF(TYPE==2) Éú³Éµ¯»Éµ¥Ôª½øĞĞ´¦Àí£¬ÔÚµÚÒ»¸ö½Úµãunset(iunset).node(1)Éú³ÉµÚÒ»¸öµ¥Ôª£¬istiffelement´æ´¢µÚÒ»¸öµ¥ÔªELEMENTÖĞµÄÎ»ÖÃ¡£
-		integer::iBCNode=0   !IF(TYPE==1) Éú³ÉÎ»ÒÆ±ß½ç½øĞĞ´¦Àí£¬ÔÚµÚÒ»¸ö½Úµãunset(iunset).node(1)Éú³ÉµÚÒ»¸ö±ß½ç£¬ibcnode´æ´¢µÚÒ»¸ö±ß½çbc_dispÖĞµÄÎ»ÖÃ¡£
-		integer::iLoadNode=0 !IF(TYPE==0) Éú³ÉÁ¦½øĞĞ´¦Àí£¬ÔÚµÚÒ»¸ö½Úµãunset(iunset).node(1)Éú³ÉµÚÒ»¸öÁ¦£¬ibcnode´æ´¢µÚÒ»¸öÁ¦ÔÚbc_loadÖĞµÄÎ»ÖÃ¡£
+		!dof,æ–½åŠ åœ¨å“ªä¸ªè‡ªç”±åº¦ä¸Šã€‚
+        !Actionçš„ç»´åº¦ï¼Œ0=point,1=line.
+		integer,allocatable::kpoint(:),vsf(:),NODE(:) !æ§åˆ¶ç‚¹å·,å„æ§åˆ¶ç‚¹çš„æ­¥å‡½æ•°,æ§åˆ¶ç‚¹åœ¨node()ä¸­çš„ç¼–å·
+		real(double),allocatable::value(:) !æ§åˆ¶ç‚¹ä¸Šçš„å€¼ã€‚
+		real(double),allocatable::exvalue(:,:) !å¦‚æœä¸ºå¼¹ç°§ï¼Œä¸ºå¼¹ç°§åŠ›çš„ä¸Šä¸‹é™å€¼ã€‚
+		integer::istiffelement=0 !IF(TYPE==2) ç”Ÿæˆå¼¹ç°§å•å…ƒè¿›è¡Œå¤„ç†ï¼Œåœ¨ç¬¬ä¸€ä¸ªèŠ‚ç‚¹unset(iunset).node(1)ç”Ÿæˆç¬¬ä¸€ä¸ªå•å…ƒï¼Œistiffelementå­˜å‚¨ç¬¬ä¸€ä¸ªå•å…ƒELEMENTä¸­çš„ä½ç½®ã€‚
+		integer::iBCNode=0   !IF(TYPE==1) ç”Ÿæˆä½ç§»è¾¹ç•Œè¿›è¡Œå¤„ç†ï¼Œåœ¨ç¬¬ä¸€ä¸ªèŠ‚ç‚¹unset(iunset).node(1)ç”Ÿæˆç¬¬ä¸€ä¸ªè¾¹ç•Œï¼Œibcnodeå­˜å‚¨ç¬¬ä¸€ä¸ªè¾¹ç•Œbc_dispä¸­çš„ä½ç½®ã€‚
+		integer::iLoadNode=0 !IF(TYPE==0) ç”ŸæˆåŠ›è¿›è¡Œå¤„ç†ï¼Œåœ¨ç¬¬ä¸€ä¸ªèŠ‚ç‚¹unset(iunset).node(1)ç”Ÿæˆç¬¬ä¸€ä¸ªåŠ›ï¼Œibcnodeå­˜å‚¨ç¬¬ä¸€ä¸ªåŠ›åœ¨bc_loadä¸­çš„ä½ç½®ã€‚
 		integer,allocatable::node2stiffelement(:)
 		integer,allocatable::node2bcdisp(:)
 		integer,allocatable::node2bcload(:)
@@ -140,9 +140,9 @@ module ExcaDSLIB
     use ExcaDS
     interface
 	    subroutine enlarge_strut(PROP,NP,EXN,SN)
-        !À©´óPROPÊı×é,Í¬Ê±update×ÜµÄµ¥ÔªÊıNP=NP+EXN
-        !EXN:À©´óµÄµ¥Ôª¸öÊı
-        !SN,:À©Èİ²¿·ÖµÄÆğÎ»
+        !æ‰©å¤§PROPæ•°ç»„,åŒæ—¶updateæ€»çš„å•å…ƒæ•°NP=NP+EXN
+        !EXN:æ‰©å¤§çš„å•å…ƒä¸ªæ•°
+        !SN,:æ‰©å®¹éƒ¨åˆ†çš„èµ·ä½
             USE EXCADS
 	        integer,intent(in)::EXN
             INTEGER,INTENT(IN OUT)::NP
@@ -306,8 +306,8 @@ SUBROUTINE SOILLOAD_EXCA(ISTEP)
             
             SOILPROFILE(I).STEPLOAD(INNODE1(1),ISTEP)=SOILPROFILE(I).STEPLOAD(INNODE1(1),ISTEP)+ELEMENT(IELA1(1)).PROPERTY(solver_control.iniepp)
 			SOILPROFILE(I).STEPLOAD(INNODE1(2),ISTEP)=SOILPROFILE(I).STEPLOAD(INNODE1(2),ISTEP)+ELEMENT(IELA1(2)).PROPERTY(solver_control.iniepp)
-			!Êµ¼ÊÉÏ£¬INNODE1(1)=INNODE1(2)
-			!Ö»¶ÔÍÁÑ¹Á¦½øĞĞÕÛ¼õ
+			!å®é™…ä¸Šï¼ŒINNODE1(1)=INNODE1(2)
+			!åªå¯¹åœŸå‹åŠ›è¿›è¡ŒæŠ˜å‡
 			if(solver_control.rf_app==1) then
 				t1=min(1.d0,(node(innode1(2)).coord(ndimension)-rf_e2)*rf_slope1)
 				SOILPROFILE(I).STEPLOAD(INNODE1(2),ISTEP)=t1*SOILPROFILE(I).STEPLOAD(INNODE1(2),ISTEP)
@@ -319,7 +319,7 @@ SUBROUTINE SOILLOAD_EXCA(ISTEP)
 
 		
         !SOILPROFILE(I).STEPLOAD(BC_LOAD(NC1:NC2).NODE,ISTEP)=BC_LOAD(NC1:NC2).VALUE
-        !ÇóÔöÁ¿ 
+        !æ±‚å¢é‡ 
         IF(ISTEP>1) THEN        
             BC_LOAD(NC1:NC2).VALUE=SOILPROFILE(I).STEPLOAD(BC_LOAD(NC1:NC2).NODE,ISTEP) &
                 -SOILPROFILE(I).STEPLOAD(BC_LOAD(NC1:NC2).NODE,ISTEP-1)
@@ -357,7 +357,7 @@ SUBROUTINE ACTION_EXCA(ISTEP)
 		allocate(ar1,MOLD=action(iac1).value)
         do k=1,action(iac1).nkp
 		    t2=0
-		    if(action(iac1).type/=2) t2=sf(action(iac1).vsf(k)).factor(max(istep-1,0)) !ºÉÔØºÍÎ»ÒÆ°´ÔöÁ¿½øÈëÃ¿Ò»²½µÄÊ©¼Ó£¬¶ø¸Õ¶È°´×ÜÁ¿½øĞĞ¼ÆËã
+		    if(action(iac1).type/=2) t2=sf(action(iac1).vsf(k)).factor(max(istep-1,0)) !è·è½½å’Œä½ç§»æŒ‰å¢é‡è¿›å…¥æ¯ä¸€æ­¥çš„æ–½åŠ ï¼Œè€Œåˆšåº¦æŒ‰æ€»é‡è¿›è¡Œè®¡ç®—
 		    if(t2==-999.d0) t2=0
 		    ar1(k)=action(iac1).value(k)*(sf(action(iac1).vsf(k)).factor(istep)-t2) 
         enddo
@@ -389,8 +389,8 @@ SUBROUTINE ACTION_EXCA(ISTEP)
 					(node(nnode1(1)).coord(3)-node(nnode1(2)).coord(3))**2
 				t1=t1**0.5d0/2.0d0
 				
-				d1=matproperty(element(ieL1).mat,7,istep) !¼Ù¶¨Í¬Ò»ÍÁ²ãÄÚµÄÖ§»¤×®µÄ²ÎÊı±£³ÖÒ»ÖÂ¡£
-				b1=matproperty(element(ieL1).mat,8,istep) !¼Ù¶¨Í¬Ò»ÍÁ²ãÄÚµÄÖ§»¤×®µÄ²ÎÊı±£³ÖÒ»ÖÂ¡£
+				d1=matproperty(element(ieL1).mat,7,istep) !å‡å®šåŒä¸€åœŸå±‚å†…çš„æ”¯æŠ¤æ¡©çš„å‚æ•°ä¿æŒä¸€è‡´ã€‚
+				b1=matproperty(element(ieL1).mat,8,istep) !å‡å®šåŒä¸€åœŸå±‚å†…çš„æ”¯æŠ¤æ¡©çš„å‚æ•°ä¿æŒä¸€è‡´ã€‚
 			
 				
 			else
@@ -431,7 +431,7 @@ SUBROUTINE ACTION_EXCA(ISTEP)
 					element(iel2(1:nc1)).property(5)=element(iel2(1:nc1)).property(5)+t1*2
 				case(1)
 					!print *, nnode1
-					bc_disp(action(iac1).node2bcdisp(nnode1(1:nc1))).value=v1(1:nc1) !Î»ÒÆ±ß½çÃ»ÓĞµş¼ÓĞÔ						
+					bc_disp(action(iac1).node2bcdisp(nnode1(1:nc1))).value=v1(1:nc1) !ä½ç§»è¾¹ç•Œæ²¡æœ‰å åŠ æ€§						
 				case(0)
 					bc_load(action(iac1).node2bcload(nnode1(1:nc1))).value=bc_load(action(iac1).node2bcload(nnode1(1:nc1))).value+(v1(1)+v1(2))*t1/2.
 			endselect				
@@ -459,8 +459,8 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 	
 	
     allocate(kpelement(2,nkp)) 
-	!µ¥Ôª¶¨Î»±í,¼ÇÂ¼ÓëÃ¿¸ö¿ØÖÆµãÏàÁ¬ÔÚµ¥ÔªÔÚelement()ÖĞµÄ±àºÅ£¬(1,i)ÎªiµãµÄÉÏ£¨×ó£©±ßµÄµ¥Ôª£¬(2,i)ÔòÎªiµãµÄÏÂ£¨ÓÒ£©±ßµÄµ¥Ôª
-	!¼Ù¶¨Áº´Ó×óÍùÓÒ»ò´ÓÉÏÍùÏÂÊäÈë¡£
+	!å•å…ƒå®šä½è¡¨,è®°å½•ä¸æ¯ä¸ªæ§åˆ¶ç‚¹ç›¸è¿åœ¨å•å…ƒåœ¨element()ä¸­çš„ç¼–å·ï¼Œ(1,i)ä¸ºiç‚¹çš„ä¸Šï¼ˆå·¦ï¼‰è¾¹çš„å•å…ƒï¼Œ(2,i)åˆ™ä¸ºiç‚¹çš„ä¸‹ï¼ˆå³ï¼‰è¾¹çš„å•å…ƒ
+	!å‡å®šæ¢ä»å·¦å¾€å³æˆ–ä»ä¸Šå¾€ä¸‹è¾“å…¥ã€‚
 	kpnode=0
     kpelement=0
     
@@ -603,7 +603,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 	
 	    IPILE=SOILPROFILE(I).BEAM
 
-		!·ÀÖ¹ÊúÏòÊ§ÎÈ£¬ÔÚµ×²¿Éú³É1¼áÏòµ¯»Éµ¥Ôª
+		!é˜²æ­¢ç«–å‘å¤±ç¨³ï¼Œåœ¨åº•éƒ¨ç”Ÿæˆ1åšå‘å¼¹ç°§å•å…ƒ
         neset=neset+1
         ISET1=ESET_GETFREEID()
 		CALL enlarge_element(ELEMENT,ENUM,1,N1)
@@ -740,7 +740,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 		endif 
 		
 		select case(action(IAC1).TYPE) 
-			case(2) !Éú³Éµ¯»Éµ¥Ôª
+			case(2) !ç”Ÿæˆå¼¹ç°§å•å…ƒ
                 neset=neset+1
                 ISET1=ESET_GETFREEID()
 				NEL1=NNODE1
@@ -795,7 +795,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 	            eset(ISET1).enume=enum
                 eset(ISET1).coupleset=ISET1
 				
-			case(1) !Éú³ÉÎ»ÒÆ±ß½ç
+			case(1) !ç”Ÿæˆä½ç§»è¾¹ç•Œ
 
 				CALL enlarge_bc(BC_DISP,BD_NUM,NNODE1,N1)
 				action(iac1).nbcnode=nnode1
@@ -811,11 +811,11 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 				ENDIF                    
 				bc_disp(n1:).dof=action(iac1).dof
 				bc_disp(n1:).ISINCREMENT=1
-				!bc_disp(n1:).sf=action(iac1).sf !ÔÚ´ËÆäbc_dispµÄÖµÒÑ¾­ÊÇÃ¿Ò»²½µÄÔöÁ¿ÁË¡£
+				!bc_disp(n1:).sf=action(iac1).sf !åœ¨æ­¤å…¶bc_dispçš„å€¼å·²ç»æ˜¯æ¯ä¸€æ­¥çš„å¢é‡äº†ã€‚
 				
 				forall (k=n1:bd_num) action(iac1).node2bcdisp(bc_disp(k).node)=k
 				!print *, action(iac1).node2bcdisp
-			case(0) !Éú³ÉÁ¦±ß½ç
+			case(0) !ç”ŸæˆåŠ›è¾¹ç•Œ
 
 				CALL enlarge_bc(BC_LOAD,BL_NUM,NNODE1,N1)
 				action(iac1).iloadnode=n1
@@ -831,7 +831,7 @@ subroutine GenElement_EXCA2() !STRUCTURAL MESH
 				BC_LOAD(N1:).dof=action(iac1).dof
 				BC_LOAD(N1:).ISINCREMENT=1
                 
-				!BC_LOAD(N1:).sf=action(iac1).sf  !ÔÚ´ËÆäbc_loadµÄÖµÒÑ¾­ÊÇÃ¿Ò»²½µÄÔöÁ¿ÁË¡£
+				!BC_LOAD(N1:).sf=action(iac1).sf  !åœ¨æ­¤å…¶bc_loadçš„å€¼å·²ç»æ˜¯æ¯ä¸€æ­¥çš„å¢é‡äº†ã€‚
 
 		end select	
 	enddo
@@ -987,7 +987,7 @@ subroutine divideLine2D(xi,yi,si,xj,yj,sj,NODE1,IN1,NNODE1)
 end subroutine
 
 
-subroutine soilstiffness_cal(isp,istep,iz,soil) !iz,Îª¿ªÍÚÃæ¸ß³Ìµã¡£
+subroutine soilstiffness_cal(isp,istep,iz,soil) !iz,ä¸ºå¼€æŒ–é¢é«˜ç¨‹ç‚¹ã€‚
 	use solverDS
 	use excaDS
 	implicit none
@@ -1001,12 +1001,12 @@ subroutine soilstiffness_cal(isp,istep,iz,soil) !iz,Îª¿ªÍÚÃæ¸ß³Ìµã¡£
 	Es1=matproperty(soil.mat,4,istep)
 	mu1=matproperty(soil.mat,5,istep)
 	
-	Ep1=matproperty(element(ueset(soil.iueset).element(1)).mat,1,istep) !¼Ù¶¨Í¬Ò»ÍÁ²ãÄÚµÄÖ§»¤×®µÄ²ÎÊı±£³ÖÒ»ÖÂ¡£
-	Iz1=matproperty(element(ueset(soil.iueset).element(1)).mat,5,istep) !¼Ù¶¨Í¬Ò»ÍÁ²ãÄÚµÄÖ§»¤×®µÄ²ÎÊı±£³ÖÒ»ÖÂ¡£
-	d1=matproperty(element(ueset(soil.iueset).element(1)).mat,7,istep) !¼Ù¶¨Í¬Ò»ÍÁ²ãÄÚµÄÖ§»¤×®µÄ²ÎÊı±£³ÖÒ»ÖÂ¡£
-	b1=matproperty(element(ueset(soil.iueset).element(1)).mat,8,istep) !¼Ù¶¨Í¬Ò»ÍÁ²ãÄÚµÄÖ§»¤×®µÄ²ÎÊı±£³ÖÒ»ÖÂ¡£
+	Ep1=matproperty(element(ueset(soil.iueset).element(1)).mat,1,istep) !å‡å®šåŒä¸€åœŸå±‚å†…çš„æ”¯æŠ¤æ¡©çš„å‚æ•°ä¿æŒä¸€è‡´ã€‚
+	Iz1=matproperty(element(ueset(soil.iueset).element(1)).mat,5,istep) !å‡å®šåŒä¸€åœŸå±‚å†…çš„æ”¯æŠ¤æ¡©çš„å‚æ•°ä¿æŒä¸€è‡´ã€‚
+	d1=matproperty(element(ueset(soil.iueset).element(1)).mat,7,istep) !å‡å®šåŒä¸€åœŸå±‚å†…çš„æ”¯æŠ¤æ¡©çš„å‚æ•°ä¿æŒä¸€è‡´ã€‚
+	b1=matproperty(element(ueset(soil.iueset).element(1)).mat,8,istep) !å‡å®šåŒä¸€åœŸå±‚å†…çš„æ”¯æŠ¤æ¡©çš„å‚æ•°ä¿æŒä¸€è‡´ã€‚
 	
-	!¿¼ÂÇµ½Ö§»¤×®ÎªÆ½ÃæÓ¦±ä×´Ì¬£¬Ã¿¸ù×®ËùÏ½µÄ·¶Î§Ó¦Îª×®¾à£¬ËùÒÔ£¬¼ÆËã×®¾¶Ó¦Îª×®¾à¡£			
+	!è€ƒè™‘åˆ°æ”¯æŠ¤æ¡©ä¸ºå¹³é¢åº”å˜çŠ¶æ€ï¼Œæ¯æ ¹æ¡©æ‰€è¾–çš„èŒƒå›´åº”ä¸ºæ¡©è·ï¼Œæ‰€ä»¥ï¼Œè®¡ç®—æ¡©å¾„åº”ä¸ºæ¡©è·ã€‚			
 	if(d1<=1.0d0) then
 		d1=0.9*(1.5*d1+0.5)
 	else
@@ -1016,7 +1016,7 @@ subroutine soilstiffness_cal(isp,istep,iz,soil) !iz,Îª¿ªÍÚÃæ¸ß³Ìµã¡£
 	
 	
 	select case(soilprofile(isp).kmethod)
-		case(0) !m·¨£¬ksµÄµ¥Î»Îª:kN/m3
+		case(0) !mæ³•ï¼Œksçš„å•ä½ä¸º:kN/m3
 			fi1=matproperty(soil.mat,2,istep) 
 			c1=matproperty(soil.mat,1,istep) !kPa			
 			m1=0.2*(fi1**2-fi1+c1)/10.d0 !MN/m4
@@ -1025,22 +1025,22 @@ subroutine soilstiffness_cal(isp,istep,iz,soil) !iz,Îª¿ªÍÚÃæ¸ß³Ìµã¡£
 				soil.ks(i)=m1*1000*dz1
 			enddo
 			
-		case(1) !E.V·¨ ksµÄµ¥Î»Îª:kN/m3	
+		case(1) !E.Væ³• ksçš„å•ä½ä¸º:kN/m3	
 			soil.ks=Es1/(1-mu1**2)/0.88/b1
 			
-		case(2) !zhubitang ksµÄµ¥Î»Îª:kN/m3
+		case(2) !zhubitang ksçš„å•ä½ä¸º:kN/m3
 			Gs1=Es1/(2*(1+mu1))*(1+0.75*mu1)
 			soil.ks=5.46*Gs1*(Ep1/Gs1)**(-1.d0/7.0d0)/b1
 			
-		case(3) !Biot ksµÄµ¥Î»Îª:kN/m3
+		case(3) !Biot ksçš„å•ä½ä¸º:kN/m3
 			soil.ks=0.95*Es1/(1-mu1**2)*(b1**4*Es1/((1-mu1**2)*Ep1*Iz1))**0.108
 			soil.ks=soil.ks/b1
-		case(4) !Vesic ksµÄµ¥Î»Îª:kN/m3
+		case(4) !Vesic ksçš„å•ä½ä¸º:kN/m3
 			soil.ks=0.65*Es1/(1-mu1**2)*(b1**4*Es1/((1-mu1**2)*Ep1*Iz1))**(1./12.0)	
 			soil.ks=soil.ks/b1
 		!case(5)
 		
-		case(-1) !Ö±½ÓÊäÈë£¬ksµÄµ¥Î»Îª:kN/m3
+		case(-1) !ç›´æ¥è¾“å…¥ï¼Œksçš„å•ä½ä¸º:kN/m3
 			soil.ks=matproperty(soil.mat,7,istep)
 		
 			
@@ -1099,10 +1099,10 @@ subroutine Initialize_soilspringEelement_EXCA(ipile,istep,aside,aop,soil)
 		
 		do i=1,ueset(soil.iueset).enum
 			ieL1=ueset(soil.iueset).element(i)
-			d1=matproperty(element(ieL1).mat,7,istep) !¼Ù¶¨Í¬Ò»ÍÁ²ãÄÚµÄÖ§»¤×®µÄ²ÎÊı±£³ÖÒ»ÖÂ¡£
-			b1=matproperty(element(ieL1).mat,8,istep) !¼Ù¶¨Í¬Ò»ÍÁ²ãÄÚµÄÖ§»¤×®µÄ²ÎÊı±£³ÖÒ»ÖÂ¡£
+			d1=matproperty(element(ieL1).mat,7,istep) !å‡å®šåŒä¸€åœŸå±‚å†…çš„æ”¯æŠ¤æ¡©çš„å‚æ•°ä¿æŒä¸€è‡´ã€‚
+			b1=matproperty(element(ieL1).mat,8,istep) !å‡å®šåŒä¸€åœŸå±‚å†…çš„æ”¯æŠ¤æ¡©çš„å‚æ•°ä¿æŒä¸€è‡´ã€‚
 			
-			!¿¼ÂÇµ½Ö§»¤×®ÎªÆ½ÃæÓ¦±ä×´Ì¬£¬Ã¿¸ù×®ËùÏ½µÄ·¶Î§Ó¦Îª×®¾à£¬ËùÒÔ£¬¼ÆËã×®¾¶Ó¦Îª×®¾à¡£			
+			!è€ƒè™‘åˆ°æ”¯æŠ¤æ¡©ä¸ºå¹³é¢åº”å˜çŠ¶æ€ï¼Œæ¯æ ¹æ¡©æ‰€è¾–çš„èŒƒå›´åº”ä¸ºæ¡©è·ï¼Œæ‰€ä»¥ï¼Œè®¡ç®—æ¡©å¾„åº”ä¸ºæ¡©è·ã€‚			
 			if(d1<=1.0d0) then
 				d1=0.9*(1.5*d1+0.5)
 			else
@@ -1148,11 +1148,11 @@ subroutine Initialize_soilspringEelement_EXCA(ipile,istep,aside,aop,soil)
 			element(iel2).property(6)=element(iel2).property(6)+b1*sign1*(vi1(1)+vi1(2))*t1/2
 			
 			if(istep==1) then
-			!	!µ¥Ôª³õÁ¦=ko+pw
+			!	!å•å…ƒåˆåŠ›=ko+pw
                 do j=1,2
 				!if(.not.allocated(element(iel2(j)).gforce)) allocate(element(iel2(j)).gforce(1))
 				if(.not.allocated(element(iel2(j)).km)) allocate(element(iel2(j)).km(1,1))
-                element(iel2(j)).km(1,1)=element(iel2(j)).property(4)/2. !!!!!Á½²à¶¼ÓĞÍÁµ¯»É£¬Æä¸Õ¶È¸÷Îª1/2£¿£¿£¿£¿£¿£¿£¿ 
+                element(iel2(j)).km(1,1)=element(iel2(j)).property(4)/2. !!!!!ä¸¤ä¾§éƒ½æœ‰åœŸå¼¹ç°§ï¼Œå…¶åˆšåº¦å„ä¸º1/2ï¼Ÿï¼Ÿï¼Ÿï¼Ÿï¼Ÿï¼Ÿï¼Ÿ 
 				!element(iel2(j)).gforce(1) =element(iel2(j)).property(1)+element(iel2(j)).property(6)
 			    enddo
             endif
@@ -1184,7 +1184,7 @@ function interpolation(x,y,nx,xi)
         if((xi<=x(i+1).and.xi>=x(i)).or.(xi<=x(i).and.xi>=x(i+1))) then
 	        t1=x(i+1)-x(i)
 	        if(abs(t1)<1e-7) then
-		        print *, "Warning! ·ÖÄ¸=0,function=Interpolation()"
+		        print *, "Warning! åˆ†æ¯=0,function=Interpolation()"
 		        interpolation=(y(i)+y(i+1))/2.0d0
 	        else
 		        interpolation=(y(i+1)-y(i))/(t1)*(xi-x(i))+y(i)
@@ -1220,7 +1220,7 @@ subroutine EarthPressure(istep)
 			IF(N1==0) EXIT
 			!if(sf(soilprofile(i).asoil(j).sf).factor(istep)==0) cycle
 
-			!ÊúÏòÓĞĞ§Ñ¹Á¦£¨Èç¹ûÊÇºÏËã£¬ÔòÎª×ÜÓ¦Á¦£©
+			!ç«–å‘æœ‰æ•ˆå‹åŠ›ï¼ˆå¦‚æœæ˜¯åˆç®—ï¼Œåˆ™ä¸ºæ€»åº”åŠ›ï¼‰
 			if(J==1) then
                 WL1=soilprofile(i).awL*sf(soilprofile(i).sf_awL).factor(istep)
                 T1=MAX((wL1-kpoint(ndimension,soilprofile(i).ASOIL(N1).z(1)))*GA,0.0)
@@ -1242,7 +1242,7 @@ subroutine EarthPressure(istep)
 			
 			!fi1=material(soilprofile(i).ASOIL(N1).mat).property(2)/180.d0*PI()*SF(material(soilprofile(i).ASOIL(N1).mat).sf(2)).factor(istep)
 			
-			!ÍÁÑ¹Á¦ÏµÊı
+			!åœŸå‹åŠ›ç³»æ•°
 			call ep_Cal(i,istep,soilprofile(i).ASOIL(N1),soilprofile(i).aside)									
 												
 			
@@ -1253,7 +1253,7 @@ subroutine EarthPressure(istep)
 			IF(N1==0) EXIT
 			!if(sf(soilprofile(i).psoil(j).sf).factor(istep)==0) cycle
 			!
-			!ÊúÏòÓĞĞ§Ñ¹Á¦£¨Èç¹ûÊÇºÏËã£¬ÔòÎª×ÜÓ¦Á¦£©
+			!ç«–å‘æœ‰æ•ˆå‹åŠ›ï¼ˆå¦‚æœæ˜¯åˆç®—ï¼Œåˆ™ä¸ºæ€»åº”åŠ›ï¼‰
 			
 			if(J==1) then
                 WL1=soilprofile(i).PwL*sf(soilprofile(i).sf_PwL).factor(istep)
@@ -1286,7 +1286,7 @@ subroutine EarthPressure(istep)
 			
 			!fi1=material(soilprofile(i).PSOIL(N1).mat).property(2)/180.d0*PI()*SF(material(soilprofile(i).PSOIL(N1).mat).sf(2)).factor(istep)
 			
-			!ÍÁÑ¹Á¦ÏµÊı
+			!åœŸå‹åŠ›ç³»æ•°
 			call ep_Cal(i,istep,soilprofile(i).PSOIL(N1),-soilprofile(i).aside)						
 												
 			
@@ -1324,7 +1324,7 @@ subroutine ep_Cal(isp,istep,soil,sign)
 	
 	select case(soilprofile(isp).spm)
 	
-		case(0) !ÀÉ¿Ï
+		case(0) !éƒè‚¯
 			soil.ko=1-sin(fi1)
             
 			soil.ka=(1-sin(fi1)*cos(CDelta1-delta1))/(1+sin(fi1))*exp(-(CDelta1-delta1)*tan(fi1))
@@ -1351,15 +1351,15 @@ subroutine waterpressure_cal(isoilprofile,istep)
 	awL1=soilprofile(isoilprofile).awl*sf(soilprofile(isoilprofile).sf_awl).factor(istep)
 	pwL1=soilprofile(isoilprofile).pwl*sf(soilprofile(isoilprofile).sf_pwl).factor(istep)
 	
-	!Çó×ÜË®×è
+	!æ±‚æ€»æ°´é˜»
 	R2=0.0d0
 	do i=1,soilprofile(isoilprofile).nasoil
         soilprofile(isoilprofile).asoil(I).pw=0.0d0
 		if(sf(soilprofile(isoilprofile).ASOIL(I).sf).factor(istep)==0) cycle
-		!¼ò»¯¿¼ÂÇÉøÍ¸Á¦£¬Ç½Éí²»Í¸Ë®£¬Ç½µ×Á½²àË®Ñ¹Á¦ÏàµÈ¡£
-		if(kpoint(ndimension,soilprofile(isoilprofile).ASOIL(I).z(2))<awl1) then!Ë®Î»´¦±ØĞë·Ö²ã
-			!µÈĞ§Ë®×è
-			!Èç¹ûË®Ãæ¸ßÓÚµØ±í£¬½«Ë®µÈĞ§ÎªÎªÍÁ²ã£¨Áîc,phi,k,E¾ùÎª0£©
+		!ç®€åŒ–è€ƒè™‘æ¸—é€åŠ›ï¼Œå¢™èº«ä¸é€æ°´ï¼Œå¢™åº•ä¸¤ä¾§æ°´å‹åŠ›ç›¸ç­‰ã€‚
+		if(kpoint(ndimension,soilprofile(isoilprofile).ASOIL(I).z(2))<awl1) then!æ°´ä½å¤„å¿…é¡»åˆ†å±‚
+			!ç­‰æ•ˆæ°´é˜»
+			!å¦‚æœæ°´é¢é«˜äºåœ°è¡¨ï¼Œå°†æ°´ç­‰æ•ˆä¸ºä¸ºåœŸå±‚ï¼ˆä»¤c,phi,k,Eå‡ä¸º0ï¼‰
 			if(matproperty(soilprofile(isoilprofile).ASOIL(I).mat,6,istep)>1e-10) then
 				R2=R2+(kpoint(ndimension,soilprofile(isoilprofile).ASOIL(I).z(1))-kpoint(ndimension,soilprofile(isoilprofile).ASOIL(I).z(2))) &
 						/matproperty(soilprofile(isoilprofile).ASOIL(I).mat,6,istep)	
@@ -1369,9 +1369,9 @@ subroutine waterpressure_cal(isoilprofile,istep)
 	do i=1,soilprofile(isoilprofile).npsoil
         soilprofile(isoilprofile).Psoil(I).pw=0.0d0
 		if(sf(soilprofile(isoilprofile).psoil(i).sf).factor(istep)==0) cycle
-		!¼ò»¯¿¼ÂÇÉøÍ¸Á¦£¬Ç½Éí²»Í¸Ë®£¬Ç½µ×Á½²àË®Ñ¹Á¦ÏàµÈ¡£
-		if(kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(2))<pwl1) then!Ë®Î»´¦±ØĞë·Ö²ã
-			!µÈĞ§Ë®×è
+		!ç®€åŒ–è€ƒè™‘æ¸—é€åŠ›ï¼Œå¢™èº«ä¸é€æ°´ï¼Œå¢™åº•ä¸¤ä¾§æ°´å‹åŠ›ç›¸ç­‰ã€‚
+		if(kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(2))<pwl1) then!æ°´ä½å¤„å¿…é¡»åˆ†å±‚
+			!ç­‰æ•ˆæ°´é˜»
 			if(matproperty(soilprofile(isoilprofile).psoil(i).mat,6,istep)>1e-10) then
 				R2=R2+(kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(1))-kpoint(ndimension,soilprofile(isoilprofile).psoil(i).z(2))) &
 						/matproperty(soilprofile(isoilprofile).psoil(i).mat,6,istep)
@@ -1388,9 +1388,9 @@ subroutine waterpressure_cal(isoilprofile,istep)
 		IF(N1==0) EXIT
         !soilprofile(isoilprofile).ASOIL(N1).pw=0.0d0
 		!if(sf(soilprofile(isoilprofile).ASOIL(N1).sf).factor(istep)==0) cycle
-        !¼ò»¯¿¼ÂÇÉøÍ¸Á¦£¬Ç½Éí²»Í¸Ë®£¬Ç½µ×Á½²àË®Ñ¹Á¦ÏàµÈ¡£
-	    if(kpoint(ndimension,soilprofile(isoilprofile).ASOIL(N1).z(2))<awl1) then!Ë®Î»´¦±ØĞë·Ö²ã
-		    !µÈĞ§Ë®×è
+        !ç®€åŒ–è€ƒè™‘æ¸—é€åŠ›ï¼Œå¢™èº«ä¸é€æ°´ï¼Œå¢™åº•ä¸¤ä¾§æ°´å‹åŠ›ç›¸ç­‰ã€‚
+	    if(kpoint(ndimension,soilprofile(isoilprofile).ASOIL(N1).z(2))<awl1) then!æ°´ä½å¤„å¿…é¡»åˆ†å±‚
+		    !ç­‰æ•ˆæ°´é˜»
 		    h1=awl1-(awl1-pwl1)*r1/r2
 		    soilprofile(isoilprofile).ASOIL(N1).pw(1)=(h1-kpoint(ndimension,soilprofile(isoilprofile).ASOIL(N1).z(1)))*GA
 		    if(matproperty(soilprofile(isoilprofile).ASOIL(N1).mat,6,istep)>1e-10) then
@@ -1404,12 +1404,12 @@ subroutine waterpressure_cal(isoilprofile,istep)
         endif		
         
 		select case(soilprofile(isoilprofile).ASOIL(N1).wpflag) 
-			case(1) !³£¹æ·ÖËã£¬²»¿¼ÂÇÉøÍ¸Á¦
+			case(1) !å¸¸è§„åˆ†ç®—ï¼Œä¸è€ƒè™‘æ¸—é€åŠ›
 				soilprofile(isoilprofile).ASOIL(N1).PW(1)=max(awL1-kpoint(ndimension,soilprofile(isoilprofile).ASOIL(N1).z(1)),0.d0)*GA
 				soilprofile(isoilprofile).ASOIL(N1).PW(2)=max(awL1-kpoint(ndimension,soilprofile(isoilprofile).ASOIL(N1).z(2)),0.d0)*GA   
 				
-			case(2) !¼ò»¯¿¼ÂÇÉøÍ¸Á¦£¬Ç½Éí²»Í¸Ë®£¬Ç½µ×Á½²àË®Ñ¹Á¦ÏàµÈ¡£
-			case(3) !ÊÖ¶¯ÊäÈë
+			case(2) !ç®€åŒ–è€ƒè™‘æ¸—é€åŠ›ï¼Œå¢™èº«ä¸é€æ°´ï¼Œå¢™åº•ä¸¤ä¾§æ°´å‹åŠ›ç›¸ç­‰ã€‚
+			case(3) !æ‰‹åŠ¨è¾“å…¥
 				soilprofile(isoilprofile).ASOIL(N1).PW(1)=matproperty(soilprofile(isoilprofile).ASOIL(N1).mat,9,istep)
 				soilprofile(isoilprofile).ASOIL(N1).PW(2)=matproperty(soilprofile(isoilprofile).ASOIL(N1).mat,10,istep)
 			case default
@@ -1425,12 +1425,12 @@ subroutine waterpressure_cal(isoilprofile,istep)
         !soilprofile(isoilprofile).psoil(i).pw=0.d0
 		!if(sf(soilprofile(isoilprofile).psoil(i).sf).factor(istep)==0) cycle
 		
-        !¼ò»¯¿¼ÂÇÉøÍ¸Á¦£¬Ç½Éí²»Í¸Ë®£¬Ç½µ×Á½²àË®Ñ¹Á¦ÏàµÈ¡£
-        if(kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(2))<pwl1) then!Ë®Î»´¦±ØĞë·Ö²ã
+        !ç®€åŒ–è€ƒè™‘æ¸—é€åŠ›ï¼Œå¢™èº«ä¸é€æ°´ï¼Œå¢™åº•ä¸¤ä¾§æ°´å‹åŠ›ç›¸ç­‰ã€‚
+        if(kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(2))<pwl1) then!æ°´ä½å¤„å¿…é¡»åˆ†å±‚
 					
 			h1=awl1-(awl1-pwl1)*r1/r2
 			soilprofile(isoilprofile).PSOIL(N1).pw(2)=(h1-kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(2)))*GA
-			!µÈĞ§Ë®×è
+			!ç­‰æ•ˆæ°´é˜»
 			if(matproperty(soilprofile(isoilprofile).PSOIL(N1).mat,6,istep)>1e-10) then
 			R1=R1+(kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(1))-kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(2))) &
 				/matproperty(soilprofile(isoilprofile).PSOIL(N1).mat,6,istep)
@@ -1440,12 +1440,12 @@ subroutine waterpressure_cal(isoilprofile,istep)
 		endif        
         
 		select case(soilprofile(isoilprofile).PSOIL(N1).wpflag) 
-			case(1) !³£¹æ·ÖËã£¬²»¿¼ÂÇÉøÍ¸Á¦
+			case(1) !å¸¸è§„åˆ†ç®—ï¼Œä¸è€ƒè™‘æ¸—é€åŠ›
 				soilprofile(isoilprofile).PSOIL(N1).PW(1)=max(pwL1-kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(1)),0.d0)*GA
 				soilprofile(isoilprofile).PSOIL(N1).PW(2)=max(pwL1-kpoint(ndimension,soilprofile(isoilprofile).PSOIL(N1).z(2)),0.d0)*GA 
 				
-			case(2) !¼ò»¯¿¼ÂÇÉøÍ¸Á¦£¬Ç½Éí²»Í¸Ë®£¬Ç½µ×Á½²àË®Ñ¹Á¦ÏàµÈ¡£
-			case(3) !ÊÖ¶¯ÊäÈë
+			case(2) !ç®€åŒ–è€ƒè™‘æ¸—é€åŠ›ï¼Œå¢™èº«ä¸é€æ°´ï¼Œå¢™åº•ä¸¤ä¾§æ°´å‹åŠ›ç›¸ç­‰ã€‚
+			case(3) !æ‰‹åŠ¨è¾“å…¥
 				soilprofile(isoilprofile).PSOIL(N1).PW(1)=matproperty(soilprofile(isoilprofile).PSOIL(N1).mat,9,istep)
 				soilprofile(isoilprofile).PSOIL(N1).PW(2)=matproperty(soilprofile(isoilprofile).PSOIL(N1).mat,10,istep)				
 			case default
@@ -1455,8 +1455,8 @@ subroutine waterpressure_cal(isoilprofile,istep)
 
 endsubroutine
 
-!ÅĞ¶ÏÔÚarr_tÖĞÊÇ·ñ»¹ÆäËüµãÔÚÏß¶Îxi,xjÉÏ£¬²¢ĞÎ³ÉÊı×éar,Ê¹ar°üº¬vertexÖĞÔÚÏß¶Îxi,xjÉÏµÄËùÓĞµã
-!ÒÔn4·µ»Ø¸ÃÊı×éµÄ´óĞ¡£¬xi,xjÎª¸ÃÊı×éµÄÁ½¶Ë,Ö®¼äµÄµã°´Ë³ĞòÅÅÁĞ¡£
+!åˆ¤æ–­åœ¨arr_tä¸­æ˜¯å¦è¿˜å…¶å®ƒç‚¹åœ¨çº¿æ®µxi,xjä¸Šï¼Œå¹¶å½¢æˆæ•°ç»„ar,ä½¿aråŒ…å«vertexä¸­åœ¨çº¿æ®µxi,xjä¸Šçš„æ‰€æœ‰ç‚¹
+!ä»¥n4è¿”å›è¯¥æ•°ç»„çš„å¤§å°ï¼Œxi,xjä¸ºè¯¥æ•°ç»„çš„ä¸¤ç«¯,ä¹‹é—´çš„ç‚¹æŒ‰é¡ºåºæ’åˆ—ã€‚
 subroutine aovis2d(N1,N2,IAR,NAR) !any other vertex inside the segment?
   use solverDS
   use ExcaDS
@@ -1503,7 +1503,7 @@ subroutine aovis2d(N1,N2,IAR,NAR) !any other vertex inside the segment?
   IAR(NAR)=N2
   !ar(3,NAR)=sj
 
-  !°´Àëar(:,1)µÄÓÉ½ü¶øÔ¶µÄË³ĞòÖØÅÅ
+  !æŒ‰ç¦»ar(:,1)çš„ç”±è¿‘è€Œè¿œçš„é¡ºåºé‡æ’
   do i=2,NAR-1
 	 t1=(KPOINT(1,IAR(I))-KPOINT(1,IAR(1)))**2+(KPOINT(NDIMENSION,IAR(I))-KPOINT(NDIMENSION,IAR(1)))**2
 	 do j=i+1,NAR-1
@@ -1519,7 +1519,7 @@ subroutine aovis2d(N1,N2,IAR,NAR) !any other vertex inside the segment?
 
 end subroutine
 
-  !ÅĞ¶Ïµãx(),ÊÇ·ñÔÚÏß¶ÎxixjÉÏ¡£Èç¹ûÊÇ£¬tof1=.t. or .f.
+  !åˆ¤æ–­ç‚¹x(),æ˜¯å¦åœ¨çº¿æ®µxixjä¸Šã€‚å¦‚æœæ˜¯ï¼Œtof1=.t. or .f.
 subroutine vins2d(xi,yi,xj,yj,x,y,tof1) !vertex in the segment or noe
   !use meshds
   implicit none
@@ -1604,26 +1604,26 @@ subroutine Beam_Result_EXCA(istep)
                     iesp1(:)=pile(ipile).element_sp(:,nnode1(k))
 				
                     if(element(iesp1(1)).isactive==1) then
-				        !Ö÷¶¯²àÍÁºÉÔØ
+				        !ä¸»åŠ¨ä¾§åœŸè·è½½
 				        pile(ipile).beamresult(nnode1(k),5,istep)=pile(ipile).beamresult(nnode1(k),5,istep) &
 					        -(element(iesp1(1)).property(2)+element(iesp1(1)).property(6))/ &
 					        element(iesp1(1)).property(5)
-				        !Ö÷¶¯²àÍÁµ¯»ÉÁ¦									
+				        !ä¸»åŠ¨ä¾§åœŸå¼¹ç°§åŠ›									
 				        pile(ipile).beamresult(nnode1(k),6,istep)=pile(ipile).beamresult(nnode1(k),6,istep) &
 					        +element(iesp1(1)).gforceILS(1)/ &
                             element(iesp1(1)).property(5)  
-						!ºÉÔØ+ÍÁµ¯»ÉÁ¦
+						!è·è½½+åœŸå¼¹ç°§åŠ›
 						pile(ipile).beamresult(nnode1(k),4,istep)=pile(ipile).beamresult(nnode1(k),4,istep) &
 							+pile(ipile).beamresult(nnode1(k),6,istep)	
-                        !Ö÷¶¯²àÍÁµ¯»ÉÁ¦ÏŞÖµ		
+                        !ä¸»åŠ¨ä¾§åœŸå¼¹ç°§åŠ›é™å€¼		
 				        pile(ipile).beamresult(nnode1(k),7,istep)=pile(ipile).beamresult(nnode1(k),7,istep) &
 					        -(element(iesp1(1)).property(3)- &
 					          element(iesp1(1)).property(2))/ &
                             element(iesp1(1)).property(5) 
-                        !Ö÷¶¯²àÍÁË®Ñ¹Á¦		
+                        !ä¸»åŠ¨ä¾§åœŸæ°´å‹åŠ›		
 				        pile(ipile).beamresult(nnode1(k),8,istep)=pile(ipile).beamresult(nnode1(k),8,istep) &
 					        -element(iesp1(1)).property(6)/element(iesp1(1)).property(5)                      
-				        !Ö÷¶¯¶¯²àÍÁµ¯»É¸Õ¶È
+				        !ä¸»åŠ¨åŠ¨ä¾§åœŸå¼¹ç°§åˆšåº¦
                         IF(pile(ipile).beamresult(nnode1(k),6,istep)<0) THEN
                             T1=-1
                         ELSE
@@ -1634,28 +1634,28 @@ subroutine Beam_Result_EXCA(istep)
                             element(iesp1(1)).property(5) 
                     endif
                     if(element(iesp1(2)).isactive==1) then
-				        !±»¶¯²àÍÁºÉÔØ	
+				        !è¢«åŠ¨ä¾§åœŸè·è½½	
 				        pile(ipile).beamresult(nnode1(k),9,istep)=pile(ipile).beamresult(nnode1(k),9,istep) &
 					        -(element(iesp1(2)).property(1)+ &
                             element(iesp1(2)).property(6))/ &
 					        element(iesp1(2)).property(5)
-				        !±»¶¯²àÍÁµ¯»ÉÁ¦									
+				        !è¢«åŠ¨ä¾§åœŸå¼¹ç°§åŠ›									
 				        pile(ipile).beamresult(nnode1(k),10,istep)=pile(ipile).beamresult(nnode1(k),10,istep) &
 					        +element(iesp1(2)).gforceILS(1)/ &
                             element(iesp1(2)).property(5)
-						!ºÉÔØ+ÍÁµ¯»ÉÁ¦	
+						!è·è½½+åœŸå¼¹ç°§åŠ›	
 						pile(ipile).beamresult(nnode1(k),4,istep)=pile(ipile).beamresult(nnode1(k),4,istep) &
 							+pile(ipile).beamresult(nnode1(k),10,istep)
-				        !±»¶¯²àÍÁµ¯»ÉÁ¦ÏŞÖµ		
+				        !è¢«åŠ¨ä¾§åœŸå¼¹ç°§åŠ›é™å€¼		
 				        pile(ipile).beamresult(nnode1(k),11,istep)=pile(ipile).beamresult(nnode1(k),11,istep) &
 					        -(element(iesp1(2)).property(3)- &
 					          element(iesp1(2)).property(2))/ &
                             element(iesp1(2)).property(5)
-                        !±»¶¯²àÍÁË®Ñ¹Á¦		
+                        !è¢«åŠ¨ä¾§åœŸæ°´å‹åŠ›		
 				        pile(ipile).beamresult(nnode1(k),12,istep)=pile(ipile).beamresult(nnode1(k),12,istep) &
 					        -element(iesp1(2)).property(6)/element(iesp1(1)).property(5)                    
 				    
-                        !±»¶¯²àÍÁµ¯»ÉÁ¦¸Õ¶È
+                        !è¢«åŠ¨ä¾§åœŸå¼¹ç°§åŠ›åˆšåº¦
                         IF(pile(ipile).beamresult(nnode1(k),10,istep)<0) THEN
                             T1=-1
                         ELSE
@@ -1667,7 +1667,7 @@ subroutine Beam_Result_EXCA(istep)
                     endif
                 
                 endif
-                !ºÉÔØ+ÍÁµ¯»ÉÁ¦
+                !è·è½½+åœŸå¼¹ç°§åŠ›
                 
                 pile(ipile).beamresult(nnode1(k),4,istep)=pile(ipile).beamresult(nnode1(k),4,istep)-(TLOAD(NODE(NNODE1(K)).DOF(NC1)))/pile(ipile).Nlength(nnode1(k))
                 
@@ -1715,9 +1715,9 @@ subroutine Beam_Result_EXCA(istep)
 endsubroutine
 
     subroutine enlarge_strut(PROP,NP,EXN,SN)
-!À©´óPROPÊı×é,Í¬Ê±update×ÜµÄµ¥ÔªÊıNP=NP+EXN
-!EXN:À©´óµÄµ¥Ôª¸öÊı
-!SN,:À©Èİ²¿·ÖµÄÆğÎ»
+!æ‰©å¤§PROPæ•°ç»„,åŒæ—¶updateæ€»çš„å•å…ƒæ•°NP=NP+EXN
+!EXN:æ‰©å¤§çš„å•å…ƒä¸ªæ•°
+!SN,:æ‰©å®¹éƒ¨åˆ†çš„èµ·ä½
     USE EXCADS
 	integer,intent(in)::EXN
     INTEGER,INTENT(IN OUT)::NP
@@ -2274,7 +2274,7 @@ subroutine checksoilprofile()
    
     ALLOCATE(IKP1(2,NKP))
     !IKP1(J,IKP)=I, IKP=SOILPROFILE.SOIL(I).Z(J)
-    !ÍÁ²ãi£¬j·Ö½çÃæ½ÚµãÎªikp£¬ÍÁ²ãiÔÚÍÁ²ãjµÄÉÏÃæ£¬Ôòikp1(1,ikp)=i,ikp1(2,ikp)=j
+    !åœŸå±‚iï¼Œjåˆ†ç•Œé¢èŠ‚ç‚¹ä¸ºikpï¼ŒåœŸå±‚iåœ¨åœŸå±‚jçš„ä¸Šé¢ï¼Œåˆ™ikp1(1,ikp)=i,ikp1(2,ikp)=j
     
     DO I=1,NSOILPROFILE
         ALLOCATE(SOILPROFILE(I).ASOILSTEP(SOILPROFILE(I).NASOIL,NSTEP))
@@ -2351,7 +2351,7 @@ subroutine checksoilprofile()
                 N1=0
                 N2=ITOP                
                 DO WHILE(IKP1(2,N2)/=0.AND.N1<=NSOIL1)
-                    !IKP1(2,N2)Îª´¦ÓÚ½ÚµãN2ÏÂ·½µÄÍÁ²ã±àºÅ
+                    !IKP1(2,N2)ä¸ºå¤„äºèŠ‚ç‚¹N2ä¸‹æ–¹çš„åœŸå±‚ç¼–å·
                     N1=N1+1
                     IF(K2==1) SOILPROFILE(J).ASOILSTEP(N1,I)=IKP1(2,N2)
                     IF(K2==2) SOILPROFILE(J).PSOILSTEP(N1,I)=IKP1(2,N2)

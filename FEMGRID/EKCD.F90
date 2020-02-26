@@ -24,7 +24,7 @@
 		n1=i
 		n2=mod(i,3)+1
 !		n3=mod(n2,3)+1
-		!�����Ԫ����һ�߽磬���ٲ����µĵ㣬����������Ϊ��ĵ�Ԫ
+		!如果单元边是一边界，则不再插入新的点，以免产生面积为零的单元
 		if(elt(el).adj(i)/=-1) then
 			!d1=((node(elt(el).node(n1)).x-node(elt(el).node(n2)).x)**2+ &
 			!(node(elt(el).node(n1)).y-node(elt(el).node(n2)).y)**2)**0.5

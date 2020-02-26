@@ -388,7 +388,7 @@
 	!--- Settings regarding calculation of the constitutive matrix, DepP -------------
 	integer(4), parameter :: DepFormLine = 1 ! Form of the consistent constitutive matrix on a line
 					! DepFormLine = 0: Double singular constitutive matrix
-					! DepFormLine = 1: Modified "almost double singular" matrix on a line ("Tilnæ_b=axr" in the MatLab code)
+					! DepFormLine = 1: Modified "almost double singular" matrix on a line ("Tilnï¿½_b=axr" in the MatLab code)
 					! DepFormLine = 2: A single singular matrix in the Koiter direction, i.e. the direction of the plastic strain.
 	real(8), parameter :: beta = 30 ! The value used in the modification of DepP when DepFormLine = 1
 	

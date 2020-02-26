@@ -473,20 +473,20 @@ module solverds
     
     
     INTERFACE
-         PURE subroutine INVARIANT(stress,inv)
+          subroutine INVARIANT(stress,inv)
 	        implicit none
 	        real(8),intent(in)::stress(6)
 	        real(8),intent(out)::inv(3)
 	
         end subroutine 
 		
-        PURE SUBROUTINE KSITA_MC_C2(KSITA,LODE,SITA,PHI)
+        SUBROUTINE KSITA_MC_C2(KSITA,LODE,SITA,PHI)
             !LODE IN RAD,SITA IN RAD, TRANSITIONAL ANGLE.
 	        IMPLICIT NONE
 	        REAL(8),INTENT(IN)::LODE,SITA,PHI
 	        REAL(8),INTENT(OUT)::KSITA(6)
         END SUBROUTINE
-		PURE subroutine yieldfun(vyf,mat,inv,ayf,ev,ISTEP)
+		subroutine yieldfun(vyf,mat,inv,ayf,ev,ISTEP)
 			!use solverds	
 			implicit none
 			INTEGER,INTENT(IN)::MAT,AYF,ISTEP
@@ -494,26 +494,26 @@ module solverds
 			REAL(8),INTENT(OUT)::VYF
 		END SUBROUTINE
 		
-		PURE SUBROUTINE MC_KSITA(LODE,SITA,PHI,A,B,KSITA,D_KSITA)
+		SUBROUTINE MC_KSITA(LODE,SITA,PHI,A,B,KSITA,D_KSITA)
 			IMPLICIT NONE
 			REAL(8),INTENT(IN)::LODE,SITA,A(2),B(2),PHI
 			REAL(8),INTENT(OUT)::KSITA,D_KSITA
 		END SUBROUTINE
 		
-		PURE subroutine deriv_yf(dyf,dywi,m)
+		 subroutine deriv_yf(dyf,dywi,m)
 			!use solverds
 			implicit none
 			REAL(8),INTENT(IN)::dywi(3),M(6,3)
 			REAL(8),INTENT(OUT)::DYF(6)
 		END SUBROUTINE
 		
-		PURE subroutine deriv_sinv(m,stress)
+		subroutine deriv_sinv(m,stress)
 			implicit none
 			REAL(8),INTENT(IN)::STRESS(6)
 			real(8),INTENT(OUT)::m(6,3)
 		END SUBROUTINE
 		
-		PURE subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev,ISTEP)
+		subroutine deriv_yf_with_inv(dywi,inv,mat,ayf,ev,ISTEP)
 			
 			implicit none
 			INTEGER,INTENT(IN)::MAT,AYF,ISTEP
@@ -522,7 +522,7 @@ module solverds
 			
 		END SUBROUTINE
 		
-		PURE subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev,ISTEP)
+		subroutine deriv_qf_with_inv(dywi,inv,mat,ayf,ev,ISTEP)
 		
 			implicit none
 			INTEGER,INTENT(IN)::MAT,AYF,ISTEP
@@ -531,7 +531,7 @@ module solverds
 			
 		END SUBROUTINE
         
-        PURE FUNCTION PARA_MC_CLAUSEN(MATID,ISTEP) RESULT(PARA)
+        FUNCTION PARA_MC_CLAUSEN(MATID,ISTEP) RESULT(PARA)
             IMPLICIT NONE
             INTEGER,INTENT(IN)::MATID,ISTEP
             REAL(8)::PARA(3)
@@ -599,7 +599,7 @@ module solverds
    
 	END FUNCTION ESET_GETFREEID    
     
-	PURE function pi()
+	 function pi()
 		real(kind=DPN)::pi
 		pi=1.d0
 		pi=datan(pi)*4.0d0	
@@ -643,7 +643,7 @@ END FUNCTION csproduct
 
 ! computate the elastic compliance matrix [C] so that strain=matmul([C],stress)
 !ND>=4
-pure function DINV(E,V,ND) result(C)
+ function DINV(E,V,ND) result(C)
 	implicit none
 	INTEGER,INTENT(IN)::ND
 	real(8),intent(in)::E,V

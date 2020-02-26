@@ -32,7 +32,7 @@ CONTAINS
 	    integer::ns,ne,nc
 	    
 	
-	    if(index(term,'/')/=0) then !Ã¿Ò»ÐÐ¡®/¡¯ºóÃæµÄÄÚÈÝÊÇÎÞÐ§µÄ¡£
+	    if(index(term,'/')/=0) then !Ã¿Ò»ï¿½Ð¡ï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð§ï¿½Ä¡ï¿½
 		    strL=index(term,'/')-1
 		    term=term(1:strL)
 	    end if
@@ -99,10 +99,10 @@ END MODULE
 MODULE POS_IO
     USE INPUT_PARSER
     IMPLICIT NONE
-!¼Ù¶¨£º
-!1)Í¬Ò»Ê±¼ä²½£¬¸÷zoneÖ®¼äµÄ½ÚµãÊý¾Ý¹²Ïí(Í¨¹ývarsharelist)»òÒ»Ñù¡£
-!2)Í¬Ò»µ¥Ôª¼¯Ö»Êä³öÒ»´Î£¬Í¬Ò»µ¥Ôª¼¯ºóÐøÊ±¼ä²½Í¨¹ý(CONNECTIVITYSHAREZONE)Êä³ö£¬·ñÔò£¬¿ÉÄÜ»á³öÏÖÖØ¸´Íø¸ñ¡£
-!3)°´Ê±¼äÏÈºóÊä³ö¸÷zoneµÄÊý¾Ý¡£
+!ï¿½Ù¶ï¿½ï¿½ï¿½
+!1)Í¬Ò»Ê±ï¿½ä²½ï¿½ï¿½ï¿½ï¿½zoneÖ®ï¿½ï¿½Ä½Úµï¿½ï¿½ï¿½ï¿½Ý¹ï¿½ï¿½ï¿½(Í¨ï¿½ï¿½varsharelist)ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½
+!2)Í¬Ò»ï¿½ï¿½Ôªï¿½ï¿½Ö»ï¿½ï¿½ï¿½Ò»ï¿½Î£ï¿½Í¬Ò»ï¿½ï¿½Ôªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ä²½Í¨ï¿½ï¿½(CONNECTIVITYSHAREZONE)ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ò£¬¿ï¿½ï¿½Ü»ï¿½ï¿½ï¿½ï¿½ï¿½Ø¸ï¿½ï¿½ï¿½ï¿½ï¿½
+!3)ï¿½ï¿½Ê±ï¿½ï¿½ï¿½Èºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½zoneï¿½ï¿½ï¿½ï¿½ï¿½Ý¡ï¿½
     
     PRIVATE
     
@@ -113,7 +113,7 @@ MODULE POS_IO
     integer, parameter::POINT = 1
     integer, parameter::BLOCK = 2
     INTEGER,PARAMETER::MAXZONE=500,MAXSTEP=100
-    INTEGER,PARAMETER::NNEL(FELINESEG:FEBRICK)=[2,3,4,4,8] !µ¥Ôª½ÚµãÐòºÅÊý
+    INTEGER,PARAMETER::NNEL(FELINESEG:FEBRICK)=[2,3,4,4,8] !ï¿½ï¿½Ôªï¿½Úµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     INTEGER::NSTEP=1,NEL=0,NESET=0
     REAL(8)::STEPTIME(MAXSTEP)
     !REAL(8)::VTOL=1.D-3
@@ -136,7 +136,7 @@ MODULE POS_IO
     
     TYPE ELEMENT_TYDEF
         INTEGER::NNUM=0,ISET=0,NEDGE=0,NFACE=0,NTET=0
-		integer,allocatable::NODE(:),EDGE(:),FACE(:),TET(:) !µ¥ÔªµÄ½Úµã,TETÎªµ¥ÔªµÄÏ¸·Öµ¥Ôª×éµÄÏÂ±ê¡£       
+		integer,allocatable::NODE(:),EDGE(:),FACE(:),TET(:) !ï¿½ï¿½Ôªï¿½Ä½Úµï¿½,TETÎªï¿½ï¿½Ôªï¿½ï¿½Ï¸ï¿½Öµï¿½Ôªï¿½ï¿½ï¿½ï¿½Â±ê¡£       
     ENDTYPE
     
     TYPE ESET_TYDEF
@@ -172,7 +172,7 @@ MODULE POS_IO
     !    INTEGER::V(4)=0,EDGE(4)=0 !IF EDGE(I)<0 MEANING ITS ORDER IS REVERSE .
     !    INTEGER::HKEY=-1
     !    CHARACTER(64)::CKEY="" 		
-    !    INTEGER::ISTRISURFACE=0 !<-1 Óëface·´Ïò
+    !    INTEGER::ISTRISURFACE=0 !<-1 ï¿½ï¿½faceï¿½ï¿½ï¿½ï¿½
     !    REAL(8)::UNORMAL(3)=0.D0,BBOX(2,3)=0.D0		
     !    INTEGER::ENUM=0
 	   ! INTEGER::ISDEAD=0
@@ -185,7 +185,7 @@ MODULE POS_IO
     !!split all element into simple 3-noded-triangle , 4-noded-tetrahedron,point and 2-noded-line element
     !TYPE TET_TYDEF
 	   ! INTEGER::MOTHER=0,GMET=0,DIM=-1,NV=0,NE=0,NF=0,ISDEAD=0,ISET=0 
-	   ! INTEGER::V(4)=0,E(6)=0,F(4)=0	!FµÄÕý·´Ã»ÓÐÎ¬»¤£¬¿ÉÒÔÍ¨¹ýelttype(4).faceÀ´È·¶¨¡£
+	   ! INTEGER::V(4)=0,E(6)=0,F(4)=0	!Fï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½ï¿½Î¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½elttype(4).faceï¿½ï¿½È·ï¿½ï¿½ï¿½ï¿½
 	   ! REAL(8)::BBOX(2,3)=0.D0 !MIN,MAX OF X,Y AND Z
     !    REAL(8)::STEPSIZE=0.1D0
     !ENDTYPE
@@ -200,21 +200,21 @@ MODULE POS_IO
 	   ! !edge(2,nedge),
 	   ! !face: use node index to represent face. face(0:4,nface),face(0,:)==3,triangular face,==4, quadrilateral face
 	   ! !FaceEdge: use edge index to represent face. FaceEdge(0:4,nface),FaceEdge(0,:)==3,triangular face, ==4, quadrilateral face
-	   ! real(8),allocatable::weight(:,:) !·Ö²¼µ¥ÔªºÉÔØ¸÷½Úµã·Ö²¼ÏµÊý, weight(:,1) Æ½Ãæ¾ù²¼ºÉÔØ£»weight(:,2) Æ½ÃæÈý½ÇÐÎºÉÔØ;weight(:,3) Öá¶Ô³Æ¾ù²¼ºÉÔØ£»weight(:,4) Öá¶Ô³ÆÈý½ÇÐÎºÉÔØ£¬
-				!								    !Ä¿Ç°Ö»ÄÜ´¦ÀíÆ½ÃæÓ¦±äµÄÁ½ÖÖÇé¿ö¡£
+	   ! real(8),allocatable::weight(:,:) !ï¿½Ö²ï¿½ï¿½ï¿½Ôªï¿½ï¿½ï¿½Ø¸ï¿½ï¿½Úµï¿½Ö²ï¿½Ïµï¿½ï¿½, weight(:,1) Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø£ï¿½weight(:,2) Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îºï¿½ï¿½ï¿½;weight(:,3) ï¿½ï¿½Ô³Æ¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø£ï¿½weight(:,4) ï¿½ï¿½Ô³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îºï¿½ï¿½Ø£ï¿½
+				!								    !Ä¿Ç°Ö»ï¿½Ü´ï¿½ï¿½ï¿½Æ½ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     !end type
     !type(et_type)::elttype(100)
 
     type outvar_tydef
 		character(128)::name=''
-		integer::value=0,ivo=0	!>0, variable output is required.,ivo=´ËÁ¿´æÖüÔÚNodalQ(:,ivo)
+		integer::value=0,ivo=0	!>0, variable output is required.,ivo=ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½NodalQ(:,ivo)
 		logical::iscentre=.false. !location, nodes or centroid of element.
 		integer::system=0	!reference systerm,the default system is the globel sysytem
 								!if system=-999, then the local system is a cylindrical system whose origin is along 
 								!the central line of the cylinder.
 								!if system=-9999,then the local system is a spherical syystem whose origin is located
 								!at the center of the sphere
-		integer::nval=1 !Õâ¸ö±äÁ¿°üº¬¶àÉÙ¸öÊý¡£
+		integer::nval=1 !ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù¸ï¿½ï¿½ï¿½ï¿½ï¿½
 	end type
 	!type(outvar_tydef)::outvar(100)	 
     
@@ -229,7 +229,7 @@ MODULE POS_IO
                 ISFR_SFRX=0,ISFR_SFRY=0,IMC_C=0,IMC_PHI=0,&
                 ISXX=0,ISYY=0,ISXY=0,ISFR=0,IH_BC=0,IQ=0,ISLOPE_SD=0,&
                 IPSIGMA1=0,IPSIGMA3=0,IAPSIGMA1=0
-        real(8)::modelr,minx,miny,minz,maxx,maxy,maxz !Ä£ÐÍÍâ½ÓÔ²°ë¾¶
+        real(8)::modelr,minx,miny,minz,maxx,maxy,maxz !Ä£ï¿½ï¿½ï¿½ï¿½ï¿½Ô²ï¿½ë¾¶
         type(outvar_tydef),ALLOCATABLE::OUTVAR(:)
         TYPE(NODE_TYDEF),ALLOCATABLE::NODE(:),GRIDNODE(:)        
         REAL(8),ALLOCATABLE::STEPTIME(:)
@@ -445,7 +445,7 @@ CONTAINS
 						TECDATA.ZONE(IZONE).TITLE=TRIM(COMMAND.OPTION(i).Cvalue)
                     CASE('n','nodes')
                         TECDATA.ZONE(IZONE).NNODE=INT(COMMAND.OPTION(i).VALUE)
-                        !¼Ù¶¨£ºÍ¬Ò»Ê±¼ä²½£¬¸÷zoneÖ®¼äµÄ½ÚµãÊý¾Ý¹²Ïí(Í¨¹ývarsharelist)»òÒ»Ñù¡£
+                        !ï¿½Ù¶ï¿½ï¿½ï¿½Í¬Ò»Ê±ï¿½ä²½ï¿½ï¿½ï¿½ï¿½zoneÖ®ï¿½ï¿½Ä½Úµï¿½ï¿½ï¿½ï¿½Ý¹ï¿½ï¿½ï¿½(Í¨ï¿½ï¿½varsharelist)ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½
                         IF(IZONE>1) THEN
                             IF(TECDATA.ZONE(IZONE).NNODE/=TECDATA.ZONE(IZONE-1).NNODE) THEN
                                 STOP "The nodal data at one step should be identical."
@@ -476,7 +476,7 @@ CONTAINS
                     CASE('zonetype') 
                         TECDATA.ZONE(IZONE).zonetype=INT(COMMAND.OPTION(i).VALUE)
                     case('varsharelist')
-                        !¼Ù¶¨£ºÍ¬Ò»Ê±¼ä²½£¬¸÷zoneÖ®¼äµÄ½ÚµãÊý¾Ý¹²Ïí(Í¨¹ývarsharelist)»òÒ»Ñù¡£
+                        !ï¿½Ù¶ï¿½ï¿½ï¿½Í¬Ò»Ê±ï¿½ä²½ï¿½ï¿½ï¿½ï¿½zoneÖ®ï¿½ï¿½Ä½Úµï¿½ï¿½ï¿½ï¿½Ý¹ï¿½ï¿½ï¿½(Í¨ï¿½ï¿½varsharelist)ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½
                         if(index(COMMAND.OPTION(i).Cvalue,',')>0) then
                             stop 'varsharelist is not consistent with the assumption.'
                         endif
@@ -558,7 +558,7 @@ CONTAINS
 			    strL=len_trim(term2)
 			    if(strL==0.or.term2(1:2)=='//'.or.term2(1:1)=='#') cycle		
 
-			    !Ã¿ÐÐºóÃæÒÔ'/'¿ªÊ¼µÄºóÃæµÄ×Ö·ûÊÇÎÞÐ§µÄ¡£
+			    !Ã¿ï¿½Ðºï¿½ï¿½ï¿½ï¿½ï¿½'/'ï¿½ï¿½Ê¼ï¿½Äºï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½ï¿½Ð§ï¿½Ä¡ï¿½
 			    if(index(term2,'/')/=0) then
 				    strL=index(term2,'/')-1
 				    term2=term2(1:strL)

@@ -114,14 +114,14 @@ subroutine assemble_km(istep)
                 
                 !abs(jcol(:1)-cdof)
 				!loc=rowindex(rdof)+
-				!if(solver_control.ismkl) loc=adrn(loc) !·Ç¶Ô³ÆÄ¬ÈÏµÄÇó½âÎªmkl solver.
+				!if(solver_control.ismkl) loc=adrn(loc) !éå¯¹ç§°é»˜è®¤çš„æ±‚è§£ä¸ºmkl solver.
 				
 				km(loc)=km(loc)+t1*element(i).km(j,k)
                 if(isnan(km(loc))) then
                     print *, 'NAN VALUE IN ELEMENT(I).KM(J,K),I,J,K',I,J,K
                     STOP
                 endif
-                if(.not.stepinfo(istep).issteady) then !Ä¿Ç°½ö¿¼ÂÇÎªÉøÁ÷ÎÊÌâ£¬Ã¿¸ö½ÚµãÖ»ÓĞÒ»¸ö×ÔÓÉ¶È¡£
+                if(.not.stepinfo(istep).issteady) then !ç›®å‰ä»…è€ƒè™‘ä¸ºæ¸—æµé—®é¢˜ï¼Œæ¯ä¸ªèŠ‚ç‚¹åªæœ‰ä¸€ä¸ªè‡ªç”±åº¦ã€‚
 					if(element(i).ec==spg.or.element(i).ec==spg2d.or.element(i).ec==cax_spg) then
 						
 						km(loc)=km(loc)+element(i).cmm(j,k)
@@ -137,7 +137,7 @@ subroutine assemble_km(istep)
 		end do
 	end do
 	
-	!Îª±ÜÃâ¶Ô½ÇÏßÔªËØÎªÁã£¬±£³ÖÕı¶¨£¬ÁîÃ»¼¤»îµÄ×ÔÓÉ¶ÈµÄ¶Ô½ÇÏßÔªËØµÈÓÚ1£¬Ó¦¸Ã²»»áÓ°Ïì¼ÆËã½á¹û¡£
+	!ä¸ºé¿å…å¯¹è§’çº¿å…ƒç´ ä¸ºé›¶ï¼Œä¿æŒæ­£å®šï¼Œä»¤æ²¡æ¿€æ´»çš„è‡ªç”±åº¦çš„å¯¹è§’çº¿å…ƒç´ ç­‰äº1ï¼Œåº”è¯¥ä¸ä¼šå½±å“è®¡ç®—ç»“æœã€‚
 	do i=1,ndof
 		if(adof(i)==0) then
 			km(rowindex(i))=1.d0
@@ -161,7 +161,7 @@ subroutine dof_activate(istep)
 
 endsubroutine
 
-!×ª»»³É×ø±ê¸ñÊ½¼°mkl¸ñÊ½½øĞĞ×Ü¸ÕµÄ´æ´¢
+!è½¬æ¢æˆåæ ‡æ ¼å¼åŠmklæ ¼å¼è¿›è¡Œæ€»åˆšçš„å­˜å‚¨
 !subroutine irowjcol()
 !	use solverds
 !	implicit none
@@ -188,9 +188,9 @@ endsubroutine
 !				cdof=element(i).g(k)
 !				if(solver_control.issym) then
 !					if(solver_control.ismkl) then						
-!						if(rdof>cdof) cycle  !mkl solver, ´æÉÏÈı½Ç£¨°üº¬¶Ô½ÇÏßÔªËØ£©,ÏÂÈı½Ç²¿·ÖÌø¹ı
+!						if(rdof>cdof) cycle  !mkl solver, å­˜ä¸Šä¸‰è§’ï¼ˆåŒ…å«å¯¹è§’çº¿å…ƒç´ ï¼‰,ä¸‹ä¸‰è§’éƒ¨åˆ†è·³è¿‡
 !					else
-!						if(rdof<cdof) cycle  !default solver,´æÏÂÈı½Ç£¨°üº¬¶Ô½ÇÏßÔªËØ£©,ÉÏÈı½Ç²¿·ÖÌø¹ı				
+!						if(rdof<cdof) cycle  !default solver,å­˜ä¸‹ä¸‰è§’ï¼ˆåŒ…å«å¯¹è§’çº¿å…ƒç´ ï¼‰,ä¸Šä¸‰è§’éƒ¨åˆ†è·³è¿‡				
 !					end if
 !				end if
 !				
@@ -242,7 +242,7 @@ endsubroutine
 !		end if
 !		j=j+1
 !	end do
-!	rowindex(i+1)=j !×îºóÒ»ÔªËØ£¬i=ndof
+!	rowindex(i+1)=j !æœ€åä¸€å…ƒç´ ï¼Œi=ndof
 !	
 !end subroutine
 
@@ -307,7 +307,7 @@ subroutine incremental_load(iincs,iiter,method,isubts)
 		
 		stepload=load
 		Tload=Tload+load !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		TLOAD(DOFHEAD)=LOAD(DOFHEAD) !¶ÔÓÚseepage£¬ÓÉÓÚºÉÔØÊÇÁ÷Á¿£¬×Ó²½Ö®¼äÁ÷Á¿ÕâÀïÈÏÎª²»¾ßÓĞ¿É¼ÓĞÔ£¨×¢ÒâÊÇµ¥Î»Ê±¼ä£¬Ïàµ±ÓÚÁ÷ËÙ£©¡£
+		TLOAD(DOFHEAD)=LOAD(DOFHEAD) !å¯¹äºseepageï¼Œç”±äºè·è½½æ˜¯æµé‡ï¼Œå­æ­¥ä¹‹é—´æµé‡è¿™é‡Œè®¤ä¸ºä¸å…·æœ‰å¯åŠ æ€§ï¼ˆæ³¨æ„æ˜¯å•ä½æ—¶é—´ï¼Œç›¸å½“äºæµé€Ÿï¼‰ã€‚
 		
 		!if(solver_control.type==spg) then
 		!	Tload=load 
@@ -338,7 +338,7 @@ subroutine incremental_load(iincs,iiter,method,isubts)
 	
 end subroutine
 
-!¶ÔÓÚÈ«Á¿±ß½çÊ±¼ä´¦Àí¡£
+!å¯¹äºå…¨é‡è¾¹ç•Œæ—¶é—´å¤„ç†ã€‚
 function tsfactor_total(istepfun,istep,isubts)
 	use solverds
 	implicit none
@@ -393,9 +393,9 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 		do i=1,nhjump
 			call HJ_WaterSurfaceProfile_RC(i,iincs,isubts)
 			do j=1,hjump(i).nnode
-				if(HJump_CP==2) then !Ë®Ô¾Çø±ß½ç°´²»¿¼ÂÇË®Ô¾×÷ÓÃ£¬¼±Á÷»ºÁ÷µÄË®ÃæÏßÖĞÁ½ÕßµÄ´óÖµ½øĞĞ¼ÆËã
+				if(HJump_CP==2) then !æ°´è·ƒåŒºè¾¹ç•ŒæŒ‰ä¸è€ƒè™‘æ°´è·ƒä½œç”¨ï¼Œæ€¥æµç¼“æµçš„æ°´é¢çº¿ä¸­ä¸¤è€…çš„å¤§å€¼è¿›è¡Œè®¡ç®—
 					bc_disp(hjump(i).bc_node(j)).value=hjump(i).xy(2,j)+max(hjump(i).xy(3,j),hjump(i).xy(4,j))
-				else !Ë®Ô¾Çø±ß½ç¿¼ÂÇË®Ô¾×÷ÓÃ
+				else !æ°´è·ƒåŒºè¾¹ç•Œè€ƒè™‘æ°´è·ƒä½œç”¨
 					bc_disp(hjump(i).bc_node(j)).value=hjump(i).xy(9,j)
 				endif
 			end do
@@ -454,7 +454,7 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 				cycle			
 			end if		
 
-			!¶ÔÓÚË®Í·±ß½ç£¬Èç¹û±ß½çÖµĞ¡ÓÚÆäÏàÓ¦µÄÎ»ÖÃË®Í·£¬ÔòÈÏÎª¸Ã±ß½çÎŞĞ§£¬²»Æğ×÷ÓÃ¡£			
+			!å¯¹äºæ°´å¤´è¾¹ç•Œï¼Œå¦‚æœè¾¹ç•Œå€¼å°äºå…¶ç›¸åº”çš„ä½ç½®æ°´å¤´ï¼Œåˆ™è®¤ä¸ºè¯¥è¾¹ç•Œæ— æ•ˆï¼Œä¸èµ·ä½œç”¨ã€‚			
 			if(bc_disp(i).dof==4) then
 				if(bc_disp(i).value*t1<node(bc_disp(i).node).coord(ndimension)) then
 					bc_disp(i).isdead=1
@@ -470,9 +470,9 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
                 
                 IF((NODE(BC_DISP(I).NODE).COORD(1)>=slopeparameter.BCEXIT(1,SLOPEPARAMETER.IBCPA) &
                    .AND. NODE(BC_DISP(I).NODE).COORD(1)<=slopeparameter.BCEXIT(2,SLOPEPARAMETER.IBCPA)) &
-                   .OR.(NODE(BC_DISP(I).NODE).COORD(1)-slopeparameter.BCEXIT(1,SLOPEPARAMETER.IBCPA))* &  !Ç°ÃæÒÑ¾­ÅÅĞò£¬Î»ÓÚÁ½½ÚµãÖ®¼ä£¬×ó½ÚµãÒ²¼¤»î
+                   .OR.(NODE(BC_DISP(I).NODE).COORD(1)-slopeparameter.BCEXIT(1,SLOPEPARAMETER.IBCPA))* &  !å‰é¢å·²ç»æ’åºï¼Œä½äºä¸¤èŠ‚ç‚¹ä¹‹é—´ï¼Œå·¦èŠ‚ç‚¹ä¹Ÿæ¿€æ´»
                        (NODE(BC_DISP(min(I+1,bd_num)).NODE).COORD(1)-slopeparameter.BCEXIT(1,SLOPEPARAMETER.IBCPA))<0 &
-                   .OR.(NODE(BC_DISP(I).NODE).COORD(1)-slopeparameter.BCEXIT(2,SLOPEPARAMETER.IBCPA))* &   !Î»ÓÚÁ½½ÚµãÖ®¼ä£¬ÓÒ½ÚµãÒ²¼¤»î
+                   .OR.(NODE(BC_DISP(I).NODE).COORD(1)-slopeparameter.BCEXIT(2,SLOPEPARAMETER.IBCPA))* &   !ä½äºä¸¤èŠ‚ç‚¹ä¹‹é—´ï¼Œå³èŠ‚ç‚¹ä¹Ÿæ¿€æ´»
                        (NODE(BC_DISP(MAX(I-1,1)).NODE).COORD(1)-slopeparameter.BCEXIT(2,SLOPEPARAMETER.IBCPA))<0 ) THEN
                    
                    IF(abs(slopeparameter.BCEXIT(3,SLOPEPARAMETER.IBCPA)+999.d0)>1e-7) then
@@ -487,9 +487,9 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
                 !CREST   
                 ELSEIF((NODE(BC_DISP(I).NODE).COORD(1)>=slopeparameter.BCENTRY(1,SLOPEPARAMETER.IBCPA) &
                    .AND. NODE(BC_DISP(I).NODE).COORD(1)<=slopeparameter.BCENTRY(2,SLOPEPARAMETER.IBCPA)) &
-                   .OR.(NODE(BC_DISP(I).NODE).COORD(1)-slopeparameter.BCENTRY(1,SLOPEPARAMETER.IBCPA))* &  !Î»ÓÚÁ½½ÚµãÖ®¼ä£¬×ó½ÚµãÒ²¼¤»î
+                   .OR.(NODE(BC_DISP(I).NODE).COORD(1)-slopeparameter.BCENTRY(1,SLOPEPARAMETER.IBCPA))* &  !ä½äºä¸¤èŠ‚ç‚¹ä¹‹é—´ï¼Œå·¦èŠ‚ç‚¹ä¹Ÿæ¿€æ´»
                        (NODE(BC_DISP(min(I+1,bd_num)).NODE).COORD(1)-slopeparameter.BCENTRY(1,SLOPEPARAMETER.IBCPA))<0 &
-                   .OR.(NODE(BC_DISP(I).NODE).COORD(1)-slopeparameter.BCENTRY(2,SLOPEPARAMETER.IBCPA))* & !Î»ÓÚÁ½½ÚµãÖ®¼ä£¬ÓÒ½ÚµãÒ²¼¤»î
+                   .OR.(NODE(BC_DISP(I).NODE).COORD(1)-slopeparameter.BCENTRY(2,SLOPEPARAMETER.IBCPA))* & !ä½äºä¸¤èŠ‚ç‚¹ä¹‹é—´ï¼Œå³èŠ‚ç‚¹ä¹Ÿæ¿€æ´»
                        (NODE(BC_DISP(MAX(I-1,1)).NODE).COORD(1)-slopeparameter.BCENTRY(2,SLOPEPARAMETER.IBCPA))<0 ) THEN
                    
                    IF(abs(slopeparameter.BCENTRY(3,SLOPEPARAMETER.IBCPA)+999.d0)>1e-7) then
@@ -512,7 +512,7 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 			bc_disp(i).isdead=0
         else
             if(bc_disp(i).iswellhead) then
-            !¶ÔÓÚ¼õÑ¹×ÔÁ÷¾®£¬ÈçÆäÁ÷Á¿ÎªÕı£¬ÔòÁîÆäË®Í·±ß½çÊ§Ğ§£»·´Ö®£¬Èç¹û¸ÃµãË®Í·´óÓÚ¾®¿Ú¸ß³Ì£¬Ôò»Ö¸´¼¤»î
+            !å¯¹äºå‡å‹è‡ªæµäº•ï¼Œå¦‚å…¶æµé‡ä¸ºæ­£ï¼Œåˆ™ä»¤å…¶æ°´å¤´è¾¹ç•Œå¤±æ•ˆï¼›åä¹‹ï¼Œå¦‚æœè¯¥ç‚¹æ°´å¤´å¤§äºäº•å£é«˜ç¨‹ï¼Œåˆ™æ¢å¤æ¿€æ´»
                 
                 if(bc_disp(i).isdead==0) then
                     if(NI_NodalForce(node(bc_disp(i).node).dof(4))>1.d-7) bc_disp(i).isdead=1
@@ -666,7 +666,7 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
  REAL(iwp),INTENT(IN OUT)::stepload(ndof),resdis,sumforce,convratio
  LOGICAL,INTENT(OUT)::iscon,ISTOCONV
  REAL(IWP)::RESDIS_SPG,SUMFORCE_SPG
- REAL(IWP),SAVE::LASTCONVRATIO=0.0
+ REAL(IWP),SAVE::LASTCONVRATIO=0.0,conten(10)
  
  iscon=.false.
  resdis_SPG=0.D0;SUMFORCE_SPG=0.D0
@@ -675,11 +675,11 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
  
  if(ndofhead>0) resdis_SPG=(dot_product(UBFORCE(DOFHEAD),UBFORCE(DOFHEAD)))
  
- resdis=dsqrt(dot_product(UBFORCE,UBFORCE)-resdis_SPG)
+ resdis=dsqrt(abs(dot_product(UBFORCE,UBFORCE)-resdis_SPG))
 
  
  if(ndofhead>0) SumForce_SPG=(dot_product(STEPLOAD(DOFHEAD),STEPLOAD(DOFHEAD)))
- SumForce=dsqrt(dot_product(STEPLOAD,STEPLOAD)-SumForce_SPG)
+ SumForce=dsqrt(abs(dot_product(STEPLOAD,STEPLOAD)-SumForce_SPG))
  if(ndofhead>0) then
      resdis_SPG=DSQRT(resdis_SPG)
      SumForce_SPG=DSQRT(SumForce_SPG)
@@ -712,11 +712,21 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
  ELSE
     ISTOCONV=(convratio/LASTconvratio<0.9999)    
  ENDIF
+ 
+ conten(mod(niter-1,10)+1)=convratio-LASTconvratio
+ 
  LASTconvratio=convratio
  !convratio=resdis/SumForce
  
+ 
  ISCON=(convratio<=TOL)
-
+ !too slow ,exit
+ if(.not.iscon.and.niter>50) then
+     if(maxval(abs(conten))<0.001) iscon=.true.       
+ endif
+ 
+ SumForce=SumForce+SumForce_spg
+ resdis=resdis+resdis_SPG
  
  
 RETURN
@@ -737,7 +747,7 @@ subroutine chodec(tm_t1,sbw,nnum_t) !cholesky decomposition
 	tmn=sbw(nnum_t)
 
 	do i=2,nnum_t
-		i1=i-sbw(i)+sbw(i-1)+1  !µÚiĞĞµÚÒ»¸ö·ÇÁãÔªËØµÄÁĞºÅ
+		i1=i-sbw(i)+sbw(i-1)+1  !ç¬¬iè¡Œç¬¬ä¸€ä¸ªéé›¶å…ƒç´ çš„åˆ—å·
 		do j=i1,i-1 
 			if(j==1) then
 				j1=1

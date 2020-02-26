@@ -85,12 +85,12 @@ end Subroutine
                  
                  do k=1,3
 						prmelt(nprmelt).node(k)=elt(i).node(k)+(j-1)*nnode
-						!ÖØ½Úµã£¨¸ß³ÌÏàµÈµÄ½Úµã£©
+						!é‡èŠ‚ç‚¹ï¼ˆé«˜ç¨‹ç›¸ç­‰çš„èŠ‚ç‚¹ï¼‰
 						if(node(prmelt(nprmelt).node(k)).subbw/=0) &
 							prmelt(nprmelt).node(k)=node(prmelt(nprmelt).node(k)).subbw
 							
 						prmelt(nprmelt).node(3+k)=elt(i).node(k)+(j)*nnode
-						!ÖØ½Úµã£¨¸ß³ÌÏàµÈµÄ½Úµã£©
+						!é‡èŠ‚ç‚¹ï¼ˆé«˜ç¨‹ç›¸ç­‰çš„èŠ‚ç‚¹ï¼‰
 						if(node(prmelt(nprmelt).node(3+k)).subbw/=0) & 
 							prmelt(nprmelt).node(3+k)=node(prmelt(nprmelt).node(3+k)).subbw
 						
@@ -116,7 +116,7 @@ end Subroutine
                         zone(elt(i).zn).ntet=0
                      endif                                      
 					 select case(count(iat==1)) 
-							case(1) !±ä³ÉÁ½¸öËÄÃæÌåµ¥Ôª
+							case(1) !å˜æˆä¸¤ä¸ªå››é¢ä½“å•å…ƒ
 								prmelt(nprmelt).nnum=4
 								prmelt(nprmelt).et=43                                
                                 n1=maxloc(iat,dim=1)
@@ -137,7 +137,7 @@ end Subroutine
 								!deallocate(prmelt(nprmelt).node)
 								nprmelt=nprmelt-1
 								zone(elt(i).zn).nprm(j)=zone(elt(i).zn).nprm(j)-1
-							case(2) !±ä³ÉÒ»¸öËÄÃæÌåµ¥Ôª
+							case(2) !å˜æˆä¸€ä¸ªå››é¢ä½“å•å…ƒ
 								
 								prmelt(nprmelt).nnum=4
 								prmelt(nprmelt).et=43
@@ -157,7 +157,7 @@ end Subroutine
 								!deallocate(prmelt(nprmelt).node)
 								nprmelt=nprmelt-1
                                 zone(elt(i).zn).nprm(j)=zone(elt(i).zn).nprm(j)-1
-							case default    !·Ö½âÎª3ËÄÃæÌå
+							case default    !åˆ†è§£ä¸º3å››é¢ä½“
                                 prmelt(nprmelt).nnum=4
 								prmelt(nprmelt).et=43
                                 
@@ -232,7 +232,7 @@ end Subroutine
 
 		    ALLOCATE(IPERM(nnode),Noutputorder(nnode),bw1(nnode),stat=err)
 		    call reorder_nodal_number(IPERM,nnode,node(1:),nelt,elt)
-            IPERM=IPERM-(NNODE-NG) !È¥µô²»ÔÚÄ£ĞÍÖĞµÄ½Úµã
+            IPERM=IPERM-(NNODE-NG) !å»æ‰ä¸åœ¨æ¨¡å‹ä¸­çš„èŠ‚ç‚¹
 		    do i=1,nnode
 			    if(node(i).subbw==0) then
 				    noutputorder(IPERM(node(i).number))=i	
@@ -291,19 +291,19 @@ end Subroutine
 			
 		    end do
 		
-		    !ĞÎ³É±ß½ç
+		    !å½¢æˆè¾¹ç•Œ
 		
 		    call bc_meminp()	
 		
 		
 
 
-		    !Çó½â
+		    !æ±‚è§£
 		
 		    do i=0,soillayer
 			    tm1b=tm1
 			    load1=0.D0
-			    !Ïß×´±ß½ç
+			    !çº¿çŠ¶è¾¹ç•Œ
 			    do j=1,nmeminp
 				    do k=1,meminp(j).nvb
 					    if(abs(meminp(j).vbc(k,i)+999)<1e-6) cycle
@@ -321,7 +321,7 @@ end Subroutine
 					    load1(n1)=meminp2(j).vbc(k,i)*um
 				    end do
 			    end do
-			    !µã×´±ß½ç
+			    !ç‚¹çŠ¶è¾¹ç•Œ
 			    do j=1,ngeo
 				    if(geology(j).isini==0) cycle
 				    if(abs(geology(j).elevation(i)+999)<1e-6) cycle
@@ -360,7 +360,7 @@ end Subroutine
        !enlarge node space
         !if(size(node(1:),dim=1)<nnode*(soillayer+1)) then
         !force consistentcy
-        !ÉÏ²ã¸ß³ÌµÄÓÅÏÈ¼¶´óÓÚÏÂ²ã,¼´µ±ÉÏ²ã¸ß³ÌµÍÓÚÏÂ²ã¸ß³ÌÊ±£¬ÁîÏÂ²ã¸ß³ÌµÈÓÚÉÏ²ã¸ß³Ì¡£
+        !ä¸Šå±‚é«˜ç¨‹çš„ä¼˜å…ˆçº§å¤§äºä¸‹å±‚,å³å½“ä¸Šå±‚é«˜ç¨‹ä½äºä¸‹å±‚é«˜ç¨‹æ—¶ï¼Œä»¤ä¸‹å±‚é«˜ç¨‹ç­‰äºä¸Šå±‚é«˜ç¨‹ã€‚
         do i=1,nnode
             if(node(i).havesoildata==0) cycle
             do j=soillayer,1,-1
@@ -434,7 +434,7 @@ end Subroutine
         
 		do i=1,nmeminp2
 		
-			!Í³¼Æ¸ÃµØÖÊÏßÉÏ×Ü½ÚµãÊı¡£
+			!ç»Ÿè®¡è¯¥åœ°è´¨çº¿ä¸Šæ€»èŠ‚ç‚¹æ•°ã€‚
 			node1=0
 			do j=1,meminp2(i).nnum-1
                 node1(seg(segindex(meminp2(i).cp(j),meminp2(i).cp(j+1))).get_node())=j
@@ -449,7 +449,7 @@ end Subroutine
             
 		
 		
-			!Ïß²åÏµÊı
+			!çº¿æ’ç³»æ•°
 			t1=0
 			t2=0
 			do j=1,meminp2(i).nnum-1
@@ -527,7 +527,7 @@ end Subroutine
 	!			cpp=>cpp.next
 	!			if(.not.associated(cpp).or.associated(cpp,cpphead(seg(i).icl)).or.associated(cpp,bnhead)) exit 
 	!		end do
-	!		!Èç¹ûµÄÎ²Ê×ÏàÁ¬¶Î£¬Ôò´ÎĞò·´×ª,ÖØĞÂÍ³¼Æ½ÚµãÊı¡£
+	!		!å¦‚æœçš„å°¾é¦–ç›¸è¿æ®µï¼Œåˆ™æ¬¡åºåè½¬,é‡æ–°ç»Ÿè®¡èŠ‚ç‚¹æ•°ã€‚
 	!		tof1=.false.		
 	!		if(seg(i).ist2h==1) then
 	!			if(seg(i).isa2z==0) then
@@ -586,7 +586,7 @@ subroutine chodec(tm_t1,sbw,nnum_t) !cholesky decomposition
 	tmn=sbw(nnum_t)
 
 	do i=2,nnum_t
-		i1=i-sbw(i)+sbw(i-1)+1  !¦Ì¨²iDD¦Ì¨²¨°???¡¤?¨¢??a??¦Ì?¨¢Do?
+		i1=i-sbw(i)+sbw(i-1)+1  !Î¼ÃºiDDÎ¼ÃºÃ²???Â·?Ã¡??a??Î¼?Ã¡Do?
 		do j=i1,i-1 
 			if(j==1) then
 				j1=1

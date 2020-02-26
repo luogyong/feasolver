@@ -18,21 +18,21 @@
 		print *, 'Read in data completed.Begin to allocate space...', char_time
 
 
-		!¶ÔÈ«Çø±äÁ¿ÓÃÇøÓò±äÁ¿µÄÏàÓ¦Öµ½øĞĞ³õÊ¼»¯
+		!å¯¹å…¨åŒºå˜é‡ç”¨åŒºåŸŸå˜é‡çš„ç›¸åº”å€¼è¿›è¡Œåˆå§‹åŒ–
 		!call initialize_m(i)	  
 		call TIME(char_time)
 		print *, 'Begin to insert nodes in control lines... ', char_time	
 		!call BPInsert(i)
 		call CLinsert
 		call TIME(char_time)
-		print *, 'Control lines have been divided. Begin to generate the initial mesh, please wait¡­: ', char_time	
+		print *, 'Control lines have been divided. Begin to generate the initial mesh, please waitâ€¦: ', char_time	
 
 		if(keypn>0) then
 !			call BPmesh
 			call kpmesh
 			call TIME(char_time)
 			print *, ''
-			write(*,*), 'Initial mesh has been generated. Begin to repair control line, please wait¡­: ', char_time		 
+			write(*,*), 'Initial mesh has been generated. Begin to repair control line, please waitâ€¦: ', char_time		 
 
 			iflag=0
 			call RCL_4th(iflag)
@@ -40,15 +40,15 @@
 			call RemoveT()
 			call TIME(char_time)
 			if(isnorefined==0) then
-				print *, 'Control lines have been repaired in the initial mesh. Begin to refine the initial mesh, please warit¡­: ', char_time
+				print *, 'Control lines have been repaired in the initial mesh. Begin to refine the initial mesh, please waritâ€¦: ', char_time
 				call InsertPoint()
 				call TIME(char_time)
-				print *, 'Refine mesh completed. Begin to repair control lines again, please wait¡­: ', char_time
+				print *, 'Refine mesh completed. Begin to repair control lines again, please waitâ€¦: ', char_time
 				iflag=1
 				call RCL_4th(iflag)
 				call time(char_time)
 			endif
-			print *, 'Delaunay triangular Mesh completed. Begin to  handle other tasks, please wait¡­: ', char_time	 	 	 	 
+			print *, 'Delaunay triangular Mesh completed. Begin to  handle other tasks, please waitâ€¦: ', char_time	 	 	 	 
 		end if
 		
 		!call seg_initialize()
@@ -59,7 +59,7 @@
 		call elementgroup()
 		call limitanalysisgrid()
 		call time(char_time)	 
-		print *, 'Ö÷ÓòÍø¸ñ´¦ÀíÍê³É£¬Çë¼ì²éÍø¸ñ¡£Èç¹ûÒª±£´æÊı¾İ,Çë°´SaveData¡­: ', char_time
+		print *, 'ä¸»åŸŸç½‘æ ¼å¤„ç†å®Œæˆï¼Œè¯·æ£€æŸ¥ç½‘æ ¼ã€‚å¦‚æœè¦ä¿å­˜æ•°æ®,è¯·æŒ‰SaveDataâ€¦: ', char_time
 		CALL CPU_TIME ( time_end )
 		print *, 'nnode=',nnode,'ENUMBER=',ENUMBER
 		PRINT *, 'Time of operation was ', time_end - time_begin, ' seconds'

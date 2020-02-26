@@ -208,7 +208,7 @@ subroutine Initialization()
 				
 				!local system for bar elements
 				! x'-axis, along the bar and the positive directioin along the increasing one of xi 
-				!y'-axis, Èç¹ûx'²»Æ½ĞĞÓëZÖá£¬Ôòy'=x'*Z, ·ñÔò y'=x'*Y
+				!y'-axis, å¦‚æœx'ä¸å¹³è¡Œä¸Zè½´ï¼Œåˆ™y'=x'*Z, å¦åˆ™ y'=x'*Y
 				!z'-axis, z'=x'*y'
 				! it direction cosine is stored in g2l(:,:)				
 				
@@ -227,7 +227,7 @@ subroutine Initialization()
 					end if
 				end do
 				
-				!µ÷Õûµ¥Ôª½ÚµãË³Ğò£¬Ê¹¾Ö²¿×ø±êµÄx'ÓÉ½Úµã1Ö¸Ïò½Úµã2
+				!è°ƒæ•´å•å…ƒèŠ‚ç‚¹é¡ºåºï¼Œä½¿å±€éƒ¨åæ ‡çš„x'ç”±èŠ‚ç‚¹1æŒ‡å‘èŠ‚ç‚¹2
 				if(n1==1) then
 					n3=element(i).node(1)
 					element(i).node(1)=element(i).node(2)
@@ -387,7 +387,7 @@ subroutine Initialization()
 				end if
 				
 				if(element(i).et==ssp2d) then
-					!!ÖáÆ«ÒÆÒıÆğµÄ±ä»¯Ïî£¬Ref. ¸µÓÀ»ª, ¹ØÓÚÆ«ĞÄÁºµ¥Ôª¸Õ¶È¾ØÕóµÄ¼¸µãËµÃ÷. Á¦Ñ§ÓëÊµ¼ù, 1996(02): 65-67.
+					!!è½´åç§»å¼•èµ·çš„å˜åŒ–é¡¹ï¼ŒRef. å‚…æ°¸å, å…³äºåå¿ƒæ¢å•å…ƒåˆšåº¦çŸ©é˜µçš„å‡ ç‚¹è¯´æ˜. åŠ›å­¦ä¸å®è·µ, 1996(02): 65-67.
 					element(i).km(3,3)=element(i).km(3,3)+R1*material(element(i).mat).property(19)**2
 					element(i).km(3,6)=element(i).km(3,6)-R1*material(element(i).mat).property(19)**2
 					element(i).km(6,6)=element(i).km(3,3)
@@ -424,7 +424,7 @@ subroutine Initialization()
 					end if
 				end do
 				
-				!µ÷Õûµ¥Ôª½ÚµãË³Ğò£¬Ê¹¾Ö²¿×ø±êµÄx'ÓÉ½Úµã1Ö¸Ïò½Úµã2
+				!è°ƒæ•´å•å…ƒèŠ‚ç‚¹é¡ºåºï¼Œä½¿å±€éƒ¨åæ ‡çš„x'ç”±èŠ‚ç‚¹1æŒ‡å‘èŠ‚ç‚¹2
 				if(n1==1) then
 					n3=element(i).node(1)
 					element(i).node(1)=element(i).node(2)
@@ -474,7 +474,7 @@ subroutine Initialization()
 			!	do j=1,ndimension
 			!		node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
 			!	end do
-			!	node(element(i).node(3)).dof(8:9)=0 !½Ó´¥µ¥Ôª¾Ö²¿×ø±êÏÂµÄ½Ó´¥Á¦Nx,Ny,¼´À­ÊÏ³Ë×Ó¡£
+			!	node(element(i).node(3)).dof(8:9)=0 !æ¥è§¦å•å…ƒå±€éƒ¨åæ ‡ä¸‹çš„æ¥è§¦åŠ›Nx,Ny,å³æ‹‰æ°ä¹˜å­ã€‚
 			!	allocate(element(i).km(6,6))
 			!	element(i).km=0.d0
 			case(pe_ssp2d) 
@@ -489,18 +489,18 @@ subroutine Initialization()
 				element(i).km(1,2)=-um
 				element(i).km(2,1)=-um
 				
-				!Ã¿¸öµã¶ÔµãµÄ·£µ¥Ôª£¬¶ÔÓ¦Ò»¸öslave-master½Úµã¶Ô
-				!¼Ù¶¨slave-master½Úµã¶ÔÊÇÒ»Ò»¶ÔÓ¦µÄ£¬Á½½ÚµãÖ®¼äÊÇÎ¨Ò»¶ÔÓ¦µÄ¡£
+				!æ¯ä¸ªç‚¹å¯¹ç‚¹çš„ç½šå•å…ƒï¼Œå¯¹åº”ä¸€ä¸ªslave-masterèŠ‚ç‚¹å¯¹
+				!å‡å®šslave-masterèŠ‚ç‚¹å¯¹æ˜¯ä¸€ä¸€å¯¹åº”çš„ï¼Œä¸¤èŠ‚ç‚¹ä¹‹é—´æ˜¯å”¯ä¸€å¯¹åº”çš„ã€‚
 				do j=1, nsmnp
 					if(smnp(j).master==element(i).node(1).or.smnp(j).master==element(i).node(2)) then
 						smnp(j).pe=i
-						element(i).ngp=j !½èÓÃngp
+						element(i).ngp=j !å€Ÿç”¨ngp
 						cycle
 					end if				
 				end do
 				
 				
-			case(ssp2d1)  !master-slaver method£¬¼Ù¶¨¾Ö²¿×ø±êÓëÕûÌå×ø±êÒ»Ñù£¬
+			case(ssp2d1)  !master-slaver methodï¼Œå‡å®šå±€éƒ¨åæ ‡ä¸æ•´ä½“åæ ‡ä¸€æ ·ï¼Œ
 				do j=1,ndimension
 					node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
 				end do
@@ -542,7 +542,7 @@ subroutine Initialization()
 
 				
 
-				!!ÖáÆ«ÒÆÒıÆğµÄ±ä»¯Ïî£¬Ref. ¸µÓÀ»ª, ¹ØÓÚÆ«ĞÄÁºµ¥Ôª¸Õ¶È¾ØÕóµÄ¼¸µãËµÃ÷. Á¦Ñ§ÓëÊµ¼ù, 1996(02): 65-67.
+				!!è½´åç§»å¼•èµ·çš„å˜åŒ–é¡¹ï¼ŒRef. å‚…æ°¸å, å…³äºåå¿ƒæ¢å•å…ƒåˆšåº¦çŸ©é˜µçš„å‡ ç‚¹è¯´æ˜. åŠ›å­¦ä¸å®è·µ, 1996(02): 65-67.
 				km1(3,3)=km1(3,3)+R1*material(element(i).mat).property(19)**2
 				km1(3,6)=km1(3,6)-R1*material(element(i).mat).property(19)**2
 				km1(6,6)=km1(3,3)
@@ -568,7 +568,7 @@ subroutine Initialization()
 					km1(3,4)=km1(1,6)
 					km1(1,3)=-km1(1,6)
 					km1(4,6)=km1(1,3)
-					!¶Ô³ÆÏî
+					!å¯¹ç§°é¡¹
 					km1(6,1)=km1(1,6)
 					km1(4,3)=km1(3,4)
 					km1(3,1)=km1(1,3)
@@ -583,7 +583,7 @@ subroutine Initialization()
 					
 				end do
 				
-				!!³õÊ¼»¯ÎªÁ½Áº¹Ì¶¨
+				!!åˆå§‹åŒ–ä¸ºä¸¤æ¢å›ºå®š
 				!ELEMENT(I).KM(1,1)=ELEMENT(I).KM(1,1)+UM
 				!ELEMENT(I).KM(4,4)=ELEMENT(I).KM(4,4)+UM				
 				!ELEMENT(I).KM(1,4)=ELEMENT(I).KM(1,4)+UM
@@ -616,7 +616,7 @@ subroutine Initialization()
 					end if
 				end do
 				
-				!µ÷Õûµ¥Ôª½ÚµãË³Ğò£¬Ê¹¾Ö²¿×ø±êµÄx'ÓÉ½Úµã1Ö¸Ïò½Úµã2
+				!è°ƒæ•´å•å…ƒèŠ‚ç‚¹é¡ºåºï¼Œä½¿å±€éƒ¨åæ ‡çš„x'ç”±èŠ‚ç‚¹1æŒ‡å‘èŠ‚ç‚¹2
 				if(n1==1) then
 					n3=element(i).node(1)
 					element(i).node(1)=element(i).node(2)
@@ -728,7 +728,7 @@ subroutine Initialization()
                                
                     ELEMENT(I).PROPERTY(1)=1./(T1*ELEMENT(I).PROPERTY(1))
                 ELSE
-                    ELEMENT(I).PROPERTY(1)=1.D10 !Ä£Äâ²»Í¸Ë®,´ó×èÁ¦
+                    ELEMENT(I).PROPERTY(1)=1.D10 !æ¨¡æ‹Ÿä¸é€æ°´,å¤§é˜»åŠ›
                 ENDIF
                 
                 if(element(i).et==WELLBORE.or.element(i).et==WELLBORE_SPGFACE) then
@@ -781,7 +781,7 @@ subroutine Initialization()
 					C1(1,2)=-VSIN
 					C1(2,2)=VCOS
 					C1(2,1)=VSIN
-                    !4#½ÚµãµÄ¾Ö²¿×ø±ê
+                    !4#èŠ‚ç‚¹çš„å±€éƒ¨åæ ‡
 					COORD1(1,1)=0.D0;COORD1(2,1)=MAX(Matproperty(ELEMENT(I).MAT,14,0),1.D0)                   
 					!COORD1(1,2)=0.D0;COORD1(2,2)=COORD1(2,1)
 					IF(.NOT.ALLOCATED(GNODE)) ALLOCATE(GNODE(3,1000))
@@ -810,7 +810,7 @@ subroutine Initialization()
                     C1(2,:)=NORMAL_TRIFACE(RESHAPE([C1(2,:),C1(1,:),C1(3,:)],([3,3])))
                     C1(2,:)=C1(2,:)/norm2(C1(2,:))
                     C1=TRANSPOSE(C1)
-                    !4#½ÚµãµÄ×ø±ê
+                    !4#èŠ‚ç‚¹çš„åæ ‡
 					COORD1(1,1)=0;COORD1(2,1)=0;COORD1(3,1)=MAX(Matproperty(ELEMENT(I).MAT,14,0),1.D0)                   
 					
 					IF(.NOT.ALLOCATED(GNODE)) ALLOCATE(GNODE(3,1000))
@@ -881,7 +881,7 @@ subroutine Initialization()
 			end if
 			if(node(i).dof(j)<0) then
 				n2=-node(i).dof(j)
-				if(node(smnp(n2).master).dof(smnp(n2).mdof)>0) then !Èç¹ûÖ÷½ÚµãmdofÒÑ¾­±àºÅ
+				if(node(smnp(n2).master).dof(smnp(n2).mdof)>0) then !å¦‚æœä¸»èŠ‚ç‚¹mdofå·²ç»ç¼–å·
 					node(i).ndof=node(i).ndof+1
 					node(i).dof(j)=node(smnp(n2).master).dof(smnp(n2).mdof)
 				else
@@ -1082,7 +1082,7 @@ subroutine Initialization()
 		allocate(Tstepdis(ndof,0:nstep))
 		Tstepdis=0.D0
 	end if
-	!Ä¬ÈÏ¶ÁÈëµÄ³õÖµÊÇ0²½µÄ½á¹û¡£
+	!é»˜è®¤è¯»å…¥çš„åˆå€¼æ˜¯0æ­¥çš„ç»“æœã€‚
 	do i=1,NiniV
 		Tstepdis(node(inivalue(i).node).dof(inivalue(i).dof),0)=inivalue(i).value
 	end do
@@ -1099,7 +1099,7 @@ subroutine Initialization()
 	!diaglkmloc(1)=1
 	do i=2,ndof
 		bw(i)=bw(i)+bw(i-1) !bw(i) is NOW the location of the most right entry in the i row in the total matrix.
-		!if(.not.solver_control.ismkl) diaglkmloc(i)=bw(i) !!!1!¶Ô½ÇÔªËØµÄÔÚ×Ü¸ÕÖĞÎ»ÖÃ,ÕâÊ±ÒÔ×Ü¸ÕÒÔÏÂÈı½ÇµÄĞÎÊ½´æ´¢
+		!if(.not.solver_control.ismkl) diaglkmloc(i)=bw(i) !!!1!å¯¹è§’å…ƒç´ çš„åœ¨æ€»åˆšä¸­ä½ç½®,è¿™æ—¶ä»¥æ€»åˆšä»¥ä¸‹ä¸‰è§’çš„å½¢å¼å­˜å‚¨
 	end do
 
 	! allocate space for load() and km
@@ -1190,7 +1190,7 @@ subroutine dofbw(ienum)
 		if(solver_control.issym) then
 			
 			if(.not.solver_control.ismkl) then
-				!for default solver,´æÏÂÈı½Ç,bw(i)ÎªµÚiĞĞÏÂ½ÇĞÎ´ø¿í¡£
+				!for default solver,å­˜ä¸‹ä¸‰è§’,bw(i)ä¸ºç¬¬iè¡Œä¸‹è§’å½¢å¸¦å®½ã€‚
 !				n2=element(ienum).g(j)-n1+1
 !				if(bw(element(ienum).g(j))<n2) bw(element(ienum).g(j))=n2
 				
@@ -1202,7 +1202,7 @@ subroutine dofbw(ienum)
                 ENDDO
                 
 			else
-				!for mkl solver, ´æÉÏÈı½Ç£¬bw(i)ÎªµÚiĞĞÉÏ½ÇĞÎ´ø¿í
+				!for mkl solver, å­˜ä¸Šä¸‰è§’ï¼Œbw(i)ä¸ºç¬¬iè¡Œä¸Šè§’å½¢å¸¦å®½
 !				n2=n3-element(ienum).g(j)+1
 !				if(bw(element(ienum).g(j))<n2) bw(element(ienum).g(j))=n2
 				

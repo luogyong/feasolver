@@ -51,7 +51,7 @@ MODULE SLOPE_PSO
         character(len = 5) :: solver='de', strategy='rand1'
         
         !initial trial slip surface generation method
-        INTEGER::inishape=1 !slip =1£¬circular+softband,=0,cheng
+        INTEGER::inishape=1 !slip =1ï¿½ï¿½circular+softband,=0,cheng
         
         INTEGER::NWSP=0
         REAL(8),ALLOCATABLE::WSP(:,:)
@@ -414,7 +414,7 @@ subroutine READ_FILE(INDATA,UNIT,COMMAND_READ)
 			strL=len_trim(term2)
 			if(strL==0.or.term2(1:2)=='//'.or.term2(1:1)=='#') cycle		
 
-			!Ã¿ÐÐºóÃæÒÔ'/'¿ªÊ¼µÄºóÃæµÄ×Ö·ûÊÇÎÞÐ§µÄ¡£
+			!Ã¿ï¿½Ðºï¿½ï¿½ï¿½ï¿½ï¿½'/'ï¿½ï¿½Ê¼ï¿½Äºï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½ï¿½Ð§ï¿½Ä¡ï¿½
 			if(index(term2,'/')/=0) then
 				strL=index(term2,'/')-1
 				term2=term2(1:strL)
@@ -1770,7 +1770,7 @@ integer function isacw(x1,y1,z1,x2,y2,z2,x3,y3,z3)
     zn3=z3-z1
     norm1=[yn2*zn3-zn2*yn3,-(xn2*zn3-zn2*xn3),xn2*yn3-yn2*xn3]
     t2=norm2(norm1)
-    if(t2<1e-10) then !¹²Ïß
+    if(t2<1e-10) then !ï¿½ï¿½ï¿½ï¿½
         ISACW=3
         if(x1<min(x3,x2)) return
         if(X1>max(x3,x2)) return
@@ -1782,16 +1782,16 @@ integer function isacw(x1,y1,z1,x2,y2,z2,x3,y3,z3)
     else
         !t1=(xn2*yn3-yn2*xn3)+(yn2*zn3-zn2*yn3)-(xn2*zn3-zn2*xn3)
         !if(abs(t1)<1.d-10) then 
-            !Óë(1,1,1)´¹Ö±            
+            !ï¿½ï¿½(1,1,1)ï¿½ï¿½Ö±            
         if(abs(norm1(3))>1e-10) then
-            isacw=sign(1.,norm1(3)) !´Ó+z¿´
+            isacw=sign(1.,norm1(3)) !ï¿½ï¿½+zï¿½ï¿½
         elseif(abs(norm1(1))>1e-10) then
-            isacw=sign(1.,norm1(1)) !´Ó+x¿´
+            isacw=sign(1.,norm1(1)) !ï¿½ï¿½+xï¿½ï¿½
         elseif(abs(norm1(2))>1e-10) then
-            isacw=sign(1.,norm1(2)) !´Ó+y¿´
+            isacw=sign(1.,norm1(2)) !ï¿½ï¿½+yï¿½ï¿½
         endif
         !else
-            !´Ó(1,1,1)·½Ïò¿´
+            !ï¿½ï¿½(1,1,1)ï¿½ï¿½ï¿½ï¿½
         !    isacw=sign(1.,t1)
         !endif
     endif
@@ -1818,7 +1818,7 @@ function interpolation(x,y,nx,xi)
         if((xi<=x(i+1).and.xi>=x(i)).or.(xi<=x(i).and.xi>=x(i+1))) then
 	        t1=x(i+1)-x(i)
 	        if(abs(t1)<1e-7) then
-		        print *, "Warning! ·ÖÄ¸=0,function=Interpolation()"
+		        print *, "Warning! ï¿½ï¿½Ä¸=0,function=Interpolation()"
 		        interpolation=(y(i)+y(i+1))/2.0d0
 	        else
 		        interpolation=(y(i+1)-y(i))/(t1)*(xi-x(i))+y(i)

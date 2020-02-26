@@ -62,7 +62,7 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 				un(1:element(i).ndof)=stepdis(element(i).g) 
 				!t1=element(i).property(4)
 				!if(element(i).ec==soilspring) then
-				!	if(element(i).sign*un(1)>0) t1=t1*10 !Ð¶ÔØÄ£Á¿Îª¼ÓÔØÄ£Á¿µÄ10±¶¡£
+				!	if(element(i).sign*un(1)>0) t1=t1*10 !å¸è½½æ¨¡é‡ä¸ºåŠ è½½æ¨¡é‡çš„10å€ã€‚
 				!endif
 				!element(i).km=t1
 				call spring_update4(i,istep,iiter,un,element(i).ndof)
@@ -255,12 +255,12 @@ subroutine eip_beam2D_update(iel,Tgforce,Ntgforce,ISTEP)
         
 		gforceILS1(n1:n2)=element(iel).gforceILS(n1:n2)
 		
-		!°ÑÕý¸º»¹Ô­ÔÚ¾Ö²¿×ø±êÄÚ,Ô­À´ÊÇ¹¤³ÌÔ¼¶¨µÄÕý¸ºÌåÏµ
-		if(i==1) then !½Úµã1
+		!æŠŠæ­£è´Ÿè¿˜åŽŸåœ¨å±€éƒ¨åæ ‡å†…,åŽŸæ¥æ˜¯å·¥ç¨‹çº¦å®šçš„æ­£è´Ÿä½“ç³»
+		if(i==1) then !èŠ‚ç‚¹1
 			!Qx
 			gforceILS1(n1)=-gforceILS1(n1)
 
-		else	!½Úµã2
+		else	!èŠ‚ç‚¹2
 			!Qy
 			gforceILS1(n1+1)=-gforceILS1(n1+1)
 			!Mz
@@ -274,7 +274,7 @@ subroutine eip_beam2D_update(iel,Tgforce,Ntgforce,ISTEP)
     if(ismzvlted) then
         gforceILS1(2)=(gforceILS1(3)+gforceILS1(6))/element(iel).property(2)
         gforceILS1(5)=-gforceILS1(2)
-        !»¹Ô­ÖÁ¹¤³ÌÔ¼¶¨µÄÕý¸ºÌåÏµ
+        !è¿˜åŽŸè‡³å·¥ç¨‹çº¦å®šçš„æ­£è´Ÿä½“ç³»
         element(iel).gforceILS(2)=gforceILS1(2)
         element(iel).gforceILS(5)=-gforceILS1(5)
     end if
@@ -361,13 +361,13 @@ subroutine eip_beam_update(iel,Tgforce,Ntgforce,ISTEP)
 		gforceILS1(n1:n2)=element(iel).gforceILS(n1:n2)
 		
 		
-		!°´¹¤³ÌÉÏµÄÔ¼¶¨£¬ÖáÁ¦£¨Qx£©ÊÜÀ­ÎªÕý£¬
-		!¼ôÁ¦(Qy,Qz)×óÉÏÓÒÏÂÎªÕý£¬Íä¾Ø(My,Mz)ÒÔÉÏ²¿(×ø±êÕý·½Ïò²à)ÊÜÀ­ÎªÕý£¬
-		!2½ÚµãÅ¤¾Ø£¨Mx£©Óëx'Í¬ÏòÎªÕý£¬1½ÚµãÅ¤¾Ø£¨Mx£©Óëx'·´ÏòÎªÕý¡£¼´×Ô½ØÃæµÄÍâ·¨ÏßÏò½ØÃæ¿´£¬ÄæÊ±Õë×ªÏòÎªÕý£¬Ë³Ê±Õë×ªÏòÎª¸º 
-		!x¡¯ÓÉ½Úµã1Ö¸Ïò½Úµã2
+		!æŒ‰å·¥ç¨‹ä¸Šçš„çº¦å®šï¼Œè½´åŠ›ï¼ˆQxï¼‰å—æ‹‰ä¸ºæ­£ï¼Œ
+		!å‰ªåŠ›(Qy,Qz)å·¦ä¸Šå³ä¸‹ä¸ºæ­£ï¼Œå¼¯çŸ©(My,Mz)ä»¥ä¸Šéƒ¨(åæ ‡æ­£æ–¹å‘ä¾§)å—æ‹‰ä¸ºæ­£ï¼Œ
+		!2èŠ‚ç‚¹æ‰­çŸ©ï¼ˆMxï¼‰ä¸Žx'åŒå‘ä¸ºæ­£ï¼Œ1èŠ‚ç‚¹æ‰­çŸ©ï¼ˆMxï¼‰ä¸Žx'åå‘ä¸ºæ­£ã€‚å³è‡ªæˆªé¢çš„å¤–æ³•çº¿å‘æˆªé¢çœ‹ï¼Œé€†æ—¶é’ˆè½¬å‘ä¸ºæ­£ï¼Œé¡ºæ—¶é’ˆè½¬å‘ä¸ºè´Ÿ 
+		!xâ€™ç”±èŠ‚ç‚¹1æŒ‡å‘èŠ‚ç‚¹2
 		
-		!°ÑÕý¸º»¹Ô­ÔÚ¾Ö²¿×ø±êÄÚ
-		if(i<3) then !½Úµã1
+		!æŠŠæ­£è´Ÿè¿˜åŽŸåœ¨å±€éƒ¨åæ ‡å†…
+		if(i<3) then !èŠ‚ç‚¹1
 			!Qx
 			if(i==1) GforceILS1(n1)=-GforceILS1(n1)
 			
@@ -378,7 +378,7 @@ subroutine eip_beam_update(iel,Tgforce,Ntgforce,ISTEP)
 				!My
 				GforceILS1(n1+1)=-GforceILS1(n1+1)
 			end if
-		else	!½Úµã2
+		else	!èŠ‚ç‚¹2
 			
 			if(i==3) then
 				!Qy 
@@ -399,7 +399,7 @@ subroutine eip_beam_update(iel,Tgforce,Ntgforce,ISTEP)
     if(ismzvlted) then
         gforceILS1(2)=(gforceILS1(6)+gforceILS1(12))/element(iel).property(2)
         gforceILS1(8)=-gforceILS1(2)
-        !»¹Ô­ÖÁ¹¤³ÌÔ¼¶¨µÄÕý¸ºÌåÏµ
+        !è¿˜åŽŸè‡³å·¥ç¨‹çº¦å®šçš„æ­£è´Ÿä½“ç³»
         element(iel).gforceILS(2)=gforceILS1(2)
         element(iel).gforceILS(8)=-gforceILS1(8)
     end if	
@@ -407,7 +407,7 @@ subroutine eip_beam_update(iel,Tgforce,Ntgforce,ISTEP)
 	if(ismyvlted) then
         gforceILS1(3)=-(gforceILS1(5)+gforceILS1(11))/element(iel).property(2)
         gforceILS1(9)=-gforceILS1(3)
-        !»¹Ô­ÖÁ¹¤³ÌÔ¼¶¨µÄÕý¸ºÌåÏµ
+        !è¿˜åŽŸè‡³å·¥ç¨‹çº¦å®šçš„æ­£è´Ÿä½“ç³»
         element(iel).gforceILS(3)=gforceILS1(3)
         element(iel).gforceILS(9)=-gforceILS1(9)
     end if	
@@ -431,7 +431,7 @@ subroutine NodalForceInLocalSystem(iel,Tgforce,Ntgforce,istep)
 	
 	select case(element(iel).et)
 		case(soilspringx,soilspringy,soilspringz,springx,springy,springz,springmx,springmy,springmz)
-			!µ¯»ÉÀàµ¥ÔªµÄ¾Ö²¿×ø±êÏµÓëÕûÌå×ø±êÏµÏàÍ¬¡£
+			!å¼¹ç°§ç±»å•å…ƒçš„å±€éƒ¨åæ ‡ç³»ä¸Žæ•´ä½“åæ ‡ç³»ç›¸åŒã€‚
 			element(iel).gforceILS=Tgforce
 			
 			call eip_spring_update(iel,Tgforce,Ntgforce,istep)
@@ -441,8 +441,8 @@ subroutine NodalForceInLocalSystem(iel,Tgforce,Ntgforce,istep)
 		!it is stored in element(i).gforce
 			do i=1,2
 				element(iel).gforceILS(i)=dot_product(Tgforce(ndimension*(i-1)+1:ndimension*i),element(iel).g2l(1,1:ndimension))
-				!¾Ö²¿×ø±êÏÂ£¬ÖáÁ¦ÊÜÀ­ÎªÕý
-				!x¡¯ÓÉ½Úµã1Ö¸Ïò½Úµã2
+				!å±€éƒ¨åæ ‡ä¸‹ï¼Œè½´åŠ›å—æ‹‰ä¸ºæ­£
+				!xâ€™ç”±èŠ‚ç‚¹1æŒ‡å‘èŠ‚ç‚¹2
 				if(i==1) element(iel).gforceILS(i)=-element(iel).gforceILS(i)
             end do
 			
@@ -454,12 +454,12 @@ subroutine NodalForceInLocalSystem(iel,Tgforce,Ntgforce,istep)
 				n1=3*(i-1)+1
 				n2=n1+2
 				element(iel).gforceILS(n1:n2)=matmul(element(iel).g2l,Tgforce(n1:n2))	
-				!°´¹¤³ÌÉÏµÄÔ¼¶¨£¬ÖáÁ¦£¨Qx£©ÊÜÀ­ÎªÕý£¬¼ôÁ¦(Qy,Qz)×óÉÏÓÒÏÂÎªÕý£¬Íä¾Ø(My,Mz)ÒÔÉÏ²¿£¨¶ÔÓ¦×ø±êÖáÕýÏò²à£©ÊÜÀ­ÎªÕý£¬Å¤¾Ø£¨Mx£©Óëx'Í¬ÏòÎªÕý
-				!x¡¯ÓÉ½Úµã1Ö¸Ïò½Úµã2
-				if(i==1) then !½Úµã1
+				!æŒ‰å·¥ç¨‹ä¸Šçš„çº¦å®šï¼Œè½´åŠ›ï¼ˆQxï¼‰å—æ‹‰ä¸ºæ­£ï¼Œå‰ªåŠ›(Qy,Qz)å·¦ä¸Šå³ä¸‹ä¸ºæ­£ï¼Œå¼¯çŸ©(My,Mz)ä»¥ä¸Šéƒ¨ï¼ˆå¯¹åº”åæ ‡è½´æ­£å‘ä¾§ï¼‰å—æ‹‰ä¸ºæ­£ï¼Œæ‰­çŸ©ï¼ˆMxï¼‰ä¸Žx'åŒå‘ä¸ºæ­£
+				!xâ€™ç”±èŠ‚ç‚¹1æŒ‡å‘èŠ‚ç‚¹2
+				if(i==1) then !èŠ‚ç‚¹1
 					!Qx
 					element(iel).gforceILS(n1)=-element(iel).gforceILS(n1)
-				else	!½Úµã2
+				else	!èŠ‚ç‚¹2
 					!Qy
 					element(iel).gforceILS(n1+1)=-element(iel).gforceILS(n1+1)
 					!Mz
@@ -476,12 +476,12 @@ subroutine NodalForceInLocalSystem(iel,Tgforce,Ntgforce,istep)
 				n1=3*(i-1)+1
 				n2=n1+2
 				element(iel).gforceILS(n1:n2)=matmul(element(iel).g2l,Tgforce(n1:n2))	
-				!°´¹¤³ÌÉÏµÄÔ¼¶¨£¬ÖáÁ¦£¨Qx£©ÊÜÀ­ÎªÕý£¬¼ôÁ¦(Qy,Qz)×óÉÏÓÒÏÂÎªÕý£¬Íä¾Ø(My,Mz)ÒÔÉÏ²¿£¨¶ÔÓ¦×ø±êÖáÕýÏò²à£©ÊÜÀ­ÎªÕý£¬Å¤¾Ø£¨Mx£©Óëx'Í¬ÏòÎªÕý
-				!x¡¯ÓÉ½Úµã1Ö¸Ïò½Úµã2
-				if(i==1) then !½Úµã1
+				!æŒ‰å·¥ç¨‹ä¸Šçš„çº¦å®šï¼Œè½´åŠ›ï¼ˆQxï¼‰å—æ‹‰ä¸ºæ­£ï¼Œå‰ªåŠ›(Qy,Qz)å·¦ä¸Šå³ä¸‹ä¸ºæ­£ï¼Œå¼¯çŸ©(My,Mz)ä»¥ä¸Šéƒ¨ï¼ˆå¯¹åº”åæ ‡è½´æ­£å‘ä¾§ï¼‰å—æ‹‰ä¸ºæ­£ï¼Œæ‰­çŸ©ï¼ˆMxï¼‰ä¸Žx'åŒå‘ä¸ºæ­£
+				!xâ€™ç”±èŠ‚ç‚¹1æŒ‡å‘èŠ‚ç‚¹2
+				if(i==1) then !èŠ‚ç‚¹1
 					!Qx
 					element(iel).gforceILS(n1)=-element(iel).gforceILS(n1)
-				else	!½Úµã2
+				else	!èŠ‚ç‚¹2
 					!Qy
 					element(iel).gforceILS(n1+1)=-element(iel).gforceILS(n1+1)
 					!Mz
@@ -498,11 +498,11 @@ subroutine NodalForceInLocalSystem(iel,Tgforce,Ntgforce,istep)
 				n1=3*(i-1)+1
 				n2=n1+2
 				element(iel).gforceILS(n1:n2)=matmul(element(iel).g2l,Tgforce(n1:n2))	
-				!°´¹¤³ÌÉÏµÄÔ¼¶¨£¬ÖáÁ¦£¨Qx£©ÊÜÀ­ÎªÕý£¬
-				!¼ôÁ¦(Qy,Qz)×óÉÏÓÒÏÂÎªÕý£¬Íä¾Ø(My,Mz)ÒÔÉÏ²¿(×ø±êÕý·½Ïò²à)ÊÜÀ­ÎªÕý£¬
-				!2½ÚµãÅ¤¾Ø£¨Mx£©Óëx'Í¬ÏòÎªÕý£¬1½ÚµãÅ¤¾Ø£¨Mx£©Óëx'·´ÏòÎªÕý¡£¼´×Ô½ØÃæµÄÍâ·¨ÏßÏò½ØÃæ¿´£¬ÄæÊ±Õë×ªÏòÎªÕý£¬Ë³Ê±Õë×ªÏòÎª¸º 
-				!x¡¯ÓÉ½Úµã1Ö¸Ïò½Úµã2
-				if(i<3) then !½Úµã1
+				!æŒ‰å·¥ç¨‹ä¸Šçš„çº¦å®šï¼Œè½´åŠ›ï¼ˆQxï¼‰å—æ‹‰ä¸ºæ­£ï¼Œ
+				!å‰ªåŠ›(Qy,Qz)å·¦ä¸Šå³ä¸‹ä¸ºæ­£ï¼Œå¼¯çŸ©(My,Mz)ä»¥ä¸Šéƒ¨(åæ ‡æ­£æ–¹å‘ä¾§)å—æ‹‰ä¸ºæ­£ï¼Œ
+				!2èŠ‚ç‚¹æ‰­çŸ©ï¼ˆMxï¼‰ä¸Žx'åŒå‘ä¸ºæ­£ï¼Œ1èŠ‚ç‚¹æ‰­çŸ©ï¼ˆMxï¼‰ä¸Žx'åå‘ä¸ºæ­£ã€‚å³è‡ªæˆªé¢çš„å¤–æ³•çº¿å‘æˆªé¢çœ‹ï¼Œé€†æ—¶é’ˆè½¬å‘ä¸ºæ­£ï¼Œé¡ºæ—¶é’ˆè½¬å‘ä¸ºè´Ÿ 
+				!xâ€™ç”±èŠ‚ç‚¹1æŒ‡å‘èŠ‚ç‚¹2
+				if(i<3) then !èŠ‚ç‚¹1
 					!Qx
 					if(i==1) element(iel).gforceILS(n1)=-element(iel).gforceILS(n1)
 					
@@ -513,7 +513,7 @@ subroutine NodalForceInLocalSystem(iel,Tgforce,Ntgforce,istep)
 						!My
 						element(iel).gforceILS(n1+1)=-element(iel).gforceILS(n1+1)
 					end if
-				else	!½Úµã2
+				else	!èŠ‚ç‚¹2
 					
 					if(i==3) then
 						!Qy 
@@ -579,11 +579,11 @@ subroutine ssp_slave_master_contact_force_cal(istep,isubts,iiter,iel,Tforce,nTfo
 	!		smnp(i).load=smnp(i).load+bc_load(smnp(i).mbl(j)).value*t1			
 	!	end do
 	!end if
-	!!µ±Ç°²½×ÜµÄ´¹Ö±Á¦
+	!!å½“å‰æ­¥æ€»çš„åž‚ç›´åŠ›
 	!smnp(i).interforce=smnp(i).interforce+smnp(i).load
 	!smnp(i).aff=abs(smnp(i).interforce*material(element(smnp(i).pe).mat).GET(1,ISTEP))
 	!			
-	!!µ±Ç°ºÉÔØ²½ÏÂ¼ôÇÐÁ¦ÔöÁ¿
+	!!å½“å‰è·è½½æ­¥ä¸‹å‰ªåˆ‡åŠ›å¢žé‡
 	!if(abs(Tforce(1))<smnp(i).aff) then
 	!	element(smnp(i).pe).property(1)=1.0d0
 	!else
@@ -649,7 +649,7 @@ subroutine spring_update2(iel,istep,iiter,Ddis,nDdis)
 		endif
     endif
 	
-    !minelasticX1=-1.d20 !¿ªÊ¼¼Ù¶¨Îªµ¯ÐÔ
+    !minelasticX1=-1.d20 !å¼€å§‹å‡å®šä¸ºå¼¹æ€§
     !maxelasticX1=1.d20
     !if(abs(km1)>1e-7) then
     !    minelasticX1=minv1/km1

@@ -444,7 +444,7 @@ subroutine GENSLICE(AXIS,X,VAL,CONTOURPOINT,TRI,NTRI)
         T1=X-X1(AXIS);T2=X-X2(AXIS);T3=X2(AXIS)-X1(AXIS)
         IF(ABS(T3)<1.D-7)THEN
             !IF(ABS(T1)<1.D-14) THEN                
-            !    ISPVC1(I)=2 !Á½¸ö½Úµã¶¼ÊÇ
+            !    ISPVC1(I)=2 !ï¿½ï¿½ï¿½ï¿½ï¿½Úµã¶¼ï¿½ï¿½
             !    PVC1(:,I)=NODE(V2).COORD
             !ENDIF        
         ELSE
@@ -489,7 +489,7 @@ subroutine GENSLICE(AXIS,X,VAL,CONTOURPOINT,TRI,NTRI)
         
         N1=0
         NTRI=NTRI+1
-		IF(NTRI+1>MAXNTRI1) THEN !ÖÁÉÙÓÐÁ½¸ö¿Õ¼ä
+		IF(NTRI+1>MAXNTRI1) THEN !ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ¼ï¿½
             CALL I2_ENLARGE_AR(TRI,500,3)
             MAXNTRI1=MAXNTRI1+500
         ENDIF

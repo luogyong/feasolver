@@ -6,11 +6,11 @@
 		integer::i,j,M
 		character*7::msg
 		integer::n1,n2
-		real(8)::d1,d2,d3,t1,t2  !三角形的形心
+		real(8)::d1,d2,d3,t1,t2  !涓夎褰㈢殑褰㈠績
 		real(8)::x1,y1,x2,y2,s1,s2,factor
 
 
-		call MAXKCD() !返回可插度最大的单元
+		call MAXKCD() !杩斿洖鍙彃搴︽渶澶х殑鍗曞厓
 
 		if(iept==-1) return
 
@@ -49,7 +49,7 @@
 
 		end do
 
-!		allocate(iept)  !防止后面RCL调用EKCD中iept指向null
+!		allocate(iept)  !闃叉鍚庨潰RCL璋冪敤EKCD涓璱ept鎸囧悜null
 
 	end subroutine
 

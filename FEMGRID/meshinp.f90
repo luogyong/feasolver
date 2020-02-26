@@ -12,7 +12,7 @@
 		integer::ef,unit,itype
 		character(256) term,keyword
 		character(1)::ch
-		real(8)::r_t ! Íâ°üÈı½ÇĞÎµÄÄÚ½ÓÔ²°ë¾¶£¬r_t=5*£¨°üº¬±ß½ç¹Ø¼üµãµÄ×îĞ¡Ô²°ë¾¶£©
+		real(8)::r_t ! å¤–åŒ…ä¸‰è§’å½¢çš„å†…æ¥åœ†åŠå¾„ï¼Œr_t=5*ï¼ˆåŒ…å«è¾¹ç•Œå…³é”®ç‚¹çš„æœ€å°åœ†åŠå¾„ï¼‰
 		real(8)::x_t,y_t
 		real(8)::t1,t2,t3
 		integer(4)::length,result,msg
@@ -52,7 +52,7 @@
 		if(.not.allocated(zone)) allocate(zone(znum))
 
 
-   !°ÑÔ²ĞÎ¿ØÖÆÏßºÍbuilding¼ÓÈëµ½¿ØÖÆÏßÊıÖĞ
+   !æŠŠåœ†å½¢æ§åˆ¶çº¿å’ŒbuildingåŠ å…¥åˆ°æ§åˆ¶çº¿æ•°ä¸­
    
    if(ccln>0) then
    	  allocate(cclincsl(ccln))	
@@ -78,7 +78,7 @@
 		   csl_t(j).conpoint(2,k1)=arr_t(k).y+ccl(i).r*sin(t1*(k1-1))
 		   !call sizecal(csl_t(j).conpoint(1,k1),csl_t(j).conpoint(2,k1),csl_t(j).conpoint(3,k1))
 		   !if(csl_t(j).conpoint(3,k1)>t2) 	
-		   csl_t(j).conpoint(3,k1)=t2	!Èç¹û³ß´ç´óÓÚ±ß³¤£¬È¡±ß³¤	
+		   csl_t(j).conpoint(3,k1)=t2	!å¦‚æœå°ºå¯¸å¤§äºè¾¹é•¿ï¼Œå–è¾¹é•¿	
 		end do
 	  end do
 
@@ -147,7 +147,7 @@ enddo
    !if(znum==0) znum=1
 
 
-	!ĞÎ³ÉÍâ°ü´óÈı½ÇĞÎ
+	!å½¢æˆå¤–åŒ…å¤§ä¸‰è§’å½¢
 !	  x_t=abs(winxlr-winxul)/2
 !	  y_t=abs(winylr-winyul)/2
 !	  r_t=1.4*max(x_t,y_t)
@@ -230,7 +230,7 @@ enddo
         case('model')
 		   print *,'Reading model data...'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,'(A256)') '\n ModelµÄÊäÈë¸ñÊ½Îª:\n 1)×éÊı(nmgroup);\n 2)[izone,ilayer(0(Ä¬ÈÏ)),MAT(1),SF(0),COUPLESET(-1),ET,NAME]*nmgroup \n'c
+		   write(*,'(A256)') '\n Modelçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)ç»„æ•°(nmgroup);\n 2)[izone,ilayer(0(é»˜è®¤)),MAT(1),SF(0),COUPLESET(-1),ET,NAME]*nmgroup \n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
             do i=1, pro_num
                 select case(property(i).name)
@@ -278,17 +278,17 @@ enddo
 		
 		   print *,'Reading POINT data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,'(A512)') '\n PointµÄÊäÈë¸ñÊ½Îª:\n &
+		   write(*,'(A512)') '\n Pointçš„è¾“å…¥æ ¼å¼ä¸º:\n &
            &    0) Point[,soillayer=#,inpmethod=0|1,zorder=0|1,isnorefined=0|1] \n  &
-           &    1) µãÊı(inpn);\n &
-           &    2) ĞòºÅ(num),×ø±ê(x),×ø±ê(y),[elevation(1:soillayer+1)][,meshsize]. ¹²inpnĞĞ.\n &
+           &    1) ç‚¹æ•°(inpn);\n &
+           &    2) åºå·(num),åæ ‡(x),åæ ‡(y),[elevation(1:soillayer+1)][,meshsize]. å…±inpnè¡Œ.\n &
            &    Notes: \n &
-           &        a)Zorder,¸ß³ÌÊäÈëË³Ğò£¬=0(Ä¬ÈÏ)±í¸ß³Ìelevation´Óµ×²ãÍùÉÏÊä;=1·´Ö®. \n &
-           &        b)inpmethod,ÍÁ²ã²åÖµ·½·¨,=0±íÄ¤·½³Ì²åÖµ;=1(Ä¬ÈÏ),Èı½ÇĞÎÏß²å. \n &
-           &        c)isnorefined,ÊÇ·ñ¼ÓÃÜÍø¸ñ,0=No(Ä¬ÈÏ),1=Yes.\n &
-           &        d)meshsize=¸Ãµã¸½½üµÄÍø¸ñ´óĞ¡(¿É²»ÊäÈë). \n &
-           &        e)soillayer=Ä£ĞÍµÄÍÁ²ãÊı(Ä¬ÈÏ0) \n &
-           &        f)elevation=¸ÃµãµÄ¸÷ÍÁ²ãÃæ¸ß³Ì(soillayer>0Ê±ÊäÈë)'c
+           &        a)Zorder,é«˜ç¨‹è¾“å…¥é¡ºåºï¼Œ=0(é»˜è®¤)è¡¨é«˜ç¨‹elevationä»åº•å±‚å¾€ä¸Šè¾“;=1åä¹‹. \n &
+           &        b)inpmethod,åœŸå±‚æ’å€¼æ–¹æ³•,=0è¡¨è†œæ–¹ç¨‹æ’å€¼;=1(é»˜è®¤),ä¸‰è§’å½¢çº¿æ’. \n &
+           &        c)isnorefined,æ˜¯å¦åŠ å¯†ç½‘æ ¼,0=No(é»˜è®¤),1=Yes.\n &
+           &        d)meshsize=è¯¥ç‚¹é™„è¿‘çš„ç½‘æ ¼å¤§å°(å¯ä¸è¾“å…¥). \n &
+           &        e)soillayer=æ¨¡å‹çš„åœŸå±‚æ•°(é»˜è®¤0) \n &
+           &        f)elevation=è¯¥ç‚¹çš„å„åœŸå±‚é¢é«˜ç¨‹(soillayer>0æ—¶è¾“å…¥)'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
             do i=1, pro_num
                 select case(property(i).name)
@@ -317,7 +317,7 @@ enddo
 			   arr_t(k).num=k
 			   arr_t(k).x=ar(2)
 			   arr_t(k).y=ar(3)
-               !µ±soillayer>0Ê±£¬Èç¹ûÒªÍ¬Ê±ÊäÈëµ¥Ôª³ß´ç£¬ÔòÒªÏÈÊäÈë¸ß³ÌĞÅÏ¢,ÔÙÊäÈë³ß´çĞÅÏ¢¡£
+               !å½“soillayer>0æ—¶ï¼Œå¦‚æœè¦åŒæ—¶è¾“å…¥å•å…ƒå°ºå¯¸ï¼Œåˆ™è¦å…ˆè¾“å…¥é«˜ç¨‹ä¿¡æ¯,å†è¾“å…¥å°ºå¯¸ä¿¡æ¯ã€‚
 			   if(dn>3) then
                     n1=dn
                     if(dn>4.and.soillayer>0) then
@@ -375,7 +375,7 @@ enddo
 		   winylr=(ymax-ymin)/xyscale
 		   winxul=0.0
 			winxlr=(xmax-xmin)/xyscale
-		   !ÇóÊäÈëµã¡¡µãÓëµãÖ®¼ä×îĞ¡¾àÀëÈç¹ûµãµÄ³ß´ç´óĞ¡´óÓÚ¸ÃÊıÖµ£¬ÔòÁî¸ÃµãµÄ³ß´çÎª¸ÃÊıÖµ
+		   !æ±‚è¾“å…¥ç‚¹ã€€ç‚¹ä¸ç‚¹ä¹‹é—´æœ€å°è·ç¦»å¦‚æœç‚¹çš„å°ºå¯¸å¤§å°å¤§äºè¯¥æ•°å€¼ï¼Œåˆ™ä»¤è¯¥ç‚¹çš„å°ºå¯¸ä¸ºè¯¥æ•°å€¼
 		
 		   call minsize()
 			allocate(segindex(inpn,inpn))
@@ -385,7 +385,7 @@ enddo
 		case('size point','sp')
 		   print *,'Reading SIZE POINT data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,*) '\n size pointµÄÊäÈë¸ñÊ½Îª:\n 1)µãÊı(sizepoint);\n 2)µãºÅ,¸Ãµã´óĞ¡(s),¹«²î(d); \n ..... \n ¹²sizepoint¸ö.\n'c
+		   write(*,*) '\n size pointçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)ç‚¹æ•°(sizepoint);\n 2)ç‚¹å·,è¯¥ç‚¹å¤§å°(s),å…¬å·®(d); \n ..... \n å…±sizepointä¸ª.\n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
 		   read(unit,*) sizepoint
 		   allocate(s_p(sizepoint))
@@ -414,7 +414,7 @@ enddo
 			  call sizecal(arr_t(i).x,arr_t(i).y,arr_t(i).s)
 			  if(arr_t(i).s>arr_t(i).mins) arr_t(i).s=arr_t(i).mins
 	       end do
-		   !ÁîÖØºÏµãµÄ³ß´çÏàµÈ,µÈÓÚ´óÕß
+		   !ä»¤é‡åˆç‚¹çš„å°ºå¯¸ç›¸ç­‰,ç­‰äºå¤§è€…
 		   do i=1,inpn
 			   do j=i+1,inpn
 					if(abs(arr_t(j).x-arr_t(i).x)>precision)  cycle
@@ -430,7 +430,7 @@ enddo
 		case('material','mat')
 		   print *,'Reading MATERIAL data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,'(a256)') '\n materialµÄÊäÈë¸ñÊ½Îª:\n 1)²ÄÁÏÊı(mnum);\n 2)xÖ÷ÏòÉøÍ¸ÏµÊı(kx),yÖ÷ÏòÉøÍ¸ÏµÊı(ky),ÖüË®ÏµÊı(u),Ö÷ÏòÓë¼¸ºÎ×ø±êµÄ¼Ğ½Ç(angle); \n ..... \n ¹²mnum¸ö.\n'c
+		   write(*,'(a256)') '\n materialçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)ææ–™æ•°(mnum);\n 2)xä¸»å‘æ¸—é€ç³»æ•°(kx),yä¸»å‘æ¸—é€ç³»æ•°(ky),è´®æ°´ç³»æ•°(u),ä¸»å‘ä¸å‡ ä½•åæ ‡çš„å¤¹è§’(angle); \n ..... \n å…±mnumä¸ª.\n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
 		   read(unit,*) mnum
 		   allocate(material(mnum))
@@ -462,7 +462,7 @@ enddo
 		case('zone','ZONE')
 		   print *,'Reading ZONE data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,*) '\n zoneµÄÊäÈë¸ñÊ½Îª:\n 1)ÇøÓòÊı(znum);\n 2) \n(a) ÇøÓò×ø±êÊı(num)[,OutGmshType,iElevation,mat(1:soillayer)];!OutGmshType=1 Physical Volume only; =2 Physical Surface only; =3, both;if OutGmshType=2/3, iElevationÖ¸¶¨Êä³öÄÄ¸ö¸ß³ÌµÄÃæ¡£\n(b) µãºÅ(num¸ö). \n ..... \n ¹²znum¸ö.\n'c
+		   write(*,*) '\n zoneçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)åŒºåŸŸæ•°(znum);\n 2) \n(a) åŒºåŸŸåæ ‡æ•°(num)[,OutGmshType,iElevation,mat(1:soillayer)];!OutGmshType=1 Physical Volume only; =2 Physical Surface only; =3, both;if OutGmshType=2/3, iElevationæŒ‡å®šè¾“å‡ºå“ªä¸ªé«˜ç¨‹çš„é¢ã€‚\n(b) ç‚¹å·(numä¸ª). \n ..... \n å…±znumä¸ª.\n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
            call skipcomment(unit)
 		   read(unit,*) znum
@@ -510,7 +510,7 @@ enddo
 		case('control line','cl')
            print *,'Reading CONTROL LINE data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,'(a256)') '\n control lineµÄÊäÈë¸ñÊ½Îª:\n 1)¿ØÖÆÊı(cln);\n 2) \n(a) ¿ØÖÆÏß×ø±êÊı(num);ÊÇ·ñ±ÕºÏ(flag:0·ñ1ÊÇ);ÊÇ·ñ¿Õ¶´(hole:0·ñ1ÊÇ). \n(b)µãºÅ(num¸ö). \n ..... \n ¹²cln¸ö.\n'c
+		   write(*,'(a256)') '\n control lineçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)æ§åˆ¶æ•°(cln);\n 2) \n(a) æ§åˆ¶çº¿åæ ‡æ•°(num);æ˜¯å¦é—­åˆ(flag:0å¦1æ˜¯);æ˜¯å¦ç©ºæ´(hole:0å¦1æ˜¯). \n(b)ç‚¹å·(numä¸ª). \n ..... \n å…±clnä¸ª.\n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
            call skipcomment(unit)
 		   read(unit,*) cln
@@ -529,7 +529,7 @@ enddo
 				 !if(csl(i).flag==0) csl(i).hole=0
 				 allocate(csl(i).conpoint(3,csl(i).num),csl(i).point(csl(i).num))
 				 !if(csl(i).num>100) then
-				!	write(*,*) '¿ØÖÆÏßµãµÄÊıÄ¿³¬¹ıÏŞÖµ£¨100£©£¡'
+				!	write(*,*) 'æ§åˆ¶çº¿ç‚¹çš„æ•°ç›®è¶…è¿‡é™å€¼ï¼ˆ100ï¼‰ï¼'
 				!	stop
 				! end if
 				 if(allocated(b)) deallocate(b)
@@ -544,7 +544,7 @@ enddo
 					csl(i).conpoint(2,j)=arr_t(b(j)).y
 					csl(i).conpoint(3,j)=arr_t(b(j)).s
 					!call sizecal(csl(i).conpoint(1,j),csl(i).conpoint(2,j),csl(i).conpoint(3,j))
-					if(csl(i).flag==0.and.j==csl(i).num) exit !²»±ÕºÏ
+					if(csl(i).flag==0.and.j==csl(i).num) exit !ä¸é—­åˆ
 					n1=b(mod(j,csl(i).num)+1)
                     IF(segindex(b(J),n1)>0) THEN
                         PRINT *, 'THE SEGGMENT(I,J) IN CONTROL LINE K OVERLAPPED. K,I,J=',I,B(J),N1
@@ -566,7 +566,7 @@ enddo
 !		case('boundary condition','bc')
 !           print *,'Reading BOUNDARY CONDITOIN data'
 !           oldcolor = SETTEXTCOLOR(INT2(10))
-!		   write(*,'(a256)') '\n boundary conditionµÄÊäÈë¸ñÊ½Îª:\n 1)±ß½çµã(hqnum);\n 2) \n(a) ±ß½ç×ø±êÊı(num);ÀàĞÍbt(0:ÏßË®Í·;1,ÏßÁ÷Á¿;2,ÃæË®Í·;3ÃæÁ÷Á¿;3ÃæÁ÷Á¿;4,µãË®Í·;4,µãÁ÷Á¿;);Á¿Öµ(v);×÷ÓÃµÄÍÁ²ãactive()(optional,½öµ±soillayer>1Ê±²ÅÊäÈë,¸öÊıÎªsoillayer/2+1) \n(b)µãºÅ(num¸ö). \n ..... \n ¹²nbc¸ö.\n'c
+!		   write(*,'(a256)') '\n boundary conditionçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)è¾¹ç•Œç‚¹(hqnum);\n 2) \n(a) è¾¹ç•Œåæ ‡æ•°(num);ç±»å‹bt(0:çº¿æ°´å¤´;1,çº¿æµé‡;2,é¢æ°´å¤´;3é¢æµé‡;3é¢æµé‡;4,ç‚¹æ°´å¤´;4,ç‚¹æµé‡;);é‡å€¼(v);ä½œç”¨çš„åœŸå±‚active()(optional,ä»…å½“soillayer>1æ—¶æ‰è¾“å…¥,ä¸ªæ•°ä¸ºsoillayer/2+1) \n(b)ç‚¹å·(numä¸ª). \n ..... \n å…±nbcä¸ª.\n'c
 !		   oldcolor = SETTEXTCOLOR(INT2(15))		
 !		   read(unit,*) NBC
 !			if(nbc/=0) then
@@ -582,7 +582,7 @@ enddo
 		case('key point','kp')
 		   print *,'Reading KEY POINT data'
            oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,'(a256)') '\n key pointµÄÊäÈë¸ñÊ½Îª:\n 1)µãÊı(keypn);\n 2) ×ø±êºÅ(keypn¸ö). \n'c
+		   write(*,'(a256)') '\n key pointçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)ç‚¹æ•°(keypn);\n 2) åæ ‡å·(keypnä¸ª). \n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
            call skipcomment(unit)
 		   read(unit,*) keypn
@@ -648,7 +648,7 @@ enddo
 	       BNpt.next=>BNhead
 		   deallocate(b)
 
-	   !   !Èç¹û¸ÃµãµÄ³ß´ç´óÓÚÏàÁÚ±ß½çµãÖ®¼äµÄ×îĞ¡µÄ¾àÀë£¬ÒÔ×îĞ¡¾àÀëÎª¸ÃµãµÄ³ß´ç
+	   !   !å¦‚æœè¯¥ç‚¹çš„å°ºå¯¸å¤§äºç›¸é‚»è¾¹ç•Œç‚¹ä¹‹é—´çš„æœ€å°çš„è·ç¦»ï¼Œä»¥æœ€å°è·ç¦»ä¸ºè¯¥ç‚¹çš„å°ºå¯¸
 		  ! do i=1,nnode
 	   !      if(i==nnode) then
     !            j=1
@@ -683,7 +683,7 @@ enddo
 		   print *,'Reading AUXILIARY POINT data'
 		
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,'(a256)') '\n aupointµÄÊäÈë¸ñÊ½Îª:\n 1)¸¨ÖúµãµÄ¸öÊı(aupn);\n 2) µãºÅ;¸Ãµãµ¥ÔªµÄ´óĞ¡(s);\n......\n ¹²aupn¸ö \n'c
+		   write(*,'(a256)') '\n aupointçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)è¾…åŠ©ç‚¹çš„ä¸ªæ•°(aupn);\n 2) ç‚¹å·;è¯¥ç‚¹å•å…ƒçš„å¤§å°(s);\n......\n å…±aupnä¸ª \n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
            call skipcomment(unit)
 		   read(unit,*) aupn
@@ -766,14 +766,14 @@ enddo
 		   !read(unit,*) meshzone(mzindex).singularplace		   		   		   	
 		case('dl','dataline')
 			print *, 'Reading Data LINE data...'
-			write(*,'(a256)') '\n DATA LINEµÄÊäÈë¸ñÊ½Îª:\n 1)Ã¿ÌõÊı¾İÊä³öÏß¿ØÖÆÔÚÊäÈëcontrol lineÖĞµÄ±àºÅ(¹²1ĞĞ)\n'c
+			write(*,'(a256)') '\n DATA LINEçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)æ¯æ¡æ•°æ®è¾“å‡ºçº¿æ§åˆ¶åœ¨è¾“å…¥control lineä¸­çš„ç¼–å·(å…±1è¡Œ)\n'c
 			call strtoint(unit,ar,dnmax,dn,dnmax)
 			dln=dn
 			allocate(dataline(dln))
 			dataline=nint(ar(1:dn))
 		case('iskpm')
 			print *, 'Reading ISKPM data...'
-			write(*,'(a64)') '\n ISKPMÊäÈë¸ñÊ½Îª:\n ³ı0ÒÔÍâµÄÈÎºÎÕûÊı±íÊ¾²»ÓÃ½øÒ»²½Ï¸·Ö±ß½ç.'c
+			write(*,'(a64)') '\n ISKPMè¾“å…¥æ ¼å¼ä¸º:\n é™¤0ä»¥å¤–çš„ä»»ä½•æ•´æ•°è¡¨ç¤ºä¸ç”¨è¿›ä¸€æ­¥ç»†åˆ†è¾¹ç•Œ.'c
 			read(unit,*) iskpm
 		case('precision')
 			print *, 'Reading PRECISION data...'
@@ -834,10 +834,10 @@ enddo
 
 			print *, 'Reading MEMBRANCE INTERPOLATION data...'
             oldcolor = SETTEXTCOLOR(INT2(10))
-		    write(*,'(a256)') 'Membrance InterpolationµÄÊäÈë¸ñÊ½Îª:\n &
-            &  1)µØÖÊÏßÊı(nmeminp);\n &
-            &  2) ¿ØÖÆÏßºÅ [,¿ØÖÆµã¸öÊı(>1)(Èç¹û¸ÃÏß²»ÊÇÕûÌõ¿ØÖÆÏß.Èç´ËÊı²»ÊäÈë»ò<2,Ôò2.1)²»ÊäÈë)]. ¹²nmeminp×é¡£ \n &
-            &  2.1) [¿ØÖÆµãºÅ](Èç¹û¸ÃÏß²»ÊÇÕûÌõ¿ØÖÆÏß.) \n'c
+		    write(*,'(a256)') 'Membrance Interpolationçš„è¾“å…¥æ ¼å¼ä¸º:\n &
+            &  1)åœ°è´¨çº¿æ•°(nmeminp);\n &
+            &  2) æ§åˆ¶çº¿å· [,æ§åˆ¶ç‚¹ä¸ªæ•°(>1)(å¦‚æœè¯¥çº¿ä¸æ˜¯æ•´æ¡æ§åˆ¶çº¿.å¦‚æ­¤æ•°ä¸è¾“å…¥æˆ–<2,åˆ™2.1)ä¸è¾“å…¥)]. å…±nmeminpç»„ã€‚ \n &
+            &  2.1) [æ§åˆ¶ç‚¹å·](å¦‚æœè¯¥çº¿ä¸æ˜¯æ•´æ¡æ§åˆ¶çº¿.) \n'c
             
 		    oldcolor = SETTEXTCOLOR(INT2(15))            
             call skipcomment(unit)
@@ -848,7 +848,7 @@ enddo
                 !call skipcomment(unit)
                 call strtoint(unit,ar,dnmax,dn,dnmax)
                 if(dn>1.and.int(ar(2))>1) then 
-                    meminp2(i).icl=int(ar(1)) !Îª¾Ö²¿¿ØÖÆÏß
+                    meminp2(i).icl=int(ar(1)) !ä¸ºå±€éƒ¨æ§åˆ¶çº¿
 				    meminp2(i).nnum=int(ar(2))
 				    allocate(meminp2(i).elevation(meminp2(i).nnum,0:soillayer), &
 							    meminp2(i).cp(meminp2(i).nnum))
@@ -909,7 +909,7 @@ enddo
 		case('geology point','gp')
 		     print *,'Reading GEOLOGY POINT data'
 		     oldcolor = SETTEXTCOLOR(INT2(10))
-		     write(*,'(a256)') '\n geology pointµÄÊäÈë¸ñÊ½Îª:\n 1)µãÊı(geon);\n 2) \n×ø±êºÅ;¸ß³Ì(´ÓµØ±íÍùÏÂÊäÈë¹²(0:soillayer)).\n......\n ¹²(geon×é) \n'c
+		     write(*,'(a256)') '\n geology pointçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)ç‚¹æ•°(geon);\n 2) \nåæ ‡å·;é«˜ç¨‹(ä»åœ°è¡¨å¾€ä¸‹è¾“å…¥å…±(0:soillayer)).\n......\n å…±(geonç»„) \n'c
 		     oldcolor = SETTEXTCOLOR(INT2(15))
              call skipcomment(unit)
 		     read(unit,*) n2
@@ -926,7 +926,7 @@ enddo
            print *, 'Reading Soil layer number data'
 		
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,'(a256)') '\n soillaygerµÄÊäÈë¸ñÊ½Îª:\n 1)ÍÁ²ãÊı(soilayer)\n'c
+		   write(*,'(a256)') '\n soillaygerçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)åœŸå±‚æ•°(soilayer)\n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
 		   call skipcomment(unit)
            read(unit,*) soillayer
@@ -958,9 +958,9 @@ enddo
     use meshDS
 	implicit none
 	real(8)::x_t,y_t,s_t,a_t,t1
-	real(8),allocatable::dis_t(:) !¾àÀë£¨µÈ²îÊıÁĞÖ®ºÍ£©
-	real(8),allocatable::sa_t(:) ! ¸÷µãÇóµÄ²½³¤
-	real(8),allocatable::n_t(:)  !²½Êı£¨µÈ²îÊıÁĞÏîÊı£©
+	real(8),allocatable::dis_t(:) !è·ç¦»ï¼ˆç­‰å·®æ•°åˆ—ä¹‹å’Œï¼‰
+	real(8),allocatable::sa_t(:) ! å„ç‚¹æ±‚çš„æ­¥é•¿
+	real(8),allocatable::n_t(:)  !æ­¥æ•°ï¼ˆç­‰å·®æ•°åˆ—é¡¹æ•°ï¼‰
 	integer::i
 
 	
@@ -998,7 +998,7 @@ enddo
 
   end subroutine
 	
-	!¿ØÖÆ¸÷ÊäÈëµã×î´óµÄµ¥Ôª³ß´çÎªÁ½ÊäÈëµãÖ®¼ä¾àÀë
+	!æ§åˆ¶å„è¾“å…¥ç‚¹æœ€å¤§çš„å•å…ƒå°ºå¯¸ä¸ºä¸¤è¾“å…¥ç‚¹ä¹‹é—´è·ç¦»
   subroutine minsize()
 	 use meshds
 	 use ds_t
@@ -1010,10 +1010,10 @@ enddo
 		 do j=i+1,inpn
 			if(j==i) cycle
 			t1=((arr_t(i).x-arr_t(j).x)**2+(arr_t(i).y-arr_t(j).y)**2)
-			if(t1<precision) cycle !ÈçºÎÁ½¸öµãÖ®¼äµÄ¾àÀëÌ«Ğ¡£¬ÎªÍø¸ñ»®·Ö·½±ã¼Æ£¬ÈÏÎªÕâÁ½¸öµãÊÇÖØºÏµã£¬ÔÚ´ËÌø¹ı
+			if(t1<precision) cycle !å¦‚ä½•ä¸¤ä¸ªç‚¹ä¹‹é—´çš„è·ç¦»å¤ªå°ï¼Œä¸ºç½‘æ ¼åˆ’åˆ†æ–¹ä¾¿è®¡ï¼Œè®¤ä¸ºè¿™ä¸¤ä¸ªç‚¹æ˜¯é‡åˆç‚¹ï¼Œåœ¨æ­¤è·³è¿‡
 			t1=t1**0.5
-			if(t1<arr_t(i).mins) arr_t(i).mins=t1 !×î´óµÄµ¥Ôª³ß´çÎªÁ½ÊäÈëµãÖ®¼ä¾àÀëµÄÒ»°ë¡£
-			if(t1<arr_t(j).mins) arr_t(j).mins=t1 !×î´óµÄµ¥Ôª³ß´çÎªÁ½ÊäÈëµãÖ®¼ä¾àÀëµÄÒ»°ë¡£
+			if(t1<arr_t(i).mins) arr_t(i).mins=t1 !æœ€å¤§çš„å•å…ƒå°ºå¯¸ä¸ºä¸¤è¾“å…¥ç‚¹ä¹‹é—´è·ç¦»çš„ä¸€åŠã€‚
+			if(t1<arr_t(j).mins) arr_t(j).mins=t1 !æœ€å¤§çš„å•å…ƒå°ºå¯¸ä¸ºä¸¤è¾“å…¥ç‚¹ä¹‹é—´è·ç¦»çš„ä¸€åŠã€‚
             
 		 end do
          if(ARR_T(I).iss==0) ARR_T(I).S=arr_t(I).mins
@@ -1062,8 +1062,8 @@ enddo
    end subroutine
 
 
-   !unit£ºÎÄ¼şºÅ£¬
-   !ITYPE:=0£¬ÄÜ¶ÁÎÄ¼ş¡£>0±íÊ¾keywordÖĞ¹Ø¼ü×ÖµÄ¸öÊı,½ö¶ÁÈ¡keywordÖĞ¸÷¹Ø¼ü×ÖµÄ×Ö¶ÎÄÚÈİ¡£
+   !unitï¼šæ–‡ä»¶å·ï¼Œ
+   !ITYPE:=0ï¼Œèƒ½è¯»æ–‡ä»¶ã€‚>0è¡¨ç¤ºkeywordä¸­å…³é”®å­—çš„ä¸ªæ•°,ä»…è¯»å–keywordä¸­å„å…³é”®å­—çš„å­—æ®µå†…å®¹ã€‚
  
    subroutine read_execute(unit,ITYPE,keyword)
 	

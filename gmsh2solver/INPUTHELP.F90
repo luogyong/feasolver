@@ -16,7 +16,7 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) ="//THE KEYWORD STRUCTURE IS EXPLAINED HEREIN"
 	README(IPP(I)) ="//NOTE THAT NOT ALL OF THEM ARE REQUIRED TO SET UP THE MODEL."
 	README(IPP(I)) ="//AND THAT THE DEPTH DIRECTION IS THE Z AXIS, WHOSE POSITIVE DIRECTION IS UPWARD.(KEEP CONSISTENCY WITH FEASOLVER)"
-	README(IPP(I)) ="//���еı߽����������ؾ��Ե����õ���ʽ���.ET=ELT_BC_OR_LOAD�ĵ�Ԫ�鲻���."
+	README(IPP(I)) ="//所有的边界条件及荷载均以点作用的形式输出.ET=ELT_BC_OR_LOAD的单元组不输出."
 
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
@@ -24,9 +24,9 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD ELT_BC IS USED TO DEFINE THE BOUNDARY CONDITION APPLIED ON THE ELEMENT GROUP."//'"'
 	README(IPP(I))="//NOTE THAT THE FINAL BC VALUE OF A NODE IS WHAT INPUT BY THE FIRST ELEMENT SHARING THE NODE."
 	README(IPP(I))= "//{NELT_BC} "
-	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE,[A,B,C,D]}  // NDIM=0,1,2,3 �ֱ��ʾ�㡢�ߡ��桢���Լ��. ��Ϊ�߽���������λ�ƣ�ˮͷ�ȣ����ߵ����ԣ�����NDIMȡֵ�Ա߽�������Ӱ��."
-    README(IPP(I)) = "//DOF=4(ˮͷ)����VALUE=-999,��ʾ�ڵ��ˮͷ�߽�ֵΪ�ڵ�߳�ֵ��(ģ�Ⱪ�깤����)"
-	README(IPP(I))=  "//                                                      // DOF(I)=1,2,...,7,�ֱ��ʾԼ��X,Y,Z,H,MX,MY,MZ "
+	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE,[A,B,C,D]}  // NDIM=0,1,2,3 分别表示点、线、面、体的约束. 因为边界条件（如位移，水头等）不具叠加性，所以NDIM取值对边界条件无影响."
+    README(IPP(I)) = "//DOF=4(水头)，且VALUE=-999,表示节点的水头边界值为节点高程值。(模拟暴雨工况。)"
+	README(IPP(I))=  "//                                                      // DOF(I)=1,2,...,7,分别表示约束X,Y,Z,H,MX,MY,MZ "
     README(IPP(I))=  "//[A,B,C,D] IS FOR LINEAR FIELD FUNCTION CALCULATION. IF THEY ARE PRESENT THEN VALUE=A*X+B*Y+C*Z+D. "
     README(IPP(I))=  "//NOTE: FOR THE LAYERED MODEL, THE GROUP IDS OF EACH EXTRUDED LAYERED IS REFERED AS GROUP_BASEMESH*100+ILAYER.AS SHOWN BELOW." 
 	README(IPP(I))=  "//   -----------------								"
@@ -46,7 +46,7 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I))=  "//   |    1-LAYER    | GROUPID=GROUP_BASEMESH         "
 	README(IPP(I))=  "//   |               |                                "
 	README(IPP(I))=  "//   -----------------                                "
-	README(IPP(I))=  "//{......}   //��NELT_BC��. "
+	README(IPP(I))=  "//{......}   //共NELT_BC行. "
 	README(IPP(I)) = "//$ENDELT_BC"
 	
 	
@@ -55,14 +55,14 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD ELT_LOAD IS USED TO DEFINE THE LOAD APPLIED ON THE ELEMENT GROUP."//'"'
 	README(IPP(I))="//NOTE THAT, IF THE NDIM=1,2 OR 3, THE FINAL BC VALUE OF A NODE IS THE SUM OF ALL THE ELEMENT SHARING THE NODE."
 	README(IPP(I)) = "//{NELT_LOAD} "
-	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE,[A,B,C,D],['SPG_DUAL']}  // NDIM=0,1,2,3 �ֱ��ʾ�㡢�ߡ��桢��ĺ���."
-	README(IPP(I)) =  "//{......}   //��NELT_LOAD��. "
-	README(IPP(I)) ="//Ŀǰ�ɴ���:NDIM=0(�����); "
-	README(IPP(I)) ="//			 NDIM=1�����Ŀǰ�ɴ���������2�ڵ㡢3�ڵ��Լ�5�ڵ�ĵ�Ԫ�ߣ��ҽ����ھ����ߺ���;"
-	README(IPP(I)) ="//			 NDIM=2�����Ŀǰ�ɴ���������3�ڵ㣨�����Σ���4�ڵ㣨�ı��Σ���6�ڵ㣨���������Σ���8�ڵ㣨�����ı��Σ��Լ�15�ڵ㣨�Ĵ������Σ��ĵ�Ԫ�棬�ҽ����ھ��������;"
-	README(IPP(I)) ="//			 NDIM=3�����Ŀǰ�ɴ���������4�ڵ㣨�����壩��10�ڵ㣨���������壩��6�ڵ�(Prism)��8�ڵ�(������)���ҽ����ھ��������;"
+	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE,[A,B,C,D],['SPG_DUAL']}  // NDIM=0,1,2,3 分别表示点、线、面、体的荷载."
+	README(IPP(I)) =  "//{......}   //共NELT_LOAD行. "
+	README(IPP(I)) ="//目前可处理:NDIM=0(点荷载); "
+	README(IPP(I)) ="//			 NDIM=1的情况目前可处理作用在2节点、3节点以及5节点的单元边，且仅限于均布线荷载;"
+	README(IPP(I)) ="//			 NDIM=2的情况目前可处理作用在3节点（三角形）、4节点（四边形）、6节点（二次三角形）、8节点（二次四边形）以及15节点（四次三角形）的单元面，且仅限于均布面荷载;"
+	README(IPP(I)) ="//			 NDIM=3的情况目前可处理作用在4节点（四面体）、10节点（二次四面体）、6节点(Prism)、8节点(长方体)，且仅限于均布体荷载;"
     README(IPP(I))=  "//[A,B,C,D] IS FOR LINEAR FIELD FUNCTION CALCULATION. IF THEY ARE PRESENT THEN VALUE=A*X+B*Y+C*Z+D. "
-    README(IPP(I))=  "//�������ַ���'SPG_DUAL'ʱ,�������߽�ˮͷ����λ��ˮͷʱ��������߽���Ҳ�����˱߽�ʱ���˱߽�ͻ�ת��Ϊ����߽硣��ˮͷ�߽������߽���ܳ����໥ת��ʱ����ʹ�ô˹��ܡ� "
+    README(IPP(I))=  "//当输入字符串'SPG_DUAL'时,表明当边界水头低于位置水头时，当出溢边界中也包含此边界时，此边界就会转化为出溢边界。当水头边界与出溢边界可能出现相互转化时，可使用此功能。 "
     README(IPP(I))=  "//NOTE: FOR THE LAYERED MODEL, THE GROUP IDS OF EACH EXTRUDED LAYERED IS REFERED AS GROUP_BASEMESH*100+ILAYER.AS SHOWN BELOW." 
 	README(IPP(I))=  "//   -----------------								"
 	README(IPP(I))=  "//   |               |                                "
@@ -87,7 +87,7 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//$ELT_SPGFACE"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD ELT_SPGFACE IS USED TO DEFINE THE SEEPAGEFACE CONDITION APPLIED ON THE ELEMENT GROUP."//'"'
 	README(IPP(I)) = "//{NELT_SPGFACE} "
-	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE}  // NDIM=0,1,2,3 ���ɣ�VALUE=����ֵ�������ڲ���ΪY��Z��"
+	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE}  // NDIM=0,1,2,3 均可，VALUE=任意值（程序内部设为Y或Z）"
     README(IPP(I))=  "//NOTE: FOR THE LAYERED MODEL, THE GROUP IDS OF EACH EXTRUDED LAYERED IS REFERED AS GROUP_BASEMESH*100+ILAYER.AS SHOWN BELOW." 
 	README(IPP(I))=  "//   -----------------								"
 	README(IPP(I))=  "//   |               |                                "
@@ -106,7 +106,7 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I))=  "//   |    1-LAYER    | GROUPID=GROUP_BASEMESH         "
 	README(IPP(I))=  "//   |               |                                "
 	README(IPP(I))=  "//   -----------------                                "
-	README(IPP(I)) =  "//{......}   //��NELT_SPGFACE��. "
+	README(IPP(I)) =  "//{......}   //共NELT_SPGFACE行. "
 	README(IPP(I)) = "//$ENDELT_SPGFACE"	
 	
 	!README(IPP(I)) ="\N//******************************************************************************************************"C
@@ -119,18 +119,18 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$WELLBORE"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD WELLBORE IS USED TO DEFINE THE WELLBORE PARAMETERS."//'"'
-	README(IPP(I)) = "//{NWELLBORE}   // ������"
+	README(IPP(I)) = "//{NWELLBORE}   // 井集数"
     README(IPP(I)) = "//{Wellbore_GROUPID,WELL_HEAD_BC_TYPE,WellNODE_GroupID,VALUE [,SFN_GROUDID,NSEMI_SFN_GROUPS,PIPEFLOW_GroupID,NWELLSEEPAGEFACE,MATID]}" 
     README(IPP(I)) = "//{[SEMI_SFN_GROUDID,DIRECTION_VECTOR]} //ONLY NEED WHEN NSEMI_SFN_GROUPS>0 " 
     README(IPP(I)) = "//{[WELL_SEEPAGE_FACE_LINE_GROUPID,SINKNODE_GROUPID]} //ONLY NEED WHEN NWELLSEEPAGEFACE>0 " 
-    README(IPP(I)) = "//WELL_HEAD_BC_TYPE,WellNODE_GroupID and Value:����ı߽����͡�ʩ�ӱ߽�Ľڵ�GROUDID����ֵ��WELL_HEAD_BC_TYPE=0,1,2�ֱ��ʾ��������ˮͷ(ˮֻ������,�����������г��־�����Ϊ����ʱ��ǿ������Ϊ0)�������߽磬���涨ˮͷ�߽�(�������������������);"
-    README(IPP(I)) = "//SFN_GROUDID,����Ϊ��״���ĵ㼯��ģ���Դ��=0(Ĭ�ϣ���)=GROUPID(>0),��״����λ����PHYSICALGROUP�е�Ԫ����" 
-    README(IPP(I)) = "//NSEMI_SFN_GROUPS,����״���ĵ㼯�ĸ�����ģ�����������=0����(Ĭ�ϣ���Ϊ������)��=GROUPID(>0),����״���Ľڵ�ͷ�����SEMI_SFN_GROUP��DIRECTION_VECTOR(����������ʸ��)�е�Ԫ����" 
-    README(IPP(I)) = "//PIPEFLOW_GroupID,=0(Ĭ��ȫ����Ϊ�˹�)��>0,�����ܵ�λ����PHYSICALGROUP�е�Ԫ���� " 
-    README(IPP(I)) = "//WELL_SEEPAGE_FACE_LINE_GROUPID��SINKNODE_GROUPIDΪǱˮ�����ڳ����߼��Ͷ�Ӧ�ľ���(�������������������)��ÿ��Ǳˮ����Ӧһ�������߼��Ϻ�һ�����㣬����SINKNODE_GROUPIDֻ����һ���ڵ�"
-    README(IPP(I)) = "//MATID,�����Ĳ��Ϻ�,��˴������룬��Ӧ��GROUPPARAMETER�����롣����������:"
-    README(IPP(I)) ="//PROPERTY(1)=R(���뾶). (2)Temp. (3)=Kr(relative roughness of the  inner surface of the pipe ),.(4)=time unit (day=0(default),second=1), .(5)=g (gravity acc. =0(SET by default, 73156608000.00 m/day2. ), .(6)PIPE-FLOW MODEL(=0,Darcy(no porous effect,DEFAULT);=1,Siwon; =2,OUYang EFFECT;=3,Input by user); .(7)��Ƥ�ĺ�Ⱥ���͸ϵ���ı�L/K.=0(Ĭ��,�����Ǿ���));.(8)=f(Darcy Friction factor(����Ħ��ϵ��),=0,�ɼ��㶨(Ĭ��)��һ��Ϊ0.02-0.03����,��model=3ʱ���롣);.(9)=POROSITY OF THE WELLBORE(��model=1ʱ����)"C
-    README(IPP(I)) = "//���龮�߸�����Ԫ�Ĵ�СΪ���뾶10�����ϣ���ҪС�ھ���5������Ȼ���ܼ���ʧ�ܡ�"
+    README(IPP(I)) = "//WELL_HEAD_BC_TYPE,WellNODE_GroupID and Value:井点的边界类型、施加边界的节点GROUDID及数值。WELL_HEAD_BC_TYPE=0,1,2分别表示：自流井水头(水只出不进,但迭代过程中出现井流量为流入时，强制流量为0)，流量边界，常规定水头边界(不进行流量的正负检查);"
+    README(IPP(I)) = "//SFN_GROUDID,附近为球状流的点集，模拟点源。=0(默认，无)=GROUPID(>0),球状流的位置由PHYSICALGROUP中单元决定" 
+    README(IPP(I)) = "//NSEMI_SFN_GROUPS,半球状流的点集的个数，模拟非完整井。=0，无(默认，井为完整井)，=GROUPID(>0),半球状流的节点和方向由SEMI_SFN_GROUP和DIRECTION_VECTOR(半球区域方向矢量)中单元决定" 
+    README(IPP(I)) = "//PIPEFLOW_GroupID,=0(默认全长均为滤管)，>0,管流管的位置由PHYSICALGROUP中单元决定 " 
+    README(IPP(I)) = "//WELL_SEEPAGE_FACE_LINE_GROUPID和SINKNODE_GROUPID为潜水井井壁出溢线集和对应的井点(即各出溢点的流量汇入点)，每个潜水井对应一个出溢线集合和一个井点，所以SINKNODE_GROUPID只包含一个节点"
+    README(IPP(I)) = "//MATID,参数的材料号,如此处不输入，则应在GROUPPARAMETER中输入。井参数包括:"
+    README(IPP(I)) ="//PROPERTY(1)=R(井半径). (2)Temp. (3)=Kr(relative roughness of the  inner surface of the pipe ),.(4)=time unit (day=0(default),second=1), .(5)=g (gravity acc. =0(SET by default, 73156608000.00 m/day2. ), .(6)PIPE-FLOW MODEL(=0,Darcy(no porous effect,DEFAULT);=1,Siwon; =2,OUYang EFFECT;=3,Input by user); .(7)泥皮的厚度和渗透系数的比L/K.=0(默认,不考虑井损));.(8)=f(Darcy Friction factor(井壁摩阻系数),=0,由计算定(默认)，一般为0.02-0.03左右,当model=3时输入。);.(9)=POROSITY OF THE WELLBORE(当model=1时输入)"C
+    README(IPP(I)) = "//建议井线附近单元的大小为井半径10倍以上，不要小于井半5倍，不然可能计算失败。"
 	README(IPP(I)) = "//$ENDWELLBORE"	    
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
@@ -143,38 +143,38 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//$GROUPPARAMETER"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD GROUPPARAMETER IS USED TO DEFINE THE MATERIAL AND ELEMENT TYPE IN THE MODELGROUP ELEMENTS."//'"'
 	README(IPP(I)) = "//{NGROUPPARAMETER}"  
-	README(IPP(I)) = "//{GROUDID,MATID(NLAYER),{COUPLESET},ET)}  //ET=CPE3,CPE6,TET4,TET10,....COUPLESET:��ϵ�Ԫ�ԣ���Ҫʱ��������ϣ����롣"
-	README(IPP(I)) = "//{......}  // ��NGROUPPARAMETER ��"     
+	README(IPP(I)) = "//{GROUDID,MATID(NLAYER),{COUPLESET},ET)}  //ET=CPE3,CPE6,TET4,TET10,....COUPLESET:耦合单元对，必要时（流固耦合）输入。"
+	README(IPP(I)) = "//{......}  // 共NGROUPPARAMETER 个"     
 	README(IPP(I)) = "//$ENDGROUPPARAMETER"	
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$WSP"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD WSP IS USED TO DEFINE THE BOUNDRAY LINE WHERE A WATER SURFACE PROFILE IS CALCULATED."//'"'
 	README(IPP(I)) = "//{NWSP}"  
-	README(IPP(I)) = "//{GROUPID,CHARACTERPOINTGROUP,STARTPOINTGROUP}*{NWSP}  // ÿ��3������NWSP�У�STARTPOINTGROUPΪ������(���GROUPֻ��һ����)��������㰴˳��������ϸ��㡣"
-	README(IPP(I)) = "//ע��CHARACTERPOINTGROUP��Ϊ�����ε����������������㡣��Щ�����㽫�����ֳɲ�ͬ���ʵ���������"
+	README(IPP(I)) = "//{GROUPID,CHARACTERPOINTGROUP,STARTPOINTGROUP}*{NWSP}  // 每行3个，共NWSP行，STARTPOINTGROUP为输出起点(这个GROUP只含一个点)，根据起点按顺序输出线上各点。"
+	README(IPP(I)) = "//注：CHARACTERPOINTGROUP，为从上游到下游流道的特征点。这些特征点将流道分成不同性质的子流道段"
 	README(IPP(I)) = "//$ENDWSP"	
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$DATAPOINT"
 	README(IPP(I))=  "//"//'"'//"THE DataPoint IS USED TO OUTPUT THE DATA POINTS ALONG A POLYLINE YOU WANT TO LIST THE COMPUTATED RESULT."//'"'
 	README(IPP(I)) = "//{NDataPoint)}"  
-	README(IPP(I)) = "//{GROUPID [,ORDER=0,STARTPOINTGROUP,ISSUMQ]}*{NDataPoint(I)}  // ÿ��3������NDataPoint��.STARTPOINTGROUPΪ������(���GROUPֻ��һ����)��������㰴˳��������ϸ��㡣ISSUM/=0,����������������"
-	README(IPP(I)) = "//ORDER=0,��ʾ���ɢ�����ʽ��������.=1����ʾ��STARTPOINTGROUPΪ��㰴���˳�������"
+	README(IPP(I)) = "//{GROUPID [,ORDER=0,STARTPOINTGROUP,ISSUMQ]}*{NDataPoint(I)}  // 每行3个，共NDataPoint行.STARTPOINTGROUP为输出起点(这个GROUP只含一个点)，根据起点按顺序输出线上各点。ISSUM/=0,仅输出各点的流量和"
+	README(IPP(I)) = "//ORDER=0,表示输出散点的形式（不排序）.=1，表示以STARTPOINTGROUP为起点按点的顺序输出。"
 	README(IPP(I)) = "//$ENDDATAPOINT"		
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$INCLUDEFILE"
 	README(IPP(I))=  "//"//'"'//"THE INCLUDEFILE IS USED TO READ IN DATA IN ANOTHER FILE."//'"'
 	README(IPP(I)) = "//{NINCLUDEFILE}"  
-	README(IPP(I)) = "//{ABSOLUTED PATH OF THE FILES}*{NINCLUDEFILE(I)}  // ��NINCLUDEFILE��."
+	README(IPP(I)) = "//{ABSOLUTED PATH OF THE FILES}*{NINCLUDEFILE(I)}  // 共NINCLUDEFILE行."
 	README(IPP(I)) = "//$ENDINCLUDEFILE"    
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$COPYFILE"
 	README(IPP(I))=  "//"//'"'//"THE COPYFILE IS USED TO COPY DATA IN THE FILES TO THE OUTPUT FILE."//'"'
 	README(IPP(I)) = "//{NCOPYFILE}"  
-	README(IPP(I)) = "//{ABSOLUTED PATH OF THE FILES}*{NCOPYFILE(I)}  // ��NCOPYFILE��."
+	README(IPP(I)) = "//{ABSOLUTED PATH OF THE FILES}*{NCOPYFILE(I)}  // 共NCOPYFILE行."
 	README(IPP(I)) = "//$ENDCOPYFILE" 
 
     
@@ -183,8 +183,8 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//$ELEVATION"
 	README(IPP(I))=  "//"//'"'//"THE ELEVATION IS USED TO INPUT ELEVATION DATA FOR GENERATE PRISM/BRICK ELEMENT."//'"'
 	README(IPP(I)) = "//NOTE THAT,THE BASE 2D ELEMENT MUST BE LINEAR."  
-    README(IPP(I)) = "//A:{NNODE,NLAYER,[NSUBLAYER(NLAYER)]}    //�ڵ������ز�����ÿ��ϸ�ֲ���"  
-	README(IPP(I)) = "//B:{INODE,X,Y,Z(NLAYER+1)}*{NNODE}  // ��3+NLAYER+1��/��.Z IS IN A2Z ORDER(Z1<=Z2<=...<=Z(NLYAER+1)),��NNODE��"
+    README(IPP(I)) = "//A:{NNODE,NLAYER,[NSUBLAYER(NLAYER)]}    //节点数，地层数，每层细分层数"  
+	README(IPP(I)) = "//B:{INODE,X,Y,Z(NLAYER+1)}*{NNODE}  // 共3+NLAYER+1个/行.Z IS IN A2Z ORDER(Z1<=Z2<=...<=Z(NLYAER+1)),共NNODE行"
 	README(IPP(I)) = "//$ENDELEVATION"    
 
 	README(IPP(I)) ="\N//******************************************************************************************************"C

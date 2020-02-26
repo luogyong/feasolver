@@ -288,7 +288,7 @@ subroutine slopestability_streamline(islip)
         !    PAUSE
         !ENDIF
         
-        !INPUTSLIP ÈÃÆä²ÎÔÚ×îºó(Êµ¼ÊÉÏ²»²ÎÓëÅÅÐò)
+        !INPUTSLIP ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(Êµï¿½ï¿½ï¿½Ï²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
         !IF(STREAMLINE(I).ISINPUTSLIP>0) THEN
         !    T1=1.D10
         !ELSE
@@ -357,7 +357,7 @@ subroutine Filterlocalminimalslope(P1,P2)
 END SUBROUTINE
 
 SUBROUTINE stress_in_inclined_plane(ss,RAD,SNT)
-!rad£¬angle with x axis,in rad.
+!radï¿½ï¿½angle with x axis,in rad.
 !ss:sx,sy,sxy
 !ss1:sn,st
     implicit none
@@ -659,9 +659,9 @@ END
 
 SUBROUTINE CHECK_ADMISSIBILITY(V,SS,SDIRECTION)
 
-!¸ú¾ÝËÙ¶È·½ÏòµÄÇÐÓ¦Á¦µÄÕý¸º¼°»¬¶¯·½Ïò£¬ÅÐ¶ÏÓ¦Á¦ÊÇ·ñÏàÈÝ£º
-!1)¶ÔÓÚ×ó»¬±ßÆÂ£¬Èç¹ûËÙ¶È·½ÏòµÄ¼ôÓ¦Á¦ÊÇÕýµÄ(CCW),ÔòÈÏÎªÓ¦Á¦ÏàÈÝ£»
-!2)¶ÔÓÚÓÒ»¬±ßÆÂ£¬Èç¹ûËÙ¶È·½ÏòµÄ¼ôÓ¦Á¦ÊÇ¸ºµÄ(CW),ÔòÈÏÎªÓ¦Á¦ÏàÈÝ£»
+!ï¿½ï¿½ï¿½ï¿½ï¿½Ù¶È·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½Ó¦ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½Ý£ï¿½
+!1)ï¿½ï¿½ï¿½ï¿½ï¿½ó»¬±ï¿½ï¿½Â£ï¿½ï¿½ï¿½ï¿½ï¿½Ù¶È·ï¿½ï¿½ï¿½Ä¼ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(CCW),ï¿½ï¿½ï¿½ï¿½ÎªÓ¦ï¿½ï¿½ï¿½ï¿½ï¿½Ý£ï¿½
+!2)ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Â£ï¿½ï¿½ï¿½ï¿½ï¿½Ù¶È·ï¿½ï¿½ï¿½Ä¼ï¿½Ó¦ï¿½ï¿½ï¿½Ç¸ï¿½ï¿½ï¿½(CW),ï¿½ï¿½ï¿½ï¿½ÎªÓ¦ï¿½ï¿½ï¿½ï¿½ï¿½Ý£ï¿½
 IMPLICIT NONE
 REAL(8),INTENT(IN OUT)::V(3)
 REAL(8),INTENT(IN)::SS(3)
@@ -681,8 +681,8 @@ CALL stress_in_inclined_plane(SS,RAD1,SNT1)
 
 IF(SNT1(1)>=0) SNT1(2)=0.D0
 !SDIRECTION=1 RIGHT, =-1,LEFT
-IF(SDIRECTION*SNT1(2)>0.D0) THEN !²»ÏàÈÝ,Òª¸ø³öÏàÈÝ·½Ïò
-    !!¼Ù¶¨ÑØ×Å´óÖ÷Ó¦Á¦×÷ÓÃÃæ»¬¶¯
+IF(SDIRECTION*SNT1(2)>0.D0) THEN !ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý·ï¿½ï¿½ï¿½
+    !!ï¿½Ù¶ï¿½ï¿½ï¿½ï¿½Å´ï¿½ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½æ»¬ï¿½ï¿½
     !A1=0.5*ATAN(2*SS(3)/(SS(1)-SS(2)))
     !IF(SS(1)<SS(2)) THEN
     !    A1=A1+PI1/2.0    
@@ -690,7 +690,7 @@ IF(SDIRECTION*SNT1(2)>0.D0) THEN !²»ÏàÈÝ,Òª¸ø³öÏàÈÝ·½Ïò
     
     T1=(V(1)**2+V(2)**2)**0.5
     
-    !¼Ù¶¨VyµÄÕý¸ºÊÇ¶ÔµÄ¡£
+    !ï¿½Ù¶ï¿½Vyï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¶ÔµÄ¡ï¿½
     IF(T1*SIN(A1)*V(2)<0.0d0) THEN
         A1=A1+PI1    
     ENDIF
@@ -726,7 +726,7 @@ SUBROUTINE Improve_StreamlineShowed_Admissiblity()
             
 			IF(SIGMA_BASE1(1)>=0) SIGMA_BASE1(2)=0.D0
 			!SD1=1 RIGHT, =-1,LEFT
-			IF(SD1*SIGMA_BASE1(2)>0.D0) THEN !²»ÏàÈÝ,Òª¸ø³öÏàÈÝ·½Ïò
+			IF(SD1*SIGMA_BASE1(2)>0.D0) THEN !ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý·ï¿½ï¿½ï¿½
 				IV1=J
 				OPTS(1)=STREAMLINE(I).V(1,J)
                 OPTS(2)=STREAMLINE(I).V(2,J)
@@ -892,14 +892,14 @@ SUBROUTINE SLOPE_SFR_STATE_PARAMETER_SHOW()
             
             DO i = 0, 18
 
-                IF(MOD(J-1,2)==1) THEN !ÓÒ»¬
+                IF(MOD(J-1,2)==1) THEN !ï¿½Ò»ï¿½
                     ICOLOR1=CM_GREEN
                     IF(SS1(1)>=SS1(2)) THEN
                         SFR1=ABS(SIN(2*DT1*I)/(A1+B1*COS(2*DT1*I)))
                     ELSE
                         SFR1=ABS(SIN(PI1-2*DT1*I)/(A1+B1*COS(PI1-2*DT1*I)))
                     ENDIF
-                ELSE !×ó»¬
+                ELSE !ï¿½ï¿½
                     ICOLOR1=CM_RED
                     IF(SS1(1)<SS1(2)) THEN
                         SFR1=ABS(SIN(2*DT1*I)/(A1+B1*COS(2*DT1*I)))
@@ -949,7 +949,7 @@ SUBROUTINE SLOPE_SFR_STATE_PARAMETER_SHOW()
             !CALL glVertex2D(0.,0.)
             !CALL glVertex2D(R2*cos(ALPHA2), R2*sin(ALPHA2))
             call glLineWidth(3.0_glfloat)
-            IF(MOD(J-1,2)==1) THEN !ÓÒ»¬
+            IF(MOD(J-1,2)==1) THEN !ï¿½Ò»ï¿½
                 STR2="RS"
                 CALL GLCOLOR4FV(MYCOLOR(:,GREEN))
                 IC3=GREEN  
@@ -969,7 +969,7 @@ SUBROUTINE SLOPE_SFR_STATE_PARAMETER_SHOW()
                 !ELSE
                 !    CALL glVertex2D(cos(ALPHA1-SITA2-PI1/2.0), sin(ALPHA1-SITA2-PI1/2.0))
                 !ENDIF                
-            ELSE !×ó»¬
+            ELSE !ï¿½ï¿½
                 STR2="LS"
                 CALL GLCOLOR4FV(MYCOLOR(:,RED))
                 IC3=RED  

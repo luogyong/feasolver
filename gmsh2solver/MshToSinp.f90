@@ -33,7 +33,7 @@
 	print *, 'Begin to read in data...'
 	call readin()
 	
-	!Í³¼ÆÃ¿¸öÎïÀí×éµ¥ÔªµÄ¸öÊı¼°µ¥ÔªÊı×éÏÂ±ê¡£
+	!ç»Ÿè®¡æ¯ä¸ªç‰©ç†ç»„å•å…ƒçš„ä¸ªæ•°åŠå•å…ƒæ•°ç»„ä¸‹æ ‡ã€‚
 	do i=1,maxphgp
 		if(physicalgroup(i).nel>0) allocate(physicalgroup(i).element(physicalgroup(i).nel))
 	end do
@@ -93,8 +93,8 @@ end program
 
 subroutine clear_model()
 
-!±êÊ¶¶àÓà½Úµã£¬²»Êä³ö¡£
-!³õÊ¼»¯node.element,¼´¹²Ïí½ÚµãµÄµ¥Ôª±í¡£
+!æ ‡è¯†å¤šä½™èŠ‚ç‚¹ï¼Œä¸è¾“å‡ºã€‚
+!åˆå§‹åŒ–node.element,å³å…±äº«èŠ‚ç‚¹çš„å•å…ƒè¡¨ã€‚
     use DS_Gmsh2Solver
     implicit none
 	integer::k,k1,iel,ipg1,i,n1
@@ -107,7 +107,7 @@ subroutine clear_model()
     gnnode=0
 	do k=1,nphgp
 		ipg1=phgpnum(k)			
-		if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOADµÄµ¥Ôª×é²»Êä³ö
+		if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOADçš„å•å…ƒç»„ä¸è¾“å‡º
         IF(physicalgroup(ipg1).nel==0) CYCLE
         IF(.NOT.PHYSICALGROUP(IPG1).ISMASTER) CYCLE 
         do k1=1,physicalgroup(ipg1).nel				
@@ -133,7 +133,7 @@ subroutine clear_model()
     
     do k=1,nphgp
 		ipg1=phgpnum(k)			
-		if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOADµÄµ¥Ôª×é²»Êä³ö
+		if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOADçš„å•å…ƒç»„ä¸è¾“å‡º
         IF(physicalgroup(ipg1).nel==0) CYCLE
         IF(.NOT.PHYSICALGROUP(IPG1).ISMASTER) CYCLE 
         do k1=1,physicalgroup(ipg1).nel				
@@ -316,7 +316,7 @@ SUBROUTINE SETUP_FACE_TBL()
                     IF(FACE(VAL1.IITEM).V(K)==ELEMENT(I).NODE(ELTTYPE(ELEMENT(I).ET).FACE(1,J))) THEN
                         IF(FACE(VAL1.IITEM).V(MOD(K,FACE(VAL1.IITEM).SHAPE)+1)/= &
                             ELEMENT(I).NODE(ELTTYPE(ELEMENT(I).ET).FACE(2,J))) THEN
-                            FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=-I !Iµ¥Ôª´ËÃæµÄ·½ÏòÓëfaceµÄ·½Ïò·´Ïò,Îª-1
+                            FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=-I !Iå•å…ƒæ­¤é¢çš„æ–¹å‘ä¸faceçš„æ–¹å‘åå‘,ä¸º-1
                         ELSE
                             FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=I
                         ENDIF                  
@@ -324,7 +324,7 @@ SUBROUTINE SETUP_FACE_TBL()
                     ENDIF
                 ENDDO
             ELSE
-                FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=I !Í¬Ïò =1
+                FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=I !åŒå‘ =1
             ENDIF
             
                 
@@ -629,7 +629,7 @@ SUBROUTINE GEN_LAYERED_ELEMENT()
     DEALLOCATE(ELEVATION)
     
 	!update physical group
-	!Í³¼ÆÃ¿¸öÎïÀí×éµ¥ÔªµÄ¸öÊı¼°µ¥ÔªÊı×éÏÂ±ê¡£
+	!ç»Ÿè®¡æ¯ä¸ªç‰©ç†ç»„å•å…ƒçš„ä¸ªæ•°åŠå•å…ƒæ•°ç»„ä¸‹æ ‡ã€‚
 	N3=0
 	do i=1,nphgp
 		IGP1=phgpnum(i)
@@ -758,7 +758,7 @@ subroutine elt_bc_load_translate()
 	integer,allocatable::nodalload1(:),node1(:)
 	real(8),allocatable::load1(:)
 	
-	! ºÉÔØ¾ß¿Éµş¼Ó£¬±ß½çÌõ¼ş²»¾ßÓĞ¿É¼ÓĞÔ¡£·Ö²¼Á¦×ª»¯Îª½ÚµãÁ¦Ê±Òª»ı·Ö£¬µ«·Ö²¼Î»ÒÆ×ª»¯Îª½ÚµãÎ»ÒÆÊ±²»Ğè»ı·Ö£¬½ÚµãÎ»ÒÆµÈÓÚ·Ö²¼Î»ÒÆ¡£
+	! è·è½½å…·å¯å åŠ ï¼Œè¾¹ç•Œæ¡ä»¶ä¸å…·æœ‰å¯åŠ æ€§ã€‚åˆ†å¸ƒåŠ›è½¬åŒ–ä¸ºèŠ‚ç‚¹åŠ›æ—¶è¦ç§¯åˆ†ï¼Œä½†åˆ†å¸ƒä½ç§»è½¬åŒ–ä¸ºèŠ‚ç‚¹ä½ç§»æ—¶ä¸éœ€ç§¯åˆ†ï¼ŒèŠ‚ç‚¹ä½ç§»ç­‰äºåˆ†å¸ƒä½ç§»ã€‚
 	if(nelt_load>0) allocate(nodalLoad(maxnnodalLoad))
 	if(nelt_bc>0) allocate(nodalBC(maxnnodalBC))
 	if(nelt_spgface>0) allocate(spgface(maxnspgface))
@@ -767,7 +767,7 @@ subroutine elt_bc_load_translate()
 	if(nelt_load>0) allocate(load1(nnode))
 	do i=1, nelt_load
 		select case(elt_load(i).ndim)
-			case(0) !ndim=0,ÊÇµãºÉÔØ£¬¸÷¸öµ¥ÔªÖĞµÄÍ¬Ò»½Úµã£¬²»¾ß¿É¼ÓĞÔ£¬¾ùÖ¸Í¬Ò»Öµ¡£
+			case(0) !ndim=0,æ˜¯ç‚¹è·è½½ï¼Œå„ä¸ªå•å…ƒä¸­çš„åŒä¸€èŠ‚ç‚¹ï¼Œä¸å…·å¯åŠ æ€§ï¼Œå‡æŒ‡åŒä¸€å€¼ã€‚
 				nodalload1=0
 				do j=1,physicalgroup(elt_load(i).group).nel
 					n1=physicalgroup(elt_load(i).group).element(j)
@@ -802,7 +802,7 @@ subroutine elt_bc_load_translate()
 					LAV1=LAV1*t1
 					do k=1,element(n1).nnode
 						n2=element(n1).node(k)
-						load1(n2)=load1(n2)+Elttype(element(n1).et).weight(k,1)*LAV1 !¾ù²¼ºÉÔØ								 				
+						load1(n2)=load1(n2)+Elttype(element(n1).et).weight(k,1)*LAV1 !å‡å¸ƒè·è½½								 				
 					end do
 					
 				end do				
@@ -822,7 +822,7 @@ subroutine elt_bc_load_translate()
 	end do
 	
 	do i=1, nelt_bc
-		!**********Ä¿Ç°ÈÏÎª±ß½çÌõ¼ş¶¼Ã»ÓĞ¿É¼ÓĞÔ,NDIM=1,2,3µÄÇé¿öÓëNDIM=0µÄÇé¿öÒ»Ñù**********¡£
+		!**********ç›®å‰è®¤ä¸ºè¾¹ç•Œæ¡ä»¶éƒ½æ²¡æœ‰å¯åŠ æ€§,NDIM=1,2,3çš„æƒ…å†µä¸NDIM=0çš„æƒ…å†µä¸€æ ·**********ã€‚
         nodalload1=0
         IF(ELT_BC(I).ISWELLCONDITION<1) THEN
 		    
@@ -838,7 +838,7 @@ subroutine elt_bc_load_translate()
 					    nodalBC(nnodalBC).sf=elt_bc(i).sf
                         nodalBC(nnodalBC).spg_isdual=elt_bc(i).spg_isdual
 					    nodalBC(nnodalBC).value=elt_bc(i).GETVALUE(node(n2).xy(1),node(n2).xy(2),node(n2).xy(3))
-					    nodalload1(n2)=1 !¶à´Î³öÏÖÊ±ÒÔµÚÒ»´Î³öÏÖµÄÖµÎª×¼¡£
+					    nodalload1(n2)=1 !å¤šæ¬¡å‡ºç°æ—¶ä»¥ç¬¬ä¸€æ¬¡å‡ºç°çš„å€¼ä¸ºå‡†ã€‚
 				    end if
 			    end do			
 		    end do
@@ -855,7 +855,7 @@ subroutine elt_bc_load_translate()
 					    WELLHEAD(NWELLHEAD).sf=elt_bc(i).sf
                         WELLHEAD(NWELLHEAD).spg_isdual=elt_bc(i).spg_isdual
 					    WELLHEAD(NWELLHEAD).value=elt_bc(i).GETVALUE(node(n2).xy(1),node(n2).xy(2),node(n2).xy(3))
-					    nodalload1(n2)=1 !¶à´Î³öÏÖÊ±ÒÔµÚÒ»´Î³öÏÖµÄÖµÎª×¼¡£
+					    nodalload1(n2)=1 !å¤šæ¬¡å‡ºç°æ—¶ä»¥ç¬¬ä¸€æ¬¡å‡ºç°çš„å€¼ä¸ºå‡†ã€‚
 				    end if
 			    end do			
 		    end do            
@@ -863,14 +863,14 @@ subroutine elt_bc_load_translate()
 	end do 
 	
 	do i=1, nelt_spgface
-		!**********Ä¿Ç°ÈÏÎª±ß½çÌõ¼ş¶¼Ã»ÓĞ¿É¼ÓĞÔ**********¡£
+		!**********ç›®å‰è®¤ä¸ºè¾¹ç•Œæ¡ä»¶éƒ½æ²¡æœ‰å¯åŠ æ€§**********ã€‚
 		nodalload1=0
 
 		elt_spgface(i).n1=nspgface+1
 		do j=1,physicalgroup(elt_spgface(i).group).nel
 			n1=physicalgroup(elt_spgface(i).group).element(j)
             n3=element(n1).nnode
-            if(elt_spgface(i).iswellcondition>0) n3=element(n1).nnode/2 !¾®Á÷³öÒçÃæµ¥ÔªÓë¾®Á÷µ¥Ôª½Úµã½á¹¹Ò»Ñù£¬¶¼ÊÇ4¸ö½Úµã£¬Ö»ÓĞ1-2½ÚµãÊÇ¾®±Ú½Úµã¡£
+            if(elt_spgface(i).iswellcondition>0) n3=element(n1).nnode/2 !äº•æµå‡ºæº¢é¢å•å…ƒä¸äº•æµå•å…ƒèŠ‚ç‚¹ç»“æ„ä¸€æ ·ï¼Œéƒ½æ˜¯4ä¸ªèŠ‚ç‚¹ï¼Œåªæœ‰1-2èŠ‚ç‚¹æ˜¯äº•å£èŠ‚ç‚¹ã€‚
 			do k=1,n3
 				n2=element(n1).node(k)
 				if(nodalload1(n2)==0) then
@@ -880,7 +880,7 @@ subroutine elt_bc_load_translate()
 					spgface(nspgface).dof=elt_spgface(i).dof
 					spgface(nspgface).sf=elt_spgface(i).sf
 					spgface(nspgface).value=elt_spgface(i).value
-					nodalload1(n2)=1 !¶à´Î³öÏÖÊ±ÒÔµÚÒ»´Î³öÏÖµÄÖµÎª×¼¡£
+					nodalload1(n2)=1 !å¤šæ¬¡å‡ºç°æ—¶ä»¥ç¬¬ä¸€æ¬¡å‡ºç°çš„å€¼ä¸ºå‡†ã€‚
 				end if
 			end do			
 		end do
@@ -910,7 +910,7 @@ subroutine elt_bc_load_translate()
         !do j=1,wsp(i).nnode
         !    
         !    do k=j+1,wsp(i).nnode
-        !        !´ÓĞ¡µ½´ó
+        !        !ä»å°åˆ°å¤§
         !        if(node(node1(k)).xy(1)<node(node1(j)).xy(1)) then
         !            n1=node1(k)
         !            node1(k)=node1(j)
@@ -1053,7 +1053,7 @@ subroutine SortByPath(igroup,ispgroup,Local_Node,NLNDE)
 
 end subroutine
 
-subroutine Element_LAV_Cal(ienum,LAV) !¼ÆËãµ¥ÔªµÄ³¤¶È¡¢Ãæ»ı»òÌå»ı
+subroutine Element_LAV_Cal(ienum,LAV) !è®¡ç®—å•å…ƒçš„é•¿åº¦ã€é¢ç§¯æˆ–ä½“ç§¯
 	use DS_Gmsh2Solver
 	implicit none	
 	integer,intent(in)::ienum
@@ -1067,13 +1067,13 @@ subroutine Element_LAV_Cal(ienum,LAV) !¼ÆËãµ¥ÔªµÄ³¤¶È¡¢Ãæ»ı»òÌå»ı
 			LAV=((node(element(ienum).node(1)).xy(1)-node(element(ienum).node(2)).xy(1))**2+ &
 			(node(element(ienum).node(1)).xy(2)-node(element(ienum).node(2)).xy(2))**2+ &
 			(node(element(ienum).node(1)).xy(3)-node(element(ienum).node(2)).xy(3))**2)**0.5
-		case(2,9,23) !Èı½ÇĞÎÃæ»ı
+		case(2,9,23) !ä¸‰è§’å½¢é¢ç§¯
 						
 			do i=1,3
 				a1(i,:)=node(element(ienum).node(i)).xy
 			end do
 			LAV=TRIAREA(A1(1:3,1:3))
-		case(3,16) !ËÄ±ßĞÎÃæ»ı
+		case(3,16) !å››è¾¹å½¢é¢ç§¯
 			do i=1,4
 				a1(i,:)=node(element(ienum).node(i)).xy
 			end do
@@ -1082,7 +1082,7 @@ subroutine Element_LAV_Cal(ienum,LAV) !¼ÆËãµ¥ÔªµÄ³¤¶È¡¢Ãæ»ı»òÌå»ı
 			A1(2,:)=A1(1,:)
 			LAV=LAV+TRIAREA(A1(2:4,1:3))
 			
-		case(4,11) !ËÄÃæÌåÌå»ı	
+		case(4,11) !å››é¢ä½“ä½“ç§¯	
 			do i=1,4
 				a1(i,:)=node(element(ienum).node(i)).xy
 			end do
@@ -1099,7 +1099,7 @@ subroutine Element_LAV_Cal(ienum,LAV) !¼ÆËãµ¥ÔªµÄ³¤¶È¡¢Ãæ»ı»òÌå»ı
 
 end subroutine
 
-!xyz(1:3,:) Èı½ÇĞÎÈı¸ö½ÚµãµÄ¿Õ¼ä×ø±ê,µÚÒ»Î¬Îª½Úµã¡£
+!xyz(1:3,:) ä¸‰è§’å½¢ä¸‰ä¸ªèŠ‚ç‚¹çš„ç©ºé—´åæ ‡,ç¬¬ä¸€ç»´ä¸ºèŠ‚ç‚¹ã€‚
 real(8) function TriArea(xyz)  
 	implicit none
 	real(8),intent(in)::xyz(3,3)
@@ -1119,7 +1119,7 @@ real(8) function TriArea(xyz)
 
 end function
 
-!xyz(1:4,:) ËÄÃæÌåËÄ¸ö½ÚµãµÄ¿Õ¼ä×ø±ê,µÚÒ»Î¬Îª½Úµã¡£
+!xyz(1:4,:) å››é¢ä½“å››ä¸ªèŠ‚ç‚¹çš„ç©ºé—´åæ ‡,ç¬¬ä¸€ç»´ä¸ºèŠ‚ç‚¹ã€‚
 real(8) function TetVOL(xyz)  
 	implicit none
 	real(8),intent(in)::xyz(4,3)
@@ -1361,7 +1361,7 @@ ENDSUBROUTINE
 
 
 
-   !n1Îªnode()Êı×éÖĞÈ«Óò½Úµã×ÜÊı
+   !n1ä¸ºnode()æ•°ç»„ä¸­å…¨åŸŸèŠ‚ç‚¹æ€»æ•°
    subroutine reorder_nodal_number(IPERM,nnum,adjL,maxadj)
 
 	  implicit none
@@ -1382,7 +1382,7 @@ ENDSUBROUTINE
 	  allocate(IW(3*nnum+2))
 
  	  
-	  !Í³¼ÆadjL()ÖĞ·ÇÁãÔªËØµÄ¸öÊı¡£
+	  !ç»Ÿè®¡adjL()ä¸­éé›¶å…ƒç´ çš„ä¸ªæ•°ã€‚
 	  NNZ=count(adjL>0)
 	  allocate(IRN(2*NNZ))
 	  allocate(JCN(NNZ))
@@ -1440,8 +1440,8 @@ ENDSUBROUTINE
    end subroutine
    
    
-   	!¶ÔÓÚÃ¿¸ö½Úµã£¬´æ´¢ºÍÆäÏàÁÚ(¶¨ÒåÎª×Ü¸ÕÖĞ£¬ÕâÁ½¸ö½Úµã¶ÔÓ¦µÄÔªËØ²»ÎªÁã¡£)ÇÒ±àºÅĞ¡ÓÚ¸Ã½Úµã×ÔÉí±àºÅµÄ½Úµã±àºÅ
-	!ÕâÀï¼Ù¶¨Ò»¸ö½Úµã×î¶àÓĞmaxadj¸öÓëÖ®ÏàÁÚÇÒ±àºÅĞ¡ÓÚ¸Ã½Úµã×ÔÉí±àºÅµÄ½Úµã¡£
+   	!å¯¹äºæ¯ä¸ªèŠ‚ç‚¹ï¼Œå­˜å‚¨å’Œå…¶ç›¸é‚»(å®šä¹‰ä¸ºæ€»åˆšä¸­ï¼Œè¿™ä¸¤ä¸ªèŠ‚ç‚¹å¯¹åº”çš„å…ƒç´ ä¸ä¸ºé›¶ã€‚)ä¸”ç¼–å·å°äºè¯¥èŠ‚ç‚¹è‡ªèº«ç¼–å·çš„èŠ‚ç‚¹ç¼–å·
+	!è¿™é‡Œå‡å®šä¸€ä¸ªèŠ‚ç‚¹æœ€å¤šæœ‰maxadjä¸ªä¸ä¹‹ç›¸é‚»ä¸”ç¼–å·å°äºè¯¥èŠ‚ç‚¹è‡ªèº«ç¼–å·çš„èŠ‚ç‚¹ã€‚
 	
    subroutine setup_adjList()
 		use DS_Gmsh2Solver
@@ -1452,14 +1452,14 @@ ENDSUBROUTINE
 		adjL=0        
 	    do k=1,nphgp
 		    ipg1=phgpnum(k)			
-		    if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOADµÄµ¥Ôª×é²»Êä³ö
+		    if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOADçš„å•å…ƒç»„ä¸è¾“å‡º
             IF(physicalgroup(ipg1).nel==0) CYCLE
             do k1=1,physicalgroup(ipg1).nel				
 			    iel=physicalgroup(ipg1).element(k1)	
 		    	
                 n1=element(iel).nnode
 	  		    ar(1:n1)=node(element(iel).node).inode
-	  		    !´Ó´óµ½Ğ¡
+	  		    !ä»å¤§åˆ°å°
   			    do i=1,n1
 			      do j=i+1,n1
 				     if(ar(i)<ar(j)) then
@@ -1479,7 +1479,7 @@ ENDSUBROUTINE
 		end do
    end subroutine
 
-   !Èç¹ûiar(:)ÖĞÃ»ÓĞn1,Ôò°Ñn1¼ÓÈëµ½iar(:)ÖĞ¡£
+   !å¦‚æœiar(:)ä¸­æ²¡æœ‰n1,åˆ™æŠŠn1åŠ å…¥åˆ°iar(:)ä¸­ã€‚
    subroutine addtoadjL(n1,iar,maxadj)
 	  implicit none
 	  integer,intent(in)::n1,maxadj
@@ -1496,7 +1496,7 @@ ENDSUBROUTINE
 			end if
 		 end do
 	  else
-		 print *, 'Óë½ÚµãÏàÁÚÇÒ±àºÅĞ¡ÓÚ¸Ã½Úµã×ÔÉí±àºÅµÄ½ÚµãÊıÔÚ>maxadj,adjLµÄÔ­¶¨¿Õ¼ä²»×ã.'
+		 print *, 'ä¸èŠ‚ç‚¹ç›¸é‚»ä¸”ç¼–å·å°äºè¯¥èŠ‚ç‚¹è‡ªèº«ç¼–å·çš„èŠ‚ç‚¹æ•°åœ¨>maxadj,adjLçš„åŸå®šç©ºé—´ä¸è¶³.'
 		 stop
 	  end if
 

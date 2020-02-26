@@ -21,7 +21,7 @@ subroutine stree_failure_ratio_cal(ienum,ISTEP)
     ENDIF
 	do i=1,element(ienum).ngp
 		ss1=element(ienum).stress(:,i)
-		!»ı·ÖµãµÄÎ»ÒÆ
+		!ç§¯åˆ†ç‚¹çš„ä½ç§»
 		!disg1(1:ndim1)=matmul(dis1(1:ndim1,1:nsh1),ecp(et1).Lshape(:,i))		
 
 		call stress_in_failure_surface(element(ienum).sfr(:,i),ss1,ecp(element(ienum).et).ndim,c1,Phi1,solver_control.slidedirection,&
@@ -72,7 +72,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
             
                 B=-tan(phi1)
                 A=(C1+sigmaC1*B)/R1
-                !×î´óÆÆ»µÃæÓëÖ÷Ó¦Á¦ÃæµÄ¼Ğ½ÇµÄ2±¶
+                !æœ€å¤§ç ´åé¢ä¸ä¸»åº”åŠ›é¢çš„å¤¹è§’çš„2å€
                 !if(r1<=C1*cos(phi1)-sigmaC1*sin(phi1)) then
                 if(abs(A)>=abs(B)) then
                     sita1=asin((1.d0-(B/A)**2)**0.5)
@@ -102,7 +102,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     !if((pss1(1)+pss1(2))<0.d0) then 
     !
 	   ! !if(phi1>0.d0) then
-		  ! ! t1=(-(pss1(1)+pss1(2))/2.0+c1/dtan(phi1))*dsin(phi1) !ÊÜÀ­ÎªÕı			
+		  ! ! t1=(-(pss1(1)+pss1(2))/2.0+c1/dtan(phi1))*dsin(phi1) !å—æ‹‰ä¸ºæ­£			
 	   ! !else
 		  ! ! t1=C1
 	   ! !endif
@@ -114,13 +114,13 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     !  
     !    
     !    
-    !else !>0.À­»µ
-    !    sfr(1)=-1. !±íÀ­»µ
+    !else !>0.æ‹‰å
+    !    sfr(1)=-1. !è¡¨æ‹‰å
     !endif
     !
     t1=slidedirection
-    !Ò»°ãÔÚÆÂ¶¥ºÍÆÂ½Å£¬»á³öÏÖsxx<syy(Ë®Æ½·½ÏòµÄÑ¹Á¦´óÓÚÊúÏò)µÄÇé¿ö£¬°´ÏÂÃæµÄ·½·¨¼ÆËã£¬ÆäÆÆ»µÃæµÄ¼Ğ½ÇÓëxÖáµÄ¼Ğ½Ç´óÓÚ0
-    !ÕâÊ±£¬µ±slidedirection=rightÊ±£¬ÆÂ¶¥»á³öÏÖ²»ÏàÈİµÄÆÆ»µÃæ·½Ïò(sfr(2)>0),ÕâÊ±ÁîÆäÈ¡ÁíÒ»¸ö·½Ïò¡£
+    !ä¸€èˆ¬åœ¨å¡é¡¶å’Œå¡è„šï¼Œä¼šå‡ºç°sxx<syy(æ°´å¹³æ–¹å‘çš„å‹åŠ›å¤§äºç«–å‘)çš„æƒ…å†µï¼ŒæŒ‰ä¸‹é¢çš„æ–¹æ³•è®¡ç®—ï¼Œå…¶ç ´åé¢çš„å¤¹è§’ä¸xè½´çš„å¤¹è§’å¤§äº0
+    !è¿™æ—¶ï¼Œå½“slidedirection=rightæ—¶ï¼Œå¡é¡¶ä¼šå‡ºç°ä¸ç›¸å®¹çš„ç ´åé¢æ–¹å‘(sfr(2)>0),è¿™æ—¶ä»¤å…¶å–å¦ä¸€ä¸ªæ–¹å‘ã€‚
     IF(slidedirection==1.and.SLOPEPARAMETER.ISYDWZ.AND.Y(NDIM)>SLOPEPARAMETER.YDOWNWARDZONE.AND.stress(2)>stress(1)) THEN
         T1=-T1
     ENDIF
@@ -130,7 +130,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
             sfr(2)=pss1(4)+(sita1)/2.0*T1
         else
             sfr(2)=pss1(4)-(PI1-sita1)/2.0*T1 !active zone
-            !µ÷ÕûÆÂ½ÅÖ÷¶¯ÇøµÄ¾Ö²¿×î´ó»¬¶¯Ãæ·½Ïò
+            !è°ƒæ•´å¡è„šä¸»åŠ¨åŒºçš„å±€éƒ¨æœ€å¤§æ»‘åŠ¨é¢æ–¹å‘
             IF(ABS(SLOPEPARAMETER.TOEZONE(2))/=0.D0) THEN
                 T3=-(SLOPEPARAMETER.TOEZONE(1)*Y(1)+SLOPEPARAMETER.TOEZONE(3))/SLOPEPARAMETER.TOEZONE(2)
                 T3=Y(2)-T3
@@ -147,9 +147,9 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
         !sfr(4)=-t2*sin(PI1/2-phi1)*t1 
         sfr(3)=(pss1(1)+pss1(3))/2+t2*cos(sita1)
         sfr(4)=-t2*sin(sita1)*t1 
-        sfr(5)=sign(sfr(1),-sfr(4))*dcos(sfr(2)) !Êä³ö¹éÒ»»¯µÄ¼ôÓ¦Á¦
+        sfr(5)=sign(sfr(1),-sfr(4))*dcos(sfr(2)) !è¾“å‡ºå½’ä¸€åŒ–çš„å‰ªåº”åŠ›
         sfr(6)=sign(sfr(1),-sfr(4))*dsin(sfr(2))
-        !sfr(5)=abs(sfr(1))*dcos(sfr(2)) !Êä³ö¹éÒ»»¯µÄ¼ôÓ¦Á¦
+        !sfr(5)=abs(sfr(1))*dcos(sfr(2)) !è¾“å‡ºå½’ä¸€åŒ–çš„å‰ªåº”åŠ›
         !sfr(6)=abs(sfr(1))*dsin(sfr(2))
     ELSE
         !TENSION FAILURE,THE FAILURE SURFACE IS PLANE THE MAJOR PRINCIPLE STRESS.
@@ -186,10 +186,10 @@ subroutine principal_stress_cal(pstress,stress,ndim)
 		pstress(1)=t1+(t2**2+stress(4)**2)**0.5		
 		pstress(3)=t1-(t2**2+stress(4)**2)**0.5
 		Pstress(2)=stress(3)
-		!Ä¬ÈÏz·½ÏòÎªÓ¦Á¦ÎªÖĞÓ¦Á¦¡£
+		!é»˜è®¤zæ–¹å‘ä¸ºåº”åŠ›ä¸ºä¸­åº”åŠ›ã€‚
         IF(ABS(stress(1)-stress(2))>1E-14) THEN 
 		    sita=0.5*atan(2*stress(4)/(stress(1)-stress(2)))
-            !sitaÎªÄª¶ûÔ²Ö÷Ó¦Á¦Æ½ÃæÓëxÖáµÄ¼Ğ½Ç
+            !sitaä¸ºè«å°”åœ†ä¸»åº”åŠ›å¹³é¢ä¸xè½´çš„å¤¹è§’
 		    Pstress(4)=sita
             !if(stress(1)>stress(2)) Pstress(4)=sita+Pi/2.0
         ELSE
@@ -388,7 +388,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 	
 end subroutine
 
-SUBROUTINE I2N_TRI15(VIN,VIGP,ET) !Ö±½ÓÆ½ÒÆ
+SUBROUTINE I2N_TRI15(VIN,VIGP,ET) !ç›´æ¥å¹³ç§»
 	USE SOLVERLIB
 	IMPLICIT NONE
 	INTEGER,INTENT(IN)::ET
@@ -585,7 +585,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 	integer::i,j,k,n1,n2,ISTEP,isubts
 	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3),T2,ts1,SFR_MAX1=-1.D20
 
-    if(isubts==1) call NodalWeight(ISTEP) !Í¬Ò»²½ÖĞµ¥ÔªµÄÉúËÀ²»·¢Éú¸Ä±ä
+    if(isubts==1) call NodalWeight(ISTEP) !åŒä¸€æ­¥ä¸­å•å…ƒçš„ç”Ÿæ­»ä¸å‘ç”Ÿæ”¹å˜
     
 	!clear zero
 	do i=1,nnum
@@ -708,7 +708,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 			node(i).mises=node(i).mises**0.5
             
             IF(OUTVAR(SFR).VALUE>0) THEN
-			    !½ÚµãµÄ²ÄÁÏ¼Ù¶¨ÎªÆÆ»µ±È×î´óµÄµ¥Ôª²ÄÁÏ£¬ÒÔÄ£Äâ³É²ãÍÁÖĞµÄÈíÈõ¼Ğ²ã
+			    !èŠ‚ç‚¹çš„ææ–™å‡å®šä¸ºç ´åæ¯”æœ€å¤§çš„å•å…ƒææ–™ï¼Œä»¥æ¨¡æ‹Ÿæˆå±‚åœŸä¸­çš„è½¯å¼±å¤¹å±‚
 			    C1=material(node(i).sfr(2)).GET(3,ISTEP)
 			    Phi1=material(node(i).sfr(2)).GET(4,ISTEP)
                 TS1=material(node(i).sfr(2)).GET(5,ISTEP)

@@ -34,7 +34,7 @@
 	 end do
 	! nnode=nnode+3
      !keypn=5
-	 !³õÊ¼»¯iept
+	 !åˆå§‹åŒ–iept
 	 iept=1
 
 	 do i=1,nnode
@@ -45,7 +45,7 @@
 	 end do
 	 !iept=>ehead
 	
-	 !ÀûÓÃcpphead(0)È¥¼ì²éÊÇ·ñËùÓĞµÄ±ß¶¼´æÔÚÁË¡£
+	 !åˆ©ç”¨cpphead(0)å»æ£€æŸ¥æ˜¯å¦æ‰€æœ‰çš„è¾¹éƒ½å­˜åœ¨äº†ã€‚
      !if(allocated(cpphead)) deallocate(cpphead)
 	 !allocate(cpphead(1))
 	 !cpphead(0)=BNhead
@@ -87,7 +87,7 @@
   	 !deallocate(cpphead)
 	 !cln=i_t
 	
-	 !É¾È¥°üÓĞ°üº¬Íâ°üÈı½ÇĞÎ¶¥µãµÄµ¥Ôª
+	 !åˆ å»åŒ…æœ‰åŒ…å«å¤–åŒ…ä¸‰è§’å½¢é¡¶ç‚¹çš„å•å…ƒ
 	 !call Removesupertri()
 
   end subroutine
@@ -131,7 +131,7 @@ subroutine rm(cslt)
 	integer::i,j,c1,c2,c3,iflag
 	integer::count
 	logical::tof
-	real(8)::xt,yt,xm,ym  !xt,yt,Îªµ¥ÔªµÄĞÎĞÄ×ø±ê£¬xm,ym=ytÎªÒ»¸ö×ã¹»Ô¶µÄµã£¬È¡Îªxm=-10e10,Á½Õß¹¹ÔìÁËÒ»ÌõË®Æ½ÉäÏß
+	real(8)::xt,yt,xm,ym  !xt,yt,ä¸ºå•å…ƒçš„å½¢å¿ƒåæ ‡ï¼Œxm,ym=ytä¸ºä¸€ä¸ªè¶³å¤Ÿè¿œçš„ç‚¹ï¼Œå–ä¸ºxm=-10e10,ä¸¤è€…æ„é€ äº†ä¸€æ¡æ°´å¹³å°„çº¿
 	real(8)::xa,ya,xb,yb  !
 	real(8)::t1,t2,t3,t4
 	type(constrainline_tydef)::cslt
@@ -180,7 +180,7 @@ subroutine rm(cslt)
 
 end subroutine
 
-	 !É¾È¥°üÓĞ°üº¬Íâ°üÈı½ÇĞÎ¶¥µãµÄµ¥Ôª
+	 !åˆ å»åŒ…æœ‰åŒ…å«å¤–åŒ…ä¸‰è§’å½¢é¡¶ç‚¹çš„å•å…ƒ
 
 subroutine RemoveSuperTri()
 	use meshds

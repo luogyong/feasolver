@@ -389,7 +389,7 @@ subroutine kwcommand(term,unit)
 					allocate(element(n1).tag(element(n1).ntag))
 					element(n1).tag(1:element(n1).ntag)=int(ar(3+1:3+element(n1).ntag))
 					physicalgroup(element(n1).tag(1)).nel=physicalgroup(element(n1).tag(1)).nel+1
-					physicalgroup(element(n1).tag(1)).ET_GMSH=ELEMENT(N1).ET !¼Ù¶¨Í¬Ò»GROUPµÄµ¥ÔªÀàĞÍÏàÍ¬
+					physicalgroup(element(n1).tag(1)).ET_GMSH=ELEMENT(N1).ET !å‡å®šåŒä¸€GROUPçš„å•å…ƒç±»å‹ç›¸åŒ
                     
                     if(nacw/=element(n1).tag(2)) then                        
                         ischeckacw=.true.
@@ -438,7 +438,7 @@ subroutine kwcommand(term,unit)
 						    en1(15)=element(n1).node(13)
 						    element(n1).node(4:15)=en1(4:15)                            
                         end if    
-					case(11) !tet10×îºóÁ½¸ö½ÚµãµÄµÄË³Ğò»¥»»£¬ÒÔ±ãºÍFEASOLVERÒ»ÖÂ¡£
+					case(11) !tet10æœ€åä¸¤ä¸ªèŠ‚ç‚¹çš„çš„é¡ºåºäº’æ¢ï¼Œä»¥ä¾¿å’ŒFEASOLVERä¸€è‡´ã€‚
 						n2=element(n1).node(element(n1).nnode-1)
 						element(n1).node(element(n1).nnode-1)=element(n1).node(element(n1).nnode)
 						element(n1).node(element(n1).nnode)=n2
@@ -967,14 +967,14 @@ subroutine not_nodal_force_weight(et)
 		end select
 end subroutine
 
-   !°Ñ×Ö·û´®ÖĞÏàµ±µÄÊı×Ö×Ö·û(°üÀ¨¸¡µãĞÍ)×ª»¯Îª¶ÔÓ¦µÄÊı×Ö
-   !Èç '123'×ªÎª123,'14-10'×ªÎª14,13,12,11,10
-   !stringÖĞ×ª»¯ºóµÄÊı×ÖÒÔÊı×éar(n1)·µ»Ø£¬ÆäÖĞ,n1Îª×Ö·û´®ÖĞÊı×ÖµÄ¸öÊı:(×¢¡¡1-3×ª»¯ºóÎª3¸öÊı×Ö£º1,2,3)
-   !nmaxÎªÊı×éarµÄ´óĞ¡,stringÄ¬ÈÏ×Ö·û³¤¶ÈÎª512¡£
-   !num_readÎªÒª¶ÁÈëÊı¾İµÄ¸öÊı¡£
-   !unitÎªÎÄ¼şºÅ
-   !Ã¿´ÎÖ»¶ÁÈëÒ»¸öÓĞĞ§ĞĞ£¨²»ÒÔ'/'¿ªÍ·µÄĞĞ£©
-   !Ã¿ĞĞºóÃæÒÔ'/'¿ªÊ¼µÄºóÃæµÄ×Ö·ûÊÇÎŞĞ§µÄ¡£
+   !æŠŠå­—ç¬¦ä¸²ä¸­ç›¸å½“çš„æ•°å­—å­—ç¬¦(åŒ…æ‹¬æµ®ç‚¹å‹)è½¬åŒ–ä¸ºå¯¹åº”çš„æ•°å­—
+   !å¦‚ '123'è½¬ä¸º123,'14-10'è½¬ä¸º14,13,12,11,10
+   !stringä¸­è½¬åŒ–åçš„æ•°å­—ä»¥æ•°ç»„ar(n1)è¿”å›ï¼Œå…¶ä¸­,n1ä¸ºå­—ç¬¦ä¸²ä¸­æ•°å­—çš„ä¸ªæ•°:(æ³¨ã€€1-3è½¬åŒ–åä¸º3ä¸ªæ•°å­—ï¼š1,2,3)
+   !nmaxä¸ºæ•°ç»„arçš„å¤§å°,stringé»˜è®¤å­—ç¬¦é•¿åº¦ä¸º512ã€‚
+   !num_readä¸ºè¦è¯»å…¥æ•°æ®çš„ä¸ªæ•°ã€‚
+   !unitä¸ºæ–‡ä»¶å·
+   !æ¯æ¬¡åªè¯»å…¥ä¸€ä¸ªæœ‰æ•ˆè¡Œï¼ˆä¸ä»¥'/'å¼€å¤´çš„è¡Œï¼‰
+   !æ¯è¡Œåé¢ä»¥'/'å¼€å§‹çš„åé¢çš„å­—ç¬¦æ˜¯æ— æ•ˆçš„ã€‚
    subroutine  strtoint(unit,ar,nmax,n1,num_read,set,maxset,nset)
 	  implicit none
 	  logical::tof1,tof2
@@ -1013,7 +1013,7 @@ end subroutine
 
 		 if(string(1:1)/='/') then
 			
-			!Ã¿ĞĞºóÃæÒÔ'/'¿ªÊ¼µÄºóÃæµÄ×Ö·ûÊÇÎŞĞ§µÄ¡£
+			!æ¯è¡Œåé¢ä»¥'/'å¼€å§‹çš„åé¢çš„å­—ç¬¦æ˜¯æ— æ•ˆçš„ã€‚
 			if(index(string,'/')/=0) then
 				strL=index(string,'/')-1
 				string=string(1:strL)
@@ -1046,7 +1046,7 @@ end subroutine
 				if(n3>1) then
 				    tof1=(substring(i)(n3-1:n3-1)/='e'.and.substring(i)(n3-1:n3-1)/='E')
 				end if
-				if(tof1) then !´¦ÀíÀàËÆÓÚ'1-5'ÕâÑùµÄĞÎÊ½µÄ¶ÁÈëÊı¾İ
+				if(tof1) then !å¤„ç†ç±»ä¼¼äº'1-5'è¿™æ ·çš„å½¢å¼çš„è¯»å…¥æ•°æ®
 					read(substring(i)(1:n3-1),'(i8)') ns
 					read(substring(i)(n3+1:n2),'(i8)') ne
 					if(ns>ne) then
@@ -1063,7 +1063,7 @@ end subroutine
 				     if(n4>1) then
 				             tof2=(substring(i)(n4-1:n4-1)/='e'.and.substring(i)(n4-1:n4-1)/='E')
 				     end if
-					if(tof2) then !´¦ÀíÀàËÆÓÚ'1*5'(±íÊ¾5¸ö1)ÕâÑùµÄĞÎÊ½µÄ¶ÁÈëÊı¾İ
+					if(tof2) then !å¤„ç†ç±»ä¼¼äº'1*5'(è¡¨ç¤º5ä¸ª1)è¿™æ ·çš„å½¢å¼çš„è¯»å…¥æ•°æ®
 						read(substring(i)(1:n4-1),*) t1
 						read(substring(i)(n4+1:n2),'(i8)') ne
 						ar((n1+1):(n1+ne))=t1
@@ -1116,7 +1116,7 @@ subroutine Tosolver()
 		N1=phgpnum(i)		
 		CH1=physicalgroup(N1).NAME
 		call lowcase(physicalgroup(N1).et,len(physicalgroup(N1).et))
-		if(.NOT.physicalgroup(N1).ISMODEL) cycle  !ET=ELT_BC_OR_LOADµÄµ¥Ôª×é²»Êä³ö
+		if(.NOT.physicalgroup(N1).ISMODEL) cycle  !ET=ELT_BC_OR_LOADçš„å•å…ƒç»„ä¸è¾“å‡º
 		item=len_trim(adjustL(physicalgroup(N1).et))
 		ITEM1=len_trim(adjustL(CH1))
         IF(physicalgroup(N1).nel==0) CYCLE
@@ -1221,14 +1221,14 @@ subroutine Tosolver()
 124 FORMAT(<ITEM>(I7,1X),<MODELDIMENSION>(F24.16,1X))
 
 130 FORMAT(/'BC,NUM=',I7,',ISINC=0') 
-131 FORMAT(I7,1X,I2,1X,E15.7,1X,I4,1X,I4)
+131 FORMAT(I7,1X,I2,1X,F24.16,1X,I4,1X,I4)
 132 FORMAT("// ","NODE DOF VALUE [STEPFUNC.,SPG_ISDUAL]")
 
 133 FORMAT(/'BC,NUM=',I7,',ISINC=0,ISWELLHEAD=1') 
 
 
 140 FORMAT(/'LOAD,NUM=',I7,',ISINC=0')
-141 FORMAT(I7,1X,I2,1X,E15.7,1X,I4)
+141 FORMAT(I7,1X,I2,1X,F24.16,1X,I4)
 142 FORMAT("// ","NODE DOF VALUE [STEPFUNC.] ")
 
 150 FORMAT(/'SEEPAGE FACE,NUM=',I7,', sf=',I7) 

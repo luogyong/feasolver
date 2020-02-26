@@ -50,7 +50,7 @@ do k=1,2
 		do i=1,nmface
 			if(mface(i).isdead==1) cycle
 			if(mface(i).shape/=3) cycle
-			!Ö»¶ÔÍâ±ß½ç¼°²ÄÁÏ±ß½ç½øÐÐäÖÈ¾¡£
+			!Ö»ï¿½ï¿½ï¿½ï¿½ß½ç¼°ï¿½ï¿½ï¿½Ï±ß½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¾ï¿½ï¿½
 			MAT1(1:MFACE(I).ENUM)=POSDATA.ELEMENT(ABS(MFACE(I).ELEMENT)).ISET !
 			IF(MFACE(I).ENUM>1) THEN				    
 				IF(all(MAT1(1:MFACE(I).ENUM)-MAT1(1)==0)) CYCLE
@@ -75,7 +75,7 @@ do k=1,2
 		do i=1,nmface
 			if(mface(i).isdead==1) cycle
 			if(mface(i).shape/=4) cycle
-			!Ö»¶ÔÍâ±ß½ç¼°²ÄÁÏ±ß½ç½øÐÐäÖÈ¾¡£
+			!Ö»ï¿½ï¿½ï¿½ï¿½ß½ç¼°ï¿½ï¿½ï¿½Ï±ß½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¾ï¿½ï¿½
 			MAT1(1:MFACE(I).ENUM)=POSDATA.ELEMENT(ABS(MFACE(I).ELEMENT)).ISET !
 			IF(MFACE(I).ENUM>1) THEN
 				IF(all(MAT1(1:MFACE(I).ENUM)-MAT1(1)==0)) CYCLE
