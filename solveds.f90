@@ -79,8 +79,8 @@ module solverds
 		real(kind=DPN),allocatable::stress(:,:),Dstress(:,:) !stress at gauss points and nodes, stress(6,ngp+nnum)
 		real(kind=DPN),allocatable::strain(:,:),Dstrain(:,:) !strain at gauss points and nodes, strain(6,ngp+nnum)
 														!for cpe3_spg, strain(2,2),strain(:,1)=gradient, strain(:,2)=velocity
-		real(kind=DPN),allocatable::sfr(:,:) !1.stress failure ratio,2.failure plane angle respective to x, anticlockwise is +ve.
-											 !3. sigman(tension is +ve ) 4 tn (clockwise is +ve),5. tnx, 6. tny 
+		real(kind=DPN),allocatable::sfr(:,:),sfrko(:) !1.stress failure ratio,2.failure plane angle respective to x, anticlockwise is +ve.
+											 !3. sigman(tension is +ve ) 4 tn (clockwise is +ve),5. tnx, 6. tny,  
 		real(kind=DPN),allocatable::pstrain(:,:) !total plastic strain in gp and centroid
 		real(kind=DPN),allocatable::evp(:,:) !plastic strain incremental of each incremental in gp and centroid.
 		real(kind=DPN),allocatable::xygp(:,:) !globe co-ordinates of gausian points.
@@ -255,10 +255,14 @@ module solverds
         integer::isParasys=0,CaseID=0 !isParasys,是否为参数敏感性分析(must start form 1)
 !		integer::isPostCal=0 !所有的未知量均为已知（由边界条件输入），仅进行后处理计算。
         !REAL(KIND=DPN),ALLOCATABLE::ETA(:),RATIO(:)
-        integer::slidedirection=right,slope_isTensionCrack=1,ISSLOPEPA=0
-        real(kind=DPN)::slope_kscale=1.D0,slope_kbase=1.D0,slope_kratio=10
+        integer::slidedirection=right,slope_isTensionCrack=1,ISSLOPEPA=0,slope_mko=1
+        real(kind=DPN)::slope_kscale=1.D0,slope_kbase=1.D0,slope_kratio=10,slope_sfrpeak=0.7 
+        !如果slope_kbase<0,则kb取相对值，kb=abs(slope_kbase)*maxsfr;否则，kb取绝对值，kb=slope_kbase
+        !sfrpeak=a,表示高于当某点的sfr/maxsfr>=a时，其渗透系数按exp(2*sfr)提高,旨在吸引更多的流线流向破坏区,a>1表不考虑此加强。
+        !slope_mko>0,表sfr要减掉初始ko应力场的sfrko.假定ko=v/1-v,sxx=ko*syy,szz=sxx,txy=txz=tyz=0
         integer::wellmethod=0 !计算解析井流量时，=0，表取样点为单元节点；=1，为单元形心;=2,在单元周边均布3层采样点(两端及中间),每排采样点数为nspwell,球状流仍为单元节点。>2,均为采样点
         integer::nspwell=12 !wellmethod=2时,每层(2*Pi)采样点数。如果井周角非2PI,范围之外的点将丢弃。
+        integer::wellaniso=0 !水平各向异性，=0，directional K method； =1, Charles R. Fitts method.(转化为各向同性材料进行)；=2，王建荣方法，根据其公式进行计算 
 	end type
 	type(solver_tydef)::solver_control
 	INTEGER::MAX_NODE_ADJ=50,MAX_FACE_ADJ=100
@@ -453,7 +457,7 @@ module solverds
 	
 	real(kind=DPN)::NormL=0.0
 	
-	real(kind=DPN)::minNPH=1e20
+	real(kind=DPN)::minNPH=1e20,MAXSFR=-1.D20
 	integer::isref_spg=0 !是否重新分解矩阵
 	real(kind=DPN)::eps1=1e20,eps2=1e20
 	real(kind=DPN)::Origin_Sys_cylinder(3)=0.0  !in the order of x,y and z. the default value is 0.

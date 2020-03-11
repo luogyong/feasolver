@@ -249,8 +249,8 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
 	INTEGER,INTENT(IN)::NHH,IENUM,IGP,ISTEP,IITER
     REAL(DPN),INTENT(IN)::HHEAD(NHH),HJ
 	REAL(DPN),INTENT(OUT)::KT(NDIMENSION,NDIMENSION)
-	REAL(DPN)::ROT1(2,2),COS1,SIN1,T1,FAC1,SITA1,LAMDA,C1,PHI1,SFR1(6),SIGMA1(6),TS1,PI1
-    INTEGER::IENUMC1,IE1	
+	REAL(DPN)::ROT1(2,2),COS1,SIN1,T1,FAC1,SITA1,LAMDA,C1,PHI1,SFR1(6),SIGMA1(6),TS1,PI1,MU1
+    INTEGER::I,IENUMC1,IE1	
     
     
 	
@@ -268,32 +268,62 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
     PI1=3.14159265358979
     IE1=IENUM-(ESET(ELEMENT(IENUM).SET).ENUMS-1)
     IENUMC1=ESET(ESET(ELEMENT(IENUM).SET).COUPLESET).ENUMS-1+IE1
-    C1=material(ELEMENT(IENUMC1).MAT).GET(3,ISTEP)
-	Phi1=material(ELEMENT(IENUMC1).MAT).GET(4,ISTEP)
-    TS1=material(ELEMENT(IENUMC1).MAT).GET(5,ISTEP)
-    IF(material(ELEMENT(IENUMC1).MAT).TYPE==MC)THEN
-        TS1=C1/MAX(tan(phi1/180*PI1),1E-7) 
-    ENDIF
-    !!!!HERE,THE STRESS IS STILL NOT UPDATED.
-    SIGMA1=ELEMENT(IENUMC1).STRESS(:,IGP)+ELEMENT(IENUMC1).DSTRESS(:,IGP)
-	call stress_in_failure_surface(sfr1,SIGMA1,2,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUMC1).XYGP(1:NDIMENSION,IGP),TS1)
+    
+    !!计算弹性（第一次迭代计算时为弹性计算）ko状态下的sfr，只计算一次.
+    !IF(.not.allocated(element(ienumc1).sfrko)) then
+    !    allocate(element(ienumc1).sfrko(element(ienumc1).ngp))
+    !    mu1=material(ELEMENT(IENUMC1).MAT).GET(2,ISTEP)
+    !    C1=material(ELEMENT(IENUMC1).MAT).GET(3,ISTEP)
+	   ! Phi1=material(ELEMENT(IENUMC1).MAT).GET(4,ISTEP)
+    !    TS1=material(ELEMENT(IENUMC1).MAT).GET(5,ISTEP)
+    !    IF(material(ELEMENT(IENUMC1).MAT).TYPE==MC)THEN
+    !        TS1=C1/MAX(tan(phi1/180*PI1),1E-7) 
+    !    ENDIF
+    !    !!假定ko应力，ko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
+    !    DO I=1,element(ienumc1).ngp
+    !        SIGMA1=ELEMENT(IENUMC1).STRESS(:,I)+ELEMENT(IENUMC1).DSTRESS(:,I) !!迭代时应力还没更新
+    !        sigma1(1)=mu1/(1-mu1)*sigma1(2);sigma1(3)=sigma1(1);sigma1(4:6)=0
+	   !     call stress_in_failure_surface(sfr1,SIGMA1,2,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUMC1).XYGP(1:NDIMENSION,I),TS1)
+    !        element(ienumc1).sfrko(I)=SFR1(1)
+    !    ENDDO
+    !ENDIF    
         
-        
-
+    SFR1=ELEMENT(IENUMC1).SFR(:,IGP)
+    
+    !SFR1(1)=ABS(SFR1(1)-element(ienumc1).sfrko(IGP))
+    
+    
     FAC1=MAX((ABS(SFR1(1)))**solver_control.slope_kscale,1.D-9)
     SITA1=-SFR1(2)/180.*PI()
+    
     !element(ienum).kr(IGP)=element(ienum).kr(IGP)*fac1
     
 	!KT=0.D0
 	!T1=MATERIAL(ELEMENT(IENUM).MAT).GET(1,ISTEP)
 	!KT(2,2)=MATERIAL(ELEMENT(IENUM).MAT).GET(2,ISTEP)*FAC1
-	KT=KT*(solver_control.slope_kbase+FAC1)
+    IF(solver_control.slope_kbase>=0) THEN
+        lamda=(solver_control.slope_kbase+FAC1)    
+    ELSE
+        !solver_control.slope_kbase=0.1
+	    lamda=(ABS(solver_control.slope_kbase)*MAXSFR+FAC1)
+    ENDIF
+    IF(ABS(SFR1(1))/MAXSFR>=solver_control.slope_sfrpeak) THEN
+        lamda=lamda*exp(2*abs(sfr1(1)))
+    ENDIF
+    !element(ienum).kr(IGP)=lamda
+
+    KT=KT*lamda
+    
+    
     IF(ABS(KT(1,1)-KT(2,2))>1E-7) THEN        
 	    COS1=COS(SITA1);SIN1=SIN(SITA1)
 	    ROT1(1,1)=COS1;ROT1(2,2)=COS1;ROT1(1,2)=SIN1;ROT1(2,1)=-SIN1
 	    KT=MATMUL(MATMUL(ROT1,KT),TRANSPOSE(ROT1))
     ENDIF
-	
+    
+    !if(any(isnan(kt))) then
+    !    pause
+    !endif	
 
 END SUBROUTINE
 
@@ -611,17 +641,18 @@ END SUBROUTINE
 SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
     USE solverds
     USE MESHGEO,ONLY:SNADJL,GETVAL_SOLVER
+    USE SolverMath,ONLY:Nint_gauss
     IMPLICIT NONE
     INTEGER,INTENT(IN)::IEL,ISTEP,IITER
     REAL(8),INTENT(IN)::STEPDIS(NDOF)
-    INTEGER::I,J,K,I0,IN1,IN2,IN3,N1,N2,IEL1,IP1,MODEL1,II1,NDOF1,ET1,ANODE1
+    INTEGER::I,J,K,I0,IN1,IN2,IN3,N1,N2,IEL1,IP1,MODEL1,II1,NDOF1,ET1,ANODE1,isok
     INTEGER,ALLOCATABLE::NSP1(:)
     REAL(8)::H1,X1(3),R1,Q1(4),PI1,LAMDA1,K1,DIS1,DH1,A1(5),NHEAD1(5),KM1(5,5),HZ1,RA1,X2(3),&
     W1,TW1,RE1,VA1,QR1,FD1,L1,D1,QA1,VR1,AREA1,g1,FACC1,REW1,cf1,QN1(5),KX1,KY1,KZ1,SITA1(3),LP1,&
     KR1,XC1(3),VW1(3),T1,C1,B1,PO1,VS1,DIS2
-    REAL(8)::SPH1(100),NHEAD2(10,1)
+    REAL(8)::SPH1(100),NHEAD2(10,1),f1,scale1,Ru1,rwu1,rw1,val1
     LOGICAL::ISO1=.FALSE.,ISIN1=.FALSE.
-    
+    COMPLEX(8)::Z1,U1
     NDOF1=ELEMENT(IEL).NDOF;ET1=ELEMENT(IEL).ET
     NHEAD1(1:NDOF1)=STEPDIS(ELEMENT(IEL).G)
     PI1=PI(); 
@@ -629,6 +660,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
     X2=NODE(ELEMENT(IEL).NODE(1)).COORD-NODE(ELEMENT(IEL).NODE(2)).COORD
     DIS1=NORM2(X2)/2.0 !half length of the wellbore
     VW1=X2/DIS1/2.0 !wellbore unit vection    
+    rw1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)
     
     FD1=ELEMENT(IEL).PROPERTY(1)
     FACC1=0.0D0;REW1=0.D0
@@ -638,7 +670,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
     
     IF(ET1/=WELLBORE_SPGFACE) THEN
         L1=2*DIS1
-        D1=2*MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)
+        D1=2*rw1
         AREA1=PI1*D1**2/4.0
         QA1=ABS((NHEAD1(1)-NHEAD1(2))*ELEMENT(IEL).KM(1,1))
         VA1=QA1/AREA1
@@ -734,9 +766,11 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
         N2=MAXLOC(ELEMENT(IEL).NSPLOC(1:N1),dim=1) !排除不在范围内的采样点。
         R1=NORM2(ELEMENT(IEL).A12(:,N2)-NODE(ELEMENT(IEL).NODE(3)).COORD)
         
-        IF(R1<=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)) THEN
+        IF(R1<=rw1) THEN
             STOP "SAMPLE POINT IS TOO CLOSE TO THE WELLAXIS. ERROR IN WELLBORE_Q_K_UPDATE_SPMETHOD."            
         ENDIF
+        
+
         
         DO I=1,2
     
@@ -782,7 +816,8 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
                 LP1=NORM2(XC1-NODE(ELEMENT(IEL).NODE(3)).COORD)
                 
                 X2=X1-XC1
-                    
+                
+                
                 !DIRECTIONAL K
                 SITA1=X2/R1            
                 K1=0.D0
@@ -796,6 +831,47 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
                     K1=K1+1.0/MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(I0)*(SITA1(I0))**2
                 ENDDO
                 KR1=1/K1
+                RU1=R1;
+                RWU1=rw1                
+                val1=log(ru1/rwu1)
+                
+                
+                kx1=MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(1)
+                ky1=MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(2)
+                IF(KX1/=KY1.and.solver_control.wellaniso>0) THEN
+                    KR1=(kx1*ky1)**0.5
+                    if(solver_control.wellaniso==1) then 
+                        !REf:Fitts, C.R., Exact Solution for Two-Dimensional Flow to a Well in an Anisotropic Domain. Groundwater, 2006. 44(1): p. 99-101.
+                        !各向异性，转化为各向同性进行处理。
+                        scale1=(max(kx1,ky1)/min(kx1,ky1))**0.5
+                        f1=rw1*(scale1**2-1)**0.5
+                        IF(KX1<KY1) THEN
+                            Z1=CMPLX(X2(1)*SCALE1,X2(2))
+                        ELSE
+                            Z1=CMPLX(X2(2)*SCALE1,X2(1))
+                        ENDIF
+                        U1=0.5*(Z1+(Z1-F1)**0.5*(Z1+F1)**0.5)
+                        Ru1=ABS(U1)
+                        IF(KX1<KY1) THEN
+                            Z1=CMPLX(rw1*SCALE1,0)
+                        ELSE
+                            Z1=CMPLX(0,rw1)
+                        ENDIF
+                        U1=0.5*(Z1+(Z1-F1)**0.5*(Z1+F1)**0.5)
+                        Rwu1=ABS(U1)
+                        val1=log(RU1/RWU1)
+                    else
+                        !王建荣, 各向异性介质中大口径潜水完整井流公式. 勘察科学技术, 1991(02): p. 10-13.
+                        call Nint_gauss(fun_lnkr,0.,PI1/2,val1,1e-7,isok)
+                       
+                        val1=val1/PI1-log(rw1)                
+                        val1=val1+0.5*log(x2(1)**2/kx1+x2(2)**2/ky1)
+                    endif
+                ENDIF
+
+        
+
+                
                 !KR1=(MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(1)*MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(2)*MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(3))**(1/3)
                 IF(H1>X1(NDIMENSION)) THEN
                     LAMDA1=1.0
@@ -809,15 +885,14 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
                 
                 !要考虑井损
                 !DIS2=DIS1/(MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(3))**0.5
-                RA1=(H1-HZ1)/(LOG(R1/MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1))/(ELEMENT(IEL).PROPERTY(6)*KR1*DIS1)+ELEMENT(IEL).PROPERTY(5))
+                !RA1=(H1-HZ1)/(LOG(Ru1/rwu1)/(ELEMENT(IEL).PROPERTY(6)*KR1*DIS1)+ELEMENT(IEL).PROPERTY(5))
+                RA1=(H1-HZ1)/(val1/(ELEMENT(IEL).PROPERTY(6)*KR1*DIS1)+ELEMENT(IEL).PROPERTY(5))
                 !W1=ELEMENT(IEL1).ANGLE(SNADJL(IN1).SUBID(J))
                 w1=1
                 !IF(J<=N1) w1=0.5  !按所辖长度为权，两端点的权比中间的权小一半。 
                 Q1(I+2)=Q1(I+2)+RA1*W1
                 TW1=TW1+W1;IP1=IP1+1
                 !WRITE(99,20) ISTEP,IITER,IEL,I+2,IP1,X2,X1,R1,H1,HZ1,RA1,W1                    
-                        
-
 
             ENDDO
                 
@@ -860,6 +935,25 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
 
 10  FORMAT("ISTEP,IITER,IEL,NODE1,P1,XG,YG,ZG,XL,YL,ZL,RA,HA,HW,Qunit,WGT   //WELLBORE INFO")
 20  FORMAT(5I7,11F15.7)
+    
+    contains
+
+    real(8) function fun_lnkr(sita)
+
+    real(8),intent(in)::sita
+    !real(8)::kx,ky
+
+    !kx=fparas(1);ky=fparas(2)
+
+    fun_lnkr=log(kx1*ky1/(kx1*(sin(sita))**2+ky1*(cos(sita))**2))
+    
+    !IF(ISNAN(fun_lnkr)) THEN
+    !    PRINT *,'NAN'
+    !ENDIF
+    !fun_lnkr=exp(sita)
+
+
+    endfunction
     
 END SUBROUTINE
 

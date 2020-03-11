@@ -21,6 +21,7 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 	nbload=100
 	bdylds=0.0d0
 	Qstored=0.d0
+    MAXSFR=-1.D20
 	if(stepinfo(istep).issteady) then
 		dt1=1.D0
 	else

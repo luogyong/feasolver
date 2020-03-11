@@ -82,8 +82,15 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
                 sfr(1)=min(abs(sin(sita1)/(A+B*cos(sita1))),20.d0) !sfr for stress failure ratio,max is less than 20
                 
             ELSE
-                sita1=pi1/2.0-phi1
-                SFR(1)=YF1
+                !if slope_isTensionCrack==0, 不进行这个检查sfr(1)会产生大数(原因时莫尔圆圆心与破坏线与x轴的交点非常近)
+                IF(YF1<0.D0.OR.pss1(1)>=MIN(TensileS,C1/T1)) THEN 
+                    !tension
+                    sfr(1)=-1.            
+                    sita1=pi1/2.0
+                ELSE
+                    sita1=pi1/2.0-phi1
+                    SFR(1)=min(YF1,20.0)
+                ENDIF
             ENDIF
             !if(sfr(1)>1.d0) sfr(1)=1.0d0
         else
@@ -583,7 +590,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 	use solverds
 	implicit none
 	integer::i,j,k,n1,n2,ISTEP,isubts
-	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3),T2,ts1,SFR_MAX1=-1.D20
+	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3),T2,ts1,SFR_MAX1=-1.D20,SIGMA1(6),MU1,SFR1(6)
 
     if(isubts==1) call NodalWeight(ISTEP) !同一步中单元的生死不发生改变
     
@@ -709,6 +716,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
             
             IF(OUTVAR(SFR).VALUE>0) THEN
 			    !节点的材料假定为破坏比最大的单元材料，以模拟成层土中的软弱夹层
+                MU1=material(node(i).sfr(2)).GET(2,ISTEP)
 			    C1=material(node(i).sfr(2)).GET(3,ISTEP)
 			    Phi1=material(node(i).sfr(2)).GET(4,ISTEP)
                 TS1=material(node(i).sfr(2)).GET(5,ISTEP)
@@ -718,6 +726,14 @@ subroutine E2N_stress_strain(ISTEP,isubts)
                 !dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
 			    NODE(I).SFR(7)=C1;NODE(I).SFR(8)=PHI1;
 			    call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection,node(i).coord(1:ndimension),TS1)
+                
+                if(solver_control.slope_mko>0) then
+                    !!假定ko应力，ko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
+                    SIGMA1(2)=node(i).stress(2)
+                    SIGMA1(1)=mu1/(1-mu1)*SIGMA1(2);SIGMA1(3)=SIGMA1(1);SIGMA1(4:6)=0
+	                call stress_in_failure_surface(sfr1,SIGMA1,2,C1,Phi1,solver_control.slidedirection,node(i).coord(1:ndimension),TS1)                    
+                    NODE(I).SFR(1)=NODE(I).SFR(1)-SFR1(1)
+                endif 
                 IF(NODE(I).SFR(1)>SFR_MAX1) SFR_MAX1=NODE(I).SFR(1)
 			ENDIF
 		end if
@@ -748,9 +764,9 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 	DO i=1,nnum
 		
         if(node(i).isactive==0) cycle
-        IF(OUTVAR(SFR).VALUE>0) THEN
-            IF(NODE(I).SFR(1)<0.D0) NODE(I).SFR(1)=-SFR_MAX1
-        ENDIF
+        !IF(OUTVAR(SFR).VALUE>0) THEN
+        !    IF(NODE(I).SFR(1)<0.D0) NODE(I).SFR(1)=-SFR_MAX1
+        !ENDIF
 		
 		IF(OUTVAR(PSIGMA).VALUE>0) THEN
 			IF(NDIMENSION==2) THEN

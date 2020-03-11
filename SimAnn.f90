@@ -180,7 +180,7 @@ CONTAINS
         QA1 = QA - one
         !---
         !            PqA = One/(One+(One+qA1*DeltaE/T)**OneqA1)
-        pqa = one/((one+QA1*deltae/t)**oneqa1)   ! Correção
+        pqa = one/((one+QA1*deltae/t)**oneqa1)   ! CorreçŽ¢o
         CALL RANDOM_NUMBER(rand)
         !            If  Rand > Acc_Prob  retains   X_0.
         !            If  Rand < Acc_Prob  replace   X_0 by the new X_t.

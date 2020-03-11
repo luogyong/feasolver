@@ -48,7 +48,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	do i=1,enum
 		if(element(i).isactive==0) cycle
         
-		if(outvar(SFR).value>0.AND.ELEMENT(I).EC==CPE) CALL stree_failure_ratio_cal(I,IINCS)	
+		!if(outvar(SFR).value>0.AND.ELEMENT(I).EC==CPE) CALL stree_failure_ratio_cal(I,IINCS)	
 		select case(element(i).ec)
 
 			case(stru,SPRING,SOILSPRING)

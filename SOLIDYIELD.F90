@@ -132,7 +132,7 @@ subroutine solve_SLD()
             !if(iincs==4) solver_control.niteration=4
 			do while(iiter<=solver_control.niteration)
 				NYITER=0
-				MYFVAL=-1E3
+				MYFVAL=-1E7
 				iiter=iiter+1
 				call solver_initialization(kref,iincs,iiter)
 
@@ -771,6 +771,7 @@ subroutine Continuum_stress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		e=element(ienum).e(j)+sum(strain1(1:3))
 		!stress incremental
 		de(1:nd1,1:nd1)=element(ienum).d
+        sigma=0
 		sigma(1:nd1)=matmul(de(1:nd1,1:nd1),strain1(1:nd1))
 		stress1=element(ienum).stress(:,j)+sigma
 		!check the stress resulted in the last interation whether it penetrate the yield surface.
@@ -1840,7 +1841,8 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 					evp(6),dt=0.0,vyf_old=0.0,fac=0.0, &
 					Dstress1(6)=0.0,dqwi(3)=0.0,dqf(6)=0.0,dp(6,6)=0.0,&
 					de(6,6)=0.0,t1=0.0,pstress1(6)=0.0,lamda=0.0,&
-					buf1(6)=0.0,buf2(6)=0.0,pstrain(6)=0.0,ev=0,PlasPar(3),SIGMAB(6),SIGMAC(6)
+					buf1(6)=0.0,buf2(6)=0.0,pstrain(6)=0.0,ev=0,PlasPar(3),SIGMAB(6),SIGMAC(6),&
+                    C1,PHI1,TS1,PI1,MU1,SFR1(6)
 	REAL(8)::E1,V1,R1,vyf2,AT1(6),DLAMDA,DSIGMAP1(6),VYF1,UW1(6)=0.D0
 	integer::nd1=0,ndim1,region,SITER1
     REAL(8),EXTERNAL::MultiSegInterpolate
@@ -1849,6 +1851,7 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 	nd1=element(ienum).nd
 	ndim1=ecp(element(ienum).et).ndim
 	bload=0.0
+    PI1=PI()
     
 	if(ISTEP>0.AND.(solver_control.bfgm==continuum.OR.solver_control.bfgm==consistent)) element(ienum).km=0.d0
     
@@ -2005,6 +2008,31 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		element(ienum).ev(j)=ev
 		!element(ienum).e(j)=e
 		
+        if(outvar(SFR).value>0.AND.ELEMENT(IENUM).EC==CPE) THEN
+            MU1=material(ELEMENT(IENUM).MAT).GET(2,ISTEP)
+            C1=material(ELEMENT(IENUM).MAT).GET(3,ISTEP)
+	        Phi1=material(ELEMENT(IENUM).MAT).GET(4,ISTEP)
+            TS1=material(ELEMENT(IENUM).MAT).GET(5,ISTEP)
+            IF(material(ELEMENT(IENUM).MAT).TYPE==MC)THEN
+                TS1=C1/MAX(tan(phi1/180*PI1),1E-7) 
+            ENDIF
+            !!!!HERE,THE STRESS IS STILL NOT UPDATED.
+            SIGMA=ELEMENT(IENUM).STRESS(:,J)+ELEMENT(IENUM).DSTRESS(:,J)
+
+	        call stress_in_failure_surface(element(ienum).sfr(:,J),SIGMA,2,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1)
+                
+            if(solver_control.slope_mko>0) then
+                IF(.NOT.ALLOCATED(element(IENUM).sfrko)) ALLOCATE(element(IENUM).sfrko(N1))
+                !!假定ko应力，ko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
+                SIGMA(1)=mu1/(1-mu1)*SIGMA(2);SIGMA(3)=SIGMA(1);SIGMA(4:6)=0                
+	            call stress_in_failure_surface(sfr1,SIGMA,2,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1)
+                element(IENUM).sfrko(J)=SFR1(1)
+                element(ienum).sfr(1,J)=element(ienum).sfr(1,J)-SFR1(1)
+            endif
+                
+            IF(element(ienum).sfr(1,J)>MAXSFR) MAXSFR=element(ienum).sfr(1,J)
+        ENDIF
+        
         bload(1:element(ienum).ndof)=bload(1:element(ienum).ndof)+ &
 						matmul((element(ienum).stress(1:nd1,j)+element(ienum).Dstress(1:nd1,j) &
                                 -UW1(1:ND1)),element(ienum).b(:,:,j))* &

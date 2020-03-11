@@ -1,5 +1,5 @@
 
-   !¶Ô¿ØÖÆÏß½øĞĞ»®·Ö
+   !å¯¹æ§åˆ¶çº¿è¿›è¡Œåˆ’åˆ†
   subroutine CLinsert
 	 use ds_t
      use meshDS
@@ -12,7 +12,7 @@
 	 !if(cln/=0) 
 	 allocate(cpphead(0:cln)) 	 
 	 
-    !¸÷×ÓÓòµÄ´ÓÊô×ÓÓòµÄ¸öÊıÖ®ºÍ
+    !å„å­åŸŸçš„ä»å±å­åŸŸçš„ä¸ªæ•°ä¹‹å’Œ
 	 n1=0
 	n2=0
 	if(keypn==0) n2=1
@@ -22,7 +22,7 @@
 		   xi=csl(i).conpoint(1,j)
            yi=csl(i).conpoint(2,j)
 		   si=csl(i).conpoint(3,j)
-		   if(csl(i).flag==0.and.j==csl(i).num) exit !Èç¹û¿ØÖÆÏß²»±ÕºÏ£¬µ½×îºóÒ»¸öµãÊ±Ìø³ö
+		   if(csl(i).flag==0.and.j==csl(i).num) exit !å¦‚æœæ§åˆ¶çº¿ä¸é—­åˆï¼Œåˆ°æœ€åä¸€ä¸ªç‚¹æ—¶è·³å‡º
 		   if(j==csl(i).num) then
 		      xj=csl(i).conpoint(1,1)
               yj=csl(i).conpoint(2,1)
@@ -117,8 +117,8 @@
   end subroutine
 
   !find point in node or not,if not ,add it to them,return node.number of the vertex
-  !xt,yt,zt,st,n1µãµÄ×ø±ê£¬µã³ß´ç
-  !¸ÃµãµÄnumber£¬Êä³ö¡£
+  !xt,yt,zt,st,n1ç‚¹çš„åæ ‡ï¼Œç‚¹å°ºå¯¸
+  !è¯¥ç‚¹çš„numberï¼Œè¾“å‡ºã€‚
   subroutine fin2d(xt,yt,st,n1)
      use meshds
 	 implicit none
@@ -147,8 +147,8 @@
 
   end  subroutine
 
-   !ÅĞ¶ÏÔÚarr_tÖĞÊÇ·ñ»¹ÆäËüµãÔÚÏß¶Îxi,xjÉÏ£¬²¢ĞÎ³ÉÊı×éar,Ê¹ar°üº¬vertexÖĞÔÚÏß¶Îxi,xjÉÏµÄËùÓĞµã
-   !ÒÔn4·µ»Ø¸ÃÊı×éµÄ´óĞ¡£¬xi,xjÎª¸ÃÊı×éµÄÁ½¶Ë,Ö®¼äµÄµã°´Ë³ĞòÅÅÁĞ¡£
+   !åˆ¤æ–­åœ¨arr_tä¸­æ˜¯å¦è¿˜å…¶å®ƒç‚¹åœ¨çº¿æ®µxi,xjä¸Šï¼Œå¹¶å½¢æˆæ•°ç»„ar,ä½¿aråŒ…å«vertexä¸­åœ¨çº¿æ®µxi,xjä¸Šçš„æ‰€æœ‰ç‚¹
+   !ä»¥n4è¿”å›è¯¥æ•°ç»„çš„å¤§å°ï¼Œxi,xjä¸ºè¯¥æ•°ç»„çš„ä¸¤ç«¯,ä¹‹é—´çš„ç‚¹æŒ‰é¡ºåºæ’åˆ—ã€‚
    subroutine aovis2d(xi,yi,si,xj,yj,sj,ar,n4) !any other vertex inside the segment?
       use meshds
 	  use ds_t
@@ -194,7 +194,7 @@
       ar(2,n4)=yj
 	  ar(3,n4)=sj
 
-	  !°´Àëar(:,1)µÄÓÉ½ü¶øÔ¶µÄË³ĞòÖØÅÅ
+	  !æŒ‰ç¦»ar(:,1)çš„ç”±è¿‘è€Œè¿œçš„é¡ºåºé‡æ’
       do i=2,n4-1
 	     t1=(ar(1,i)-ar(1,1))**2+(ar(2,i)-ar(2,1))**2
 		 do j=i+1,n4-1
@@ -210,7 +210,7 @@
 
    end subroutine
 
-      !ÅĞ¶Ïµãx(),ÊÇ·ñÔÚÏß¶ÎxixjÉÏ¡£Èç¹ûÊÇ£¬tof1=.t. or .f.
+      !åˆ¤æ–­ç‚¹x(),æ˜¯å¦åœ¨çº¿æ®µxixjä¸Šã€‚å¦‚æœæ˜¯ï¼Œtof1=.t. or .f.
    subroutine vins2d(xi,yi,xj,yj,x,y,tof1) !vertex in the segment or noe
       use meshds
 	  implicit none

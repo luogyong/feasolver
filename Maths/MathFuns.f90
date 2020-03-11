@@ -3,7 +3,86 @@ IMPLICIT NONE
 
 INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
 
-contains    
+contains
+    
+    
+subroutine Nint_gauss(fun,a,b,val,tol,isok)
+!ref:http://rosettacode.org/wiki/Numerical_integration/Gauss-Legendre_Quadrature#Fortran
+!the weight and x is updated and calculated by the FASTGL.https://people.sc.fsu.edu/~jburkardt/f_src/fastgl/fastgl.html
+  implicit none
+  integer, parameter :: p = 8 ! quadruple precision
+  integer,intent(out) :: isok  ! =0,OK. =1.Not OK.
+  real(kind=p),intent(in)::a, b,tol !integration limits, precision
+  real(kind=p),intent(out)::val !integrated value.
+  real(kind=p),external           :: fun !integrand function
+  integer            :: i,n=5,k,miter=50,iter=0
+  real(kind=p), allocatable :: r(:,:)
+  real(kind=p)       :: last,theta, weight, x
+  
+  iter=0
+  isok=0
+  val=0.D0
+  n=4
+  miter=10
+  iter=0
+  do while(abs(last-val)>tol.or.iter<2)
+    last=val
+    
+    !r = gaussquad(n)
+    
+    val=0.d0
+    do i=1,n
+        call glpair ( n, i, theta, weight, x )
+        !val = val+r(2,i)*fun((a+b)/2+r(1,i)*(b-a)/2)
+        val = val+weight*fun((a+b)/2+x*(b-a)/2)
+    enddo
+    val = (b-a)/2*val
+    
+    n=n*2
+    iter=iter+1
+    
+    if(miter<iter) then
+        isok=1
+        exit 
+    endif
+    
+  enddo
+  
+  contains 
+ 
+  function gaussquad(n) result(r)
+  integer                 :: n
+  real(kind=p), parameter :: pi = 4*atan(1._p)
+  real(kind=p)            :: r(2, n), x, f, df, dx
+  integer                 :: i,  iter
+  real(kind = p), allocatable :: p0(:), p1(:), tmp(:)
+ 
+  p0 = [1._p]
+  p1 = [1._p, 0._p]
+ 
+  do k = 2, n
+     tmp = ((2*k-1)*[p1,0._p]-(k-1)*[0._p, 0._p,p0])/k
+     p0 = p1; p1 = tmp
+  end do
+  do i = 1, n
+    x = cos(pi*(i-0.25_p)/(n+0.5_p))
+    do iter = 1, 10
+      f = p1(1); df = 0._p
+      do k = 2, size(p1)
+        df = f + x*df
+        f  = p1(k) + x * f
+      end do
+      dx =  f / df
+      x = x - dx
+      if (abs(dx)<10*epsilon(dx)) exit
+    end do
+    r(1,i) = x
+    r(2,i) = 2/((1-x**2)*df**2)
+  end do
+  end function
+  
+end subroutine    
+    
     
 SUBROUTINE invert(matrix)
 !
@@ -176,7 +255,7 @@ ENDSUBROUTINE
 
 
 
-   !¼ÆËãËÄÃæÌåµÄÆäÖÐµÄÒ»¸ö¶¥µã£¨µÚÒ»¸ö£©ar(:,1)µÄÁ¢Ìå½Ç£¬ÒÔangle·µ»Ø¡£    
+   !è®¡ç®—å››é¢ä½“çš„å…¶ä¸­çš„ä¸€ä¸ªé¡¶ç‚¹ï¼ˆç¬¬ä¸€ä¸ªï¼‰ar(:,1)çš„ç«‹ä½“è§’ï¼Œä»¥angleè¿”å›žã€‚    
 	real(8) function solidangle(ar)
 	   implicit none
 	   
@@ -184,7 +263,7 @@ ENDSUBROUTINE
        integer::i
        real(8)::br(3,3),t1,v1
 	   real(8)::cosA,cosB,cosC,A,B,C,p
-	   !br´æ´¢ÓÉarÐÎ³ÉÈý¸öÏòÁ¿£¬Í¬Ê±»¯Îªµ¥Î»ÏòÁ¿
+	   !brå­˜å‚¨ç”±arå½¢æˆä¸‰ä¸ªå‘é‡ï¼ŒåŒæ—¶åŒ–ä¸ºå•ä½å‘é‡
 	   do i=1,3
 	      br(:,i)=ar(:,i+1)-ar(:,1) 
 		  t1=(br(1,i)**2+br(2,i)**2+br(3,i)**2)**0.5
@@ -195,11 +274,11 @@ ENDSUBROUTINE
 		  br(:,i)=br(:,i)/t1
        end do
 	   
-       !ÇóbrÖÐµÚÒ»¡¢¶þÏòÁ¿Ëù×é³ÉµÄ¼Ð½Ç
+       !æ±‚brä¸­ç¬¬ä¸€ã€äºŒå‘é‡æ‰€ç»„æˆçš„å¤¹è§’
        cosA=br(1,1)*br(1,2)+br(2,1)*br(2,2)+br(3,1)*br(3,2)
        cosB=br(1,1)*br(1,3)+br(2,1)*br(2,3)+br(3,1)*br(3,3)
 	   cosC=br(1,3)*br(1,2)+br(2,3)*br(2,2)+br(3,3)*br(3,2)
-	   !ÒòÎªÈý¸öÏòÁ¿¶¼»¯ÎªÁËµ¥Î»ÏòÁ¿¡£
+	   !å› ä¸ºä¸‰ä¸ªå‘é‡éƒ½åŒ–ä¸ºäº†å•ä½å‘é‡ã€‚
        A=dacos(cosA)
        B=dacos(cosB)
 	   C=dacos(cosC)
@@ -207,17 +286,17 @@ ENDSUBROUTINE
 	   t1=(sin(p)*sin(p-A)*sin(p-B)*sin(p-C))**0.5/(2*cos(A/2)*cos(B/2)*cos(C/2))
        solidangle=2*dasin(t1)
        
-!	   !ÇóµÚÒ»¡¢¶þÏòÁ¿Ëù×é³ÉÈý½ÇÐÎµÄÃæ»ý
+!	   !æ±‚ç¬¬ä¸€ã€äºŒå‘é‡æ‰€ç»„æˆä¸‰è§’å½¢çš„é¢ç§¯
 !       s=sin(A)/2
-!	   !ÇóËÄÃæÌåµÄÌå»ý:abs(v1)/6
+!	   !æ±‚å››é¢ä½“çš„ä½“ç§¯:abs(v1)/6
 !	   call dt(br,v1)
 !	   v1=abs(v1)/6
-!	   !Çó¸ßh
+!	   !æ±‚é«˜h
 !       h=3*v1/s
-!	   !Èý½ÇÐÎÇòÃæµÄÃæ»ýs
+!	   !ä¸‰è§’å½¢çƒé¢çš„é¢ç§¯s
 !	   s=1*h*A/2
        !s=A+B+C-3.1415926536
-	   !Á¢Ìå½Ç£¬ÇòÃæ¶È
+	   !ç«‹ä½“è§’ï¼Œçƒé¢åº¦
        !angle=s/4/3.1415926536
        !solidangle=s
 	end function
@@ -248,7 +327,7 @@ ENDSUBROUTINE
   
     end function
     
-    !¶þÃæ½Ç£¬µ¥Î»»¡¶È,N1,N2ÎªÃæµÄ·½ÏòÊ¸Á¿
+    !äºŒé¢è§’ï¼Œå•ä½å¼§åº¦,N1,N2ä¸ºé¢çš„æ–¹å‘çŸ¢é‡
     real(8) function DihedralAngle(N1,N2) 
         implicit none
         integer ( kind = 4 ), parameter :: dim_num = 3
