@@ -140,7 +140,7 @@ subroutine assemble_km(istep)
 	!为避免对角线元素为零，保持正定，令没激活的自由度的对角线元素等于1，应该不会影响计算结果。
 	do i=1,ndof
 		if(adof(i)==0) then
-			km(rowindex(i))=1.d0
+			km(diaglkmloc(i))=1.d0
 		endif	
 	enddo
 	
@@ -249,11 +249,11 @@ endsubroutine
 subroutine irowjcol_SEC()
 	use solverds
 	implicit none
-	INTEGER*8::i,n1=0	
+	INTEGER*8::i,J,n1=0	
     integer::err
 
     !diaglkmloc(irow(i))=n1 !FOR SETTING THE BOUNDARY CONDITIONS 
-			
+	if(.not.allocated(diaglkmloc))	allocate(diaglkmloc(ndof))	
 	    
 	nnz=SUM(DOFADJL.NDOF)
 	IF(NNZ<0) THEN
@@ -265,10 +265,14 @@ subroutine irowjcol_SEC()
 
 	allocate(jcol(nnz),rowindex(ndof+1),STAT=ERR)
     n1=0;    
-    DO I=1,NDOF
-        rowindex(I)=N1+1
-        JCOL(N1+1:N1+DOFADJL(I).NDOF)=DOFADJL(I).DOF
-        N1=N1+DOFADJL(I).NDOF        
+    DO I=1,NDOF        
+        DO J=1,DOFADJL(I).NDOF
+            N1=N1+1
+            IF(J==1) rowindex(I)=N1
+            JCOL(N1)=DOFADJL(I).DOF(J)            
+            IF(JCOL(N1)==I) diaglkmloc(I)=N1
+        ENDDO
+        !N1=N1+DOFADJL(I).NDOF        
     ENDDO
 	rowindex(NDOF+1)=rowindex(NDOF)+DOFADJL(NDOF).NDOF
 	
