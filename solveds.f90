@@ -223,6 +223,7 @@ module solverds
 		real(kind=DPN)::Yftol=1.D-3 !tolerance permitted for yiled criterion to be vilated
 		real(kind=DPN)::force_tol=1.D-2 !tolerance permitted for unbalanced residual force to be vilated
 		real(kind=DPN)::disp_tol=1.D-3 !tolerance permitted for residual displacement to be vilated
+        real(kind=dpn)::slowtol=0.02 !when convergence is slow when convratio<slowtol,exit
 		integer::output=1 !1:output for mod(increments,output)=0 iteration
 		integer::i2ncal=4,I2NWEIGHT=1  !method mapping variables in integration points to nodes
 			!SHT=1,spr=2,AVG=3,EXP=4
@@ -442,7 +443,7 @@ module solverds
 	
 	
 	real(kind=DPN),allocatable::DIAGLKM(:) !STORED DIAGONAL ELEMENT OF THE KM BEFORE FACTORIZATION FOR FACTOR UPDATING.
-	!integer,allocatable::diaglkmloc(:) !总刚中对角线元素在总刚数组中的位置。
+	integer,allocatable::diaglkmloc(:) !总刚中对角线元素在总刚数组中的位置。
 
 	!one dimensional linear field function
 	real(kind=DPN)::LF1D(0:maxilf,2)  !LF1D(:,1)=k,LF1D(:,2)=c. then y=k*x+c

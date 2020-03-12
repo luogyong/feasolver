@@ -154,7 +154,7 @@ subroutine solve_SLD()
 					do j=1,bd_num
 						if(bc_disp(j).isdead==1) cycle
 						dof1=node(bc_disp(j).node).dof(bc_disp(j).dof)
-						km(rowindex(dof1))=UM
+						km(diaglkmloc(dof1))=UM
 					end do
 					
 					call KM_UPDATE_SPG2(stepdis,iiter,iincs)
@@ -514,7 +514,7 @@ subroutine Linesearch(iincs,isubts,iiter,iscon,relax,stepdis,Ddis,bdylds,PDDIS,I
     
     
     
-	IF(MOD(IITER,50)==0.AND.(.NOT.ISTOCONV)) RELAX=MAX(RELAX/2.0D0,0.1d0)
+	IF(MOD(IITER,100)==0.OR.(.NOT.ISTOCONV)) RELAX=MAX(RELAX/2.0D0,0.1d0)
 	!IF(IITER==1) THEN
  !       LASTCONVRATIO=10
  !   ELSE
@@ -620,7 +620,7 @@ subroutine KM_UPDATE_SPG2(stepdis,iiter,IINCS)
 		
 		if(Nseep(j).isdead==0) then
 			dof1=node(Nseep(j).node).dof(Nseep(j).dof)														  
-			km(rowindex(dof1))=UM
+			km(diaglkmloc(dof1))=UM
 			!load(dof1)=(Nseep(j).value-stepdis(dof1))*sf(Nseep(j).sf).factor(iincs)*UM
 		end if
 	end do
@@ -698,7 +698,7 @@ subroutine Cal_AcceleratingFactor(iiter,iincs,iscon,stepdis,bdylds,relax,handle,
 		do j=1,bd_num
 			if(bc_disp(j).isdead==1) cycle
 			dof1=node(bc_disp(j).node).dof(bc_disp(j).dof)
-			km(rowindex(dof1))=UM
+			km(diaglkmloc(dof1))=UM
 		end do
 		
 		call KM_UPDATE_SPG2(stepdis,iiter,iincs)

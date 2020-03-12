@@ -1491,8 +1491,8 @@ subroutine solvercommand(term,unit)
 						else
 							solver_control.isfc=.false.
 						end if						
-!					case('para_spg')
-!						solver_control.para_spg=int(property(i).value)
+					case('slowtol')
+						solver_control.slowtol=property(i).value
 					case('isfu')
 						if(int(property(i).value)==YES) then
 							solver_control.isfu=.true.

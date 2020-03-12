@@ -661,7 +661,7 @@ END SUBROUTINE
 
 SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,ndofhead,dofhead,niter,ISTOCONV)
 !
-!
+ use solverds ,only:solver_control
  IMPLICIT NONE
  INTEGER::I
  INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
@@ -711,13 +711,14 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
      end if
  endif
  
- IF(NITER<2) THEN    
-    ISTOCONV=.TRUE.
- ELSE
-    ISTOCONV=(convratio/LASTconvratio<0.9999)    
- ENDIF
+
  
  conten(mod(niter-1,10)+1)=convratio-LASTconvratio
+ ISTOCONV=.TRUE.
+ IF(MOD(NITER,10)==0) THEN    
+   !ISTOCONV=(convratio/LASTconvratio<0.99) 
+    ISTOCONV=COUNT(CONTEN>0.01)<=2 !10次中收敛率升高的次数<=2
+ ENDIF 
  
  LASTconvratio=convratio
  !convratio=resdis/SumForce
@@ -726,7 +727,7 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
  ISCON=(convratio<=TOL)
  !too slow ,exit
  if(.not.iscon.and.niter>50) then
-     if(maxval(abs(conten))<0.001) iscon=.true.       
+     if(maxval(abs(conten))<0.001.and.convratio<solver_control.slowtol) iscon=.true.       
  endif
  
  SumForce=SumForce+SumForce_spg
