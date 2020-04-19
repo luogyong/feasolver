@@ -57,9 +57,10 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     R1=t2
     if(R1>0) then
         T1=1E-7
-        IF(PHI1>1E-7) T1=TAN(PHI1) 
-        if(pss1(1)<MIN(TensileS,C1/T1).or.Solver_control.slope_isTensionCrack/=1) then  !c=0, sand, no tension crack
-        !if(pss1(1)<TensileS) then
+        IF(PHI1>1E-7) T1=TAN(PHI1)
+        
+        !if(pss1(1)<MIN(TensileS,C1/T1).or.Solver_control.slope_isTensionCrack/=1) then  !c=0, sand, no tension crack
+        if(pss1(1)<MIN(TensileS,C1/T1).and.SIGMAC1<0.0d0) then
             !CHECK YIELD
             !YF1=SIGMAC1*SIN(PHI1)+R1-C1*COS(PHI1)
             IF(PHI1>0.D0) THEN
@@ -67,7 +68,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
             ELSE
                 YF1=R1/MAX(C1,1E-6)
             ENDIF
-            
+            !IF(YF1>0.D0.and.pss1(1)<MIN(TensileS,C1/T1)) THEN
             IF(YF1<1.D0.AND.YF1>0.D0) THEN
             
                 B=-tan(phi1)
@@ -83,20 +84,23 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
                 
             ELSE
                 !if slope_isTensionCrack==0, 不进行这个检查sfr(1)会产生大数(原因时莫尔圆圆心与破坏线与x轴的交点非常近)
-                IF(YF1<0.D0.OR.pss1(1)>=MIN(TensileS,C1/T1)) THEN 
-                    !tension
-                    sfr(1)=-1.            
-                    sita1=pi1/2.0
-                ELSE
-                    sita1=pi1/2.0-phi1
-                    SFR(1)=min(YF1,20.0)
-                ENDIF
+                !IF(YF1<0.D0.OR.pss1(1)>=MIN(TensileS,C1/T1)) THEN 
+                !    !tension
+                !    sfr(1)=-1.            
+                !    sita1=pi1/2.0
+                !    if(Solver_control.slope_isTensionCrack<1) sita1=pi1/2.0-phi1
+                !ELSE
+                sita1=pi1/2.0-phi1
+                    
+                SFR(1)=min(YF1,20.0)
+                !ENDIF
             ENDIF
             !if(sfr(1)>1.d0) sfr(1)=1.0d0
         else
             !tension
             sfr(1)=-1.            
             sita1=pi1/2.0
+            if(Solver_control.slope_isTensionCrack<1) sita1=pi1/2.0-phi1
         endif
     !if(isnan(sfr(1))) then
     !    pause
@@ -132,7 +136,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
         T1=-T1
     ENDIF
 
-    IF(sfr(1)>=0.d0) then
+    IF(sfr(1)>=0.d0.or.Solver_control.slope_isTensionCrack<1) then
         if(stress(2)>stress(1)) then !sigmax<sigmay,passive zone         
             sfr(2)=pss1(4)+(sita1)/2.0*T1
         else
@@ -299,7 +303,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 				IF(ALLOCATED(ELEMENT(IENUM).MW)) ELEMENT(IENUM).mw(i)=dot_product( &
 					ELEMENT(IENUM).mw(1:element(ienum).ngp), &
 					ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,i-n1+1))
-				do CONCURRENT (j=1:6)
+				do CONCURRENT (j=1:8)
 					IF(ALLOCATED(ELEMENT(IENUM).SFR)) ELEMENT(IENUM).SFR(j,i)=dot_product( &
 						ELEMENT(IENUM).SFR(j,1:element(ienum).ngp), &
 						ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,i-n1+1))	
@@ -334,7 +338,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 			IF(ALLOCATED(ELEMENT(IENUM).MW)) THEN
 				CALL I2N_TRI15(element(ienum).MW(N1:N2),element(ienum).MW(1:ELEMENT(IENUM).NGP),ELEMENT(IENUM).ET)
 			ENDIF
-			do j=1,6
+			do j=1,8
 				IF(ALLOCATED(ELEMENT(IENUM).SFR)) THEN
 					CALL I2N_TRI15(element(ienum).SFR(j,N1:N2),element(ienum).SFR(j,1:ELEMENT(IENUM).NGP),ELEMENT(IENUM).ET)
 				ENDIF
@@ -366,7 +370,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				IF(ALLOCATED(ELEMENT(IENUM).MW)) element(ienum).mw(N1:N2)=dot_product(ELEMENT(IENUM).mw(1:element(ienum).ngp), &
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
-				DO CONCURRENT (J=1:6) 
+				DO CONCURRENT (J=1:8) 
 					IF(ALLOCATED(ELEMENT(IENUM).SFR)) element(ienum).SFR(j,N1:N2)=dot_product(ELEMENT(IENUM).SFR(j,1:element(ienum).ngp), &
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				enddo
@@ -609,7 +613,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
         if(allocated(node(i).sfr)) then
             node(i).sfr=0.0d0
             node(i).sfr(1)=-1.0d6
-			node(i).sfr(9)=SOLVER_CONTROL.slidedirection
+			node(i).sfr(11)=SOLVER_CONTROL.slidedirection
         endif
 		IF(ALLOCATED(NODE(I).PSIGMA)) NODE(I).PSIGMA=0.D0
 		node(i).q=0.0d0
@@ -627,13 +631,16 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 		select case(element(i).ec)
 			case(C3D,CPE,CPS,CAX,CPL,CAX_CPL)
 				do j=1,element(i).nnum
+                    
+					IF(SOLVER_CONTROL.I2NWEIGHT==WEIGHT_ANGLE) THEN
+                        T2=element(i).ANGLE(J)/node(element(i).node(j)).ANGLE
+                    ELSE
+                        T2=1./(node(element(i).node(j)).nelist-node(element(i).node(j)).nelist_SPG) 
+                    ENDIF
+                    
                     IF(solver_control.i2ncal/=SPR) THEN
                         
-					    IF(SOLVER_CONTROL.I2NWEIGHT==WEIGHT_ANGLE) THEN
-                            T2=element(i).ANGLE(J)/node(element(i).node(j)).ANGLE
-                        ELSE
-                            T2=1./(node(element(i).node(j)).nelist-node(element(i).node(j)).nelist_SPG) 
-                        ENDIF
+
                         
 					    node(element(i).node(j)).stress=node(element(i).node(j)).stress &
 					    +element(i).stress(:,n1+j)*T2
@@ -652,7 +659,9 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 					    if(element(i).sfr(1,n1+j)>node(element(i).node(j)).sfr(1)) then					
 						    node(element(i).node(j)).sfr(1)=element(i).sfr(1,n1+j)
 						    node(element(i).node(j)).sfr(2)=element(i).mat !borrow 
-					    endif
+                        endif
+                        !SFR_KR
+                        node(element(i).node(j)).sfr(7)=node(element(i).node(j)).sfr(7)+element(i).sfr(7,n1+j)*T2
 				    ENDIF
 				end do
 			case(spg2d,spg,cax_spg)
@@ -724,15 +733,17 @@ subroutine E2N_stress_strain(ISTEP,isubts)
                     TS1=1.D6 !NO TENSION CUT OFF
                 ENDIF
                 !dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
-			    NODE(I).SFR(7)=C1;NODE(I).SFR(8)=PHI1;
+			    NODE(I).SFR(9)=C1;NODE(I).SFR(10)=PHI1;
 			    call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection,node(i).coord(1:ndimension),TS1)
-                
+                !假定ko应力，ko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
+                SIGMA1(2)=node(i).stress(2)
+                SIGMA1(1)=mu1/(1-mu1)*SIGMA1(2);SIGMA1(3)=SIGMA1(1);SIGMA1(4:6)=0
+	            call stress_in_failure_surface(sfr1,SIGMA1,2,C1,Phi1,solver_control.slidedirection,node(i).coord(1:ndimension),TS1)
+                NODE(I).SFR(8)=SFR1(1)
                 if(solver_control.slope_mko>0) then
-                    !!假定ko应力，ko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
-                    SIGMA1(2)=node(i).stress(2)
-                    SIGMA1(1)=mu1/(1-mu1)*SIGMA1(2);SIGMA1(3)=SIGMA1(1);SIGMA1(4:6)=0
-	                call stress_in_failure_surface(sfr1,SIGMA1,2,C1,Phi1,solver_control.slidedirection,node(i).coord(1:ndimension),TS1)                    
+                    
                     NODE(I).SFR(1)=NODE(I).SFR(1)-SFR1(1)
+                    
                 endif 
                 IF(NODE(I).SFR(1)>SFR_MAX1) SFR_MAX1=NODE(I).SFR(1)
 			ENDIF
@@ -807,7 +818,7 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 			do concurrent (i=n1:n2)
 				
 
-				do CONCURRENT (j=1:6)
+				do CONCURRENT (j=1:8)
 					IF(ALLOCATED(ELEMENT(IENUM).SFR)) ELEMENT(IENUM).SFR(j,i)=dot_product( &
 						ELEMENT(IENUM).SFR(j,1:element(ienum).ngp), &
 						ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,i-n1+1))	
@@ -818,7 +829,7 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 			 CPE15_CPL,CAX15_CPL,&
 			 CPE15,CAX15)
 			
-			do j=1,6
+			do j=1,8
 				IF(ALLOCATED(ELEMENT(IENUM).SFR)) THEN
 					CALL I2N_TRI15(element(ienum).SFR(j,N1:N2),element(ienum).SFR(j,1:ELEMENT(IENUM).NGP),ELEMENT(IENUM).ET)
 				ENDIF
@@ -830,7 +841,7 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 			DO CONCURRENT (I=1:2)
 				N1=3*I
 				N2=3*I+2
-				DO CONCURRENT (J=1:6) 
+				DO CONCURRENT (J=1:8) 
 					IF(ALLOCATED(ELEMENT(IENUM).SFR)) element(ienum).SFR(j,N1:N2)=dot_product(ELEMENT(IENUM).SFR(j,1:element(ienum).ngp), &
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				enddo			

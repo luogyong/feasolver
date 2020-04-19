@@ -4,6 +4,7 @@
     use ExcaDS
 	use dflib
     use ifport
+    use DS_SlopeStability,only:SLOPEPARAMETER
 	implicit none
 	integer:: itype,unit,i,j,k
 	LOGICAL(4)::tof,FILE_EXIST1
@@ -327,9 +328,20 @@
            enddo                       
         enddo    
         
-	endif
+    endif
+    
+    !仅为实现边坡参数泊松比的敏感性，修改材料的泊松比mu为输入值
+    if(solver_control.isslopepa==7) then
+        do i=1,maximat
+            if(material(i).isinput==0) cycle
+            if(material(i).type==elastic.or.material(i).type==mc) then
+                material(i).property(2)=slopeparameter.mu
+            endif
+        enddo
+    endif
+    
 
-    if(solver_control.bfgm==inistress) solver_control.issym=.true.
+    !if(solver_control.bfgm==inistress) solver_control.issym=.true.
     
     !OUTVAR(90).VALUE=90;OUTVAR(90).NAME='BC_TYPE'; 
     IF(OUTVAR(DISX_BC).VALUE>0) OUTVAR(DISX_BC).NAME='DISX_BC'
@@ -833,6 +845,7 @@ subroutine solvercommand(term,unit)
 			name1=""
 			sf1=0
             n2=-1
+            n3=0
 			do i=1,pro_num
 				select case(property(i).name)
 					case('num')
@@ -858,6 +871,8 @@ subroutine solvercommand(term,unit)
 						name1=property(i).cvalue
 					CASE('sf','step function')
 						sf1=int(property(i).value)
+                    case('istopo')
+                        n3=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)						
 				end select
@@ -909,11 +924,17 @@ subroutine solvercommand(term,unit)
                         allocate(element1(i).node(2))
                         element1(i).node=int(ar(1:2)) 
                         element1(i).property(1:n1-2)=ar(3:n1) !direction vector.
+                       
 					case default
                     	element1(i).nnum=nnum1
-				        allocate(element1(i).node(nnum1))
+                        if(n3<1) then
+				            allocate(element1(i).node(nnum1))
+                        else
+                            allocate(element1(i).node(nnum1+2))
+                        endif
 						call skipcomment(unit)
 						read(unit,*) element1(i).node
+                        
 				end select
 				element1(i).id=i
 				element1(i).et=et1
@@ -926,6 +947,7 @@ subroutine solvercommand(term,unit)
 				element1(i).ec=ec1
 				element1(i).sf=sf1
                 element1(i).eshape=eshp1
+                element1(i).istopo=n3
 				if(et1==beam) element1(i).system=system1
         !        if(element1(i).et==wellbore) then  !wellbore 单元有两种情况，2节点和4节点
 				    !element1(i).ndof=n1
@@ -1003,8 +1025,10 @@ subroutine solvercommand(term,unit)
 				
 				if(matid1==0) matid1=j !If there is only one set of such material of this type in this model 
 				IF(material(matid1).ISINPUT/=0) THEN
-                    PRINT *, "THE MATID HAS BEEN USED IN THE MATERIAL LIST. TRY ANOTHER ONE. MATID=", MATID1
-                    STOP
+                    IF(SOLVER_CONTROL.ISSLOPEPA<1) THEN
+                        PRINT *, "THE MATID HAS BEEN USED IN THE MATERIAL LIST. TRY ANOTHER ONE. MATID=", MATID1
+                        STOP
+                    ENDIF
                 ELSE
                     material(matid1).ISINPUT=matid1
                 ENDIF
@@ -1323,18 +1347,22 @@ subroutine solvercommand(term,unit)
 			end do
 			if(Numnseep>0)	then
 				Nseep1(n4+1:n4+Numnseep)=Nseep
-				deallocate(Nseep)
+                !nseep=nseep1
+				!deallocate(Nseep)
 			end if
 			Numnseep=n4+Numnseep
-			allocate(Nseep(Numnseep))
+			!allocate(Nseep(Numnseep))
 			Nseep=Nseep1
-			deallocate(Nseep1)
+			if(allocated(nseep1)) deallocate(Nseep1)
 			
 			Nseep.dof=4
 			Nseep.isdead=0
-
-			Nseep.value=Node(Nseep.node).coord(ndimension)
-            
+            where(Nseep.node>0) 
+			    Nseep.value=Node(Nseep.node).coord(ndimension)
+            elsewhere
+                Nseep.isdead=1
+                Nseep.value=-999
+            end where
 !			node(Nseep.node).property=1
 		case('datapoint')
 			print *, 'Reading DATAPOINT data...'
@@ -1445,7 +1473,7 @@ subroutine solvercommand(term,unit)
 			
 		case('solvercontrol','solver','solver_control')
 			print *, 'Reading SOLVER_CONTROL data'
-            n1=0
+            n1=0;n2=0
 			do i=1,pro_num
 				select case(property(i).name)
 					case('type') 
@@ -1493,6 +1521,7 @@ subroutine solvercommand(term,unit)
 						end if						
 					case('slowtol')
 						solver_control.slowtol=property(i).value
+                        n2=1
 					case('isfu')
 						if(int(property(i).value)==YES) then
 							solver_control.isfu=.true.
@@ -1538,6 +1567,8 @@ subroutine solvercommand(term,unit)
                         solver_control.slope_kbase=property(i).value
                     case('isslopepa')
                         solver_control.isslopepa=int(property(i).value)
+                    case('slope_only_searchtop')
+                        solver_control.slope_ONLY_SEARCHTOP=int(property(i).value)                        
                     case('slope_kratio')
                         solver_control.slope_kratio=property(i).value                        
                     case('slope_istensioncrack')
@@ -1568,6 +1599,7 @@ subroutine solvercommand(term,unit)
 				solver_control.solver=N_R
             endif	
             if(n1==0) solver_control.bfgm_spg=solver_control.bfgm
+            if(n2==0) solver_control.slowtol=solver_control.force_tol
 !			if(associated(solver_control.factor)) then
 !				read(unit,*)   solver_control.factor
 !			else
@@ -1612,6 +1644,8 @@ subroutine solvercommand(term,unit)
                     IF(INT(property(i).value)/=0) N1=1
                 CASE('ibcpa')
                     slopeparameter.ibcpa=int(property(i).value)
+                CASE('mu')
+                    slopeparameter.mu=property(i).value                    
                 !case('xcl')
                 !    slopeparameter.xcl=property(i).value
                 !case('xcr')
@@ -2041,7 +2075,7 @@ subroutine solvercommand(term,unit)
                 !-1 IS FOR ZT4_SPG,ZT6_SPG, WHICH C IS DETERMINED FROM ELEMENT GEOMETRY.
 				do i=1,ncoord
 					call skipcomment(unit)
-					read(unit,*) ((coordinate(i).c(j,k),k=1,3),j=1,3)
+					read(unit,*) ((coordinate(i).c(j,k),k=1,ndimension),j=1,ndimension)
 				end do
                 coordinate(-1).C=0.0D0;coordinate(0).C=0.0D0
 				coordinate(-1:0).c(1,1)=1.0d0
@@ -2333,6 +2367,10 @@ subroutine solvercommand(term,unit)
 						outvar(SFR_SFRX).value=SFR_SFRX
 						outvar(SFR_SFRY).name='SFRY'
 						outvar(SFR_SFRY).value=SFR_SFRY
+						outvar(SFR_KR).name='SFR_KR'
+						outvar(SFR_KR).value=SFR_KR
+						outvar(SFR_KO).name='SFR_KO'
+						outvar(SFR_KO).value=SFR_KO                         
                         outvar(MC_C).name='MC_C'
                         outvar(MC_C).VALUE=MC_C
                         OUTVAR(MC_PHI).NAME='MC_PHI'

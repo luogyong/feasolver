@@ -44,7 +44,8 @@ SUBROUTINE SPG_Q_UPDATE(STEPDIS,bload,HHEAD,INIHEAD,DT,nbload,ienum,iiter,istep,
 		    !gradient
 		    element(ienum).igrad(1:nd1,j)=matmul(element(ienum).B(:,:,j),HHEAD(1:NBLOAD))
 		    !velocity
-		    CALL SPG_KT_UPDATE(KT1,HHEAD,HJ,nbload,IENUM,J,ISTEP,IITER)			
+		    CALL SPG_KT_UPDATE(KT1,HHEAD,HJ,nbload,IENUM,J,ISTEP,IITER)
+            
 		    element(ienum).velocity(1:nd1,j)=-matmul(KT1,element(ienum).igrad(1:nd1,j))
 		    !flux
 		    if(.not.stepinfo(istep).issteady) then
@@ -69,9 +70,10 @@ SUBROUTINE SPG_Q_UPDATE(STEPDIS,bload,HHEAD,INIHEAD,DT,nbload,ienum,iiter,istep,
 										
 		    bload(1:NBLOAD)=bload(1:NBLOAD)+ &
 		    matmul(-element(ienum).velocity(1:nd1,j),element(ienum).b(:,:,j))* &
-		    element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*R1						
-
-            if(solver_control.bfgm==continuum.or.solver_control.bfgm==consistent) then
+		    element(ienum).detjac(j)*ecp(element(ienum).et).weight(j)*R1
+       
+            if(solver_control.bfgm==continuum.or.solver_control.bfgm==consistent.or.solver_control.bfgm==inistress) then
+                isref_spg=1
                 if(j==1) element(ienum).km=0.0D0
 			    element(ienum).km=element(ienum).km+ &
 				    matmul(MATMUL(TRANSPOSE(element(ienum).b(:,:,j)),KT1),element(ienum).b(:,:,j))* &
@@ -186,7 +188,7 @@ subroutine slope_SWWC_spg(ienum,hj,z,slope,sita,sita_ini,hj_ini,ISTEP)
     real(kind=DPN)::t1,alpha1,fn1,fm1,seff1,sita_s,sita_r,rw1
     
     t1=hj-z
-    sita_s = material(element(ienum).mat).GET(11,ISTEP)!é¥±å’Œä½“ç§¯å«æ°´é‡
+    sita_s = material(element(ienum).mat).GET(11,ISTEP)!±¥ºÍÌå»ýº¬Ë®Á¿
     
     if(t1>=0.d0) then
         slope=material(element(ienum).mat).GET(10,ISTEP)
@@ -197,8 +199,8 @@ subroutine slope_SWWC_spg(ienum,hj,z,slope,sita,sita_ini,hj_ini,ISTEP)
     !sita
     alpha1 = material(element(ienum).mat).GET(7,ISTEP)
     fn1 = material(element(ienum).mat).GET(8,ISTEP)
-    sita_r = material(element(ienum).mat).GET(12,ISTEP) !!æ®‹ä½™ä½“ç§¯å«æ°´é‡(é»˜è®¤ä¸º0)
-    rw1=material(element(ienum).mat).GET(13,ISTEP) !æ°´çš„é‡åº¦    
+    sita_r = material(element(ienum).mat).GET(12,ISTEP) !!²ÐÓàÌå»ýº¬Ë®Á¿(Ä¬ÈÏÎª0)
+    rw1=material(element(ienum).mat).GET(13,ISTEP) !Ë®µÄÖØ¶È    
     
    select case(material(element(ienum).mat).type)
 					
@@ -249,8 +251,8 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
 	INTEGER,INTENT(IN)::NHH,IENUM,IGP,ISTEP,IITER
     REAL(DPN),INTENT(IN)::HHEAD(NHH),HJ
 	REAL(DPN),INTENT(OUT)::KT(NDIMENSION,NDIMENSION)
-	REAL(DPN)::ROT1(2,2),COS1,SIN1,T1,FAC1,SITA1,LAMDA,C1,PHI1,SFR1(6),SIGMA1(6),TS1,PI1,MU1
-    INTEGER::I,IENUMC1,IE1	
+	REAL(DPN)::ROT1(2,2),COS1,SIN1,T1,FAC1,SITA1,LAMDA,C1,PHI1,SFR1(8),SIGMA1(6),TS1,PI1,MU1
+    INTEGER::I,IENUMC1,IE1,TSFAIL1=0	
     
     
 	
@@ -263,13 +265,14 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
     
     KT=ELEMENT(IENUM).D*LAMDA
     
+        
 	IF(ESET(ELEMENT(IENUM).SET).COUPLESET<0.OR.ESET(ELEMENT(IENUM).SET).COUPLESET==ELEMENT(IENUM).SET) RETURN
     
     PI1=3.14159265358979
     IE1=IENUM-(ESET(ELEMENT(IENUM).SET).ENUMS-1)
     IENUMC1=ESET(ESET(ELEMENT(IENUM).SET).COUPLESET).ENUMS-1+IE1
     
-    !!è®¡ç®—å¼¹æ€§ï¼ˆç¬¬ä¸€æ¬¡è¿­ä»£è®¡ç®—æ—¶ä¸ºå¼¹æ€§è®¡ç®—ï¼‰koçŠ¶æ€ä¸‹çš„sfrï¼Œåªè®¡ç®—ä¸€æ¬¡.
+    !!¼ÆËãµ¯ÐÔ£¨µÚÒ»´Îµü´ú¼ÆËãÊ±Îªµ¯ÐÔ¼ÆËã£©ko×´Ì¬ÏÂµÄsfr£¬Ö»¼ÆËãÒ»´Î.
     !IF(.not.allocated(element(ienumc1).sfrko)) then
     !    allocate(element(ienumc1).sfrko(element(ienumc1).ngp))
     !    mu1=material(ELEMENT(IENUMC1).MAT).GET(2,ISTEP)
@@ -279,9 +282,9 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
     !    IF(material(ELEMENT(IENUMC1).MAT).TYPE==MC)THEN
     !        TS1=C1/MAX(tan(phi1/180*PI1),1E-7) 
     !    ENDIF
-    !    !!å‡å®škoåº”åŠ›ï¼Œko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
+    !    !!¼Ù¶¨koÓ¦Á¦£¬ko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
     !    DO I=1,element(ienumc1).ngp
-    !        SIGMA1=ELEMENT(IENUMC1).STRESS(:,I)+ELEMENT(IENUMC1).DSTRESS(:,I) !!è¿­ä»£æ—¶åº”åŠ›è¿˜æ²¡æ›´æ–°
+    !        SIGMA1=ELEMENT(IENUMC1).STRESS(:,I)+ELEMENT(IENUMC1).DSTRESS(:,I) !!µü´úÊ±Ó¦Á¦»¹Ã»¸üÐÂ
     !        sigma1(1)=mu1/(1-mu1)*sigma1(2);sigma1(3)=sigma1(1);sigma1(4:6)=0
 	   !     call stress_in_failure_surface(sfr1,SIGMA1,2,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUMC1).XYGP(1:NDIMENSION,I),TS1)
     !        element(ienumc1).sfrko(I)=SFR1(1)
@@ -289,7 +292,16 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
     !ENDIF    
         
     SFR1=ELEMENT(IENUMC1).SFR(:,IGP)
+
+    !Ó¦Á¦³¡ÓëÉøÁ÷³¡·Ö¿ª¼ÆËãÊ±£¬maxsfr±»ÖØÐÂresetÎª¸º´óÊý¡£
+    IF(ISTEP>1.AND.MAXSFR<-1.D10) THEN
+        MAXSFR=MAXSFR_LAST
+        IF(MAXSFR<-1.D10) STOP "ERROR IN MAXSFR VALUE."
+    ENDIF
     
+    TSFAIL1=0
+    IF(ABS(SFR1(1)+SFR1(8)+1.0D0)<1E-6) TSFAIL1=1 !ÁîÊÜÀ­ÆÆ»µµÄSFR1=maxsfr    
+    IF(TSFAIL1==1) SFR1(1)=MAXSFR
     !SFR1(1)=ABS(SFR1(1)-element(ienumc1).sfrko(IGP))
     
     
@@ -311,10 +323,12 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
         lamda=lamda*exp(2*abs(sfr1(1)))
     ENDIF
     !element(ienum).kr(IGP)=lamda
-
+    ELEMENT(IENUMC1).SFR(7,IGP)=LAMDA
+    if(solver_control.slope_kratio>0) then
+        kt(2,2)=kt(1,1)/solver_control.slope_kratio
+    endif
     KT=KT*lamda
-    
-    
+
     IF(ABS(KT(1,1)-KT(2,2))>1E-7) THEN        
 	    COS1=COS(SITA1);SIN1=SIN(SITA1)
 	    ROT1(1,1)=COS1;ROT1(2,2)=COS1;ROT1(1,2)=SIN1;ROT1(2,1)=-SIN1
@@ -339,6 +353,7 @@ SUBROUTINE SPG_Signorini_BC_UPDATE(DISQ,STEPDIS,ISTEP)
 
 	isref_spg=0
 	do i=1,numNseep
+        if(Nseep(i).node<1) cycle
 		if(sf(NSeep(i).sf).factor(istep)==-999.D0) cycle
 		
 		if(Nseep(i).isdual>0) then
@@ -417,7 +432,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
             QR1=(NHEAD1(3)-NHEAD1(2))*ELEMENT(IEL).KM(3,3)+(NHEAD1(4)-NHEAD1(1))*ELEMENT(IEL).KM(4,4)
             FACC1=QR1/(G1*AREA1**2)
             IF(MODEL1==1.AND.ABS(QR1)>1.E-7) THEN
-            ! SiwoÅ„, Z. (1987), Solutions for Lateral Inflow in Perforated Conduits, Journal of Hydraulic Engineering, 113(9), 1117-1132.
+            ! Siwo¨½, Z. (1987), Solutions for Lateral Inflow in Perforated Conduits, Journal of Hydraulic Engineering, 113(9), 1117-1132.
                 PO1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(9)
                 B1=10/(1000*PO1)**4.2+4/10**7                
                 C1=1.05+1./(1.235+B1*(QA1/QR1*4*L1*PO1/D1)**2)
@@ -498,12 +513,15 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
             !ENDIF
         
             IN1=ELEMENT(IEL).NODE(2+I)
+            IF(ELEMENT(IEL).ISTOPO>0) IN1=ELEMENT(IEL).NODE(5+I)
             !IN2=ELEMENT(IEL).NODE(2+MOD(I,2)+1)
             !DIS1=NORM2(NODE(IN1).COORD-NODE(IN2).COORD)/2.
             IF(I==1) THEN
                 N2=2 !2-3
+                IF(ELEMENT(IEL).ISTOPO>0) IN1=ELEMENT(IEL).NODE(6)
             ELSE
                 N2=1 !1-4
+                IF(ELEMENT(IEL).ISTOPO>0) IN1=ELEMENT(IEL).NODE(5)
             ENDIF
             !IF(ET1==WELLBORE) THEN
 
@@ -549,8 +567,8 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
                         X1=X1-NODE(ELEMENT(IEL).NODE(3)).COORD !ORIGIN IS THE THIRD NODE. 
 
                         LP1=DOT_PRODUCT(X1,VW1) 
-                        X2=LP1*VW1 !X1åœ¨äº•çº¿ä¸Šçš„æŠ•å½± 
-                        X2=X1-X2 !æŠ•å½±çº¿å‘é‡ï¼Œä¸ºæ­¤å•å…ƒçš„æµé‡çš„æ–¹å‘çŸ¢é‡
+                        X2=LP1*VW1 !X1ÔÚ¾®ÏßÉÏµÄÍ¶Ó° 
+                        X2=X1-X2 !Í¶Ó°ÏßÏòÁ¿£¬Îª´Ëµ¥ÔªµÄÁ÷Á¿µÄ·½ÏòÊ¸Á¿
                         R1=NORM2(X2)                   
                 
                         !DIRECTIONAL K
@@ -575,10 +593,10 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
                         
                     ENDIF
                     
-                    IF((LP1<0.D0.OR.LP1>2*DIS1).AND.ISIN1) CYCLE !è·³è¿‡ä¸åœ¨å•å…ƒèŒƒå›´å†…çš„èŠ‚ç‚¹
+                    IF((LP1<0.D0.OR.LP1>2*DIS1).AND.ISIN1) CYCLE !Ìø¹ý²»ÔÚµ¥Ôª·¶Î§ÄÚµÄ½Úµã
                
                     HZ1=NHEAD1(2)+(NHEAD1(1)-NHEAD1(2))/(2*DIS1)*LP1
-                    !è¦è€ƒè™‘äº•æŸ
+                    !Òª¿¼ÂÇ¾®Ëð
                     RA1=(H1-HZ1)/(LOG(R1/MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1))/(ELEMENT(IEL).PROPERTY(6)*KR1*DIS1)+ELEMENT(IEL).PROPERTY(5))
                     W1=ELEMENT(IEL1).ANGLE(SNADJL(IN1).SUBID(J))
                     Q1(I+2)=Q1(I+2)+RA1*W1
@@ -589,9 +607,9 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
                 IF(IP1>0) EXIT
                 
                 IF(II1==1) THEN
-                   PRINT *, "äº•å•å…ƒIå‘¨è¾¹å•å…ƒçš„å½¢å¿ƒçš„æŠ•å½±å‡ä¸åœ¨å•å…ƒIå†…ï¼Œå°è¯•åŒºåŸŸå¤–çš„å•å…ƒ.I=",iel                 
+                   PRINT *, "¾®µ¥ÔªIÖÜ±ßµ¥ÔªµÄÐÎÐÄµÄÍ¶Ó°¾ù²»ÔÚµ¥ÔªIÄÚ£¬³¢ÊÔÇøÓòÍâµÄµ¥Ôª.I=",iel                 
                 ELSE
-                   PRINT *, "äº•å•å…ƒIå‘¨è¾¹æ²¡æœ‰ç›¸é‚»çš„å•å…ƒ.è¯·æ£€æŸ¥.I=",iel 
+                   PRINT *, "¾®µ¥ÔªIÖÜ±ßÃ»ÓÐÏàÁÚµÄµ¥Ôª.Çë¼ì²é.I=",iel 
                    STOP
                 ENDIF
             ENDDO
@@ -607,8 +625,8 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
             
             IF(ABS(DH1)<1.D-5) DH1=1.D-5
             
-            !ELEMENT(IEL).PROPERTY(I+1)=ABS(2*DH1/(Q1(I+2)+QN1(I+2))) !!!åŒ…å«äº†äº•æŸã€‚
-            ELEMENT(IEL).PROPERTY(I+1)=ABS(DH1/Q1(I+2))!!!åŒ…å«äº†äº•æŸã€‚
+            !ELEMENT(IEL).PROPERTY(I+1)=ABS(2*DH1/(Q1(I+2)+QN1(I+2))) !!!°üº¬ÁË¾®Ëð¡£
+            ELEMENT(IEL).PROPERTY(I+1)=ABS(DH1/Q1(I+2))!!!°üº¬ÁË¾®Ëð¡£
             
           
             A1(I+1)=1.0/(ELEMENT(IEL).PROPERTY(I+1))
@@ -686,7 +704,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
             QR1=(NHEAD1(3)-NHEAD1(2))*ELEMENT(IEL).KM(3,3)+(NHEAD1(4)-NHEAD1(1))*ELEMENT(IEL).KM(4,4)
             FACC1=QR1/(G1*AREA1**2)
             IF(MODEL1==1.AND.ABS(QR1)>1.E-7) THEN
-            ! SiwoÅ„, Z. (1987), Solutions for Lateral Inflow in Perforated Conduits, Journal of Hydraulic Engineering, 113(9), 1117-1132.
+            ! Siwo¨½, Z. (1987), Solutions for Lateral Inflow in Perforated Conduits, Journal of Hydraulic Engineering, 113(9), 1117-1132.
                 PO1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(9)
                 B1=10/(1000*PO1)**4.2+4/10**7                
                 C1=1.05+1./(1.235+B1*(QA1/QR1*4*L1*PO1/D1)**2)
@@ -762,8 +780,8 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
         ENDDO
         
         N1=SIZE(ELEMENT(IEL).NSPLOC)/3 
-        !åŒä¸€å•å…ƒå„é‡‡æ ·ç‚¹åˆ°äº•è½´çš„è·ç¦»éƒ½ç›¸ç­‰ã€‚
-        N2=MAXLOC(ELEMENT(IEL).NSPLOC(1:N1),dim=1) !æŽ’é™¤ä¸åœ¨èŒƒå›´å†…çš„é‡‡æ ·ç‚¹ã€‚
+        !Í¬Ò»µ¥Ôª¸÷²ÉÑùµãµ½¾®ÖáµÄ¾àÀë¶¼ÏàµÈ¡£
+        N2=MAXLOC(ELEMENT(IEL).NSPLOC(1:N1),dim=1) !ÅÅ³ý²»ÔÚ·¶Î§ÄÚµÄ²ÉÑùµã¡£
         R1=NORM2(ELEMENT(IEL).A12(:,N2)-NODE(ELEMENT(IEL).NODE(3)).COORD)
         
         IF(R1<=rw1) THEN
@@ -797,16 +815,16 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
 
             IP1=0;RA1=0.D0;W1=0;TW1=0;     
             
-            !æœ¬ç«¯é‡‡æ ·èŠ‚ç‚¹+ä¸­é—´é‡‡æ ·èŠ‚ç‚¹           
+            !±¾¶Ë²ÉÑù½Úµã+ÖÐ¼ä²ÉÑù½Úµã           
             
             DO J=1,2*N1
                 IF(ELEMENT(IEL).NSPLOC(NSP1(J))<=0) CYCLE
-                !é‡‡æ ·ç‚¹
+                !²ÉÑùµã
                 X1=ELEMENT(IEL).A12(:,NSP1(J))
                 H1=SPH1(NSP1(J))
                 !IF(H1<X1(NDIMENSION)) CYCLE
                 
-                !é‡‡æ ·ç‚¹æŠ•å½±ç‚¹
+                !²ÉÑùµãÍ¶Ó°µã
                 IF(J<=N1) THEN
                     XC1=NODE(ELEMENT(IEL).NODE(N2)).COORD
                 ELSE
@@ -822,9 +840,10 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
                 SITA1=X2/R1            
                 K1=0.D0
                 DO I0=1,3
-                    !å‡å®šä¸­é—´é‡‡æ ·ç‚¹æ‰€åœ¨çš„å•å…ƒææ–™èƒ½ä»£è¡¨ä¸ºäº•å‘¨ææ–™(ä¸¤ç«¯èŠ‚ç‚¹å¯èƒ½æ˜¯ææ–™åˆ†ç•Œé¢ï¼Œææ–™å¯èƒ½ä¸ç¡®å®š)ã€‚
+                    !¼Ù¶¨ÖÐ¼ä²ÉÑùµãËùÔÚµÄµ¥Ôª²ÄÁÏÄÜ´ú±íÎª¾®ÖÜ²ÄÁÏ(Á½¶Ë½Úµã¿ÉÄÜÊÇ²ÄÁÏ·Ö½çÃæ£¬²ÄÁÏ¿ÉÄÜ²»È·¶¨)¡£
                     IF(J<=N1) THEN
                         IEL1=ELEMENT(IEL).NSPLOC(NSP1(N1+J))
+                        IF(IEL1==0) IEL1=ELEMENT(IEL).NSPLOC(NSP1(J))
                     ELSE
                         IEL1=ELEMENT(IEL).NSPLOC(NSP1(J))
                     ENDIF
@@ -842,7 +861,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
                     KR1=(kx1*ky1)**0.5
                     if(solver_control.wellaniso==1) then 
                         !REf:Fitts, C.R., Exact Solution for Two-Dimensional Flow to a Well in an Anisotropic Domain. Groundwater, 2006. 44(1): p. 99-101.
-                        !å„å‘å¼‚æ€§ï¼Œè½¬åŒ–ä¸ºå„å‘åŒæ€§è¿›è¡Œå¤„ç†ã€‚
+                        !¸÷ÏòÒìÐÔ£¬×ª»¯Îª¸÷ÏòÍ¬ÐÔ½øÐÐ´¦Àí¡£
                         scale1=(max(kx1,ky1)/min(kx1,ky1))**0.5
                         f1=rw1*(scale1**2-1)**0.5
                         IF(KX1<KY1) THEN
@@ -861,7 +880,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
                         Rwu1=ABS(U1)
                         val1=log(RU1/RWU1)
                     else
-                        !çŽ‹å»ºè£, å„å‘å¼‚æ€§ä»‹è´¨ä¸­å¤§å£å¾„æ½œæ°´å®Œæ•´äº•æµå…¬å¼. å‹˜å¯Ÿç§‘å­¦æŠ€æœ¯, 1991(02): p. 10-13.
+                        !Íõ½¨ÈÙ, ¸÷ÏòÒìÐÔ½éÖÊÖÐ´ó¿Ú¾¶Ç±Ë®ÍêÕû¾®Á÷¹«Ê½. ¿±²ì¿ÆÑ§¼¼Êõ, 1991(02): p. 10-13.
                         call Nint_gauss(fun_lnkr,0.,PI1/2,val1,1e-7,isok)
                        
                         val1=val1/PI1-log(rw1)                
@@ -883,13 +902,13 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
              
                 HZ1=NHEAD1(2)+(NHEAD1(1)-NHEAD1(2))/(2*DIS1)*LP1
                 
-                !è¦è€ƒè™‘äº•æŸ
+                !Òª¿¼ÂÇ¾®Ëð
                 !DIS2=DIS1/(MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(3))**0.5
                 !RA1=(H1-HZ1)/(LOG(Ru1/rwu1)/(ELEMENT(IEL).PROPERTY(6)*KR1*DIS1)+ELEMENT(IEL).PROPERTY(5))
                 RA1=(H1-HZ1)/(val1/(ELEMENT(IEL).PROPERTY(6)*KR1*DIS1)+ELEMENT(IEL).PROPERTY(5))
                 !W1=ELEMENT(IEL1).ANGLE(SNADJL(IN1).SUBID(J))
                 w1=1
-                !IF(J<=N1) w1=0.5  !æŒ‰æ‰€è¾–é•¿åº¦ä¸ºæƒï¼Œä¸¤ç«¯ç‚¹çš„æƒæ¯”ä¸­é—´çš„æƒå°ä¸€åŠã€‚ 
+                !IF(J<=N1) w1=0.5  !°´ËùÏ½³¤¶ÈÎªÈ¨£¬Á½¶ËµãµÄÈ¨±ÈÖÐ¼äµÄÈ¨Ð¡Ò»°ë¡£ 
                 Q1(I+2)=Q1(I+2)+RA1*W1
                 TW1=TW1+W1;IP1=IP1+1
                 !WRITE(99,20) ISTEP,IITER,IEL,I+2,IP1,X2,X1,R1,H1,HZ1,RA1,W1                    
@@ -907,8 +926,8 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
             
             IF(ABS(DH1)<1.D-5) DH1=1.D-5
             
-            !ELEMENT(IEL).PROPERTY(I+1)=ABS(2*DH1/(Q1(I+2)+QN1(I+2))) !!!åŒ…å«äº†äº•æŸã€‚
-            ELEMENT(IEL).PROPERTY(I+1)=ABS(DH1/Q1(I+2))!!!åŒ…å«äº†äº•æŸã€‚
+            !ELEMENT(IEL).PROPERTY(I+1)=ABS(2*DH1/(Q1(I+2)+QN1(I+2))) !!!°üº¬ÁË¾®Ëð¡£
+            ELEMENT(IEL).PROPERTY(I+1)=ABS(DH1/Q1(I+2))!!!°üº¬ÁË¾®Ëð¡£
             
           
             A1(I+1)=1.0/(ELEMENT(IEL).PROPERTY(I+1))
@@ -1001,7 +1020,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE3(STEPDIS,IEL,ISTEP,IITER)
             QR1=(NHEAD1(3)-NHEAD1(2))*ELEMENT(IEL).KM(3,3)+(NHEAD1(4)-NHEAD1(1))*ELEMENT(IEL).KM(4,4)
             FACC1=QR1/(G1*AREA1**2)
             IF(MODEL1==1.AND.ABS(QR1)>1.E-7) THEN
-            ! SiwoÅ„, Z. (1987), Solutions for Lateral Inflow in Perforated Conduits, Journal of Hydraulic Engineering, 113(9), 1117-1132.
+            ! Siwo¨½, Z. (1987), Solutions for Lateral Inflow in Perforated Conduits, Journal of Hydraulic Engineering, 113(9), 1117-1132.
                 PO1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(9)
                 B1=10/(1000*PO1)**4.2+4/10**7                
                 C1=1.05+1./(1.235+B1*(QA1/QR1*4*L1*PO1/D1)**2)
@@ -1078,8 +1097,10 @@ SUBROUTINE WELLBORE_Q_K_UPDATE3(STEPDIS,IEL,ISTEP,IITER)
             !DIS1=NORM2(NODE(IN1).COORD-NODE(IN2).COORD)/2.
             IF(I==1) THEN
                 N2=2 !2-3
+                IF(ELEMENT(IEL).ISTOPO>0) IN1=ELEMENT(IEL).NODE(6)
             ELSE
                 N2=1 !1-4
+                IF(ELEMENT(IEL).ISTOPO>0) IN1=ELEMENT(IEL).NODE(5)
             ENDIF
             !IF(ET1==WELLBORE) THEN
 
@@ -1113,10 +1134,10 @@ SUBROUTINE WELLBORE_Q_K_UPDATE3(STEPDIS,IEL,ISTEP,IITER)
                     
                     LP1=DOT_PRODUCT(X1,VW1)
                 
-                    IF(LP1<0.D0.OR.LP1>2*DIS1) CYCLE !è·³è¿‡ä¸åœ¨å•å…ƒèŒƒå›´å†…çš„èŠ‚ç‚¹
+                    IF(LP1<0.D0.OR.LP1>2*DIS1) CYCLE !Ìø¹ý²»ÔÚµ¥Ôª·¶Î§ÄÚµÄ½Úµã
                 
-                    X2=LP1*VW1 !X1åœ¨äº•çº¿ä¸Šçš„æŠ•å½± 
-                    X2=X1-X2 !æŠ•å½±çº¿å‘é‡ï¼Œä¸ºæ­¤å•å…ƒçš„æµé‡çš„æ–¹å‘çŸ¢é‡
+                    X2=LP1*VW1 !X1ÔÚ¾®ÏßÉÏµÄÍ¶Ó° 
+                    X2=X1-X2 !Í¶Ó°ÏßÏòÁ¿£¬Îª´Ëµ¥ÔªµÄÁ÷Á¿µÄ·½ÏòÊ¸Á¿
                     R1=NORM2(X2) 
                 
                     IF(R1<=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)) CYCLE
@@ -1139,7 +1160,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE3(STEPDIS,IEL,ISTEP,IITER)
                     
                
                     HZ1=NHEAD1(2)+(NHEAD1(1)-NHEAD1(2))/(2*DIS1)*LP1
-                    !è¦è€ƒè™‘äº•æŸ
+                    !Òª¿¼ÂÇ¾®Ëð
                     !DIS2=DIS1/(MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(3))**0.5
                     RA1=(H1-HZ1)/(LOG(R1/MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1))/(ELEMENT(IEL).PROPERTY(6)*KR1*DIS1)+ELEMENT(IEL).PROPERTY(5))
                     !W1=ELEMENT(IEL1).ANGLE(SNADJL(IN1).SUBID(J))
@@ -1153,7 +1174,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE3(STEPDIS,IEL,ISTEP,IITER)
             ENDDO
                 
             IF(IP1<1) THEN
-                PRINT *, "äº•å•å…ƒIå‘¨è¾¹ä¸Žå…¶ç¬¬jèŠ‚ç‚¹ç›¸è¿žèŠ‚ç‚¹çš„æŠ•å½±ç‚¹å‡ä¸åœ¨å•å…ƒå†….I=,j=",iel,2+i
+                PRINT *, "¾®µ¥ÔªIÖÜ±ßÓëÆäµÚj½ÚµãÏàÁ¬½ÚµãµÄÍ¶Ó°µã¾ù²»ÔÚµ¥ÔªÄÚ.I=,j=",iel,2+i
                 STOP
             ENDIF
             
@@ -1170,8 +1191,8 @@ SUBROUTINE WELLBORE_Q_K_UPDATE3(STEPDIS,IEL,ISTEP,IITER)
             
             IF(ABS(DH1)<1.D-5) DH1=1.D-5
             
-            !ELEMENT(IEL).PROPERTY(I+1)=ABS(2*DH1/(Q1(I+2)+QN1(I+2))) !!!åŒ…å«äº†äº•æŸã€‚
-            ELEMENT(IEL).PROPERTY(I+1)=ABS(DH1/Q1(I+2))!!!åŒ…å«äº†äº•æŸã€‚
+            !ELEMENT(IEL).PROPERTY(I+1)=ABS(2*DH1/(Q1(I+2)+QN1(I+2))) !!!°üº¬ÁË¾®Ëð¡£
+            ELEMENT(IEL).PROPERTY(I+1)=ABS(DH1/Q1(I+2))!!!°üº¬ÁË¾®Ëð¡£
             
           
             A1(I+1)=1.0/(ELEMENT(IEL).PROPERTY(I+1))
@@ -1228,26 +1249,30 @@ SUBROUTINE INI_WELLBORE(IELT)
     
     USE MESHADJ,ONLY:SEDGE,NSEDGE,SNADJL,GETGMSHET,ELTTYPE,SFACE,NSFACE,&
                     POINTlOC_BC_SOLVER,getval_solver
+    USE forlab,ONLY:ISOUTLIER
     USE solverds
     USE SolverMath
     USE IFPORT
     IMPLICIT NONE
     INTEGER,INTENT(IN)::IELT
-    INTEGER::I,J,K,IELT1,IEDGE1,GMET1,SUBID1,AF1(2),N1,NADJL1(200),N2,N3
+    INTEGER::I,J,K,IELT1,IEDGE1,GMET1,SUBID1,AF1(2),N1,NADJL1(200),N2,N3,K1
     REAL(8)::AV1(3,2),AR1(3,3),ZV1(3),YV1(3),XV1(3),D1,T1,T2,RDIS1(200),HK1,PHI1,TPHI1,WR1,L1,&
-        ORG1(3),AREA1,XYLMT(2,3),SR1,SPT1(3,50)
+        ORG1(3),AREA1,XYLMT(2,3),SR1,SPT1(3,50),try1,try2,TRY0
+    REAL(8),ALLOCATABLE::RDIS2(:)
     
     if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
     
     IEDGE1=ELEMENT(IELT).EDGE(3)
-    N1=0
     L1=SEDGE(IEDGE1).DIS/2.0
+    IF(ELEMENT(IELT).ISTOPO>0) IEDGE1=ELEMENT(IELT).EDGE(5)
+    N1=0
+    
     IF(SEDGE(IEDGE1).ENUM<2) THEN
         PRINT *, "NO ELEMENTS SURROUNDING THE WELLBORE ELEMENT I. I=",IELT
         PRINT *, "TRY TO EMBED THE WELL LINE INTO THE CORRESPOINDING VOLUME."
         STOP
     ENDIF
-    !ç»Ÿè®¡ä»¥äº•æµå•å…ƒä¸ºè¾¹çš„å•å…ƒæ•°
+    !Í³¼ÆÒÔ¾®Á÷µ¥ÔªÎª±ßµÄµ¥ÔªÊý
     DO I=1,SEDGE(IEDGE1).ENUM
         IELT1=SEDGE(IEDGE1).ELEMENT(I)
         GMET1=GETGMSHET(ELEMENT(IELT1).ET)
@@ -1260,9 +1285,10 @@ SUBROUTINE INI_WELLBORE(IELT)
        
     ALLOCATE(ELEMENT(IELT).NODE2(N1),ELEMENT(IELT).ANGLE(N1))
     
-    DO I=3,4
-        DO J=1,SNADJL(ELEMENT(IELT).NODE(I)).ENUM
-            IELT1=SNADJL(ELEMENT(IELT).NODE(I)).ELEMENT(J)
+    DO I=1,2
+        DO J=1,SNADJL(SEDGE(IEDGE1).V(I)).ENUM
+            IELT1=SNADJL(SEDGE(IEDGE1).V(I)).ELEMENT(J)
+            IF(IELT1<1)  CYCLE
             IF(ELEMENT(IELT1).ET==WELLBORE.OR.ELEMENT(IELT1).ET==PIPE2 &
             .OR.ELEMENT(IELT1).ET==WELLBORE_SPGFACE) CYCLE !ITSELF EXCLUDED
             IF(ELEMENT(IELT1).ET==SPHFLOW.OR.ELEMENT(IELT1).ET==SEMI_SPHFLOW) CYCLE !ITSELF EXCLUDED
@@ -1289,7 +1315,7 @@ SUBROUTINE INI_WELLBORE(IELT)
             AV1(:,J)=NORMAL_TRIFACE(AR1)            
         ENDDO
         ELEMENT(IELT).ANGLE(N1)=DihedralAngle(AV1(:,1),AV1(:,2))
-        !äº•å‘¨è¾¹å•å…ƒçš„çš„å¹³å‡æ¸—é€ç³»æ•°ï¼Œ
+        !¾®ÖÜ±ßµ¥ÔªµÄµÄÆ½¾ùÉøÍ¸ÏµÊý£¬
         HK1=HK1+ELEMENT(IELT).ANGLE(N1)*(MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(1)*MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(2))**0.5        
     ENDDO
     
@@ -1303,14 +1329,14 @@ SUBROUTINE INI_WELLBORE(IELT)
     PHI1=TPHI1/SIZE(ELEMENT(IELT).ANGLE)
     
     !LOCAL COORDINATE SYSTEM
-    !ä»¥wellboreå•å…ƒï¼Œ3èŠ‚ç‚¹ä¸ºåŽŸç‚¹ï¼Œ3-4ä¸ºzè½´çš„å±€éƒ¨åæ ‡ç³»ã€‚
+    !ÒÔwellboreµ¥Ôª£¬3½ÚµãÎªÔ­µã£¬3-4ÎªzÖáµÄ¾Ö²¿×ø±êÏµ¡£
     ALLOCATE(ELEMENT(IELT).G2L(3,3))
     ORG1=NODE(ELEMENT(IELT).NODE(3)).COORD
     !local z
     ZV1=NODE(ELEMENT(IELT).NODE(4)).COORD-ORG1
     ZV1=ZV1/NORM2(ZV1)
     !local x
-    !è¿‡ogr1ä¸Žzv1åž‚ç›´çš„å¹³é¢æ–¹ç¨‹ï¼šAx+By+Cz+D=0,å…ˆæ±‚å‡ºD,ç„¶åŽå‡å®šï¼ˆx,y,zï¼‰ä»»æ„ä¸¤ä¸ªï¼Œæ±‚ç¬¬ä¸‰ä¸ªã€‚
+    !¹ýogr1Óëzv1´¹Ö±µÄÆ½Ãæ·½³Ì£ºAx+By+Cz+D=0,ÏÈÇó³öD,È»ºó¼Ù¶¨£¨x,y,z£©ÈÎÒâÁ½¸ö£¬ÇóµÚÈý¸ö¡£
     D1=-DOT_PRODUCT(ZV1,ORG1) !
     !
     IF(ABS(ZV1(3))>1E-7) THEN
@@ -1329,10 +1355,9 @@ SUBROUTINE INI_WELLBORE(IELT)
     
     WR1=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(1)
     T2=PHI1*SIN(PHI1)/(1-COS(PHI1))
-    SR1=0
-    DO J=3,4
-        N2=0
-        N3=ELEMENT(IELT).NODE(J)
+    SR1=0;N2=0
+    DO J=1,2        
+        N3=SEDGE(IEDGE1).V(J)
         DO I=1,SNADJL(N3).NNUM
             N1=SNADJL(N3).NODE(I)
             XV1=NODE(N1).COORD-NODE(ELEMENT(IELT).NODE(3)).COORD
@@ -1340,35 +1365,47 @@ SUBROUTINE INI_WELLBORE(IELT)
             T1=NORM2(XV1(1:2))
             IF(T1>WR1) THEN
                 N2=N2+1
-                NADJL1(N2)=N1;
+                !NADJL1(N2)=N1;
                 RDIS1(N2)=T1
             ENDIF
            
         ENDDO
-        T1=SUM(RDIS1(1:N2))/N2
+        !T1=SUM(RDIS1(1:N2))/N2
         
-        !ç”Ÿæˆé‡‡æ ·ç‚¹åŠå¾„å–ç›¸é‚»æœ€å¤§åŠå¾„ï¼Œé‡Œé¢å—äº•èŠ‚ç‚¹çš„å½±å“ï¼Œå¯èƒ½ä¸å‡†ã€‚
-        SR1=MAXVAL([SR1,RDIS1(1:N2)])
-         
-        
-
-        IF(J==3) THEN
-            !ALLOCATE(ELEMENT(IELT).WELL_SP3(N2),ELEMENT(IELT).WELL_SP3_R(N2))
-            !ELEMENT(IELT).NWSP3=N2
-            !ELEMENT(IELT).WELL_SP3=NADJL1(1:N2)
-            !ELEMENT(IELT).WELL_SP3_R=RDIS1(1:N2)
-            ELEMENT(IELT).PROPERTY(2)=1./(TPHI1*HK1*L1/(LOG(T1/WR1)-T2))
-        ELSE
-            !ALLOCATE(ELEMENT(IELT).WELL_SP4(N2),ELEMENT(IELT).WELL_SP4_R(N2))
-            !ELEMENT(IELT).NWSP4=N2
-            !ELEMENT(IELT).WELL_SP4=NADJL1(1:N2)
-            !ELEMENT(IELT).WELL_SP4_R=RDIS1(1:N2)
-            ELEMENT(IELT).PROPERTY(3)=1./(TPHI1*HK1*L1/(LOG(T1/WR1)-T2))
-        ENDIF
-        
+        !Éú³É²ÉÑùµã°ë¾¶È¡ÏàÁÚ×î´ó°ë¾¶£¬ÀïÃæÊÜ¾®½ÚµãµÄÓ°Ïì£¬¿ÉÄÜ²»×¼¡£
+        !SR1=MAXVAL([SR1,RDIS1(1:N2)])
+        !IF(.NOT.ALLOCATED(RDIS2)) THEN
+        !    RDIS2=RDIS1(1:N2)
+        !ELSE
+        !    RDIS2=[RDIS2,RDIS1(1:N2)]
+        !ENDIF
     ENDDO
-    !ç”Ÿæˆé‡‡æ ·ç‚¹
+    
+    SR1=MAXVAL(RDIS1(1:N2),MASK=isoutlier(RDIS1(1:N2))==.FALSE.) !È¡Òì³£Öµ£¨´óÓÚÈý±¶±ê×¼²î£©Ö®ÍâµÄ×î´óÖµ
+    ELEMENT(IELT).PROPERTY(2:3)=1./(TPHI1*HK1*L1/(LOG(SR1/WR1)-T2))
+    
+        !IF(J==3) THEN
+        !    !ALLOCATE(ELEMENT(IELT).WELL_SP3(N2),ELEMENT(IELT).WELL_SP3_R(N2))
+        !    !ELEMENT(IELT).NWSP3=N2
+        !    !ELEMENT(IELT).WELL_SP3=NADJL1(1:N2)
+        !    !ELEMENT(IELT).WELL_SP3_R=RDIS1(1:N2)
+        !    ELEMENT(IELT).PROPERTY(2)=1./(TPHI1*HK1*L1/(LOG(T1/WR1)-T2))
+        !ELSE
+        !    !ALLOCATE(ELEMENT(IELT).WELL_SP4(N2),ELEMENT(IELT).WELL_SP4_R(N2))
+        !    !ELEMENT(IELT).NWSP4=N2
+        !    !ELEMENT(IELT).WELL_SP4=NADJL1(1:N2)
+        !    !ELEMENT(IELT).WELL_SP4_R=RDIS1(1:N2)
+        !    ELEMENT(IELT).PROPERTY(3)=1./(TPHI1*HK1*L1/(LOG(T1/WR1)-T2))
+        !ENDIF
+        
+   
+    
+    
+    
+    !Éú³É²ÉÑùµã
+    
     IF(solver_control.WELLMETHOD==2) THEN
+        
         N1=solver_control.nspwell
         T1=2*PI()/N1
         DO J=1,N1
@@ -1387,10 +1424,42 @@ SUBROUTINE INI_WELLBORE(IELT)
             ENDIF
             IF(N2<1) N2=ELEMENT(IELT).NODE2(MAX(INT(rand(1)*SIZE(ELEMENT(IELT).NODE2)),1))
             DO K=1,N1
-                YV1=SPT1(:,K)+ZV1
-                N2=POINTlOC_BC_SOLVER(YV1,N2)
+                !!ÒòÎªsr1È¡×î´ó£¬ËùÒÔÓÐ¿ÉÄÜÒ»Ð©µã²»ÔÚÇøÓòÄÚ,²ÉÑù¶þ·Ö·¨ÕÒµ½×î´óµÄÇøÓòÄÚµÄµã¡£
+                try1=1.;try2=WR1/NORM2(SPT1(:,K));TRY0=1;
+                N3=0
+                DO K1=10,1,-1
+                    YV1=try0*SPT1(:,K)+ZV1                    
+                    N2=POINTlOC_BC_SOLVER(YV1,N2)
+                    IF(N2==0) THEN
+                        IF(TRY0<TRY1) TRY1=TRY0
+                    ELSE
+                        IF(TRY0>TRY2) THEN
+                            TRY2=TRY0
+                            N3=N2
+                        ENDIF
+                    ENDIF
+                    IF(ABS(TRY1-TRY2)<0.1) THEN
+                        N2=N3
+                        EXIT
+                    ENDIF
+                    
+                    IF(K1==10) THEN
+                        !¼ì²é×îÀïÃæµÄµãÊÇ·ñÔÚÇøÓòÄÚ
+                        YV1=try2*SPT1(:,K)+ZV1                    
+                        N2=POINTlOC_BC_SOLVER(YV1,N2)
+                        IF(N2==0) THEN
+                            EXIT
+                        ELSE
+                            N3=N2
+                        ENDIF
+                    ENDIF
+                    
+                    try0=(try1+try2)/2                    
+                ENDDO
                 IF(N2==0) THEN
+                    
                     PRINT *, 'FAILED TO LOCATE SAMPLE POINT (J,K),IN SUB INI_WELLBORE. (IELT,J,K)=',IELT,J,K
+                    !PRINT *,'½¨Òé¿ØÖÆ¾®ÖÜµ¥Ôª³ß´ç>5±¶¾®°ë¾¶.'
                     !STOP
                 ELSE
                     ELEMENT(IELT).A12(:,N1*(J-3)+K)=YV1
@@ -1408,7 +1477,7 @@ SUBROUTINE INI_WELLBORE(IELT)
             ENDDO
         ENDDO
     ENDIF
-    !äº•æŸ
+    !¾®Ëð
     IF(ABS(MATERIAL(ELEMENT(IELT).MAT).PROPERTY(7))>1E-12) THEN
         AREA1=2.0*PI()*MATERIAL(ELEMENT(IELT).MAT).PROPERTY(1)*L1
         ELEMENT(IELT).PROPERTY(5)=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(7)/AREA1
@@ -1431,11 +1500,12 @@ SUBROUTINE INI_SPHFLOW(IELT)
     USE solverds
     USE SolverMath
     USE MESHGEO,ONLY:getval_solver
+    USE forlab ,ONLY:ISOUTLIER
     IMPLICIT NONE
     INTEGER,INTENT(IN)::IELT
-    INTEGER::I,J,IELT1,N1,N2,N3
-    REAL(8)::XV1(3),T1,HK1,PHI1,TPHI1,WR1,L1,DV1(3),PI1,ZV1(3),YV1(3),D1,ANGLE1(7),SPT1(3,100),SR1,ORG1(3)
-    
+    INTEGER::I,J,IELT1,N1,N2,N3,K
+    REAL(8)::XV1(3),T1,HK1,PHI1,TPHI1,WR1,L1,DV1(3),PI1,ZV1(3),YV1(3),D1,ANGLE1(7),SPT1(3,100),SR1,ORG1(3),try0,try1,try2
+    REAL(8)::RDIS2(400)
     if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
     
         
@@ -1472,8 +1542,8 @@ SUBROUTINE INI_SPHFLOW(IELT)
     !    TPHI1=TPHI1+PHI1
     !    HK1=HK1+PHI1*(MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(1)*MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(2))**0.5        
     !ENDDO
-    !HK1=HK1/TPHI1 !å¹³å‡çš„K
-    !ç»Ÿè®¡è¾¹é•¿
+    !HK1=HK1/TPHI1 !Æ½¾ùµÄK
+    !Í³¼Æ±ß³¤
     HK1=1
     N2=0;L1=0.D0;SR1=0.D0    
     DO J=1,SNADJL(N1).NNUM        
@@ -1485,27 +1555,28 @@ SUBROUTINE INI_SPHFLOW(IELT)
             IF(DOT_PRODUCT(XV1(1:NDIMENSION),DV1(1:NDIMENSION))<0.D0) CYCLE
         ENDIF            
         
-        SR1=MAX(T1,SR1)
+        !SR1=MAX(T1,SR1)
 
-        N2=N2+1                
+        N2=N2+1
+        RDIS2(N2)=T1
         L1=L1+T1
                    
     ENDDO 
     L1=L1/N2
     
-    !ç”Ÿæˆé‡‡æ ·ç‚¹    
+    !Éú³É²ÉÑùµã    
     
     IF(solver_control.WELLMETHOD>2) THEN
-    
+        SR1=MAXVAL(RDIS2(1:N2),MASK=.NOT.ISOUTLIER(RDIS2(1:N2))) !È¡ÌÞ³ýÒì³£ÖµºóµÄ×î´óÖµ
         !LOCAL COORDINATE SYSTEM
-        !ä»¥wellboreå•å…ƒï¼Œ3èŠ‚ç‚¹ä¸ºåŽŸç‚¹ï¼Œ3-4ä¸ºzè½´çš„å±€éƒ¨åæ ‡ç³»ã€‚
+        !ÒÔwellboreµ¥Ôª£¬3½ÚµãÎªÔ­µã£¬3-4ÎªzÖáµÄ¾Ö²¿×ø±êÏµ¡£
         ALLOCATE(ELEMENT(IELT).G2L(3,3))
         ORG1=NODE(ELEMENT(IELT).NODE(2)).COORD
         !local z
         ZV1=DV1
         ZV1=ZV1/NORM2(ZV1)
         !local x
-        !è¿‡ogr1ä¸Žzv1åž‚ç›´çš„å¹³é¢æ–¹ç¨‹ï¼šAx+By+Cz+D=0,å…ˆæ±‚å‡ºD,ç„¶åŽå‡å®šï¼ˆx,y,zï¼‰ä»»æ„ä¸¤ä¸ªï¼Œæ±‚ç¬¬ä¸‰ä¸ªã€‚
+        !¹ýogr1Óëzv1´¹Ö±µÄÆ½Ãæ·½³Ì£ºAx+By+Cz+D=0,ÏÈÇó³öD,È»ºó¼Ù¶¨£¨x,y,z£©ÈÎÒâÁ½¸ö£¬ÇóµÚÈý¸ö¡£
         D1=-DOT_PRODUCT(ZV1,ORG1) !
         !
         IF(ABS(ZV1(3))>1E-7) THEN
@@ -1527,7 +1598,7 @@ SUBROUTINE INI_SPHFLOW(IELT)
         angle1=[360,60,36,30,36,60,360]
         DO I=1,7
             T1=SR1*SIND(30*(REAL(I)-1))
-            DO J=0,359,angle1(I) !359 é˜²æ­¢ç”Ÿæˆä¸Ž0é‡å¤çš„ç‚¹
+            DO J=0,359,angle1(I) !359 ·ÀÖ¹Éú³ÉÓë0ÖØ¸´µÄµã
                 N1=N1+1
                 SPT1(1,N1)=T1*COSD(REAL(J));SPT1(2,N1)=T1*SIND(REAL(J));SPT1(3,N1)=SR1*COSD(30*(REAL(I)-1));
                 SPT1(:,N1)=MATMUL(TRANSPOSE(ELEMENT(IELT).G2L(:,:)),SPT1(:,N1))
@@ -1557,9 +1628,47 @@ SUBROUTINE INI_SPHFLOW(IELT)
                 ENDIF
             ENDIF
             
-            YV1=SPT1(:,I)
-            N2=POINTlOC_BC_SOLVER(YV1,N2)
-            !å› ä¸ºsr1å–æœ€å¤§ï¼Œæ‰€ä»¥æœ‰å¯èƒ½ä¸€äº›ç‚¹ä¸åœ¨åŒºåŸŸå†…ã€‚
+            !DO K=10,1,-1                
+            !    YV1=(SPT1(:,I)-ORG1)*REAL(K)/10.+ORG1
+            !    N2=POINTlOC_BC_SOLVER(YV1,N2)
+            !    IF(N2>0.OR.NORM2(YV1-ORG1)<=WR1) EXIT
+            !ENDDO
+            !!ÒòÎªsr1È¡×î´ó£¬ËùÒÔÓÐ¿ÉÄÜÒ»Ð©µã²»ÔÚÇøÓòÄÚ,²ÉÑù¶þ·Ö·¨ÕÒµ½×î´óµÄÇøÓòÄÚµÄµã¡£
+            try1=1.;try2=WR1/NORM2(SPT1(:,I)-ORG1);TRY0=1;
+            N3=0
+            DO K=10,1,-1
+                YV1=(SPT1(:,I)-ORG1)*try1+ORG1                    
+                N2=POINTlOC_BC_SOLVER(YV1,N2)
+                IF(N2==0) THEN
+                    IF(TRY0<TRY1) TRY1=TRY0
+                ELSE
+                    IF(TRY0>TRY2) THEN
+                        TRY2=TRY0
+                        N3=N2
+                    ENDIF
+                ENDIF
+                IF(ABS(TRY1-TRY2)<0.1) THEN
+                    N2=N3
+                    EXIT
+                ENDIF 
+                IF(K==10) THEN
+                    !¼ì²é×îÀïÃæµÄµãÊÇ·ñÔÚÇøÓòÄÚ
+                    YV1=(SPT1(:,I)-ORG1)*try2+ORG1                     
+                    N2=POINTlOC_BC_SOLVER(YV1,N2)
+                    IF(N2==0) THEN
+                        EXIT
+                    ELSE
+                        N3=N2
+                    ENDIF
+                ENDIF                
+                try0=(try1+try2)/2                    
+            ENDDO
+            
+            
+            
+            !YV1=SPT1(:,I)
+            !N2=POINTlOC_BC_SOLVER(YV1,N2)
+            !ÒòÎªsr1È¡×î´ó£¬ËùÒÔÓÐ¿ÉÄÜÒ»Ð©µã²»ÔÚÇøÓòÄÚ¡£
             IF(N2>0) THEN
                 J=J+1
                 ELEMENT(IELT).A12(:,J)=YV1
@@ -1965,8 +2074,8 @@ SUBROUTINE WELL_ELEMENT_OUT(ISTEP,ISUBTS,IITER)
 ENDSUBROUTINE
 
 SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
-!æ±‚å«äº•èŠ‚ç‚¹IWNçš„å•å…ƒeltçš„æ–¹å‘æ¸—é€ç³»æ•°ï¼Œåˆ©ç”¨3é˜¶å››é¢ä½“å•å…ƒçš„é‡‡ç”¨ç‚¹
-!å¦‚æžœVECå‡ºçŽ°ï¼Œåˆ™æ–¹å‘ä¸ºåž‚ç›´äºŽVECï¼Œå¦åˆ™ï¼Œæ–¹å‘æŒ‡å‘äº•èŠ‚ç‚¹IWN
+!Çóº¬¾®½ÚµãIWNµÄµ¥ÔªeltµÄ·½ÏòÉøÍ¸ÏµÊý£¬ÀûÓÃ3½×ËÄÃæÌåµ¥ÔªµÄ²ÉÓÃµã
+!Èç¹ûVEC³öÏÖ£¬Ôò·½ÏòÎª´¹Ö±ÓÚVEC£¬·ñÔò£¬·½ÏòÖ¸Ïò¾®½ÚµãIWN
     USE solverds
     IMPLICIT NONE
     
@@ -1996,7 +2105,7 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
         X1=X1-NODE(ELEMENT(IEL).NODE(IWN)).COORD !ORIGIN IS THE THIRD NODE.                
         IF(PRESENT(VEC)) THEN
             LP1=DOT_PRODUCT(X1,VEC) 
-            X1=X1-LP1*VEC   !æŠ•å½±çº¿å‘é‡ï¼Œä¸ºæ­¤å•å…ƒçš„æµé‡æ–¹å‘çŸ¢é‡            
+            X1=X1-LP1*VEC   !Í¶Ó°ÏßÏòÁ¿£¬Îª´Ëµ¥ÔªµÄÁ÷Á¿·½ÏòÊ¸Á¿            
         ENDIF
         R1=NORM2(X1)                   
                 

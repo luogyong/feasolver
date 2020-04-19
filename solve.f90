@@ -295,6 +295,7 @@ subroutine incremental_load(iincs,iiter,method,isubts)
 		load=0.0D0
 		if(iincs>0)	then		
 			do i=1,bl_num
+                if(bc_load(i).node<1) cycle
                 dof1=node(bc_load(i).node).dof(bc_load(i).dof)
                 if(adof(dof1)==0) cycle
 				if(sf(bc_load(i).sf).factor(iincs)==-999.D0) cycle
@@ -439,6 +440,7 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
     
 	
 	do i=1,bd_num
+        if(bc_disp(i).node<1) cycle
         dof1=node(bc_disp(i).node).dof(bc_disp(i).dof)	
         if(adof(dof1)==0)  then
             bc_disp(i).isdead=1
@@ -545,6 +547,7 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 	end do
 
 	do i=1,numNseep
+        if(Nseep(i).node<1) cycle
         dof1=node(Nseep(i).node).dof(Nseep(i).dof)	
          if(adof(dof1)==0)  then
             Nseep(i).isdead=1
@@ -668,7 +671,7 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
  INTEGER,INTENT(IN)::NDOF,NDOFHEAD,niter,DOFHEAD(NDOFHEAD)
  REAL(iwp),INTENT(IN)::UBForce(ndof),tol
  REAL(iwp),INTENT(IN OUT)::stepload(ndof),resdis,sumforce,convratio
- LOGICAL,INTENT(OUT)::iscon,ISTOCONV
+ LOGICAL,INTENT(OUT)::iscon,ISTOCONV(3)
  REAL(IWP)::RESDIS_SPG,SUMFORCE_SPG
  REAL(IWP),SAVE::LASTCONVRATIO=0.0,conten(10)
  
@@ -714,10 +717,16 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
 
  
  conten(mod(niter-1,10)+1)=convratio-LASTconvratio
+ 
  ISTOCONV=.TRUE.
- IF(MOD(NITER,10)==0) THEN    
-   !ISTOCONV=(convratio/LASTconvratio<0.99) 
-    ISTOCONV=COUNT(CONTEN>0.01)<=2 !10次中收敛率升高的次数<=2
+ IF(NITER<2) THEN    
+    ISTOCONV(1)=.TRUE.
+ ELSE
+    ISTOCONV(1)=(convratio/LASTconvratio<0.9999)    
+ ENDIF
+ 
+ IF(MOD(NITER,10)==0) THEN
+    ISTOCONV(2)=COUNT(CONTEN>0.01)<=2 !10次中收敛率升高的次数<=2    
  ENDIF 
  
  LASTconvratio=convratio
@@ -726,8 +735,12 @@ SUBROUTINE checon_thd(iscon,stepload,UBForce,ndof,tol,resdis,sumforce,convratio,
  
  ISCON=(convratio<=TOL)
  !too slow ,exit
+ 
  if(.not.iscon.and.niter>50) then
-     if(maxval(abs(conten))<0.001.and.convratio<solver_control.slowtol) iscon=.true.       
+     if(maxval(abs(conten))<0.001) then
+        if(convratio<solver_control.slowtol) iscon=.true. 
+        if(MOD(NITER,10)==0.and.all(conten<0)) ISTOCONV(3)=.false. !收敛太慢，但稳定，尝试提高步长因子
+     endif     
  endif
  
  SumForce=SumForce+SumForce_spg

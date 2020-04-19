@@ -18,7 +18,7 @@ CU    USES derivs,rkck
      *PSHRNK,ERRCON
       PARAMETER (SAFETY=0.9,PGROW=-.2,PSHRNK=-.25,ERRCON=1.89e-4)
       h=htry;BCITER1=1
-1     call rkck(y,dydx,n,x,h,ytemp,yerr,derivs)
+1     call rkck(y,dydx,n,x,h,ytemp,yerr,derivs) !x is time
       !IF(RKINFO.ISOUTOFRANGE) THEN
       !    BCITER1=BCITER1+1
       !    H=(RKINFO.HF_SUC+RKINFO.HF_FAIL)/2.0*HTRY

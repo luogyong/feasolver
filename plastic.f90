@@ -97,7 +97,9 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 	!it will speed the convergence but not affect the result.
 	!if (solver_control.bfgm/=inistress) then
 	NI_NodalForce=bdylds
-		
+	!if(istep>1.and. iiter>2) then
+ !       print *, sum(abs(bdylds))
+ !   endif
 	Qinput=sum(NI_NodalForce(DOFHEAD))*dt1
 		
 		
@@ -112,7 +114,9 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
         endif
 		bdylds(i)=Tload(i)-bdylds(i)
 		if(isBCdis(i))  bdylds(i)=0.D0  
-	end do
+    end do
+    
+    
 	!	call residual_bc_clear(bdylds)
     !else
     !    NI_NodalForce=0.d0

@@ -773,6 +773,10 @@ subroutine elt_bc_load_translate()
 					n1=physicalgroup(elt_load(i).group).element(j)
 					do k=1,element(n1).nnode
 						n2=element(n1).node(k)
+                        if(node(n2).inode<1) then
+                            print *, "Warning. 单元模型中没有包含力边界节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                            cycle
+                        endif                        
 						if(nodalload1(n2)==0) then
 							nnodalLoad=nnodalLoad+1 
 							if(nnodalLoad>maxnnodalLoad) call enlargenodalLoad()
@@ -807,6 +811,10 @@ subroutine elt_bc_load_translate()
 					
 				end do				
 				do j=1,nnode
+                    if(node(j).inode<1) then
+                        print *, "Warning. 单元模型中没有包含力边界节点N,请确认GROUPPARAMETER是否有误.N=",j
+                        cycle
+                    endif 
 					if(abs(load1(j))>1e-10) then
 						nnodalLoad=nnodalLoad+1 
 						if(nnodalLoad>maxnnodalLoad) call enlargenodalLoad()
@@ -830,6 +838,10 @@ subroutine elt_bc_load_translate()
 			    n1=physicalgroup(elt_bc(i).group).element(j)
 			    do k=1,element(n1).nnode
 				    n2=element(n1).node(k)
+                    if(node(n2).inode<1) then
+                        print *, "Warning. 单元模型中没有包含边界条件节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                        cycle
+                    endif
 				    if(nodalload1(n2)==0) then
 					    nnodalBC=nnodalBC+1 
 					    if(nnodalBC>maxnnodalBC) call enlarge_AR(nodalBC,100,maxnnodalBC)
@@ -847,6 +859,10 @@ subroutine elt_bc_load_translate()
 			    n1=physicalgroup(elt_bc(i).group).element(j)
 			    do k=1,element(n1).nnode
 				    n2=element(n1).node(k)
+                    if(node(n2).inode<1) then
+                        print *, "Warning. 单元模型中没有包含井边界条件节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                        cycle
+                    endif                    
 				    if(nodalload1(n2)==0) then
 					    NWELLHEAD=NWELLHEAD+1 
 					    if(NWELLHEAD>MAXNWELLHEAD) call enlarge_AR(WELLHEAD,100,MAXNWELLHEAD)
@@ -873,6 +889,10 @@ subroutine elt_bc_load_translate()
             if(elt_spgface(i).iswellcondition>0) n3=element(n1).nnode/2 !井流出溢面单元与井流单元节点结构一样，都是4个节点，只有1-2节点是井壁节点。
 			do k=1,n3
 				n2=element(n1).node(k)
+                if(node(n2).inode<1) then
+                    print *, "Warning. 单元模型中没有包含出溢面节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                    cycle
+                endif
 				if(nodalload1(n2)==0) then
 					nspgface=nspgface+1 
 					if(nspgface>maxnspgface) call enlarge_AR(spgface,100,maxnspgface)
@@ -895,6 +915,10 @@ subroutine elt_bc_load_translate()
             n1=physicalgroup(wsp(i).group).element(j)
             do k=1,element(n1).nnode
                 n2=element(n1).node(k)
+                if(node(n2).inode<1) then
+                    print *, "Warning. 单元模型中没有包含水面线边界节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                    cycle
+                endif                 
                 if(nodalload1(n2)==0)then
                     wsp(i).nnode= wsp(i).nnode+1
                     node1(wsp(i).nnode)=n2
@@ -956,6 +980,10 @@ subroutine elt_bc_load_translate()
             n1=physicalgroup(DataPoint(i).group).element(j)
             do k=1,element(n1).nnode
                 n2=element(n1).node(k)
+                if(node(n2).inode<1) then
+                    print *, "Warning. 单元模型中没有包含数据线节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                    cycle
+                endif                 
                 if(nodalload1(n2)==0)then
                     DataPoint(i).nnode= DataPoint(i).nnode+1
                     node1(DataPoint(i).nnode)=n2

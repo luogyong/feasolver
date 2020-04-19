@@ -30,11 +30,12 @@ module solverds
 	INTEGER::NGNODE=0
     
 	type element_tydef
-		integer::nnum,NEDGE=0,NFACE=0,NTET=0 !node numbers of this element
+		integer::nnum,NEDGE=0,NFACE=0,NTET=0,ISTOPO=0 !node numbers of this element
 		integer,allocatable::node(:),EDGE(:),FACE(:),TET(:),ADJELT(:) !单元的节点,TET为单元的细分单元组的下标。
         integer,allocatable::node2(:),NSPLOC(:) !为方便Bar和Beam单元的后处理，为单元集内的节点编号，将其转换成实体六面体单元后输出,当单元为zt4_spg,或zt6_spg时，node2指向gnode。
         !当et=wellbore时，node2存储以wellbore单元第3，4节点为边的3维单元,NSPLOC为井周采样点所在的单元位置 
-
+        !当ISTOPO==1时，由高次单元生成的一次对wellbore类单元，但其他面元或体元为高次单元时，因wellbore类单元目前只有2节点的一次单元，所以对高次线单元进行了分解，
+        !node(nnum+1:nnum+2)记录当前单元对应的高次单元的端节点，以便进行后面的拓扑邻接分析。        
 		integer::et  !单元类型
 		integer::mat,mattype  !material id and material type.the paramters is got from material(mat)
 		!for et=soilspring, mat=-1,主动侧单元，mat=-2,被动侧单元
@@ -79,8 +80,8 @@ module solverds
 		real(kind=DPN),allocatable::stress(:,:),Dstress(:,:) !stress at gauss points and nodes, stress(6,ngp+nnum)
 		real(kind=DPN),allocatable::strain(:,:),Dstrain(:,:) !strain at gauss points and nodes, strain(6,ngp+nnum)
 														!for cpe3_spg, strain(2,2),strain(:,1)=gradient, strain(:,2)=velocity
-		real(kind=DPN),allocatable::sfr(:,:),sfrko(:) !1.stress failure ratio,2.failure plane angle respective to x, anticlockwise is +ve.
-											 !3. sigman(tension is +ve ) 4 tn (clockwise is +ve),5. tnx, 6. tny,  
+		real(kind=DPN),allocatable::sfr(:,:) !1.stress failure ratio,2.failure plane angle respective to x, anticlockwise is +ve.
+											 !3. sigman(tension is +ve ) 4 tn (clockwise is +ve),5. tnx, 6. tny,7, sfr_kR,8,SFR_KO 
 		real(kind=DPN),allocatable::pstrain(:,:) !total plastic strain in gp and centroid
 		real(kind=DPN),allocatable::evp(:,:) !plastic strain incremental of each incremental in gp and centroid.
 		real(kind=DPN),allocatable::xygp(:,:) !globe co-ordinates of gausian points.
@@ -221,9 +222,9 @@ module solverds
         integer::NYITER=20 !Maximum number of iterations allowed for STRESS RETURN
 		real(kind=DPN)::tolerance=0.001D0 !Convergence tolenance factor.
 		real(kind=DPN)::Yftol=1.D-3 !tolerance permitted for yiled criterion to be vilated
-		real(kind=DPN)::force_tol=1.D-2 !tolerance permitted for unbalanced residual force to be vilated
+		real(kind=DPN)::force_tol=1.D-3 !tolerance permitted for unbalanced residual force to be vilated
 		real(kind=DPN)::disp_tol=1.D-3 !tolerance permitted for residual displacement to be vilated
-        real(kind=dpn)::slowtol=0.02 !when convergence is slow when convratio<slowtol,exit
+        real(kind=dpn)::slowtol=0.001 !when convergence is slow when convratio<slowtol,exit
 		integer::output=1 !1:output for mod(increments,output)=0 iteration
 		integer::i2ncal=4,I2NWEIGHT=1  !method mapping variables in integration points to nodes
 			!SHT=1,spr=2,AVG=3,EXP=4
@@ -256,11 +257,13 @@ module solverds
         integer::isParasys=0,CaseID=0 !isParasys,是否为参数敏感性分析(must start form 1)
 !		integer::isPostCal=0 !所有的未知量均为已知（由边界条件输入），仅进行后处理计算。
         !REAL(KIND=DPN),ALLOCATABLE::ETA(:),RATIO(:)
-        integer::slidedirection=right,slope_isTensionCrack=1,ISSLOPEPA=0,slope_mko=1
-        real(kind=DPN)::slope_kscale=1.D0,slope_kbase=1.D0,slope_kratio=10,slope_sfrpeak=0.7 
+        integer::slidedirection=right,slope_isTensionCrack=1,ISSLOPEPA=0,slope_mko=1,slope_ONLY_SEARCHTOP=0
+        real(kind=DPN)::slope_kscale=2.D0,slope_kbase=-0.2,slope_kratio=10,slope_sfrpeak=1.1 
         !如果slope_kbase<0,则kb取相对值，kb=abs(slope_kbase)*maxsfr;否则，kb取绝对值，kb=slope_kbase
-        !sfrpeak=a,表示高于当某点的sfr/maxsfr>=a时，其渗透系数按exp(2*sfr)提高,旨在吸引更多的流线流向破坏区,a>1表不考虑此加强。
+        !sfrpeak=a,表示高于当某点的sfr/maxsfr>=a时，其渗透系数按exp(2*sfr)提高,旨在吸引更多的流线流向破坏区,a>1表不考虑此加强,但发现会到导致渗流计算不稳定，故令其为1.1（不作用）。
         !slope_mko>0,表sfr要减掉初始ko应力场的sfrko.假定ko=v/1-v,sxx=ko*syy,szz=sxx,txy=txz=tyz=0
+        !IS_ONLY_SEARCHTOP/=0,利用streamline方法进行参数分析时，可以使其仅仅搜索边坡的顶部，避免在坡面上产生小滑弧。
+        !if(slope_kratio>0),ky=kx/slope_kratio,else,ky=input value.
         integer::wellmethod=0 !计算解析井流量时，=0，表取样点为单元节点；=1，为单元形心;=2,在单元周边均布3层采样点(两端及中间),每排采样点数为nspwell,球状流仍为单元节点。>2,均为采样点
         integer::nspwell=12 !wellmethod=2时,每层(2*Pi)采样点数。如果井周角非2PI,范围之外的点将丢弃。
         integer::wellaniso=0 !水平各向异性，=0，directional K method； =1, Charles R. Fitts method.(转化为各向同性材料进行)；=2，王建荣方法，根据其公式进行计算 
@@ -458,7 +461,7 @@ module solverds
 	
 	real(kind=DPN)::NormL=0.0
 	
-	real(kind=DPN)::minNPH=1e20,MAXSFR=-1.D20
+	real(kind=DPN)::minNPH=1e20,MAXSFR=-1.D20,MAXSFR_LAST=-1.D20
 	integer::isref_spg=0 !是否重新分解矩阵
 	real(kind=DPN)::eps1=1e20,eps2=1e20
 	real(kind=DPN)::Origin_Sys_cylinder(3)=0.0  !in the order of x,y and z. the default value is 0.

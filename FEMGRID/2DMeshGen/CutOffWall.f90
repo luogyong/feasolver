@@ -1,5 +1,5 @@
 module CutoffWall
-USE meshDS,ONLY:strtoint,seg,segindex,edge,node,elt,nnode,nelt,ENLARGE_AR
+USE meshDS,ONLY:strtoint,seg,segindex,edge,nedge,node,elt,nnode,nelt,ENLARGE_AR
 use ds_t,only:arr_t
 
 implicit none
@@ -130,7 +130,7 @@ subroutine GEN_COW_ELEMENT(this)
         ENDIF
         DO K=N4+1,EDGE1(J)
             IF(ELT2(K)<1) CYCLE
-            DO K1=1,ELT(ELT2(K)).NUM
+            DO K1=1,ELT(ELT2(K)).NNUM
                 IF(ELT(ELT2(K)).NODE(K1)==NODE2(N3)) THEN
                     ELT(ELT2(K)).NODE(K1)=NODE(NODE2(N3)).SUBBW
                 ENDIF

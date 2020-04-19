@@ -32,7 +32,7 @@ CONTAINS
 	    integer::ns,ne,nc
 	    
 	
-	    if(index(term,'/')/=0) then !ÿһ�С�/���������������Ч�ġ�
+	    if(index(term,'/')/=0) then !每一行‘/’后面的内容是无效的。
 		    strL=index(term,'/')-1
 		    term=term(1:strL)
 	    end if
@@ -99,10 +99,10 @@ END MODULE
 MODULE POS_IO
     USE INPUT_PARSER
     IMPLICIT NONE
-!�ٶ���
-!1)ͬһʱ�䲽����zone֮��Ľڵ����ݹ���(ͨ��varsharelist)��һ����
-!2)ͬһ��Ԫ��ֻ���һ�Σ�ͬһ��Ԫ������ʱ�䲽ͨ��(CONNECTIVITYSHAREZONE)��������򣬿��ܻ�����ظ�����
-!3)��ʱ���Ⱥ������zone�����ݡ�
+!假定：
+!1)同一时间步，各zone之间的节点数据共享(通过varsharelist)或一样。
+!2)同一单元集只输出一次，同一单元集后续时间步通过(CONNECTIVITYSHAREZONE)输出，否则，可能会出现重复网格。
+!3)按时间先后输出各zone的数据。
     
     PRIVATE
     
@@ -113,7 +113,7 @@ MODULE POS_IO
     integer, parameter::POINT = 1
     integer, parameter::BLOCK = 2
     INTEGER,PARAMETER::MAXZONE=500,MAXSTEP=100
-    INTEGER,PARAMETER::NNEL(FELINESEG:FEBRICK)=[2,3,4,4,8] !��Ԫ�ڵ������
+    INTEGER,PARAMETER::NNEL(FELINESEG:FEBRICK)=[2,3,4,4,8] !单元节点序号数
     INTEGER::NSTEP=1,NEL=0,NESET=0
     REAL(8)::STEPTIME(MAXSTEP)
     !REAL(8)::VTOL=1.D-3
@@ -136,7 +136,7 @@ MODULE POS_IO
     
     TYPE ELEMENT_TYDEF
         INTEGER::NNUM=0,ISET=0,NEDGE=0,NFACE=0,NTET=0
-		integer,allocatable::NODE(:),EDGE(:),FACE(:),TET(:) !��Ԫ�Ľڵ�,TETΪ��Ԫ��ϸ�ֵ�Ԫ����±ꡣ       
+		integer,allocatable::NODE(:),EDGE(:),FACE(:),TET(:) !单元的节点,TET为单元的细分单元组的下标。       
     ENDTYPE
     
     TYPE ESET_TYDEF
@@ -172,7 +172,7 @@ MODULE POS_IO
     !    INTEGER::V(4)=0,EDGE(4)=0 !IF EDGE(I)<0 MEANING ITS ORDER IS REVERSE .
     !    INTEGER::HKEY=-1
     !    CHARACTER(64)::CKEY="" 		
-    !    INTEGER::ISTRISURFACE=0 !<-1 ��face����
+    !    INTEGER::ISTRISURFACE=0 !<-1 与face反向
     !    REAL(8)::UNORMAL(3)=0.D0,BBOX(2,3)=0.D0		
     !    INTEGER::ENUM=0
 	   ! INTEGER::ISDEAD=0
@@ -185,7 +185,7 @@ MODULE POS_IO
     !!split all element into simple 3-noded-triangle , 4-noded-tetrahedron,point and 2-noded-line element
     !TYPE TET_TYDEF
 	   ! INTEGER::MOTHER=0,GMET=0,DIM=-1,NV=0,NE=0,NF=0,ISDEAD=0,ISET=0 
-	   ! INTEGER::V(4)=0,E(6)=0,F(4)=0	!F������û��ά��������ͨ��elttype(4).face��ȷ����
+	   ! INTEGER::V(4)=0,E(6)=0,F(4)=0	!F的正反没有维护，可以通过elttype(4).face来确定。
 	   ! REAL(8)::BBOX(2,3)=0.D0 !MIN,MAX OF X,Y AND Z
     !    REAL(8)::STEPSIZE=0.1D0
     !ENDTYPE
@@ -200,21 +200,21 @@ MODULE POS_IO
 	   ! !edge(2,nedge),
 	   ! !face: use node index to represent face. face(0:4,nface),face(0,:)==3,triangular face,==4, quadrilateral face
 	   ! !FaceEdge: use edge index to represent face. FaceEdge(0:4,nface),FaceEdge(0,:)==3,triangular face, ==4, quadrilateral face
-	   ! real(8),allocatable::weight(:,:) !�ֲ���Ԫ���ظ��ڵ�ֲ�ϵ��, weight(:,1) ƽ��������أ�weight(:,2) ƽ�������κ���;weight(:,3) ��Գƾ������أ�weight(:,4) ��Գ������κ��أ�
-				!								    !Ŀǰֻ�ܴ���ƽ��Ӧ������������
+	   ! real(8),allocatable::weight(:,:) !分布单元荷载各节点分布系数, weight(:,1) 平面均布荷载；weight(:,2) 平面三角形荷载;weight(:,3) 轴对称均布荷载；weight(:,4) 轴对称三角形荷载，
+				!								    !目前只能处理平面应变的两种情况。
     !end type
     !type(et_type)::elttype(100)
 
     type outvar_tydef
 		character(128)::name=''
-		integer::value=0,ivo=0	!>0, variable output is required.,ivo=����������NodalQ(:,ivo)
+		integer::value=0,ivo=0	!>0, variable output is required.,ivo=此量存贮在NodalQ(:,ivo)
 		logical::iscentre=.false. !location, nodes or centroid of element.
 		integer::system=0	!reference systerm,the default system is the globel sysytem
 								!if system=-999, then the local system is a cylindrical system whose origin is along 
 								!the central line of the cylinder.
 								!if system=-9999,then the local system is a spherical syystem whose origin is located
 								!at the center of the sphere
-		integer::nval=1 !��������������ٸ�����
+		integer::nval=1 !这个变量包含多少个数。
 	end type
 	!type(outvar_tydef)::outvar(100)	 
     
@@ -228,8 +228,8 @@ MODULE POS_IO
                 IGRADX=0,IGRADY=0,IGRADZ=0,&
                 ISFR_SFRX=0,ISFR_SFRY=0,IMC_C=0,IMC_PHI=0,&
                 ISXX=0,ISYY=0,ISXY=0,ISFR=0,IH_BC=0,IQ=0,ISLOPE_SD=0,&
-                IPSIGMA1=0,IPSIGMA3=0,IAPSIGMA1=0
-        real(8)::modelr,minx,miny,minz,maxx,maxy,maxz !ģ�����Բ�뾶
+                IPSIGMA1=0,IPSIGMA3=0,IAPSIGMA1=0,Idisx_bc=0,IDISY_BC=0
+        real(8)::modelr,minx,miny,minz,maxx,maxy,maxz !模型外接圆半径
         type(outvar_tydef),ALLOCATABLE::OUTVAR(:)
         TYPE(NODE_TYDEF),ALLOCATABLE::NODE(:),GRIDNODE(:)        
         REAL(8),ALLOCATABLE::STEPTIME(:)
@@ -445,7 +445,7 @@ CONTAINS
 						TECDATA.ZONE(IZONE).TITLE=TRIM(COMMAND.OPTION(i).Cvalue)
                     CASE('n','nodes')
                         TECDATA.ZONE(IZONE).NNODE=INT(COMMAND.OPTION(i).VALUE)
-                        !�ٶ���ͬһʱ�䲽����zone֮��Ľڵ����ݹ���(ͨ��varsharelist)��һ����
+                        !假定：同一时间步，各zone之间的节点数据共享(通过varsharelist)或一样。
                         IF(IZONE>1) THEN
                             IF(TECDATA.ZONE(IZONE).NNODE/=TECDATA.ZONE(IZONE-1).NNODE) THEN
                                 STOP "The nodal data at one step should be identical."
@@ -476,7 +476,7 @@ CONTAINS
                     CASE('zonetype') 
                         TECDATA.ZONE(IZONE).zonetype=INT(COMMAND.OPTION(i).VALUE)
                     case('varsharelist')
-                        !�ٶ���ͬһʱ�䲽����zone֮��Ľڵ����ݹ���(ͨ��varsharelist)��һ����
+                        !假定：同一时间步，各zone之间的节点数据共享(通过varsharelist)或一样。
                         if(index(COMMAND.OPTION(i).Cvalue,',')>0) then
                             stop 'varsharelist is not consistent with the assumption.'
                         endif
@@ -558,7 +558,7 @@ CONTAINS
 			    strL=len_trim(term2)
 			    if(strL==0.or.term2(1:2)=='//'.or.term2(1:1)=='#') cycle		
 
-			    !ÿ�к�����'/'��ʼ�ĺ�����ַ�����Ч�ġ�
+			    !每行后面以'/'开始的后面的字符是无效的。
 			    if(index(term2,'/')/=0) then
 				    strL=index(term2,'/')-1
 				    term2=term2(1:strL)
@@ -665,7 +665,11 @@ CONTAINS
         case('sfr')
             POSDATA.ISFR=IVAL
         CASE('h_bc')
-            POSDATA.IH_BC=IVAL 
+            POSDATA.IH_BC=IVAL
+        CASE('disx_bc')
+            POSDATA.Idisx_bc=IVAL   
+        CASE('disy_bc')
+            POSDATA.Idisy_bc=IVAL             
         CASE('q') 
             POSDATA.IQ=IVAL
         CASE('slidedirection')

@@ -253,6 +253,7 @@ SUBROUTINE SETUP_SUBZONE_SOLVER(MAXX,MINX,MAXY,MINY,MAXZ,MINZ,TET1)
     ENDDO
     
     DO I=1,NTET1
+        if(TET1(I).eshape/=203.and.TET1(I).eshape/=304) CYCLE
         DO J=1,NSZONE
             
             IF(NDX>1) THEN
@@ -423,7 +424,7 @@ END SUBROUTINE
         CASE(FEQUADRILATERAL,CPE4,CPE4_SPG,CPE4_CPL,CPS4,&
              CAX4,CAX4_SPG,CAX4_CPL,&
              CPE4R,CPE4R_SPG,CPE4R_CPL,CPS4R,&
-             CAX4R,CAX4R_SPG,CAX4R_CPL,ZT4_SPG,WELLBORE,WELLBORE_SPGFACE) !!!!WELLBORE_SPGFACE HAS 5 NODES.
+             CAX4R,CAX4R_SPG,CAX4R_CPL,ZT4_SPG,WELLBORE,WELLBORE_SPGFACE) 
              GETGMSHET=3 
         CASE(FETETRAHEDRON,TET4,TET4_SPG,TET4_CPL)         
             GETGMSHET=4
@@ -703,7 +704,9 @@ integer function POINTlOC_BC_SOLVER(Pt,TRYiel)
         N3=N3+1
         
         call tetshapefun_solver(Pt,iel,shpfun)
-        n2=ELEMENT(IEL).nnum
+        n2=3
+        if(ndimension==3) n2=4
+        
         
         n1=minloc(shpfun(1:n2),dim=1)
         if(shpfun(n1)<0.d0) then            
@@ -732,7 +735,7 @@ contains
 	    IMPLICIT NONE
 	    REAL(8),INTENT(IN)::PT(3)
         INTEGER,INTENT(IN)::TRYIEL
-	    INTEGER::I,J,K,ELT1(-10:0)
+	    INTEGER::I,J,K,ELT1(-10:0),N1
 	    !LOGICAL,EXTERNAL::PtInTri,PtInTET
         LOGICAL::ISFOUND=.FALSE.
 	    !INTEGER::SEARCHLIST(NTET)
@@ -757,11 +760,13 @@ contains
             ENDIF     
         
             IF(TRYIEL>0) THEN
-                ELT1(-ELEMENT(TRYIEL).NNUM)=TRYIEL
-                DO K=1,ELEMENT(TRYIEL).NNUM
-                    ELT1(-ELEMENT(TRYIEL).NNUM+K)=ELEMENT(TRYIEL).ADJELT(K)
+                N1=4
+                IF(NDIMENSION==2) N1=3
+                ELT1(-N1)=TRYIEL
+                DO K=1,N1
+                    ELT1(-N1+K)=ELEMENT(TRYIEL).ADJELT(K)
                 ENDDO
-                K=-ELEMENT(TRYIEL).NNUM
+                K=-N1
             ELSE
                 K=1
             ENDIF
@@ -815,10 +820,10 @@ end function
     integer,intent(in)::itet
     real(8),intent(in)::Pt(3),pval(:,:) !pval(nnode,npval)
     real(8)::val(size(pval,dim=2))
-    real(8)::shpfun(4),val1(4)
+    real(8)::shpfun(size(pval,dim=1))
     integer::i,n1,np1
     
-    call tetshapefun_solver(Pt,itet,shpfun)
+    call tetshapefun_solver(Pt,itet,shpfun,.true.)
     n1=element(itet).nnum
     np1=size(pval,dim=2)
     do i=1,np1       
@@ -827,18 +832,26 @@ end function
     
  endsubroutine
 
- subroutine tetshapefun_solver(Pt,itet,shpfun) 
-    use solverds,only:node,element,ndimension
+ subroutine tetshapefun_solver(Pt,itet,shpfun,isgetval) 
+    use solverds,only:node,element,ndimension,ecp
     use SolverMath,only:determinant
     implicit none
     integer,intent(in)::itet
+    logical,optional,intent(in)::isgetval
     real(8),intent(in)::Pt(3)
-    real(8),dimension(4)::shpfun
-    real(8)::Va1(3,4),v1(3),v2(3),v3(3),vol1
-    integer::i,vi1(3,4),n1
+    
+    real(8),dimension(:)::shpfun
+    real(8)::Va1(3,4),v1(3),v2(3),v3(3),vol1,pt1(3)
+    integer::i,vi1(3,4),n1,N2
+    logical::isgv1=.false.
     !real(8),EXTERNAL::determinant
-     
-    do i=1,element(itet).nnum
+    isgv1=.false.
+    if(present(isgetval)) isgv1=isgetval
+    
+    N2=4
+    IF(ndimension==2) N2=3
+    
+    do i=1,N2
         Va1(:,i)=NODE(element(itet).node(i)).coord
     enddo
     if(ndimension==2) then
@@ -860,6 +873,11 @@ end function
             shpfun(i)=v3(n1)/vol1
             shpfun(3)=shpfun(3)-shpfun(i)
         enddo
+        if(element(itet).nnum>3.and.isgv1) then
+            pt1(1:ndimension)=shpfun(1:ndimension)
+            call shapefunction_cal(element(itet).et,pt1,shpfun,element(itet).nnum,ndimension)
+        endif
+        
         
         
     elseif(ndimension==3) then
@@ -878,6 +896,11 @@ end function
             shpfun(i)=determinant(reshape([v2,v1,v3],([3,3])))/vol1
             shpfun(4)=shpfun(4)-shpfun(i)
         enddo
+        if(element(itet).nnum>4.and.isgv1) then
+            pt1(1:ndimension)=shpfun([1,2,4])
+            call shapefunction_cal(element(itet).et,pt1,shpfun,element(itet).nnum,ndimension)
+        endif        
+        
     endif
     
     
@@ -989,6 +1012,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE))
 				Elttype(ET).EDGE(:,1)=[1,2]
+               
 			CASE(2) !TRIANGLE
                 ELTTYPE(ET).NNODE=3
 				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1;Elttype(ET).NTET=1;ELTTYPE(ET).DIM=2

@@ -1122,7 +1122,7 @@ subroutine Tosolver()
         IF(physicalgroup(N1).nel==0) CYCLE
         nset=nset+1
 		write(unit,120) physicalgroup(N1).nel,n1,physicalgroup(N1).et, &
-						physicalgroup(N1).mat(1),physicalgroup(N1).COUPLESET,physicalgroup(N1).SF,CH1
+						physicalgroup(N1).mat(1),physicalgroup(N1).COUPLESET,physicalgroup(N1).SF,physicalgroup(N1).ISTOPO,CH1
 		!IF(physicalgroup(N1).ISMASTER) THEN
 		item=len_trim(elttype(physicalgroup(N1).et_gmsh).description)
 		write(unit,122) elttype(physicalgroup(N1).et_gmsh).description
@@ -1134,11 +1134,17 @@ subroutine Tosolver()
 			    item=element(n2).nnode            
 			    write(unit,124) node(element(n2).node).inode,physicalgroup(N1).property(1:MODELDIMENSION)
 		    end do           
-        else
+        else     
             do j=1,physicalgroup(N1).nel				
 			    N2=physicalgroup(N1).element(j)
-			    item=element(n2).nnode            
-			    write(unit,121) node(element(n2).node).inode
+                IF(physicalgroup(N1).ISTOPO==0) THEN
+			        item=element(n2).nnode            
+			        write(unit,121) node(element(n2).node).inode
+                ELSE
+                    item=element(n2).nnode+2            
+			        write(unit,121) node(element(n2).node).inode,node(element(n2).toponode).inode
+                ENDIF
+                
 		    end do
         endif
 		!ENDIF
@@ -1214,7 +1220,7 @@ subroutine Tosolver()
 111 FORMAT(<MODELDIMENSION>(F24.16,1X))
 112 FORMAT("//",<MODELDIMENSION>(A15,1X))
 
-120 FORMAT(/'ELEMENT,NUM=',I7,',SET=',I3,',ET=',A<ITEM>,',MATID=',I3,',COUPLESET=',I3,',SF=',I3,',TITLE=',A<ITEM1>)
+120 FORMAT(/'ELEMENT,NUM=',I7,',SET=',I3,',ET=',A<ITEM>,',MATID=',I3,',COUPLESET=',I3,',SF=',I3,',ISTOPO=',I3,',TITLE=',A<ITEM1>)
 121 FORMAT(<ITEM>(I7,1X))
 122 FORMAT("//",A<ITEM>)
 123 FORMAT("// ", <ITEM>("N",I<width(j)>,5X))

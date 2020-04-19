@@ -57,7 +57,7 @@
                  endif
 			  end if
               n1=nnode
-			  if(isnorefined==0) call divideline(xi,yi,si,xj,yj,sj)
+			  if(isnorefined<1) call divideline(xi,yi,si,xj,yj,sj)
                     
               if(INPMethod==Linear) call linearsoilinterpolate(xi,yi,si,xj,yj,sj,n1+1,nnode)
  

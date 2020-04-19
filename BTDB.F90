@@ -918,7 +918,21 @@ subroutine shapefunction_cal(et,gp,Ni,Nni,ndim)
 			Ni(3)=1-XI-EDA-ZTA
 			Ni(4)=ZTA
 		
-		case(tet10,tet10_spg,tet10_cpl)
+        case(tet10,tet10_spg,tet10_cpl)
+            
+ !           2              
+ !         ,/|`\            
+ !       ,/  |  `\          
+ !     ,6    '.   `5        
+ !   ,/       9     `\      
+ ! ,/         |       `\    
+ !0--------4--'.--------1   
+ ! `\.         |      ,/    
+ !    `\.      |    ,8      
+ !       `7.   '. ,/        
+ !          `\. |/          
+ !             `3           
+            
 			t1=1-XI-EDA-ZTA
 			Ni(1)=XI*(2*XI-1)
 			Ni(2)=EDA*(2*EDA-1)

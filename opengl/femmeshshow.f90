@@ -1,17 +1,20 @@
 !---------------------------------------------------------------------------
 
+    
+    
 module function_plotter
 use opengl_gl
 use opengl_glut
 use view_modifier
 use MESHGEO
 use COLORMAP
+use common_para_opengl
 implicit none
 !private
 !public :: display,menu_handler,make_menu,CONTOUR_PLOT_VARIABLE,VECTOR_PLOT_GROUP
 !REAL(8),PARAMETER::PI=3.141592653589793
-LOGICAL::NOPLOT=.FALSE.
-real(8)::stroke_fontsize=1.0
+
+
 private::SET_VARIABLE_SHOW,SET_VECTOR_PLOT_GROUP
 ! symbolic constants
 
@@ -63,14 +66,14 @@ TYPE(SLICE_TYDEF)::SLICE(30)
 INTEGER::NSLICE=0
 
 INTEGER::IVO(3)=0 !FOR VECTOR PAIR LOCATION IN POSDATA.NODALQ
-INTEGER::IEL_STREAMLINE=0 !��ǰ���ֵ����ڵĵ�Ԫ
+INTEGER::IEL_STREAMLINE=0 !当前积分点所在的单元
 INTEGER,PARAMETER::streamline_location_click=1,Plot_streamline_CLICK=2,&
                    Reset_streamline_CLICK=3,Enlarger_StrokeFontSize_CLICK=4,&
                    Smaller_StrokeFontSize_CLICK=5,SHOW_STREAMLINE_NODE_CLICK=6,OUTPUT_SHOWNSTREAMLINE_CLICK=7
 LOGICAL::isstreamlineinitialized=.false.
 TYPE STREAMLINE_TYDEF
     INTEGER::NV=0,ISINPUTSLIP=0
-    LOGICAL::SHOW=.TRUE.,ISLOCALSMALL=.FALSE.
+    LOGICAL::SHOW=.TRUE.,ISLOCALSMALL=.FALSE.,ISCOMPATABLE=.TRUE.
     REAL(8)::PTstart(3),SF_SLOPE=HUGE(1.d0)
     REAL(8),ALLOCATABLE::V(:,:),VAL(:,:)
     REAL(8),ALLOCATABLE::PARA_SFCAL(:,:) !SIGN,SIGT,RAD1,SIGTA,DIS,C,PHI,SFR	
@@ -81,7 +84,7 @@ TYPE(STREAMLINE_TYDEF),ALLOCATABLE::STREAMLINE(:)
 INTEGER,ALLOCATABLE::SF_SLOPE(:)
 INTEGER::NSTREAMLINE=0,NINPUTSLIP=0,INPUTSLIP(100)=0
 LOGICAL::IS_JUST_SHOW_TOP_TEN_SLOPE=.FALSE.,IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.,&
-        IS_SHOW_ALL_SLOPE=.TRUE.,SLOPE_CHECK_ADMISSIBILITY=.FALSE.
+        IS_SHOW_ALL_SLOPE=.TRUE.,SLOPE_CHECK_ADMISSIBILITY=.TRUE.
 REAL(8),ALLOCATABLE::SLOPESURFACE(:,:)
 
 !TYPE SLOPE_STATE_PARA_SHOW
@@ -217,8 +220,8 @@ integer,parameter,public::ContourList=1,&
 						  SLICELIST=6,&
                           StreamLineList=7,&
 						  STEPSTATUSLIST=8,&
-                          SFS_ProbeValuelist=9,&
-                          PSO_SLIP_PLOT_LIST=10
+                          SFS_ProbeValuelist=9 !,&
+                          !PSO_SLIP_PLOT_LIST=10
                           
                           
 integer,parameter::STREAMLINE_SLOPE_CLICK=1,ShowTopTen_SLOPE_CLICK=2,ShowMinimal_SLOPE_CLICK=3,&
@@ -238,7 +241,7 @@ LOGICAL::ISSTREAMLINESLOPE=.FALSE.,IsFilterLocalMinimalMode=.false.,isProbeState
 TYPE TIMESTEPINFO_TYDEF
     INTEGER::ISTEP=1,NSTEP=1
     REAL(8),ALLOCATABLE::TIME(:)
-	!INTEGER,ALLOCATABLE::CALSTEP(:) !��ǰ����Ӧ�ļ��㲽��ע�⣬���㲽���ͼ��������һ�¡�
+	!INTEGER,ALLOCATABLE::CALSTEP(:) !当前步对应的计算步，注意，计算步与绘图步往往不一致。
     LOGICAL::ISSHOWN=.TRUE.
 	REAL(8)::VSCALE(NVECTORPAIR)=1.0D0,VMIN(NVECTORPAIR),VMAX(NVECTORPAIR)
     CHARACTER(256)::INFO=''
@@ -265,7 +268,106 @@ INTEGER::NODALID_SHOW=-1,ELEMENTID_SHOW=-2
 !    !PROCEDURE::
 !END TYPE
 
-contains
+    contains
+
+SUBROUTINE SEARCH_MINIMAL_SF_SLOPE(IS_ONLY_SEARCHTOP)
+    !use function_plotter
+    use FindLocalEx1D
+    implicit none
+    INTEGER,INTENT(IN),OPTIONAL::IS_ONLY_SEARCHTOP
+    INTEGER::I,J,K,IA1(NNLBC),NH1,IA2(NNLBC),IMSF1,N1,NSTREAMLINE1,IMSF2,N2
+    LOGICAL::L1,L2
+    REAL(8)::MSF1,PT1(3),MSF2,ASF1(NNLBC),PT2(3),MAXY1
+    REAL(8),ALLOCATABLE::MAXTEM1(:,:),MINTEM1(:,:)
+    character(16)::str1
+    
+    NH1=0;IA1=0
+    MSF1=1E10
+    isPlotStreamLine=.TRUE.
+    STREAMLINE_VECTOR=VECTOR_GROUP_SEEPAGE_VEC
+    NSTREAMLINE1=NSTREAMLINE+1
+    ISSTREAMLINESLOPE=.TRUE.
+   
+    info.color=red;info.qkey=.true.
+    MAXY1=-1.D20
+    IF(PRESENT(IS_ONLY_SEARCHTOP)) THEN
+        IF(IS_ONLY_SEARCHTOP/=0) MAXY1=MAXVAL(POSDATA.NODE(NODE_LOOP_BC(:NNLBC)).COORD(POSDATA.NDIM))
+    ENDIF
+    
+    DO I=1,NNLBC 
+        IF(POSDATA.IH_BC>0) THEN
+            L1=(POSDATA.NODALQ(NODE_LOOP_BC(I),POSDATA.IH_BC,stepplot.istep)+4.0D0)<1E-7
+            L2=POSDATA.NODALQ(NODE_LOOP_BC(I),POSDATA.IQ,stepplot.istep)>0.d0            
+            IF(L1.AND.L2) THEN                
+             
+                PT1(3)=0.0D0
+                PT1(1:POSDATA.NDIM)=POSDATA.NODE(NODE_LOOP_BC(I)).COORD(1:POSDATA.NDIM)
+                IF(PT1(POSDATA.NDIM)<MAXY1) CYCLE
+                CALL gen_new_streamline(PT1)                
+                NH1=NH1+1
+                IA1(NH1)=I
+                IA2(NH1)=NSTREAMLINE
+                ASF1(NH1)=STREAMLINE(NSTREAMLINE).SF_SLOPE
+                STREAMLINE(NSTREAMLINE).SHOW=.FALSE.
+                IF(STREAMLINE(NSTREAMLINE).SF_SLOPE<MSF1) THEN
+                    MSF1=STREAMLINE(NSTREAMLINE).SF_SLOPE
+                    IMSF1=NSTREAMLINE
+                    N2=I                    
+                ENDIF
+            ENDIF
+            
+        ELSE
+            STOP 'THERE SEEMS TO BE NO SUCH A VARIABLE "H_BC".'
+        ENDIF
+    
+    ENDDO
+    
+    !REFINE
+
+    MSF2=MSF1;IMSF2=IMSF1
+    DO K=1,2
+        IF(K==1) THEN
+            N1=N2-1
+            IF(N1<1) N1=NNLBC
+        ELSE
+            N1=MOD(N2,NNLBC)+1   
+        ENDIF
+        L1=(POSDATA.NODALQ(NODE_LOOP_BC(N1),POSDATA.IH_BC,stepplot.istep)+4.0D0)<1E-7
+        L2=POSDATA.NODALQ(NODE_LOOP_BC(N1),POSDATA.IQ,stepplot.istep)>0.d0
+            
+        IF(L1.AND.L2) THEN        
+            PT2=POSDATA.NODE(NODE_LOOP_BC(N1)).COORD
+        ELSE
+            PT2(1)=POSDATA.NODE(NODE_LOOP_BC(N1)).COORD(1)
+            PT2(2:3)=STREAMLINE(IMSF1).V(2:3,MIN(10,STREAMLINE(IMSF1).NV))            
+        ENDIF
+        
+        DO J=2,10
+            PT1=POSDATA.NODE(NODE_LOOP_BC(N2)).COORD+(J-1)/10.0*(PT2-POSDATA.NODE(NODE_LOOP_BC(N2)).COORD)
+            call gen_new_streamline(PT1)
+            STREAMLINE(NSTREAMLINE).SHOW=.FALSE.
+            IF(STREAMLINE(NSTREAMLINE).SF_SLOPE<MSF2) THEN
+                MSF2=STREAMLINE(NSTREAMLINE).SF_SLOPE
+                IMSF2=NSTREAMLINE                  
+            ENDIF
+        ENDDO 
+    
+    ENDDO
+    
+    STREAMLINE(IMSF2).SHOW=.TRUE.
+    write(str1,'(f8.3)') msf2
+    info.str='Search done...The MinimalFS='//trim(adjustl(str1))
+    !call peakdet(MAXTEM1,MINTEM1,NH1,ASF1(1:NH1),0.01)
+    !
+    !DO I=1,SIZE(MINTEM1,DIM=1)
+    !    STREAMLINE(IA2(INT(MINTEM1(1,I)))).ISLOCALSMALL=.TRUE.    
+    !ENDDO
+    
+    RETURN
+    
+
+ENDSUBROUTINE    
+    
 
 SUBROUTINE getHeatMapColor(value,VMIN,VMAX,VCOLOR,BCOLORI)
 !!http://andrewnoske.com/wiki/Code_-_heatmaps_and_color_gradients
@@ -841,8 +943,8 @@ subroutine slope_handler(selection)
         IS_SHOW_ALL_SLOPE=.TRUE.
         !IF(IS_SHOW_ALL_SLOPE) THEN
         !    IS_JUST_SHOW_TOP_TEN_SLOPE=.FALSE.
-        !    IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.
-            STREAMLINE(1:NSTREAMLINE).SHOW=.TRUE.
+        !    IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.            
+            WHERE(STREAMLINE(1:NSTREAMLINE).ISCOMPATABLE) STREAMLINE(1:NSTREAMLINE).SHOW=.TRUE.
         !ELSE
         !    STREAMLINE(1:NSTREAMLINE).SHOW=.FALSE.
         !    IF(IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE) STREAMLINE(SF_SLOPE(MIN(1,NSTREAMLINE))).SHOW=.TRUE.
@@ -929,7 +1031,7 @@ subroutine slope_handler(selection)
                 STREAMLINE(NSTREAMLINE).V(1:2,J)=AR2D2(:,J)
                 IEL1=POINTlOC_BC(STREAMLINE(NSTREAMLINE).V(:,j),TRYIEL1)
                 TRYIEL1=IEL1
-                IF(IEL1>0) THEN !����Ļ���ͷβ�����������⣬ȥ���
+                IF(IEL1>0) THEN !输入的滑线头尾可能在区域外，去掉。
                     N3=N3+1
                     call getval(STREAMLINE(NSTREAMLINE).V(:,J),iel1,STREAMLINE(NSTREAMLINE).VAL(:,N3))
                     IF(J/=N3) STREAMLINE(NSTREAMLINE).V(:,N3)=STREAMLINE(NSTREAMLINE).V(:,J)
@@ -1675,6 +1777,21 @@ interface
     endsubroutine
 endinterface
 
+IF(SOLVER_CONTROL.ISSLOPEPA==0) THEN
+    CALL TIME(char_time)
+    PRINT *, 'Begin to Render...Stage=glutInit',char_time
+    call glutInit()
+    PRINT *, 'Begin to Render...Stage=glutInitDisplayMode',char_time
+    call glutInitDisplayMode(ior(GLUT_DOUBLE,ior(GLUT_RGB,GLUT_DEPTH)))
+    call glutInitWindowPosition(10_glcint,10_glcint)
+    call glutInitWindowSize(800_glcint,600_glcint)
+
+    PRINT *, 'Begin to Render...Stage=glutCreateWindow',char_time
+    !winid = glutCreateWindow(trim(adjustl(POSDATA.title)))
+    winid = glutCreateWindow('IFSOLVER')
+    PRINT *, 'Create Window Successfully.'
+ENDIF
+
 CALL TIME(char_time)
 PRINT *, 'importing data...',char_time
 IF(LEN_TRIM(ADJUSTL(TECFILE))>0) THEN
@@ -1687,7 +1804,7 @@ ENDIF
 
 
 !initialize
-CALL STEPPLOT.INITIALIZE(1,POSDATA.NSTEP,POSDATA.STEPTIME)
+CALL STEPPLOT.INITIALIZE(POSDATA.NSTEP,POSDATA.NSTEP,POSDATA.STEPTIME)
 
 !mesh topology
 IF(.NOT.ISINI_GMSHET) THEN
@@ -1749,7 +1866,7 @@ IF(SOLVER_CONTROL.ISSLOPEPA/=0) THEN
         STEPPLOT.ISTEP=STEPPLOT.NSTEP
         !CALL STEPPLOT.UPDATE()
     ENDIF
-    CALL SEARCH_MINIMAL_SF_SLOPE()
+    CALL SEARCH_MINIMAL_SF_SLOPE(SOLVER_CONTROL.slope_only_searchtop)
     WRITE(CH1,'(I2)') SOLVER_CONTROL.ISSLOPEPA
     FILE1=TRIM(INPUTFILE)//'_SlopePA='//TRIM(ADJUSTL(CH1))//'.dat'    
     CALL OUT_SHOWN_STREAMLINE(trim(file1),SF_SLOPE(1))
@@ -1760,28 +1877,16 @@ IF(SOLVER_CONTROL.ISSLOPEPA/=0) THEN
     IF(.NOT.EXIST) WRITE(20,10)
     CALL TIME(char_time)
     WRITE(20,20) SOLVER_CONTROL.ISSLOPEPA,SOLVER_CONTROL.SLOPE_KBASE,SOLVER_CONTROL.SLOPE_KSCALE, &
-                SOLVER_CONTROL.SLOPE_KRATIO,STREAMLINE(SF_SLOPE(1)).SF_SLOPE,CHAR_TIME,DATE()
+                 SOLVER_CONTROL.SLOPE_KRATIO,STREAMLINE(SF_SLOPE(1)).SF_SLOPE,&
+        &        STREAMLINE(SF_SLOPE(1)).V(1:2,1),STREAMLINE(SF_SLOPE(1)).V(1:2,STREAMLINE(SF_SLOPE(1)).NV), &
+        &        MINVAL(STREAMLINE(SF_SLOPE(1)).V(1,:)),MAXVAL(STREAMLINE(SF_SLOPE(1)).V(1,:)), &
+        &        MINVAL(STREAMLINE(SF_SLOPE(1)).V(2,:)),MAXVAL(STREAMLINE(SF_SLOPE(1)).V(2,:)), &
+        &        CHAR_TIME,DATE()
     CLOSE(20)
     RETURN
 ENDIF
 
-CALL TIME(char_time)
-PRINT *, 'Begin to Render...Stage=glutInit',char_time
-call glutInit()
-PRINT *, 'Begin to Render...Stage=glutInitDisplayMode',char_time
-call glutInitDisplayMode(ior(GLUT_DOUBLE,ior(GLUT_RGB,GLUT_DEPTH)))
-call glutInitWindowPosition(10_glcint,10_glcint)
-call glutInitWindowSize(800_glcint,600_glcint)
 
-! Create a window
-
-
-
-
-!winid = glutCreateWindow(trim(adjustl(POSDATA.title)))
-PRINT *, 'Begin to Render...Stage=glutCreateWindow',char_time
-winid = glutCreateWindow('IFSOLVER')
-PRINT *, 'Create Window Successfully.'
 
 model_radius=POSDATA.MODELR
 init_lookat.x=(POSDATA.minx+POSDATA.maxx)/2.0
@@ -1854,8 +1959,9 @@ call glutMainLoop
 call POSDATA.FREE()
 
 
-10 FORMAT(1X,'PATYPE',3X,'KBASE',2X,'KSCALE',2X,'KRATIO',5X,'FOS',5X,'TIME',6X,'DATE')
-20 FORMAT(I7,4(1X,F7.3),2X,A8,2X,A8)
+10 FORMAT(1X,'PATYPE',3X,'KBASE',2X,'KSCALE',2X,'KRATIO',5X,'FOS',5X, &
+        & 'XENTRY',2X,'YENTRY',2X,'XEXIT',3X,'YEXIT',3X,'XMIN',4X,'XMAX',4X,'YMIN',4X,'YMAX',4X,'TIME',6X,'DATE')
+20 FORMAT(I7,12(1X,F7.3),2X,A8,2X,A8)
 
 end subroutine plot_func
 
@@ -2348,7 +2454,7 @@ subroutine myreshape(w,h)
 	call glLoadIdentity();
 
 
-    !glortho and gluperspective �Ĳ������������eye����ġ�
+    !glortho and gluperspective 的参数都是相对于eye坐标的。
     
 	if(IsPerspect) then
         call gluPerspective(30.0_gldouble, R, near, far)

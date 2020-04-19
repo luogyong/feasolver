@@ -204,6 +204,7 @@ end subroutine
 subroutine slopestability_streamline(islip)
     use function_plotter
     use quicksort
+    USE solverds,ONLY:SOLVER_CONTROL
     USE, INTRINSIC :: IEEE_ARITHMETIC
     implicit none
     integer,intent(in)::islip
@@ -256,21 +257,19 @@ subroutine slopestability_streamline(islip)
                 RAD1=SIGN(PI/2.0,DY1)
             ENDIF
             CALL stress_in_inclined_plane(SS,RAD1,SNT1)
-            
+            !注意：
+            !SOLVER_CONTROL.SLOPE_ISTENSIONCRACK 因为这个参数来源于sinp文件，如果是直接读入plot进行边坡稳定分析，则SLOPE_ISTENSIONCRACK的值为默认值=1。
+            !如果默认值与计算文件sinp的值不一样，则两者的结果很可能不一样。
+!            if(SOLVER_CONTROL.SLOPE_ISTENSIONCRACK>0) then
             T2=(C1-MIN(SNT1(1),0.D0)*DTAN(PHI1/180.0*PI)) !TAUF
-            !IF(SNT1(1)<0.D0.AND.SFR1>=0.D0) THEN
-            !IF(SNT1(1)<0.D0) THEN
-            !    !IF(SFR1>=0.D0.OR.(SFR1<0.D0.AND.SOLVER_CONTROL.SLOPE_ISTENSIONCRACK==1))
-            !    SIGMA_TF1=SIGMA_TF1+T2*T1
-            !    SIGMA_T1=SIGMA_T1+SNT1(2)*T1
-            !ELSE
-            !    T2=0.D0;SNT1(2)=0.D0
-            !ENDIF
             IF(SNT1(1)>0.D0) T2=0.D0
+            !ELSE
+            !    T2=(C1-SNT1(1)*DTAN(PHI1/180.0*PI)) !TAUF
+            !ENDIF
             
             SIGMA_TF1=SIGMA_TF1+T2*T1
             SIGMA_T1=SIGMA_T1+SNT1(2)*T1   !FORCE MUST BE IN BALANCE AND CANNOT BE IGNORED EVEN SNT(1)>0
-            IF(T2>0.D0) THEN
+            IF(ABS(T2)>0.D0) THEN
                 SFR1=SNT1(2)/T2
             ELSE
                 SFR1=IEEE_VALUE (1.0,IEEE_POSITIVE_INF)
@@ -279,16 +278,16 @@ subroutine slopestability_streamline(islip)
             STREAMLINE(I).PARA_SFCAL(:,J)=[SNT1,RAD1,T2,T1,C1,PHI1,SFR1]
         ENDDO
         IF(ABS(SIGMA_T1)>1E-10.AND.SIGMA_TF1>1.D-6) THEN
-            STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1) 
+            STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1)            
         ELSE
             STREAMLINE(I).SF_SLOPE=HUGE(1.D0)
         ENDIF
-        
+        IF(.NOT.STREAMLINE(I).ISCOMPATABLE) STREAMLINE(I).SF_SLOPE=HUGE(1.D0)
         !IF(ISNAN(STREAMLINE(I).SF_SLOPE)) THEN
         !    PAUSE
         !ENDIF
         
-        !INPUTSLIP ����������(ʵ���ϲ���������)
+        !INPUTSLIP 让其参在最后(实际上不参与排序)
         !IF(STREAMLINE(I).ISINPUTSLIP>0) THEN
         !    T1=1.D10
         !ELSE
@@ -357,7 +356,7 @@ subroutine Filterlocalminimalslope(P1,P2)
 END SUBROUTINE
 
 SUBROUTINE stress_in_inclined_plane(ss,RAD,SNT)
-!rad��angle with x axis,in rad.
+!rad，angle with x axis,in rad.
 !ss:sx,sy,sxy
 !ss1:sn,st
     implicit none
@@ -371,97 +370,7 @@ SUBROUTINE stress_in_inclined_plane(ss,RAD,SNT)
     
 endSUBROUTINE
 
-SUBROUTINE SEARCH_MINIMAL_SF_SLOPE()
-    use function_plotter
-    use FindLocalEx1D
-    implicit none
-    INTEGER::I,J,K,IA1(NNLBC),NH1,IA2(NNLBC),IMSF1,N1,NSTREAMLINE1,IMSF2,N2
-    LOGICAL::L1,L2
-    REAL(8)::MSF1,PT1(3),MSF2,ASF1(NNLBC),PT2(3)
-    REAL(8),ALLOCATABLE::MAXTEM1(:,:),MINTEM1(:,:)
-    character(16)::str1
-    
-    NH1=0;IA1=0
-    MSF1=1E10
-    isPlotStreamLine=.TRUE.
-    STREAMLINE_VECTOR=VECTOR_GROUP_SEEPAGE_VEC
-    NSTREAMLINE1=NSTREAMLINE+1
-    ISSTREAMLINESLOPE=.TRUE.
-   
-    info.color=red;info.qkey=.true.
-    
-    DO I=1,NNLBC 
-        IF(POSDATA.IH_BC>0) THEN
-            L1=(POSDATA.NODALQ(NODE_LOOP_BC(I),POSDATA.IH_BC,stepplot.istep)+4.0D0)<1E-7
-            L2=POSDATA.NODALQ(NODE_LOOP_BC(I),POSDATA.IQ,stepplot.istep)>0.d0            
-            IF(L1.AND.L2) THEN                
-             
-                PT1(3)=0.0D0
-                PT1(1:POSDATA.NDIM)=POSDATA.NODE(NODE_LOOP_BC(I)).COORD(1:POSDATA.NDIM)
-                CALL gen_new_streamline(PT1)                
-                NH1=NH1+1
-                IA1(NH1)=I
-                IA2(NH1)=NSTREAMLINE
-                ASF1(NH1)=STREAMLINE(NSTREAMLINE).SF_SLOPE
-                STREAMLINE(NSTREAMLINE).SHOW=.FALSE.
-                IF(STREAMLINE(NSTREAMLINE).SF_SLOPE<MSF1) THEN
-                    MSF1=STREAMLINE(NSTREAMLINE).SF_SLOPE
-                    IMSF1=NSTREAMLINE
-                    N2=I                    
-                ENDIF
-            ENDIF
-            
-        ELSE
-            STOP 'THERE SEEMS TO BE NO SUCH A VARIABLE "H_BC".'
-        ENDIF
-    
-    ENDDO
-    
-    !REFINE
 
-    MSF2=MSF1;IMSF2=IMSF1
-    DO K=1,2
-        IF(K==1) THEN
-            N1=N2-1
-            IF(N1<1) N1=NNLBC
-        ELSE
-            N1=MOD(N2,NNLBC)+1   
-        ENDIF
-        L1=(POSDATA.NODALQ(NODE_LOOP_BC(N1),POSDATA.IH_BC,stepplot.istep)+4.0D0)<1E-7
-        L2=POSDATA.NODALQ(NODE_LOOP_BC(N1),POSDATA.IQ,stepplot.istep)>0.d0
-            
-        IF(L1.AND.L2) THEN        
-            PT2=POSDATA.NODE(NODE_LOOP_BC(N1)).COORD
-        ELSE
-            PT2(1)=POSDATA.NODE(NODE_LOOP_BC(N1)).COORD(1)
-            PT2(2:3)=STREAMLINE(IMSF1).V(2:3,MIN(10,STREAMLINE(IMSF1).NV))            
-        ENDIF
-        
-        DO J=2,10
-            PT1=POSDATA.NODE(NODE_LOOP_BC(N2)).COORD+(J-1)/10.0*(PT2-POSDATA.NODE(NODE_LOOP_BC(N2)).COORD)
-            call gen_new_streamline(PT1)
-            STREAMLINE(NSTREAMLINE).SHOW=.FALSE.
-            IF(STREAMLINE(NSTREAMLINE).SF_SLOPE<MSF2) THEN
-                MSF2=STREAMLINE(NSTREAMLINE).SF_SLOPE
-                IMSF2=NSTREAMLINE                  
-            ENDIF
-        ENDDO 
-    
-    ENDDO
-    
-    STREAMLINE(IMSF2).SHOW=.TRUE.
-    write(str1,'(f8.3)') msf2
-    info.str='Search done...The MinimalFS='//trim(adjustl(str1))
-    !call peakdet(MAXTEM1,MINTEM1,NH1,ASF1(1:NH1),0.01)
-    !
-    !DO I=1,SIZE(MINTEM1,DIM=1)
-    !    STREAMLINE(IA2(INT(MINTEM1(1,I)))).ISLOCALSMALL=.TRUE.    
-    !ENDDO
-    
-    RETURN
-    
-
-ENDSUBROUTINE
 
 SUBROUTINE ShowLocalMinimalSlope()
     USE function_plotter
@@ -527,12 +436,13 @@ subroutine streamline_integration(istreamline)
                 ENDIF
                 IPT1=0.D0;IPT2=0.D0
                 CALL GET_BC_INTERSECTION(P1,P2,IPT1,IPT2,ISINTERCEPT1)
-                IF(ISINTERCEPT1==1) THEN
+                IF(ISINTERCEPT1==1.OR.ISINTERCEPT1==10) THEN  !ISINTERCEPT1==10 表示不透水（位移）边界相交，为不合法滑移面
                     IF(NORM2(P1-IPT1)>1E-7) THEN
                         YSAV(:,I)=IPT1(1:POSDATA.NDIM)
                     ELSE
                         I=I-1
                     ENDIF
+                    IF(ISINTERCEPT1==10) STREAMLINE(ISTREAMLINE).ISCOMPATABLE=.FALSE.
                     !IF(NORM2(IPT1)<1E-10) THEN
                     !    PAUSE
                     !ENDIF
@@ -543,8 +453,8 @@ subroutine streamline_integration(istreamline)
                     !if(iel<=0) then
                     !    pause 'point out of mesh.sub=streamline_integration'
                     !endif
-                ELSE
-                    CALL GET_BC_INTERSECTION(P1,P2,IPT1,IPT2,ISINTERCEPT1)
+                !ELSE
+                !    CALL GET_BC_INTERSECTION(P1,P2,IPT1,IPT2,ISINTERCEPT1)
                 ENDIF
                 
                 EXIT 
@@ -622,10 +532,10 @@ SUBROUTINE derivs(T,PT,V)
     USE function_plotter
     USE ODE_SOLVER
     IMPLICIT NONE
-    REAL(8),INTENT(IN)::T,PT(3)
+    REAL(8),INTENT(IN)::T,PT(3) !T is time 
     REAL(8),INTENT(OUT)::V(3)
-    INTEGER::IEL,SSD1
-    REAL(8)::VAL1(100),SS1(3)   
+    INTEGER::IEL,SSD1,toeorcrest1
+    REAL(8)::VAL1(100),SS1(3),C1,PHI1,XC1   
     !INTEGER,EXTERNAL::POINTlOC,POINTlOC_BC
     INTEGER,SAVE::TRYIEL=0
     
@@ -644,10 +554,18 @@ SUBROUTINE derivs(T,PT,V)
         IF(IVO(3)>0) V(3)=VAL1(IVO(3))
         RKINFO.LASTIEL=IEL
         
-        IF(SLOPE_CHECK_ADMISSIBILITY) THEN
-            SS1=[VAL1(POSDATA.ISXX),VAL1(POSDATA.ISYY),VAL1(POSDATA.ISXY)] 
+        IF(SLOPE_CHECK_ADMISSIBILITY.AND.POSDATA.ISLOPE_SD>0) THEN
             SSD1=VAL1(POSDATA.ISLOPE_SD)
-            CALL CHECK_ADMISSIBILITY(V,SS1,SSD1)            
+            
+            XC1=(POSDATA.MINX+POSDATA.MAXX)/2
+            toeorcrest1=0 !坡上半部分
+            IF((PT(1)-XC1)*SSD1>0.D0) toeorcrest1=1 !坡下半部分
+            !只修正边坡滑弧的下半部分
+            IF(toeorcrest1==1) THEN
+                SS1=[VAL1(POSDATA.ISXX),VAL1(POSDATA.ISYY),VAL1(POSDATA.ISXY)]             
+                C1=VAL1(POSDATA.IMC_C);PHI1=VAL1(POSDATA.IMC_PHI);
+                CALL CHECK_ADMISSIBILITY(V,SS1,SSD1,C1,PHI1,toeorcrest1)
+            ENDIF
         ENDIF
     ELSE
         RKINFO.VAL(1:POSDATA.NVAR)=0.D0
@@ -657,15 +575,15 @@ SUBROUTINE derivs(T,PT,V)
 
 END
 
-SUBROUTINE CHECK_ADMISSIBILITY(V,SS,SDIRECTION)
+SUBROUTINE CHECK_ADMISSIBILITY(V,SS,SDIRECTION,C,PHI,toeorcrest)
 
-!�����ٶȷ������Ӧ�������������������ж�Ӧ���Ƿ����ݣ�
-!1)�����󻬱��£�����ٶȷ���ļ�Ӧ��������(CCW),����ΪӦ�����ݣ�
-!2)�����һ����£�����ٶȷ���ļ�Ӧ���Ǹ���(CW),����ΪӦ�����ݣ�
+!跟据速度方向的切应力的正负及滑动方向，判断应力是否相容：
+!1)对于左滑边坡，如果速度方向的剪应力是正的(CCW),则认为应力相容；
+!2)对于右滑边坡，如果速度方向的剪应力是负的(CW),则认为应力相容；
 IMPLICIT NONE
 REAL(8),INTENT(IN OUT)::V(3)
-REAL(8),INTENT(IN)::SS(3)
-INTEGER,INTENT(IN)::SDIRECTION
+REAL(8),INTENT(IN)::SS(3),C,PHI
+INTEGER,INTENT(IN)::SDIRECTION,toeorcrest
 
 REAL(8)::RAD1,SNT1(2),A1,ALPHA1(2),THETA1,T1
 REAL(8),PARAMETER::PI1=3.141592653589793
@@ -680,24 +598,41 @@ CALL stress_in_inclined_plane(SS,RAD1,SNT1)
 
 
 IF(SNT1(1)>=0) SNT1(2)=0.D0
-!SDIRECTION=1 RIGHT, =-1,LEFT
-IF(SDIRECTION*SNT1(2)>0.D0) THEN !������,Ҫ�������ݷ���
-    !!�ٶ����Ŵ���Ӧ�������滬��
-    !A1=0.5*ATAN(2*SS(3)/(SS(1)-SS(2)))
-    !IF(SS(1)<SS(2)) THEN
-    !    A1=A1+PI1/2.0    
-    !ENDIF
+!!SDIRECTION=1 RIGHT, =-1,LEFT
+!IF(SDIRECTION*SNT1(2)>0.D0) THEN !不相容,要给出相容方向
+!    !!假定沿着大主应力作用面滑动
+!    !A1=0.5*ATAN(2*SS(3)/(SS(1)-SS(2)))
+!    !IF(SS(1)<SS(2)) THEN
+!    !    A1=A1+PI1/2.0    
+!    !ENDIF
+!    
+!    T1=(V(1)**2+V(2)**2)**0.5
+!    
+!    !假定Vy的正负是对的。
+!    IF(T1*SIN(A1)*V(2)<0.0d0) THEN
+!        A1=A1+PI1    
+!    ENDIF
+!    V(1)=T1*COS(A1);V(2)=T1*SIN(A1)  
+!    
+!    
+!ENDIF
+
+IF(V(1)*SDIRECTION<0.D0.or.SDIRECTION*SNT1(2)>0.D0) THEN
+    IF(toeorcrest==1) THEN
+        A1=PI1/4-PHI/180.*PI1/2
+        IF(SDIRECTION<0) A1=PI1-A1
+    ELSE
+        A1=PI1/4+PHI/180.*PI1/2
+        IF(SDIRECTION>0) A1=PI1-A1 
+    ENDIF
+    
+    
     
     T1=(V(1)**2+V(2)**2)**0.5
-    
-    !�ٶ�Vy�������ǶԵġ�
-    IF(T1*SIN(A1)*V(2)<0.0d0) THEN
-        A1=A1+PI1    
-    ENDIF
-    V(1)=T1*COS(A1);V(2)=T1*SIN(A1)  
-    
+    V(1)=T1*COS(A1);V(2)=T1*SIN(A1)
     
 ENDIF
+
 
 
 
@@ -726,7 +661,7 @@ SUBROUTINE Improve_StreamlineShowed_Admissiblity()
             
 			IF(SIGMA_BASE1(1)>=0) SIGMA_BASE1(2)=0.D0
 			!SD1=1 RIGHT, =-1,LEFT
-			IF(SD1*SIGMA_BASE1(2)>0.D0) THEN !������,Ҫ�������ݷ���
+			IF(SD1*SIGMA_BASE1(2)>0.D0) THEN !不相容,要给出相容方向
 				IV1=J
 				OPTS(1)=STREAMLINE(I).V(1,J)
                 OPTS(2)=STREAMLINE(I).V(2,J)
@@ -892,14 +827,14 @@ SUBROUTINE SLOPE_SFR_STATE_PARAMETER_SHOW()
             
             DO i = 0, 18
 
-                IF(MOD(J-1,2)==1) THEN !�һ�
+                IF(MOD(J-1,2)==1) THEN !右滑
                     ICOLOR1=CM_GREEN
                     IF(SS1(1)>=SS1(2)) THEN
                         SFR1=ABS(SIN(2*DT1*I)/(A1+B1*COS(2*DT1*I)))
                     ELSE
                         SFR1=ABS(SIN(PI1-2*DT1*I)/(A1+B1*COS(PI1-2*DT1*I)))
                     ENDIF
-                ELSE !��
+                ELSE !左滑
                     ICOLOR1=CM_RED
                     IF(SS1(1)<SS1(2)) THEN
                         SFR1=ABS(SIN(2*DT1*I)/(A1+B1*COS(2*DT1*I)))
@@ -949,7 +884,7 @@ SUBROUTINE SLOPE_SFR_STATE_PARAMETER_SHOW()
             !CALL glVertex2D(0.,0.)
             !CALL glVertex2D(R2*cos(ALPHA2), R2*sin(ALPHA2))
             call glLineWidth(3.0_glfloat)
-            IF(MOD(J-1,2)==1) THEN !�һ�
+            IF(MOD(J-1,2)==1) THEN !右滑
                 STR2="RS"
                 CALL GLCOLOR4FV(MYCOLOR(:,GREEN))
                 IC3=GREEN  
@@ -969,7 +904,7 @@ SUBROUTINE SLOPE_SFR_STATE_PARAMETER_SHOW()
                 !ELSE
                 !    CALL glVertex2D(cos(ALPHA1-SITA2-PI1/2.0), sin(ALPHA1-SITA2-PI1/2.0))
                 !ENDIF                
-            ELSE !��
+            ELSE !左滑
                 STR2="LS"
                 CALL GLCOLOR4FV(MYCOLOR(:,RED))
                 IC3=RED  
@@ -1031,6 +966,7 @@ END SUBROUTINE
 
 SUBROUTINE GET_BC_INTERSECTION(PT1,PT2,IPT1,IPT2,ISINTERCEPT)
     !USE solverds
+    USE function_plotter,ONLY:STEPPLOT
     USE MESHGEO
     IMPLICIT NONE
     REAL(8),INTENT(IN)::PT1(3),PT2(3)
@@ -1052,7 +988,16 @@ SUBROUTINE GET_BC_INTERSECTION(PT1,PT2,IPT1,IPT2,ISINTERCEPT)
             IF(TOF1) THEN
                 CALL GET_SEGINTERCECTION(POSDATA.NODE(EDGE(I).V(1)).COORD,POSDATA.NODE(EDGE(I).V(2)).COORD,&
                                            PT1,PT2,IPT1,IPT2,ISINTERCEPT,POSDATA.NDIM)
-                IF(ISINTERCEPT==1) EXIT
+                IF(ISINTERCEPT==1) THEN
+                    
+                    IF(POSDATA.IH_BC>0) THEN
+                        IF(POSDATA.NODALQ(EDGE(I).V(1),POSDATA.IH_BC,STEPPLOT.ISTEP)*POSDATA.NODALQ(EDGE(I).V(2),POSDATA.IH_BC,STEPPLOT.ISTEP)==0) THEN
+                            ISINTERCEPT=10
+                        ENDIF                    
+                    ENDIF
+                    
+                    EXIT
+                ENDIF
             ENDIF
         ENDDO
     ELSEIF(POSDATA.NDIM==3) THEN

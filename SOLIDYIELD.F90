@@ -22,7 +22,7 @@ subroutine solve_SLD()
 	real(kind=dpn)::minrelax=0.1d0,maxrelax=1.0d0
     character*256 term
     integer(4)::msg
-	logical::iscon=.false.,isfirstcall=.true.,isfirstcall2=.true.,isoscilated=.false.,ISTOCONV=.TRUE.
+	logical::iscon=.false.,isfirstcall=.true.,isfirstcall2=.true.,isoscilated=.false.,ISTOCONV(3)=.TRUE.
 	real(kind=dpn)::NormBL=0.0,resdis=0,t1,relax=1.0,convratio=0.0, &
                     normres=0.0,sumforce=0.0,TTime1=0.d0,R0,R1
 	real(kind=dpn),ALLOCATABLE::bdylds(:),exdis(:),stepdis(:),stepstress(:,:,:),stepstrain(:,:,:),YFACUPDATE(:),PDDIS(:,:)
@@ -85,6 +85,12 @@ subroutine solve_SLD()
         !active element
         if(iincs>0.and.allocated(bfgm_step)) then
             solver_control.bfgm=bfgm_step(iincs)
+			if(solver_control.BFGM==INISTRESS) then
+				solver_control.solver=INISTIFF
+			endif	
+			if(solver_control.BFGM==CONTINUUM.OR.solver_control.BFGM==CONSISTENT) then
+				solver_control.solver=N_R
+            endif            
         endif
         call element_activate(iincs)
         if(isexca2d/=0) call excavation(iincs)
@@ -147,7 +153,7 @@ subroutine solve_SLD()
 				call bc(iincs,iiter,load,stepdis(1:ndof),isubts)					
 				
 				
-				if(kref==1) then
+				if(kref==1.or.isref_spg==1) then
 				
 					call assemble_km(iincs)
 					
@@ -390,20 +396,21 @@ subroutine solve_SLD()
             nc1 = setexitqq(QWIN$EXITNOPERSIST)
             RETURN
         ENDIF
-
-		
-		term="Click Yes to Post-processing with tecplot.\N No to Exit and\N Cancel to Continue post-processing with the built-in PostProcessor."C
-	 	term=trim(term)
-     	msg = MESSAGEBOXQQ(trim(term),'SOLVE COMPLETED'C,MB$ICONINFORMATION.OR.MB$YESNOCANCEL.OR.MB$DEFBUTTON1)
-     	if(msg==MB$IDYES) then            
-            call SYSTEMQQ(resultfile2)
-            msg=clickmenuqq(loc(WINEXIT))
-        elseif(msg==MB$IDCANCEL) then
+        if(SOLVER_CONTROL.ISSLOPEPA>0) then
             call plot_func('')
-        else
-            msg=clickmenuqq(loc(WINEXIT))
+		else
+		    term="Click Yes to Post-processing with tecplot.\N No to Exit and\N Cancel to Continue post-processing with the built-in PostProcessor."C
+	 	    term=trim(term)
+     	    msg = MESSAGEBOXQQ(trim(term),'SOLVE COMPLETED'C,MB$ICONINFORMATION.OR.MB$YESNOCANCEL.OR.MB$DEFBUTTON1)
+     	    if(msg==MB$IDYES) then            
+                call SYSTEMQQ(resultfile2)
+                msg=clickmenuqq(loc(WINEXIT))
+            elseif(msg==MB$IDCANCEL) then
+                call plot_func('')
+            else
+                msg=clickmenuqq(loc(WINEXIT))
+            endif
         endif
-
     endif
     
     
@@ -434,8 +441,8 @@ subroutine solve_SLD()
 
 10 format('ISFC=',L1,',SICR=',F6.3,',MYFVAL=',F6.4 ',ConvCoff.=',f6.3,',SumForce.=', E10.3,',SumRes=',E10.3 ',MaxDiff.=',f7.3,'(N=',I7,'),R.F.=',f8.5, &
 				',NIter=',I4,',NSubTS(E.Time)=',I4,'(',F8.3,'),NIncr=',I2,'.')
-11 FORMAT('|','   SICR |','MAX_YFV |','CONV.RA.|','SumForce|','ResForce|','RelaxFac|','MAXDISIN|','iDOF_MDI|','    ITER|','ISUBSTEP|','   ISTEP|','STEPTIME|')   
-12 FORMAT('|',7(F7.3,X,'|'),4(I7,X,'|'),(F7.3,X,'|'))
+11 FORMAT('|','      SICR   |','   MAX_YFV   |','   CONV.RA.  |','   SumForce  |','   ResForce  |','   RelaxFac  |','   MAXDISIN  |','iDOF_MDI|','    ITER|','ISUBSTEP|','   ISTEP|','STEPTIME|')   
+12 FORMAT('|',7(f12.3,X,'|'),4(I7,X,'|'),(f12.3,X,'|'))
 20 format('TOTAL REFACTORIZATION. NINCR=',I4,' NITE=',I4,' Duration=',f12.6) 
 21 format('PARTIAL REFACTORIZATION. NINCR=',I4,' NITE=',I4,' Duration=',f12.6,' NUMBERS OF BCs UPDATED=',I7) 
 30 format('Exit with the Max iteration without convergence. Niteration=',I4,',NSubTS(E.Time)=',I3,'(',F10.3,'), NIncr=',I3,'.')
@@ -456,7 +463,7 @@ SUBROUTINE INISTIFF_ACCELERATION_DANG(RELAX,PDDIS,IITER)
 	IF(IITER==1) SOLVER_CONTROL.ALPHA=1.D0
 	IF(MOD(IITER,2)==1.AND.IITER>3) THEN
 		T1=DOT_PRODUCT(PDDIS(:,2),PDDIS(:,2))/DOT_PRODUCT(PDDIS(:,2),PDDIS(:,1))
-		RELAX=MAX(MIN(SOLVER_CONTROL.ALPHA+T1,5.0D0),0.1)
+		RELAX=MAX(MIN(SOLVER_CONTROL.ALPHA+T1,2.D0),0.1)
 		SOLVER_CONTROL.ALPHA=RELAX
 	ELSE
 		RELAX=1.0D0
@@ -504,7 +511,7 @@ subroutine Linesearch(iincs,isubts,iiter,iscon,relax,stepdis,Ddis,bdylds,PDDIS,I
 	use solverlib 	
 	implicit none
 	integer,intent(in)::iincs,isubts,iiter
-    LOGICAL,INTENT(IN)::iscon,ISTOCONV
+    LOGICAL,INTENT(IN)::iscon,ISTOCONV(3)
 	real(kind=DPN),intent(in)::stepdis(ndof),PDDIS(NDOF,2)
 	real(kind=DPN),INTENT(INOUT)::relax,bdylds(ndof),Ddis(ndof)
 	real(kinD=DPN)::stepdis1(ndof)
@@ -514,7 +521,11 @@ subroutine Linesearch(iincs,isubts,iiter,iscon,relax,stepdis,Ddis,bdylds,PDDIS,I
     
     
     
-	IF(MOD(IITER,100)==0.OR.(.NOT.ISTOCONV)) RELAX=MAX(RELAX/2.0D0,0.1d0)
+	IF((MOD(IITER,50)==0.AND.(.NOT.ISTOCONV(1))).OR.(.NOT.ISTOCONV(2))) THEN
+        RELAX=MAX(RELAX/2.0D0,0.1d0)
+    ELSEIF(.NOT.ISTOCONV(3)) THEN
+        RELAX=MIN(RELAX*2.0D0,1.0d0)
+    ENDIF
 	!IF(IITER==1) THEN
  !       LASTCONVRATIO=10
  !   ELSE
@@ -1877,7 +1888,7 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
             element(ienum).UW(j)=MAX((element(ienum).UW(j)-ELEMENT(IENUM).XYGP(NDIMENSION,J))*9.8,0.D0) !UNSATURATED SOIL IS NOT CONSIDERED.            
         ENDIF
         UW1(1:NDIMENSION)=element(ienum).UW(j) 
-        if(iiter==1) Dstress1=Dstress1+uw1  !Dstress-(-uw1) !第一次迭代时，荷载产生的应力均为总应力，此时减去孔压分担的应力,因为在此简单计算得到的UW不是增量。 
+        !if(iiter==1) Dstress1=Dstress1+uw1  !Dstress-(-uw1) !第一次迭代时，荷载产生的应力均为总应力，此时减去孔压分担的应力,因为在此简单计算得到的UW不是增量。后面发现去掉这步结果一样，收敛还快一步。 
 		Tstress1=Dstress1+element(ienum).stress(:,j)
         
         
@@ -2020,17 +2031,19 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
             SIGMA=ELEMENT(IENUM).STRESS(:,J)+ELEMENT(IENUM).DSTRESS(:,J)
 
 	        call stress_in_failure_surface(element(ienum).sfr(:,J),SIGMA,2,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1)
-                
+            !IF(.NOT.ALLOCATED(element(IENUM).sfrko)) ALLOCATE(element(IENUM).sfrko(N1))
+            !!假定ko应力，ko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
+            SIGMA(1)=mu1/(1-mu1)*SIGMA(2);SIGMA(3)=SIGMA(1);SIGMA(4:6)=0                
+	        call stress_in_failure_surface(sfr1,SIGMA,2,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1)
+            element(IENUM).sfr(8,J)=SFR1(1)                
             if(solver_control.slope_mko>0) then
-                IF(.NOT.ALLOCATED(element(IENUM).sfrko)) ALLOCATE(element(IENUM).sfrko(N1))
-                !!假定ko应力，ko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
-                SIGMA(1)=mu1/(1-mu1)*SIGMA(2);SIGMA(3)=SIGMA(1);SIGMA(4:6)=0                
-	            call stress_in_failure_surface(sfr1,SIGMA,2,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1)
-                element(IENUM).sfrko(J)=SFR1(1)
                 element(ienum).sfr(1,J)=element(ienum).sfr(1,J)-SFR1(1)
             endif
                 
-            IF(element(ienum).sfr(1,J)>MAXSFR) MAXSFR=element(ienum).sfr(1,J)
+            IF(element(ienum).sfr(1,J)>MAXSFR) THEN
+                MAXSFR=element(ienum).sfr(1,J)
+                MAXSFR_LAST=MAXSFR
+            ENDIF
         ENDIF
         
         bload(1:element(ienum).ndof)=bload(1:element(ienum).ndof)+ &

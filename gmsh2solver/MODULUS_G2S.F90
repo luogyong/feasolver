@@ -58,6 +58,8 @@ module DS_Gmsh2Solver
 		integer::nnode=0,nedge=0,nface=0
 		integer,allocatable::node(:)
         INTEGER,ALLOCATABLE::EDGE(:),FACE(:)
+        INTEGER::TOPONODE(2)=0 !只对由高次单元生成的一次对wellbore类单元有用，但其他面元或体元为高次单元时，因wellbore类单元目前只有2节点的一次单元，所以对高次线单元进行了分解，
+        !toponode记录当前单元对应的高次单元的端节点，以便进行后面的拓扑邻接分析。
     !CONTAINS
     !    PROCEDURE::GET_EDGE=>SET_ELEMENT_EDGE
     !    PROCEDURE::GET_FACE=>SET_ELEMENT_FACE
@@ -67,10 +69,10 @@ module DS_Gmsh2Solver
 	
 	
 	type physicalGroup_type
-		integer::isini=0,SF=0
+		integer::isini=0,SF=0,istopo=0 !对与由高次单元生成的一次Wellbore类单元，istopo==1,要输出对应的toponode节点。 
 		integer::ndim,COUPLESET=0 !COUPLESET>0 AND <>itself，表此单元组的单元与physicalgroup(COUPLESET)的单元相同。 by default it was set to be itself
 		logical::ismodel=.FALSE.,ISMASTER=.TRUE. !phgpnum(:) OUPLESET>0 AND <>itself, ismaster=.false. then let elemnt=coupleset.element
-		integer::ET_GMSH=0 
+        integer::ET_GMSH=0 
 		character(32)::name=''
 		integer::nel=0
 		integer,allocatable::element(:)
@@ -360,9 +362,9 @@ module DS_Gmsh2Solver
     
     SUBROUTINE WELLBORE_INITIALIZE(SELF)
         CLASS(WELLBORE_TYDEF)::SELF
-        INTEGER::I,J,K,N1,N2,N3,N4,INODE1,IEL1,II1
-        INTEGER::NODE1(10)
-        INTEGER,ALLOCATABLE::ISWBE1(:)
+        INTEGER::I,J,K,N1,N2,N3,N4,INODE1,IEL1,II1,N5,NEL1
+        INTEGER::NODE1(10),ELT1(10)
+        INTEGER,ALLOCATABLE::ISWBE1(:),IELT1(:)
         INTEGER,ALLOCATABLE::IA1(:)
         CHARACTER(16),PARAMETER::CAR1(3)=["PIPE2","WELLBORE","WELLBORE_SPGFACE"]
         
@@ -370,6 +372,7 @@ module DS_Gmsh2Solver
         ! 1 +-----------+ 2
         !   |           |
         ! 4 +           + 3
+        !5-------------------6 !TOPONODE
         ! Node 1 and 2: Line element simulating well flow along the well.
         ! Element 1-4 and 2-3 : virtual branch element 
         
@@ -411,7 +414,46 @@ module DS_Gmsh2Solver
                 PRINT *,'PLEASE SIGN A MATID TO PHYSICALGROUP(N1) THROUGH "GROUPPARAMETER". N1=',N1
                 STOP
             ENDIF
+            
+            N5=ELEMENT(PHYSICALGROUP(N1).ELEMENT(1)).NNODE-1
+            !对于高次线单元，因wellbore类单元只有2节点的线单元，转化为2节点的线单元
+            N2=0
+            IF(N5>1) THEN
+                CALL ENLARGE_AR(PHYSICALGROUP(N1).ELEMENT,PHYSICALGROUP(N1).NEL*(N5-1)) 
+                CALL ENLARGE_AR(ELEMENT,PHYSICALGROUP(N1).NEL*(N5-1))
+                IF(ALLOCATED(IELT1)) DEALLOCATE(IELT1)
+                ALLOCATE(IELT1(PHYSICALGROUP(N1).NEL*N5))
+                DO J=1,PHYSICALGROUP(N1).NEL
+                    IEL1=PHYSICALGROUP(N1).ELEMENT(J)
+                    NODE1(1:ELEMENT(IEL1).NNODE)=ELEMENT(IEL1).NODE([1,3:ELEMENT(IEL1).NNODE,2]) 
+                    ELEMENT(IEL1).NNODE=2
+                    ELEMENT(IEL1).ET=1 
+                    !对于由高次线单元分解形成的一次单元，因后面单元拓扑邻接分析时，只分析高次单元的边(即忽略中间节点)，导致由含内部节点的单元的边不体现，
+                    !为解决此问题，输出对应高次单元的端节点，利用此端节点进行拓扑分析。
+                    !略显麻烦。
+                    ELEMENT(IEL1).TOPONODE=ELEMENT(IEL1).NODE(1:2) 
+                    DO K=1,N5
+                        IF(K<2) THEN
+                            N3=IEL1 !本身，ELEMENT
+                        ELSE
+                            NEL=NEL+1 !新单元
+                            N3=NEL
+                            ELEMENT(N3)=ELEMENT(IEL1)
+                        ENDIF
+                        N2=N2+1
+                        IELT1(N2)=N3
+                        ELEMENT(N3).NODE=NODE1(K:K+1)
                         
+                   ENDDO
+                ENDDO
+                PHYSICALGROUP(N1).NEL=PHYSICALGROUP(N1).NEL*N5
+                PHYSICALGROUP(N1).ELEMENT=IELT1
+                PHYSICALGROUP(N1).ET_GMSH=1
+                PHYSICALGROUP(N1).istopo=1
+                
+            ENDIF
+            
+            
             DO J=1,PHYSICALGROUP(N1).NEL
             
                 IEL1=PHYSICALGROUP(N1).ELEMENT(J)
@@ -433,6 +475,7 @@ module DS_Gmsh2Solver
                 
                 IF(IJ1==2) THEN
                     PHYSICALGROUP(N1).ET_GMSH=1
+                    
                 ELSE
                     !滤管井单元,井流出溢面单元              
                     ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE

@@ -1,3 +1,12 @@
+module common_para_opengl
+
+    implicit none
+    
+    LOGICAL::NOPLOT=.FALSE.
+    integer,parameter,public::PSO_SLIP_PLOT_LIST=10
+    real(8)::stroke_fontsize=1.0
+end module
+    
 MODULE SLOPE_PSO
     USE stochoptim,ONLY: Evolutionary,rng
     use pikaia_module, only: pikaia_class
@@ -51,7 +60,7 @@ MODULE SLOPE_PSO
         character(len = 5) :: solver='de', strategy='rand1'
         
         !initial trial slip surface generation method
-        INTEGER::inishape=1 !slip =1��circular+softband,=0,cheng
+        INTEGER::inishape=1 !slip =1，circular+softband,=0,cheng
         
         INTEGER::NWSP=0
         REAL(8),ALLOCATABLE::WSP(:,:)
@@ -414,7 +423,7 @@ subroutine READ_FILE(INDATA,UNIT,COMMAND_READ)
 			strL=len_trim(term2)
 			if(strL==0.or.term2(1:2)=='//'.or.term2(1:1)=='#') cycle		
 
-			!ÿ�к�����'/'��ʼ�ĺ�����ַ�����Ч�ġ�
+			!每行后面以'/'开始的后面的字符是无效的。
 			if(index(term2,'/')/=0) then
 				strL=index(term2,'/')-1
 				term2=term2(1:strL)
@@ -777,12 +786,18 @@ SUBROUTINE PSO_SLIP_EXPORT(SELF,EA)
 END SUBROUTINE
 
 SUBROUTINE PSO_SLIP_PLOT(SELF)
-    use function_plotter
+    !use function_plotter
+    use opengl_gl
+    use opengl_glu
+    use opengl_glut
+    use common_para_opengl
+    use view_modifier
+    use POS_IO,only:POSDATA
     implicit none
     CLASS(PSO_SLIP_INFO)::SELF
     
     integer :: i,j,k,n1,DIRECTION1=1,AI1(SELF.NSLIP)
-    REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1,DEG2,MAX1
+    REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1,DEG2,MAX1    
     CHARACTER(16)::STR1
     REAL(GLFLOAT)::COLOR1(4),COLOR2(4)
     
@@ -1770,7 +1785,7 @@ integer function isacw(x1,y1,z1,x2,y2,z2,x3,y3,z3)
     zn3=z3-z1
     norm1=[yn2*zn3-zn2*yn3,-(xn2*zn3-zn2*xn3),xn2*yn3-yn2*xn3]
     t2=norm2(norm1)
-    if(t2<1e-10) then !����
+    if(t2<1e-10) then !共线
         ISACW=3
         if(x1<min(x3,x2)) return
         if(X1>max(x3,x2)) return
@@ -1782,16 +1797,16 @@ integer function isacw(x1,y1,z1,x2,y2,z2,x3,y3,z3)
     else
         !t1=(xn2*yn3-yn2*xn3)+(yn2*zn3-zn2*yn3)-(xn2*zn3-zn2*xn3)
         !if(abs(t1)<1.d-10) then 
-            !��(1,1,1)��ֱ            
+            !与(1,1,1)垂直            
         if(abs(norm1(3))>1e-10) then
-            isacw=sign(1.,norm1(3)) !��+z��
+            isacw=sign(1.,norm1(3)) !从+z看
         elseif(abs(norm1(1))>1e-10) then
-            isacw=sign(1.,norm1(1)) !��+x��
+            isacw=sign(1.,norm1(1)) !从+x看
         elseif(abs(norm1(2))>1e-10) then
-            isacw=sign(1.,norm1(2)) !��+y��
+            isacw=sign(1.,norm1(2)) !从+y看
         endif
         !else
-            !��(1,1,1)����
+            !从(1,1,1)方向看
         !    isacw=sign(1.,t1)
         !endif
     endif
@@ -1818,7 +1833,7 @@ function interpolation(x,y,nx,xi)
         if((xi<=x(i+1).and.xi>=x(i)).or.(xi<=x(i).and.xi>=x(i+1))) then
 	        t1=x(i+1)-x(i)
 	        if(abs(t1)<1e-7) then
-		        print *, "Warning! ��ĸ=0,function=Interpolation()"
+		        print *, "Warning! 分母=0,function=Interpolation()"
 		        interpolation=(y(i)+y(i+1))/2.0d0
 	        else
 		        interpolation=(y(i+1)-y(i))/(t1)*(xi-x(i))+y(i)

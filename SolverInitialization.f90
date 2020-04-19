@@ -1323,7 +1323,7 @@ subroutine el_alloc_room(ienum)
 			allocate(element(ienum).evp(6,element(ienum).ngp+element(ienum).nnum))	
 			allocate(element(ienum).ev(element(ienum).ngp), &
 			element(ienum).e(element(ienum).ngp),element(ienum).uw(element(ienum).ngp))
-			allocate(element(ienum).sfr(6,element(ienum).ngp+element(ienum).nnum))	
+			allocate(element(ienum).sfr(8,element(ienum).ngp+element(ienum).nnum))	
 			element(ienum).pstrain=0.0D0
 			element(ienum).evp=0.0D0	
 			element(ienum).ev=0.0
@@ -1336,7 +1336,7 @@ subroutine el_alloc_room(ienum)
 					allocate(node(element(ienum).node(i)).strain(6))
 					allocate(node(element(ienum).node(i)).pstrain(6))
 					IF(OUTVAR(SFR).VALUE>0) then
-                        allocate(node(element(ienum).node(i)).sfr(9))
+                        allocate(node(element(ienum).node(i)).sfr(11))
                         !node(element(ienum).node(i)).sfr(9)=SOLVER_CONTROL.slidedirection
                     endif
 					IF(OUTVAR(PSIGMA).VALUE>0) allocate(node(element(ienum).node(i)).PSIGMA(4))
