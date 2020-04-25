@@ -22,6 +22,7 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 	bdylds=0.0d0
 	Qstored=0.d0
     MAXSFR=-1.D20
+    QWAN=0.D0
 	if(stepinfo(istep).issteady) then
 		dt1=1.D0
 	else
@@ -101,7 +102,24 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
  !       print *, sum(abs(bdylds))
  !   endif
 	Qinput=sum(NI_NodalForce(DOFHEAD))*dt1
-		
+	do i=1,nqwnode
+        qwellnode(i).q=sum(NI_NodalForce(node(qwellnode(i).node).dof(4)))
+        DO J=1,QWELLNODE(I).NNODE2
+            qwellnode(i).QAN(:,J)=QWAN(:,QWELLNODE(I).NODE2(J))
+        ENDDO
+        qwellnode(i).QA=SUM(abs(qwellnode(i).QAN(1,:)))
+        qwellnode(i).QN=SUM(abs(qwellnode(i).QAN(2,:)))
+        if(qwellnode(i).QA>qwellnode(i).QN.and.iiter==1) THEN
+            t1=qwellnode(i).QA/qwellnode(i).QN*2
+            do j=1,size(qwellnode(i).element)
+                n1=qwellnode(i).element(j)
+                !if(t1>element(n1).fqw) 
+                element(n1).fqw=element(n1).fqw*t1 
+                element(n1).km=element(n1).km*t1 !前面已经乘了element(n1).fqw
+            enddo
+        ENDIF
+    enddo
+    
 		
 	call residual_bc_clear(isBCdis,istep)
 

@@ -824,7 +824,7 @@ end function
     integer::i,n1,np1
     
     call tetshapefun_solver(Pt,itet,shpfun,.true.)
-    n1=element(itet).nnum
+    n1=size(pval,dim=1)
     np1=size(pval,dim=2)
     do i=1,np1       
         val(i)=dot_product(pval(:,i),shpfun(1:n1))
@@ -873,7 +873,7 @@ end function
             shpfun(i)=v3(n1)/vol1
             shpfun(3)=shpfun(3)-shpfun(i)
         enddo
-        if(element(itet).nnum>3.and.isgv1) then
+        if(size(shpfun)>3.and.isgv1) then
             pt1(1:ndimension)=shpfun(1:ndimension)
             call shapefunction_cal(element(itet).et,pt1,shpfun,element(itet).nnum,ndimension)
         endif
@@ -896,7 +896,7 @@ end function
             shpfun(i)=determinant(reshape([v2,v1,v3],([3,3])))/vol1
             shpfun(4)=shpfun(4)-shpfun(i)
         enddo
-        if(element(itet).nnum>4.and.isgv1) then
+        if(size(shpfun)>4.and.isgv1) then
             pt1(1:ndimension)=shpfun([1,2,4])
             call shapefunction_cal(element(itet).et,pt1,shpfun,element(itet).nnum,ndimension)
         endif        

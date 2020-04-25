@@ -325,7 +325,15 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 		WRITE(99,11) NSEEP(i).node,NSEEP(i).dof,'S.F.',INC,ITER,NODE(NSEEP(i).node).COORD(1:NDIMENSION),NI_NodalForce(DOFS1(1:NITEM1)),TDISP(DOFS1(1:NITEM1))
         IF(OUTVAR(90+NSEEP(i).dof).IVO>0) NODALQ(NSEEP(i).node,OUTVAR(90+NSEEP(i).dof).IVO,NNODALQ)=-NSEEP(i).dof
 		!QT=QT+NODE(NSEEP(i).node).Q*dt1
-	END DO
+    END DO
+    DO I=1,NQWNODE
+        IF(I==1) THEN
+            WRITE(99,30)
+            WRITE(99,31)
+        ENDIF
+        WRITE(99,32) I,NODE(QWELLNODE(I).NODE(1)).COORD,SUM(NI_NodalForce(NODE(QWELLNODE(I).NODE).DOF(4))),TDISP(NODE(QWELLNODE(I).NODE(1)).DOF(4))
+        
+    ENDDO
 	
 	!t1=0.0d0
 	!do i=1,enum
@@ -337,10 +345,12 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 
 10  format(3X,"NODE",5X,"DOF",3X,"TYPE",4X,"INC",4X,"ITER",15X,"X",15X,"Y",15X,"Z",2X,"GENERALIZED_LOADS",1X,"GENERALIZED_DISPLACEMENTS")
 11	format(I7,1X,I7,3X,A4,4X,I3,4X,I4,1X,<NDIMENSION>(F15.7,1X),3X,<NITEM1>F15.7,10X,<NITEM1>F15.7)
-12	format("WATER STORED:",F15.7,X,"WATER FLOWED IN:",F15.7,X,"RATIO:",F15.7)
+12  format("WATER STORED:",F15.7,X,"WATER FLOWED IN:",F15.7,X,"RATIO:",F15.7)
 20	format("\N******************OUTPUT THE FLUX ON BOUNDARIES AND MASS CONVERSATION RATIO******************"C)
-21	format("******************END THE OUTPUT******************\N"C)
-
+21	format("\N******************END THE OUTPUT******************"C)
+30  FORMAT("\N******************WELL INFO***********************"C)
+31  FORMAT(14X,"NO",15X,"X",15X,"Y",15X,"Z",15X,"Q",12X,"HEAD")
+32  FORMAT(I16,5F16.7)    
 end subroutine
 
 

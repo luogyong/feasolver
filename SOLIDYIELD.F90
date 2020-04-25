@@ -138,7 +138,7 @@ subroutine solve_SLD()
             !if(iincs==4) solver_control.niteration=4
 			do while(iiter<=solver_control.niteration)
 				NYITER=0
-				MYFVAL=-1E7
+				MYFVAL=-1E3
 				iiter=iiter+1
 				call solver_initialization(kref,iincs,iiter)
 
@@ -286,8 +286,9 @@ subroutine solve_SLD()
                     WRITE(99,50)
                     WRITE(99,11)                    
                 ENDIF
-                WRITE(*,12) SICR,MYFVAL,convratio,sumforce,resdis,relax,relax*maxval(abs(load)),maxloc(abs(load)),iiter,isubts,iincs,ttime1
-                WRITE(99,12) SICR,MYFVAL,convratio,sumforce,resdis,relax,relax*maxval(abs(load)),maxloc(abs(load)),iiter,isubts,iincs,ttime1                    
+                
+                WRITE(*,12) SICR,MYFVAL,convratio,sumforce,resdis,relax,sum(qwellnode.q),relax*maxval(abs(load)),maxloc(abs(load)),iiter,isubts,iincs,ttime1
+                WRITE(99,12) SICR,MYFVAL,convratio,sumforce,resdis,relax,sum(qwellnode.q),relax*maxval(abs(load)),maxloc(abs(load)),iiter,isubts,iincs,ttime1                    
                 
 				!write(99,10) solver_control.isfc,SICR,MYFVAL,convratio,sumforce,resdis, &
 				!		relax*maxval(abs(load)),maxloc(abs(load)),relax,iiter,isubts,ttime1,iincs
@@ -441,8 +442,8 @@ subroutine solve_SLD()
 
 10 format('ISFC=',L1,',SICR=',F6.3,',MYFVAL=',F6.4 ',ConvCoff.=',f6.3,',SumForce.=', E10.3,',SumRes=',E10.3 ',MaxDiff.=',f7.3,'(N=',I7,'),R.F.=',f8.5, &
 				',NIter=',I4,',NSubTS(E.Time)=',I4,'(',F8.3,'),NIncr=',I2,'.')
-11 FORMAT('|','      SICR   |','   MAX_YFV   |','   CONV.RA.  |','   SumForce  |','   ResForce  |','   RelaxFac  |','   MAXDISIN  |','iDOF_MDI|','    ITER|','ISUBSTEP|','   ISTEP|','STEPTIME|')   
-12 FORMAT('|',7(f12.3,X,'|'),4(I7,X,'|'),(f12.3,X,'|'))
+11 FORMAT('|','      SICR   |','   MAX_YFV   |','   CONV.RA.  |','   SumForce  |','   ResForce  |','   RelaxFac  |','  SUM_WELLQ  |','   MAXDISIN  |','iDOF_MDI|','    ITER|','ISUBSTEP|','   ISTEP|','STEPTIME|')   
+12 FORMAT('|',8(f12.3,X,'|'),4(I7,X,'|'),(f12.3,X,'|'))
 20 format('TOTAL REFACTORIZATION. NINCR=',I4,' NITE=',I4,' Duration=',f12.6) 
 21 format('PARTIAL REFACTORIZATION. NINCR=',I4,' NITE=',I4,' Duration=',f12.6,' NUMBERS OF BCs UPDATED=',I7) 
 30 format('Exit with the Max iteration without convergence. Niteration=',I4,',NSubTS(E.Time)=',I3,'(',F10.3,'), NIncr=',I3,'.')

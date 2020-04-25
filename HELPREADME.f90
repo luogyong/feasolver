@@ -264,7 +264,13 @@ subroutine write_readme_feasolver()
 	README(IPP(I)) ="//当为单元SSP2D指定材料，输入参数(A,Iz,minN,maxN,minMz,maxMz)均为单根钢板桩的参数,YC钢板桩形心轴距离锁口内沿的距离。"
 	README(IPP(I)) ="//hy,hz分别为梁截面在y'和z'轴方向(局部坐标)的高度，为后处理转化为六面体单元时所用. \N"C
 	README(IPP(I)) ="//当为支护桩时，hy,hz分别为桩径和桩距，计算作用于支护桩上的土压力和土弹簧的刚度用 \N"C
-	README(IPP(I)) ="//10. CASE(wellbore) : PROPERTY(1)=R(井半径). (2)Temp. (3)=Kr(relative roughness of the  inner surface of the pipe ),.(4)=time unit (day=0(default),second=1), .(5)=g (gravity acc. =0(SET by default, 73156608000.00 m/day2. ), .(6)PIPE-FLOW MODEL(=0,Darcy(no porous effect,DEFAULT);=1,Siwon; =2,OUYang EFFECT;=3,Input by user); .(7)泥皮的厚度和渗透系数的比L/K.=0(默认,不考虑井损));.(8)=f(Darcy Friction factor(井壁摩阻系数),=0,由计算定(默认)，一般为0.02-0.03左右,当model=3时输入。);.(9)=POROSITY OF THE WELLBORE(当model=1时输入)"C
+	README(IPP(I)) ="//10. CASE(wellbore) : PROPERTY(1)=R(井半径). (2)Temp.\n &
+                    &  .(3)=Kr(relative roughness of the  inner surface of the pipe ), \N&
+                    &  .(4)=time unit (day=0(default),second=1), \N&
+                    &  .(5)=g (gravity acc. =0(SET by default, 73156608000.00 m/day2. ), \N&
+                    &  .(6)PIPE-FLOW MODEL(=0,Darcy(no porous effect,no friction effect,DEFAULT);=1,Siwon; =2,OUYang EFFECT;=3,Input by user;=4,(no porous effect,DEFAULT)); \N &
+                    &  .(7)泥皮的厚度和渗透系数的比L/K.=0(默认,不考虑井损)); &
+                    &  .(8)=f(Darcy Friction factor(井壁摩阻系数),=0,由计算定(默认)，一般为0.02-0.03左右,当model=3时输入。);.(9)=POROSITY OF THE WELLBORE(当model=1时输入)"C
 	README(IPP(I)) ="//11. CASE(ExcavationSoil/SLOPESOIL) : PROPERTY(1:10)=黏聚力，摩擦角，天然/饱和重度，变形模量，泊松比,渗透系数，水平基床系数(F/L**3),墙土间摩擦角（度）,[层顶水压力PW1,层底水压力PW2]"C
 	README(IPP(I)) ="//PW1，PW2仅当土层的水压力为手动输入时有用（WPMETHOD=3）。"
 	README(IPP(I)) ="//12. CASE(spring) : PROPERTY(1:3)=k,minV(发生负位移),maxV(发生正位移)，预加力，预加位移"C

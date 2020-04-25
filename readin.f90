@@ -1383,7 +1383,27 @@ subroutine solvercommand(term,unit)
 				allocate(datapoint(i).node(datapoint(i).nnode))
 				call skipcomment(unit)
 				read(unit,*) datapoint(i).node
-			end do
+            end do
+        case('qwellnode')
+            print *,"Reading QWELLNODE data..."
+			do i=1,pro_num
+				select case(property(i).name)
+					case('num')
+						N2=int(property(i).value)
+                    CASE DEFAULT
+                        call Err_msg(property(i).name)
+                END SELECT
+            ENDDO
+            IF(ALLOCATED(QWELLNODE1)) DEALLOCATE(QWELLNODE1)
+            ALLOCATE(QWELLNODE1(N2))
+            DO I=1,N2
+                CALL strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+                QWELLNODE1(I).NNODE=N1
+                QWELLNODE1(I).NODE=INT(AR(1:N1))
+            ENDDO
+            QWELLNODE=[QWELLNODE,QWELLNODE1]
+            IF(ALLOCATED(QWELLNODE1)) DEALLOCATE(QWELLNODE1)
+            NQWNODE=SIZE(QWELLNODE)
 		case('soilprofile')
 			print *, "Reading SOILPROFILE Data..."
 			n3=0

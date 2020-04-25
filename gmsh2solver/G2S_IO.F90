@@ -670,7 +670,10 @@ subroutine kwcommand(term,unit)
 		case("wellbore")
             call skipcomment(unit)
             !call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
-			read(unit,*) NWELLBORE           
+			!read(unit,*) NWELLBORE           
+            call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
+            NWELLBORE=int(ar(1))
+            if(nread>1) wellh2lmethod=int(ar(2))
             
 			allocate(wellbore(NWELLBORE))
 			do i=1,NWELLBORE
@@ -703,10 +706,10 @@ subroutine kwcommand(term,unit)
                     ENDDO
                 ENDIF
                 IF(WELLBORE(I).NSPG_FACE>0) THEN
-                    ALLOCATE(WELLBORE(I).SPG_FACE(WELLBORE(I).NSPG_FACE),WELLBORE(I).SINK_NODE_SPG_FACE(WELLBORE(I).NSPG_FACE))
+                    ALLOCATE(WELLBORE(I).SPG_FACE(WELLBORE(I).NSPG_FACE)) !,WELLBORE(I).SINK_NODE_SPG_FACE(WELLBORE(I).NSPG_FACE)
                     DO J=1,WELLBORE(I).NSPG_FACE
                         call skipcomment(unit)
-                        READ(UNIT,*) WELLBORE(I).SPG_FACE(J),WELLBORE(I).SINK_NODE_SPG_FACE(J)
+                        READ(UNIT,*) WELLBORE(I).SPG_FACE(J)
                     ENDDO
                 ENDIF                
                 
@@ -1176,11 +1179,11 @@ subroutine Tosolver()
 	
 	if(nspgface>0) then
 		do i=1, nelt_spgface
-            IF(ELT_SPGFACE(I).ISWELLCONDITION<1) THEN
-			    write(unit,150) elt_spgface(i).n2-elt_spgface(i).n1+1,elt_spgface(i).sf
-            ELSE
-                write(unit,153) elt_spgface(i).n2-elt_spgface(i).n1+1,elt_spgface(i).sf,ELT_SPGFACE(I).ISWELLCONDITION
-            ENDIF
+            !IF(ELT_SPGFACE(I).ISWELLCONDITION<1) THEN
+			write(unit,150) elt_spgface(i).n2-elt_spgface(i).n1+1,elt_spgface(i).sf
+            !ELSE
+            !    write(unit,153) elt_spgface(i).n2-elt_spgface(i).n1+1,elt_spgface(i).sf,ELT_SPGFACE(I).ISWELLCONDITION
+            !ENDIF
             
 			write(unit,152)
 			
@@ -1206,7 +1209,10 @@ subroutine Tosolver()
 			write(unit,172) node(DATAPOINT(I).NODE).inode
 		end do
     end if
-	
+
+    DO I=1,NWELLBORE
+        CALL WELLBORE(I).OUTQNODE(UNIT)
+    ENDDO
 
 	DO I=1,NCOPYFILE
 		CALL DO_COPYFILE(COPYFILE(I),UNIT)			

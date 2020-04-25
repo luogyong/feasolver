@@ -190,16 +190,18 @@ module DS_Gmsh2Solver
     
     TYPE WELLBORE_TYDEF
         INTEGER::IGP=0,WELLNODE=0,NWELLBORESEG=-1,BCTYPE=0,NWNODE=0,PIPEFLOW=-1,SPHERICALFLOW=0,NSEMI_SF=0
-        INTEGER::NSPG_FACE=0,MAT=0
+        INTEGER::NSPG_FACE=0,MAT=0,NQNODE=0
         REAL(8)::R,VALUE=0.D0
-        INTEGER,ALLOCATABLE::SEMI_SF_IPG(:),SPG_FACE(:),SINK_NODE_SPG_FACE(:)
-        REAL(8),ALLOCATABLE::DIR_VECTOR(:,:)        
+        INTEGER,ALLOCATABLE::SEMI_SF_IPG(:),SPG_FACE(:),QNODE(:,:) !,SINK_NODE_SPG_FACE(:)
+        !QNODE,统计各井流量时该井所属的节点，包括井口节点及出溢面上的所有节点。
+        REAL(8),ALLOCATABLE::DIR_VECTOR(:,:)
+        
     CONTAINS
         PROCEDURE::INITIALIZE=>WELLBORE_INITIALIZE
-        
+        PROCEDURE::OUTQNODE=>WELLBORE_OUTPUTQNODE
     ENDTYPE
     TYPE(WELLBORE_TYDEF),ALLOCATABLE::WELLBORE(:)
-    INTEGER::NWELLBORE=0
+    INTEGER::NWELLBORE=0,wellh2lmethod=0
     
 
     CONTAINS
@@ -362,7 +364,7 @@ module DS_Gmsh2Solver
     
     SUBROUTINE WELLBORE_INITIALIZE(SELF)
         CLASS(WELLBORE_TYDEF)::SELF
-        INTEGER::I,J,K,N1,N2,N3,N4,INODE1,IEL1,II1,N5,NEL1
+        INTEGER::I,J,K,N1,N2,N3,N4,INODE1,IEL1,II1,N5,NEL1,imethod1
         INTEGER::NODE1(10),ELT1(10)
         INTEGER,ALLOCATABLE::ISWBE1(:),IELT1(:)
         INTEGER,ALLOCATABLE::IA1(:)
@@ -417,39 +419,50 @@ module DS_Gmsh2Solver
             
             N5=ELEMENT(PHYSICALGROUP(N1).ELEMENT(1)).NNODE-1
             !对于高次线单元，因wellbore类单元只有2节点的线单元，转化为2节点的线单元
-            N2=0
+            N2=0;imethod1=wellh2lmethod !=0,把高次单元生成多个一次单元；=1,去除内部节点，只利用端节点生成1个一次单元
             IF(N5>1) THEN
-                CALL ENLARGE_AR(PHYSICALGROUP(N1).ELEMENT,PHYSICALGROUP(N1).NEL*(N5-1)) 
-                CALL ENLARGE_AR(ELEMENT,PHYSICALGROUP(N1).NEL*(N5-1))
-                IF(ALLOCATED(IELT1)) DEALLOCATE(IELT1)
-                ALLOCATE(IELT1(PHYSICALGROUP(N1).NEL*N5))
+                if(imethod1==0) then
+                    CALL ENLARGE_AR(PHYSICALGROUP(N1).ELEMENT,PHYSICALGROUP(N1).NEL*(N5-1)) 
+                    CALL ENLARGE_AR(ELEMENT,PHYSICALGROUP(N1).NEL*(N5-1))
+                    IF(ALLOCATED(IELT1)) DEALLOCATE(IELT1)
+                    ALLOCATE(IELT1(PHYSICALGROUP(N1).NEL*N5))
+                endif
                 DO J=1,PHYSICALGROUP(N1).NEL
                     IEL1=PHYSICALGROUP(N1).ELEMENT(J)
                     NODE1(1:ELEMENT(IEL1).NNODE)=ELEMENT(IEL1).NODE([1,3:ELEMENT(IEL1).NNODE,2]) 
                     ELEMENT(IEL1).NNODE=2
-                    ELEMENT(IEL1).ET=1 
-                    !对于由高次线单元分解形成的一次单元，因后面单元拓扑邻接分析时，只分析高次单元的边(即忽略中间节点)，导致由含内部节点的单元的边不体现，
-                    !为解决此问题，输出对应高次单元的端节点，利用此端节点进行拓扑分析。
-                    !略显麻烦。
-                    ELEMENT(IEL1).TOPONODE=ELEMENT(IEL1).NODE(1:2) 
-                    DO K=1,N5
-                        IF(K<2) THEN
-                            N3=IEL1 !本身，ELEMENT
-                        ELSE
-                            NEL=NEL+1 !新单元
-                            N3=NEL
-                            ELEMENT(N3)=ELEMENT(IEL1)
-                        ENDIF
-                        N2=N2+1
-                        IELT1(N2)=N3
-                        ELEMENT(N3).NODE=NODE1(K:K+1)
+                    ELEMENT(IEL1).ET=1
+                    IF(IMETHOD1==0) THEN
+                        !对于由高次线单元分解形成的一次单元，因后面单元拓扑邻接分析时，只分析高次单元的边(即忽略中间节点)，导致由含内部节点的单元的边不体现，
+                        !为解决此问题，输出对应高次单元的端节点，利用此端节点进行拓扑分析。
+                        !略显麻烦。
                         
-                   ENDDO
+                        ELEMENT(IEL1).TOPONODE=ELEMENT(IEL1).NODE(1:2) 
+                        DO K=1,N5
+                            IF(K<2) THEN
+                                N3=IEL1 !本身，ELEMENT
+                            ELSE
+                                NEL=NEL+1 !新单元
+                                N3=NEL
+                                ELEMENT(N3)=ELEMENT(IEL1)
+                            ENDIF
+                            N2=N2+1
+                            IELT1(N2)=N3
+                            ELEMENT(N3).NODE=NODE1(K:K+1)
+                        
+                        ENDDO
+                    ELSE
+                        ELEMENT(IEL1).NODE=ELEMENT(IEL1).NODE(1:2)
+                    ENDIF
+                    
                 ENDDO
-                PHYSICALGROUP(N1).NEL=PHYSICALGROUP(N1).NEL*N5
-                PHYSICALGROUP(N1).ELEMENT=IELT1
+                IF(IMETHOD1==0) THEN
+                    PHYSICALGROUP(N1).NEL=PHYSICALGROUP(N1).NEL*N5
+                    PHYSICALGROUP(N1).ELEMENT=IELT1
+                    PHYSICALGROUP(N1).istopo=1
+                ENDIF
                 PHYSICALGROUP(N1).ET_GMSH=1
-                PHYSICALGROUP(N1).istopo=1
+                
                 
             ENDIF
             
@@ -575,11 +588,41 @@ module DS_Gmsh2Solver
         
         !BC
         N1=SELF.WELLNODE
-        
+        SELF.NQNODE=PHYSICALGROUP(N1).NEL
+        N2=1
+        IF(SELF.NSPG_FACE>0) N2=1+MAXVAL(PHYSICALGROUP(SELF.SPG_FACE(1:SELF.NSPG_FACE)).NEL)
+        IF(.NOT.ALLOCATED(SELF.QNODE)) ALLOCATE(SELF.QNODE(N2,PHYSICALGROUP(N1).NEL))
+        SELF.QNODE=-1
+        IF(ALLOCATED(IELT1)) DEALLOCATE(IELT1)
+        ALLOCATE(IELT1(NEL))        
         DO I=1,PHYSICALGROUP(N1).NEL 
             IEL1=PHYSICALGROUP(N1).ELEMENT(I)
             ELEMENT(IEL1).NODE=NODE(ELEMENT(IEL1).NODE).N1
+            !FIND THE WELLBORE_SPGFACE ELEMENT CONNECT TO THE WELLNODE,TO SUM THE WELL Q
+            N2=1
+            SELF.QNODE(N2,I)=ELEMENT(IEL1).NODE(1)
+            IELT1=0
+
+10          DO J=1,SELF.NSPG_FACE
+                N3=SELF.SPG_FACE(J)
+                DO K=1,PHYSICALGROUP(N3).NEL
+                    N4=PHYSICALGROUP(N3).ELEMENT(K)
+                    IF(IELT1(N4)/=0) CYCLE
+                    IF(ELEMENT(N4).NODE(1)==SELF.QNODE(N2,I)) THEN
+                        N2=N2+1
+                        SELF.QNODE(N2,I)=ELEMENT(N4).NODE(2)
+                        IELT1(N4)=1
+                        GOTO 10
+                    ELSEIF(ELEMENT(N4).NODE(2)==SELF.QNODE(N2,I)) THEN
+                        N2=N2+1
+                        SELF.QNODE(N2,I)=ELEMENT(N4).NODE(1)
+                        IELT1(N4)=1
+                        goto 10
+                    ENDIF
+                ENDDO
+            ENDDO
         ENDDO
+        
         IF(SELF.BCTYPE/=1) THEN
             
             NELT_BC=NELT_BC+1
@@ -607,11 +650,27 @@ module DS_Gmsh2Solver
             ELT_SPGFACE(NELT_SPGFACE).NDIM=0
             ELT_SPGFACE(NELT_SPGFACE).DOF=4
             ELT_SPGFACE(NELT_SPGFACE).VALUE=SELF.VALUE            
-            ELT_SPGFACE(NELT_SPGFACE).ISWELLCONDITION=SELF.SINK_NODE_SPG_FACE(I)
+            ELT_SPGFACE(NELT_SPGFACE).ISWELLCONDITION=1 !SELF.SINK_NODE_SPG_FACE(I)
         ENDDO
         
         IF(ALLOCATED(ISWBE1)) DEALLOCATE(ISWBE1)
         IF(ALLOCATED(IA1)) DEALLOCATE(IA1)
+    ENDSUBROUTINE
+    
+    SUBROUTINE WELLBORE_OUTPUTQNODE(SELF,UNIT)
+        CLASS(WELLBORE_TYDEF)::SELF
+        INTEGER,INTENT(IN)::UNIT
+        INTEGER::I,J,K,N1,N2,N3,N4,INODE1,IEL1,II1,N5,NEL1,imethod1
+        
+        WRITE(UNIT,10) SELF.NQNODE
+        
+        DO I=1,SELF.NQNODE
+            N1=COUNT(SELF.QNODE(:,I)>0)
+            WRITE(UNIT,20) NODE(SELF.QNODE(1:N1,I)).INODE
+        ENDDO
+        
+10      FORMAT("QWELLNODE,NUM=",I4)        
+20      FORMAT(<N1>(I7,1X))  
     ENDSUBROUTINE
     
   !  SUBROUTINE SET_ELEMENT_EDGE(THIS)

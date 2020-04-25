@@ -111,7 +111,7 @@ module solverds
 		real(kind=DPN),allocatable::X2(:)
         
         REAL(8)::BBOX(2,3)=0.D0 !MIN,MAX OF X,Y AND Z
-        
+        REAL(8)::fqw=1.0d0 !井周单元渗透系数调节因子，
 	end type
 	integer::enum=0 !节点数
 	type(element_tydef),allocatable::element(:)
@@ -182,6 +182,19 @@ module solverds
 	type(bc_tydef),allocatable::bc_disp(:),bc_load(:),bf(:),NSeep(:),IniValue(:),CFN(:)
 	integer::bd_num=0,bl_num=0,bfnum=0,NumNSeep=0,Niniv=0,NCFN=0	
 	real(kind=DPN),allocatable::iniValueDof(:) 
+    
+    TYPE QWELLNODE_TYDEF
+        INTEGER::NNODE,DOF=4,NNODE2=0
+        INTEGER,ALLOCATABLE::NODE(:),NODE2(:),ELEMENT(:) 
+        REAL(kind=DPN),ALLOCATABLE::QAN(:,:) !井节点node2(i)的解析流量qan(1,i)及数值流量qan(2,i)
+        !NODE为每口井的井口节点及出溢节点，以统计井流量。
+        !node2为每口井的井流单元及井流出溢面单元的第3、4号节点  
+        !ELEMENT为井周附近的实体单元（形状为203或304的单元）
+        real(kind=DPN)::Q=0,QA=0,QN=0 !
+    ENDTYPE
+    TYPE(QWELLNODE_TYDEF),ALLOCATABLE::QWELLNODE(:),QWELLNODE1(:)
+    REAL(kind=DPN),ALLOCATABLE::QWAN(:,:)   !井节点node2(i)的解析流量qan(1,i)及数值流量qan(2,i)
+    INTEGER::NQWNODE=0
     
     type hinge_typef
         integer::element,node,dof=7 !单元号，节点号，自由度
@@ -549,6 +562,8 @@ module solverds
    
     
     contains
+    
+
     
     FUNCTION GET_MAT_PROPERTY_ARRAY(MAT,IPARA,ISTEP) RESULT(VAL)
 		CLASS(mat_tydef),INTENT(in):: MAT

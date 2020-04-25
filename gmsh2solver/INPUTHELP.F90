@@ -119,15 +119,15 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$WELLBORE"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD WELLBORE IS USED TO DEFINE THE WELLBORE PARAMETERS."//'"'
-	README(IPP(I)) = "//{NWELLBORE}   // 井集数"
+	README(IPP(I)) = "//{NWELLBORE,[H2LMETHOD]}   // 井集数；[由高次单元边生成井线单元的处理方法，=0(默认),把高次单元生成多个一次单元；=1,去除内部节点，只利用端节点生成1个一次单元。]"
     README(IPP(I)) = "//{Wellbore_GROUPID,WELL_HEAD_BC_TYPE,WellNODE_GroupID,VALUE [,SFN_GROUDID,NSEMI_SFN_GROUPS,PIPEFLOW_GroupID,NWELLSEEPAGEFACE,MATID]}" 
     README(IPP(I)) = "//{[SEMI_SFN_GROUDID,DIRECTION_VECTOR]} //ONLY NEED WHEN NSEMI_SFN_GROUPS>0 " 
-    README(IPP(I)) = "//{[WELL_SEEPAGE_FACE_LINE_GROUPID,SINKNODE_GROUPID]} //ONLY NEED WHEN NWELLSEEPAGEFACE>0 " 
+    README(IPP(I)) = "//{[WELL_SEEPAGE_FACE_LINE_GROUPID]} //ONLY NEED WHEN NWELLSEEPAGEFACE>0 " 
     README(IPP(I)) = "//WELL_HEAD_BC_TYPE,WellNODE_GroupID and Value:井点的边界类型、施加边界的节点GROUDID及数值。WELL_HEAD_BC_TYPE=0,1,2分别表示：自流井水头(水只出不进,但迭代过程中出现井流量为流入时，强制流量为0)，流量边界，常规定水头边界(不进行流量的正负检查);"
     README(IPP(I)) = "//SFN_GROUDID,附近为球状流的点集，模拟点源。=0(默认，无)=GROUPID(>0),球状流的位置由PHYSICALGROUP中单元决定" 
     README(IPP(I)) = "//NSEMI_SFN_GROUPS,半球状流的点集的个数，模拟非完整井。=0，无(默认，井为完整井)，=GROUPID(>0),半球状流的节点和方向由SEMI_SFN_GROUP和DIRECTION_VECTOR(半球区域方向矢量)中单元决定" 
     README(IPP(I)) = "//PIPEFLOW_GroupID,=0(默认全长均为滤管)，>0,管流管的位置由PHYSICALGROUP中单元决定 " 
-    README(IPP(I)) = "//WELL_SEEPAGE_FACE_LINE_GROUPID和SINKNODE_GROUPID为潜水井井壁出溢线集和对应的井点(即各出溢点的流量汇入点)，每个潜水井对应一个出溢线集合和一个井点，所以SINKNODE_GROUPID只包含一个节点"
+    README(IPP(I)) = "//WELL_SEEPAGE_FACE_LINE_GROUPID为潜水井井壁出溢线集"
     README(IPP(I)) = "//MATID,参数的材料号,如此处不输入，则应在GROUPPARAMETER中输入。井参数包括:"
     README(IPP(I)) ="//PROPERTY(1)=R(井半径). (2)Temp. (3)=Kr(relative roughness of the  inner surface of the pipe ),.(4)=time unit (day=0(default),second=1), .(5)=g (gravity acc. =0(SET by default, 73156608000.00 m/day2. ), .(6)PIPE-FLOW MODEL(=0,Darcy(no porous effect,DEFAULT);=1,Siwon; =2,OUYang EFFECT;=3,Input by user); .(7)泥皮的厚度和渗透系数的比L/K.=0(默认,不考虑井损));.(8)=f(Darcy Friction factor(井壁摩阻系数),=0,由计算定(默认)，一般为0.02-0.03左右,当model=3时输入。);.(9)=POROSITY OF THE WELLBORE(当model=1时输入)"C
     README(IPP(I)) = "//建议井线附近单元的大小为井半径10倍以上，不要小于井半5倍，不然可能计算失败。"

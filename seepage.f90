@@ -263,7 +263,7 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
                     
     element(ienum).kr(IGP)=lamda 
     
-    KT=ELEMENT(IENUM).D*LAMDA
+    KT=ELEMENT(IENUM).D*LAMDA*element(ienum).fqw
     
         
 	IF(ESET(ELEMENT(IENUM).SET).COUPLESET<0.OR.ESET(ELEMENT(IENUM).SET).COUPLESET==ELEMENT(IENUM).SET) RETURN
@@ -414,7 +414,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
     MODEL1=INT(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(6))
  
     
-    IF(ET1/=WELLBORE_SPGFACE) THEN
+    IF(ET1/=WELLBORE_SPGFACE.and.model1/=0) THEN
         L1=2*DIS1
         D1=2*MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)
         AREA1=PI1*D1**2/4.0
@@ -503,6 +503,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
         Q1=0.D0
         
         QN1(1:NDOF1)=MATMUL(ELEMENT(IEL).KM,NHEAD1(1:NDOF1))
+        QWAN(2,ELEMENT(IEL).NODE(1:NDOF1))=QWAN(2,ELEMENT(IEL).NODE(1:NDOF1))+QN1(1:NDOF1)        
         
         DO I=1,2
     
@@ -616,8 +617,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
             Q1(I+2)=Q1(I+2)/TW1
             !A1(I+1)=ABS(Q1(I+2)/DH1)
             
-            Q1(I+2)=Q1(I+2)/TW1
-            !A1(I+1)=ABS(Q1(I+2)/DH1)
+            QWAN(1,ELEMENT(IEL).NODE(I+2))=QWAN(1,ELEMENT(IEL).NODE(I+2))+Q1(I+2)
             
             IF(ABS(Q1(I+2))<1E-5) THEN
                 Q1(I+2)=1.D-5
@@ -664,13 +664,15 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
     INTEGER,INTENT(IN)::IEL,ISTEP,IITER
     REAL(8),INTENT(IN)::STEPDIS(NDOF)
     INTEGER::I,J,K,I0,IN1,IN2,IN3,N1,N2,IEL1,IP1,MODEL1,II1,NDOF1,ET1,ANODE1,isok
-    INTEGER,ALLOCATABLE::NSP1(:)
+    INTEGER,ALLOCATABLE::NSP1(:),NSP2(:)
     REAL(8)::H1,X1(3),R1,Q1(4),PI1,LAMDA1,K1,DIS1,DH1,A1(5),NHEAD1(5),KM1(5,5),HZ1,RA1,X2(3),&
     W1,TW1,RE1,VA1,QR1,FD1,L1,D1,QA1,VR1,AREA1,g1,FACC1,REW1,cf1,QN1(5),KX1,KY1,KZ1,SITA1(3),LP1,&
-    KR1,XC1(3),VW1(3),T1,C1,B1,PO1,VS1,DIS2
-    REAL(8)::SPH1(100),NHEAD2(10,1),f1,scale1,Ru1,rwu1,rw1,val1
+    KR1,XC1(3),VW1(3),T1,C1,B1,PO1,VS1,DIS2,H2
+    REAL(8)::SPH1(200),NHEAD2(10,1),f1,scale1,Ru1,rwu1,rw1,val1
     LOGICAL::ISO1=.FALSE.,ISIN1=.FALSE.
     COMPLEX(8)::Z1,U1
+    
+    
     NDOF1=ELEMENT(IEL).NDOF;ET1=ELEMENT(IEL).ET
     NHEAD1(1:NDOF1)=STEPDIS(ELEMENT(IEL).G)
     PI1=PI(); 
@@ -686,7 +688,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
     MODEL1=INT(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(6))
  
     
-    IF(ET1/=WELLBORE_SPGFACE) THEN
+    IF(ET1/=WELLBORE_SPGFACE.and.model1/=0) THEN
         L1=2*DIS1
         D1=2*rw1
         AREA1=PI1*D1**2/4.0
@@ -769,6 +771,8 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
     ELSE
         !WRITE(99,10) 
         QN1(1:NDOF1)=MATMUL(ELEMENT(IEL).KM,NHEAD1(1:NDOF1))
+        QWAN(2,ELEMENT(IEL).NODE(1:NDOF1))=QWAN(2,ELEMENT(IEL).NODE(1:NDOF1))+QN1(1:NDOF1)
+        
         Q1=0.D0
         
         DO I=1,SIZE(ELEMENT(IEL).NSPLOC)
@@ -777,16 +781,17 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
             N2=ELEMENT(N1).NDOF
             NHEAD2(1:N2,1)=STEPDIS(ELEMENT(N1).G)
             CALL GETVAL_SOLVER(ELEMENT(IEL).A12(:,I),N1,SPH1(I:I),NHEAD2(1:N2,:))
+            
         ENDDO
         
         N1=SIZE(ELEMENT(IEL).NSPLOC)/3 
         !同一单元各采样点到井轴的距离都相等。
-        N2=MAXLOC(ELEMENT(IEL).NSPLOC(1:N1),dim=1) !排除不在范围内的采样点。
-        R1=NORM2(ELEMENT(IEL).A12(:,N2)-NODE(ELEMENT(IEL).NODE(3)).COORD)
+!        N2=MAXLOC(ELEMENT(IEL).NSPLOC(1:N1),dim=1) !排除不在范围内的采样点。
+!        R1=NORM2(ELEMENT(IEL).A12(:,N2)-NODE(ELEMENT(IEL).NODE(3)).COORD)
         
-        IF(R1<=rw1) THEN
-            STOP "SAMPLE POINT IS TOO CLOSE TO THE WELLAXIS. ERROR IN WELLBORE_Q_K_UPDATE_SPMETHOD."            
-        ENDIF
+        !IF(R1<=rw1) THEN
+        !    STOP "SAMPLE POINT IS TOO CLOSE TO THE WELLAXIS. ERROR IN WELLBORE_Q_K_UPDATE_SPMETHOD."            
+        !ENDIF
         
 
         
@@ -798,19 +803,17 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
             !DIS1=NORM2(NODE(IN1).COORD-NODE(IN2).COORD)/2.
             IF(I==1) THEN
                 N2=2 !2-3                
-                NSP1=[1:N1,2*N1+1:3*N1]
+                NSP1=[1:N1,2*N1+1:3*N1] !内圈
+                !NSP2=[1:N1,2*N1+1:3*N1]+3*N1 !外圈
             ELSE
                 N2=1 !1-4
                 NSP1=[N1+1:3*N1]
+                !NSP2=[N1+1:3*N1]+3*N1 !外圈
             ENDIF
             !IF(ET1==WELLBORE) THEN
 
             DH1=STEPDIS(NODE(IN1).DOF(4))-STEPDIS(NODE(ELEMENT(IEL).NODE(N2)).DOF(4))
-            !ELSE
-            !    !WELLBORE_SPGFACE
-            !    
-            !    DH1=STEPDIS(NODE(IN1).DOF(4))-NODE(ELEMENT(IEL).NODE(N2)).COORD(NDIMENSION)
-            !ENDIF
+  
             
 
             IP1=0;RA1=0.D0;W1=0;TW1=0;     
@@ -822,6 +825,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
                 !采样点
                 X1=ELEMENT(IEL).A12(:,NSP1(J))
                 H1=SPH1(NSP1(J))
+                !H2=SPH1(NSP2(J))
                 !IF(H1<X1(NDIMENSION)) CYCLE
                 
                 !采样点投影点
@@ -834,7 +838,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
                 LP1=NORM2(XC1-NODE(ELEMENT(IEL).NODE(3)).COORD)
                 
                 X2=X1-XC1
-                
+                R1=NORM2(X2)
                 
                 !DIRECTIONAL K
                 SITA1=X2/R1            
@@ -853,7 +857,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
                 RU1=R1;
                 RWU1=rw1                
                 val1=log(ru1/rwu1)
-                
+                !VAL1=LOG((RU1+0.1)/(RU1))
                 
                 kx1=MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(1)
                 ky1=MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(2)
@@ -906,6 +910,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
                 !DIS2=DIS1/(MATERIAL(ELEMENT(IEL1).MAT).PROPERTY(3))**0.5
                 !RA1=(H1-HZ1)/(LOG(Ru1/rwu1)/(ELEMENT(IEL).PROPERTY(6)*KR1*DIS1)+ELEMENT(IEL).PROPERTY(5))
                 RA1=(H1-HZ1)/(val1/(ELEMENT(IEL).PROPERTY(6)*KR1*DIS1)+ELEMENT(IEL).PROPERTY(5))
+                !RA1=(H2-H1)/(val1/(ELEMENT(IEL).PROPERTY(6)*KR1*DIS1)+ELEMENT(IEL).PROPERTY(5))
                 !W1=ELEMENT(IEL1).ANGLE(SNADJL(IN1).SUBID(J))
                 w1=1
                 !IF(J<=N1) w1=0.5  !按所辖长度为权，两端点的权比中间的权小一半。 
@@ -919,12 +924,19 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
             
             Q1(I+2)=Q1(I+2)/TW1
             !A1(I+1)=ABS(Q1(I+2)/DH1)
+            QWAN(1,ELEMENT(IEL).NODE(I+2))=QWAN(1,ELEMENT(IEL).NODE(I+2))+Q1(I+2)
             
             IF(ABS(Q1(I+2))<1E-5) THEN
                 Q1(I+2)=1.D-5
-            ENDIF
+            ENDIF            
             
+
             IF(ABS(DH1)<1.D-5) DH1=1.D-5
+            !!
+            !IF(abs(Qn1(i+2))<abs(Q1(I+2))) then                
+            !    print *, Qn1(i+2)
+            !ENDIF
+            
             
             !ELEMENT(IEL).PROPERTY(I+1)=ABS(2*DH1/(Q1(I+2)+QN1(I+2))) !!!包含了井损。
             ELEMENT(IEL).PROPERTY(I+1)=ABS(DH1/Q1(I+2))!!!包含了井损。
@@ -935,7 +947,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
         
         IF(ANY(ISNAN(A1(1:3)))) THEN
             PRINT *, 'NAN'
-            STOP "ERRORS IN WELLBORE_Q_K_UPDATE_SPMETHOD"
+            STOP "ERRORS IN WELLBORE_Q_K_UPDATE_SPMETHOD."
         ENDIF
         
          KM1(1:NDOF1,1:NDOF1)=KM_WELLBORE(A1(1),A1(2),A1(3))
@@ -1002,7 +1014,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE3(STEPDIS,IEL,ISTEP,IITER)
     MODEL1=INT(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(6))
  
     
-    IF(ET1/=WELLBORE_SPGFACE) THEN
+    IF(ET1/=WELLBORE_SPGFACE.AND.model1/=0) THEN
         L1=2*DIS1
         D1=2*MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)
         AREA1=PI1*D1**2/4.0
@@ -1087,7 +1099,8 @@ SUBROUTINE WELLBORE_Q_K_UPDATE3(STEPDIS,IEL,ISTEP,IITER)
         
         Q1=0.D0
         
-        !QN1(1:NDOF1)=MATMUL(ELEMENT(IEL).KM,NHEAD1(1:NDOF1))
+        QN1(1:NDOF1)=MATMUL(ELEMENT(IEL).KM,NHEAD1(1:NDOF1))
+        QWAN(2,ELEMENT(IEL).NODE(1:NDOF1))=QWAN(2,ELEMENT(IEL).NODE(1:NDOF1))+QN1(1:NDOF1)
         
         DO I=1,2
     
@@ -1182,8 +1195,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE3(STEPDIS,IEL,ISTEP,IITER)
             Q1(I+2)=Q1(I+2)/TW1
             !A1(I+1)=ABS(Q1(I+2)/DH1)
             
-            Q1(I+2)=Q1(I+2)/TW1
-            !A1(I+1)=ABS(Q1(I+2)/DH1)
+            QWAN(1,ELEMENT(IEL).NODE(I+2))=QWAN(1,ELEMENT(IEL).NODE(I+2))+Q1(I+2)
             
             IF(ABS(Q1(I+2))<1E-5) THEN
                 Q1(I+2)=1.D-5
@@ -1226,10 +1238,12 @@ SUBROUTINE Model_MESHTOPO_INI()
     USE MESHADJ,ONLY:SETUP_EDGE_ADJL,SEDGE,NSEDGE,SNADJL,GETGMSHET,ELTTYPE, &
                         SETUP_FACE_ADJL,SFACE,NSFACE, &
                         SETUP_ADJACENT_ELEMENT_SOLVER,SETUP_SUBZONE_SOLVER
-    USE solverds,ONLY:isIniSEdge,NODE,ELEMENT,NDIMENSION
+    USE solverds,ONLY:isIniSEdge,NODE,ELEMENT,NDIMENSION,NQWNODE,QWELLNODE,WELLBORE,WELLBORE_SPGFACE,PIPE2,ENUM,QWAN,NNUM
     IMPLICIT NONE
-    INTEGER I
+    INTEGER I,J,K,N1,N2,N3,N4,A1(2),A2(200)
+    INTEGER,ALLOCATABLE::IELT1(:),ielt2(:)
     REAL(8)::XYLMT(2,3)
+    
     
     if(.not.isIniSEdge) then
         CALL SETUP_EDGE_ADJL(SEDGE,NSEDGE,SNADJL)
@@ -1240,6 +1254,47 @@ SUBROUTINE Model_MESHTOPO_INI()
             XYLMT(2,I)=MINVAL(NODE.COORD(I))
         ENDDO
         CALL SETUP_SUBZONE_SOLVER(XYLMT(1,1),XYLMT(2,1),XYLMT(1,2),XYLMT(2,2),XYLMT(1,3),XYLMT(2,3),ELEMENT)
+        A1=[4,3]
+        
+        IF(.NOT.ALLOCATED(IELT1)) ALLOCATE(IELT1(ENUM))
+        IELT1=0
+        ielt2=ielt1
+        DO I=1,NQWNODE
+            N3=0
+            DO K=1,SNADJL(QWELLNODE(I).NODE(1)).ENUM !如果井口节点位于中间，上下各搜索一次
+                N1=QWELLNODE(I).NODE(1)
+10              DO J=1,SNADJL(N1).ENUM
+                    N2=SNADJL(N1).ELEMENT(J)                    
+                    IF(IELT1(N2)>0) CYCLE !假定[WELLBORE,WELLBORE_SPGFACE,PIPE2]单元类中的每个单元只属于唯一井线
+                    !与井口相连的必然是这三种单元,且假定井线不相交
+                    IF(ANY([WELLBORE,WELLBORE_SPGFACE,PIPE2]-ELEMENT(N2).ET==0)) THEN
+                        IELT1(N2)=I
+                        IF(ELEMENT(N2).ET/=PIPE2) THEN
+                            IF(N3<1) THEN
+                                N3=N3+1
+                                A2(N3)=ELEMENT(N2).NODE(A1(SNADJL(N1).SUBID(J)))
+                                WHERE(ELEMENT(SNADJL(A2(N3)).ELEMENT).ESHAPE>300) IELT2(SNADJL(A2(N3)).ELEMENT)=I
+                            ENDIF
+                            N4=MOD(SNADJL(N1).SUBID(J),2)+1
+                            N3=N3+1
+                            A2(N3)=ELEMENT(N2).NODE(A1(N4))
+                            WHERE(ELEMENT(SNADJL(A2(N3)).ELEMENT).ESHAPE>300) IELT2(SNADJL(A2(N3)).ELEMENT)=I
+                            N1=ELEMENT(N2).NODE(N4)
+                            GOTO 10
+                        ENDIF
+                    ENDIF  
+                ENDDO
+            ENDDO
+            IF(N3<1) THEN
+                PRINT *, "NO ELEMENT CONNECTING TO WELLHEAD I,I=",N1
+            ELSE
+                QWELLNODE(I).NNODE2=N3
+                QWELLNODE(I).NODE2=A2(1:N3)
+                QWELLNODE(I).ELEMENT=PACK([1:enum],IELT2==I)
+                ALLOCATE(QWELLNODE(I).QAN(2,N3))                
+            ENDIF
+        ENDDO
+        ALLOCATE(QWAN(2,NNUM))        
         ISINISEDGE=.TRUE.
     endif
 
@@ -1255,12 +1310,14 @@ SUBROUTINE INI_WELLBORE(IELT)
     USE IFPORT
     IMPLICIT NONE
     INTEGER,INTENT(IN)::IELT
-    INTEGER::I,J,K,IELT1,IEDGE1,GMET1,SUBID1,AF1(2),N1,NADJL1(200),N2,N3,K1
+    INTEGER::I,J,K,IELT1,IEDGE1,GMET1,SUBID1,AF1(2),N1,NADJL1(200),N2,N3,K1,N4
     REAL(8)::AV1(3,2),AR1(3,3),ZV1(3),YV1(3),XV1(3),D1,T1,T2,RDIS1(200),HK1,PHI1,TPHI1,WR1,L1,&
-        ORG1(3),AREA1,XYLMT(2,3),SR1,SPT1(3,50),try1,try2,TRY0
-    REAL(8),ALLOCATABLE::RDIS2(:)
+        ORG1(3),AREA1,XYLMT(2,3),SR1,try1,try2,TRY0
+    REAL(8),ALLOCATABLE::RDIS2(:),SPT1(:,:)
     
     if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
+    
+    
     
     IEDGE1=ELEMENT(IELT).EDGE(3)
     L1=SEDGE(IEDGE1).DIS/2.0
@@ -1383,7 +1440,7 @@ SUBROUTINE INI_WELLBORE(IELT)
     
     SR1=MAXVAL(RDIS1(1:N2),MASK=isoutlier(RDIS1(1:N2))==.FALSE.) !取异常值（大于三倍标准差）之外的最大值
     ELEMENT(IELT).PROPERTY(2:3)=1./(TPHI1*HK1*L1/(LOG(SR1/WR1)-T2))
-    
+    !ELEMENT(IELT).PROPERTY(2:3)=1.d-7
         !IF(J==3) THEN
         !    !ALLOCATE(ELEMENT(IELT).WELL_SP3(N2),ELEMENT(IELT).WELL_SP3_R(N2))
         !    !ELEMENT(IELT).NWSP3=N2
@@ -1404,79 +1461,92 @@ SUBROUTINE INI_WELLBORE(IELT)
     
     !生成采样点
     
-    IF(solver_control.WELLMETHOD==2) THEN
-        
+    IF(solver_control.WELLMETHOD>1) THEN
         N1=solver_control.nspwell
         T1=2*PI()/N1
+        ALLOCATE(SPT1(3,N1))
         DO J=1,N1
             SPT1(1,J)=SR1*COS(T1*(J-1));SPT1(2,J)=SR1*SIN(T1*(J-1));SPT1(3,J)=0;
             SPT1(:,J)=MATMUL(TRANSPOSE(ELEMENT(IELT).G2L(:,:)),SPT1(:,J))
         ENDDO
+        !SPT1(:,N1+1:2*N1)=(1+0.1/SR1)*SPT1(:,1:N1)
+        
+        
     
-        ALLOCATE(ELEMENT(IELT).A12(3,3*N1),ELEMENT(IELT).NSPLOC(3*N1))
+        ALLOCATE(ELEMENT(IELT).A12(3,3*N1),ELEMENT(IELT).NSPLOC(3*N1)) 
         ELEMENT(IELT).NSPLOC=0
-        N2=0
-        DO J=3,5
-            IF(J<5) THEN
-                ZV1=NODE(ELEMENT(IELT).NODE(J)).COORD
-            ELSE
-                ZV1=(NODE(ELEMENT(IELT).NODE(3)).COORD+NODE(ELEMENT(IELT).NODE(4)).COORD)/2
-            ENDIF
-            IF(N2<1) N2=ELEMENT(IELT).NODE2(MAX(INT(rand(1)*SIZE(ELEMENT(IELT).NODE2)),1))
-            DO K=1,N1
-                !!因为sr1取最大，所以有可能一些点不在区域内,采样二分法找到最大的区域内的点。
-                try1=1.;try2=WR1/NORM2(SPT1(:,K));TRY0=1;
-                N3=0
-                DO K1=10,1,-1
-                    YV1=try0*SPT1(:,K)+ZV1                    
-                    N2=POINTlOC_BC_SOLVER(YV1,N2)
-                    IF(N2==0) THEN
-                        IF(TRY0<TRY1) TRY1=TRY0
-                    ELSE
-                        IF(TRY0>TRY2) THEN
-                            TRY2=TRY0
-                            N3=N2
-                        ENDIF
-                    ENDIF
-                    IF(ABS(TRY1-TRY2)<0.1) THEN
-                        N2=N3
-                        EXIT
-                    ENDIF
-                    
-                    IF(K1==10) THEN
-                        !检查最里面的点是否在区域内
-                        YV1=try2*SPT1(:,K)+ZV1                    
+        N2=0;N4=0
+        DO I=1,1
+            
+            DO J=3,5
+                IF(J<5) THEN
+                    ZV1=NODE(ELEMENT(IELT).NODE(J)).COORD
+                ELSE
+                    ZV1=(NODE(ELEMENT(IELT).NODE(3)).COORD+NODE(ELEMENT(IELT).NODE(4)).COORD)/2
+                ENDIF
+                IF(N2<1) N2=ELEMENT(IELT).NODE2(MAX(INT(rand(1)*SIZE(ELEMENT(IELT).NODE2)),1))
+                
+                DO K=(I-1)*N1+1,I*N1
+                    !!因为sr1取最大，所以有可能一些点不在区域内,采样二分法找到最大的区域内的点。
+                    try1=1.;try2=WR1/NORM2(SPT1(:,K));TRY0=1;
+                    N3=0
+                    DO K1=10,1,-1
+                        YV1=try0*SPT1(:,K)+ZV1                    
                         N2=POINTlOC_BC_SOLVER(YV1,N2)
                         IF(N2==0) THEN
-                            EXIT
+                            IF(TRY0<TRY1) TRY1=TRY0
                         ELSE
-                            N3=N2
+                            IF(TRY0>TRY2) THEN
+                                TRY2=TRY0
+                                N3=N2
+                            ENDIF
                         ENDIF
-                    ENDIF
+                        IF(ABS(TRY1-TRY2)<0.1) THEN
+                            N2=N3
+                            EXIT
+                        ENDIF
                     
-                    try0=(try1+try2)/2                    
-                ENDDO
-                IF(N2==0) THEN
+                        IF(K1==10) THEN
+                            !检查最里面的点是否在区域内
+                            YV1=try2*SPT1(:,K)+ZV1                    
+                            N2=POINTlOC_BC_SOLVER(YV1,N2)
+                            IF(N2==0) THEN
+                                EXIT
+                            ELSE
+                                N3=N2
+                            ENDIF
+                        ENDIF
                     
-                    PRINT *, 'FAILED TO LOCATE SAMPLE POINT (J,K),IN SUB INI_WELLBORE. (IELT,J,K)=',IELT,J,K
-                    !PRINT *,'建议控制井周单元尺寸>5倍井半径.'
-                    !STOP
-                ELSE
-                    ELEMENT(IELT).A12(:,N1*(J-3)+K)=YV1
-                    ELEMENT(IELT).NSPLOC(N1*(J-3)+K)=N2
-                    !CALL getval_solver(ELEMENT(IELT).A12(:,N1*(J-3)+K),N2,YV1,reshape([node(element(n2).NODE).COORD(1),&
-                    !node(element(n2).NODE).COORD(2),node(element(n2).NODE).COORD(3)],[element(n2).NNUM,3]))
-                    !T1=NORM2(YV1-ELEMENT(IELT).A12(:,N1*(J-3)+K))
-                    !IF(T1>1E-6) THEN
-                    !    PRINT *,"FAILED IN GETVAL.ERROR=",T1
-                    !ELSE
-                    !    PRINT *,"SUCCESSED IN GETVAL.ERROR=", T1
-                    !ENDIF               
+                        try0=(try1+try2)/2                    
+                    ENDDO
+                    N4=N4+1
+                    IF(N2==0) THEN
+                    
+                        PRINT *, 'FAILED TO LOCATE SAMPLE POINT (J,K),IN SUB INI_WELLBORE. (IELT,J,K)=',IELT,J,K
+                        !PRINT *,'建议控制井周单元尺寸>5倍井半径.'
+                        !STOP
+                    ELSE
+                        
+                        ELEMENT(IELT).A12(:,N4)=YV1
+                        ELEMENT(IELT).NSPLOC(N4)=N2
+ 
+                        !CALL getval_solver(ELEMENT(IELT).A12(:,N1*(J-3)+K),N2,YV1,reshape([node(element(n2).NODE).COORD(1),&
+                        !node(element(n2).NODE).COORD(2),node(element(n2).NODE).COORD(3)],[element(n2).NNUM,3]))
+                        !T1=NORM2(YV1-ELEMENT(IELT).A12(:,N1*(J-3)+K))
+                        !IF(T1>1E-6) THEN
+                        !    PRINT *,"FAILED IN GETVAL.ERROR=",T1
+                        !ELSE
+                        !    PRINT *,"SUCCESSED IN GETVAL.ERROR=", T1
+                        !ENDIF               
                 
-                ENDIF
+                    ENDIF
+                ENDDO
             ENDDO
         ENDDO
     ENDIF
+    
+    
+    
     !井损
     IF(ABS(MATERIAL(ELEMENT(IELT).MAT).PROPERTY(7))>1E-12) THEN
         AREA1=2.0*PI()*MATERIAL(ELEMENT(IELT).MAT).PROPERTY(1)*L1
@@ -1697,6 +1767,7 @@ SUBROUTINE INI_SPHFLOW(IELT)
     
     PI1=PI()
     T1=2*PI1*HK1/(1/WR1-(4*PI1+3)/(3*L1))
+    !T1=1.D10
     IF(ELEMENT(IELT).ET==SPHFLOW) T1=2*T1
     ELEMENT(IELT).KM(1,1)=1.D0;ELEMENT(IELT).KM(2,2)=1.D0
     ELEMENT(IELT).KM(2,1)=-1.D0;ELEMENT(IELT).KM(1,2)=-1.D0
@@ -1715,7 +1786,7 @@ SUBROUTINE SPHFLOW_Q_K_SPMETHOD(STEPDIS,IELT,ISTEP,IITER)
     
     INTEGER::I,J,K,IELT1,N1,N2,N3,ANODE1
     REAL(8)::XV1(3),T1,HK1,PHI1,TPHI1,WR1,L1,DV1(3),PI1,RO1,Q1,X1(3),H1,LAMDA1,K1,KM1(2,2),NHEAD1(2),NHEAD2(10,1)
-    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1,SPH1(10)
+    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1,SPH1(10),QN1(2)
     LOGICAL::ISISOTROPIC=.FALSE.
    
         
@@ -1725,6 +1796,8 @@ SUBROUTINE SPHFLOW_Q_K_SPMETHOD(STEPDIS,IELT,ISTEP,IITER)
     WR1=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(1)
     PI1=PI();Q1=0.D0
     NHEAD1=STEPDIS(ELEMENT(IELT).G)
+    QN1(1:2)=MATMUL(ELEMENT(IELT).KM,NHEAD1(1:2))
+    QWAN(2,ELEMENT(IELT).NODE(1:2))=QWAN(2,ELEMENT(IELT).NODE(1:2))+QN1(1:2)
     
     IF(ANY(NHEAD1-NODE(ELEMENT(IELT).NODE).COORD(NDIMENSION)<0.D0)) THEN
         T1=1.D-7
@@ -1737,6 +1810,8 @@ SUBROUTINE SPHFLOW_Q_K_SPMETHOD(STEPDIS,IELT,ISTEP,IITER)
             X1=ELEMENT(IELT).A12(:,J)
             N2=ELEMENT(IELT1).NDOF
             NHEAD2(1:N2,1)=STEPDIS(ELEMENT(IELT1).G)
+            
+            
             CALL GETVAL_SOLVER(X1,IELT1,SPH1(1:1),NHEAD2(1:N2,:))            
  
             H1=SPH1(1)
@@ -1777,6 +1852,8 @@ SUBROUTINE SPHFLOW_Q_K_SPMETHOD(STEPDIS,IELT,ISTEP,IITER)
         ENDDO
         Q1=Q1/TPHI1
         IF(ELEMENT(IELT).ET==SPHFLOW) Q1=2.D0*Q1
+        QWAN(1,ELEMENT(IELT).NODE(2))=QWAN(1,ELEMENT(IELT).NODE(2))+Q1
+        
         IF(ABS(Q1)<1.D-5) Q1=1.D-5
         T1=(NHEAD1(2)-NHEAD1(1))
         IF(ABS(T1)<1.D-5) T1=1.D-5
@@ -1809,7 +1886,7 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE3(STEPDIS,IELT,ISTEP,IITER)
     
     INTEGER::I,J,K,IELT1,N1,N2,N3,ANODE1
     REAL(8)::XV1(3),T1,HK1,PHI1,TPHI1,WR1,L1,DV1(3),PI1,RO1,Q1,X1(3),H1,LAMDA1,K1,KM1(2,2),NHEAD1(2)
-    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1
+    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1,QN1(2)
     LOGICAL::ISISOTROPIC=.FALSE.
    
         
@@ -1819,6 +1896,9 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE3(STEPDIS,IELT,ISTEP,IITER)
     WR1=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(1)
     PI1=PI();Q1=0.D0
     NHEAD1=STEPDIS(ELEMENT(IELT).G)
+    QN1(1:2)=MATMUL(ELEMENT(IELT).KM,NHEAD1(1:2))
+    QWAN(2,ELEMENT(IELT).NODE(1:2))=QWAN(2,ELEMENT(IELT).NODE(1:2))+QN1(1:2)    
+    
     
     IF(ANY(NHEAD1-NODE(ELEMENT(IELT).NODE).COORD(NDIMENSION)<0.D0)) THEN
         T1=1.D-7
@@ -1876,6 +1956,7 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE3(STEPDIS,IELT,ISTEP,IITER)
         ENDDO
         Q1=Q1/TPHI1
         IF(ELEMENT(IELT).ET==SPHFLOW) Q1=2.D0*Q1
+        QWAN(1,ELEMENT(IELT).NODE(2))=QWAN(1,ELEMENT(IELT).NODE(2))+Q1
         IF(ABS(Q1)<1.D-5) Q1=1.D-5
         T1=(NHEAD1(2)-NHEAD1(1))
         IF(ABS(T1)<1.D-5) T1=1.D-5
@@ -1907,7 +1988,7 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE(STEPDIS,IELT,ISTEP,IITER)
     
     INTEGER::I,J,K,IELT1,N1,N2,N3
     REAL(8)::XV1(3),T1,HK1,PHI1,TPHI1,WR1,L1,DV1(3),PI1,RO1,Q1,X1(3),H1,LAMDA1,K1,KM1(2,2),NHEAD1(2)
-    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1
+    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1,QN1(2)
     LOGICAL::ISISOTROPIC=.FALSE.
    
         
@@ -1917,6 +1998,8 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE(STEPDIS,IELT,ISTEP,IITER)
     WR1=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(1)
     PI1=PI();Q1=0.D0
     NHEAD1=STEPDIS(ELEMENT(IELT).G)
+    QN1(1:2)=MATMUL(ELEMENT(IELT).KM,NHEAD1(1:2))
+    QWAN(2,ELEMENT(IELT).NODE(1:2))=QWAN(2,ELEMENT(IELT).NODE(1:2))+QN1(1:2)    
     
     IF(ANY(NHEAD1-NODE(ELEMENT(IELT).NODE).COORD(NDIMENSION)<0.D0)) THEN
         T1=1.D-7
@@ -1995,7 +2078,7 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE(STEPDIS,IELT,ISTEP,IITER)
         ENDDO
         Q1=Q1/TPHI1
         IF(ELEMENT(IELT).ET==SPHFLOW) Q1=2.D0*Q1
-    
+        QWAN(1,ELEMENT(IELT).NODE(2))=QWAN(1,ELEMENT(IELT).NODE(2))+Q1
         IF(ABS(Q1)<1.D-5) Q1=1.D-5
         T1=(NHEAD1(2)-NHEAD1(1))
         IF(ABS(T1)<1.D-5) T1=1.D-5
