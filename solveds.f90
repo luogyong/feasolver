@@ -277,9 +277,10 @@ module solverds
         !slope_mko>0,表sfr要减掉初始ko应力场的sfrko.假定ko=v/1-v,sxx=ko*syy,szz=sxx,txy=txz=tyz=0
         !IS_ONLY_SEARCHTOP/=0,利用streamline方法进行参数分析时，可以使其仅仅搜索边坡的顶部，避免在坡面上产生小滑弧。
         !if(slope_kratio>0),ky=kx/slope_kratio,else,ky=input value.
-        integer::wellmethod=0 !计算解析井流量时，=0，表取样点为单元节点；=1，为单元形心;=2,在单元周边均布3层采样点(两端及中间),每排采样点数为nspwell,球状流仍为单元节点。>2,均为采样点
+        integer::wellmethod=3 !计算解析井流量时，=0，表取样点为单元节点；=1，为单元形心;=2,在单元周边均布3层采样点(两端及中间),每排采样点数为nspwell,球状流仍为单元节点。>2,均为采样点
         integer::nspwell=12 !wellmethod=2时,每层(2*Pi)采样点数。如果井周角非2PI,范围之外的点将丢弃。
         integer::wellaniso=0 !水平各向异性，=0，directional K method； =1, Charles R. Fitts method.(转化为各向同性材料进行)；=2，王建荣方法，根据其公式进行计算 
+        real(kind=DPN)::disf_scale=1.0d0
 	end type
 	type(solver_tydef)::solver_control
 	INTEGER::MAX_NODE_ADJ=50,MAX_FACE_ADJ=100
@@ -402,8 +403,10 @@ module solverds
 	integer::nsmnp=0
 	
 	type out_data_typdef
-        integer::nnode=0,isSUMQ=0 !isSumQ/=0,ouput the sum of nodal discharges in node(). 
-        integer,allocatable::node(:)        
+        integer::nnode=0,isSUMQ=0,isStat=0 !isSumQ/=0,ouput the sum of nodal discharges in node(). 
+        !isStat>0 ouput statistics(sum,max,min,mean,median,mad,std,kurtosis,skewness) of each variable in outputlist.
+        integer,allocatable::node(:)
+        real(kind=DPN),allocatable::stat(:,:) !stat([sum,max,min,mean,median,mad,std,kurtosis,skewness],[nval])
     end type
     type(out_data_typdef),allocatable::DataPoint(:)
     integer::NDataPoint=0
@@ -557,6 +560,8 @@ module solverds
             INTEGER,INTENT(IN)::MATID,ISTEP
             REAL(8)::PARA(3)
         END FUNCTION
+        
+
 		
 	END INTERFACE    
    

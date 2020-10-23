@@ -67,13 +67,17 @@
 		<File RelativePath="..\mc49.for"/>
 		<File RelativePath="..\mesh.f90"/>
 		<File RelativePath="..\meshinp.f90"/>
+		<File RelativePath="..\..\..\..\..\github\functional-fortran\src\lib\mod_functional.f90"/>
+		<File RelativePath="..\..\..\..\..\github\functional-fortran\src\lib\mod_interfaces.f90"/>
 		<File RelativePath="..\out_geomodel_to_gmsh.f90"/>
 		<File RelativePath="..\output.f90"/>
 		<File RelativePath="..\outtocheckdata.f90"/>
 		<File RelativePath="..\PrismElement.f90"/>
+		<File RelativePath="..\..\Module\quicksort.f90"/>
 		<File RelativePath="..\readme.dat"/>
 		<File RelativePath="..\removetriangles.f90"/>
 		<File RelativePath="..\repair control line.f90"/>
 		<File RelativePath="..\Sloan_algorithm.f90"/>
+		<File RelativePath=".\Structure-model-geo.f90"/>
 		<File RelativePath="..\structuremesh.f90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

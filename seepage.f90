@@ -91,7 +91,16 @@ SUBROUTINE SPG_Q_UPDATE(STEPDIS,bload,HHEAD,INIHEAD,DT,nbload,ienum,iiter,istep,
     
 	    
     
-END SUBROUTINE    
+END SUBROUTINE
+    
+!subroutine q_updated_control_volume_method()
+!    use solverds
+!    
+!    if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
+!    
+!    
+!    
+!end subroutine
     
     
 subroutine lamda_spg(ienum,hj,z,lamda,ISTEP)
@@ -103,10 +112,13 @@ subroutine lamda_spg(ienum,hj,z,lamda,ISTEP)
 	real(8),intent(out)::lamda
 	real(8)::t1,epsilon1,epsilon2,krsml
 	real(8)::alpha1,fn1,fm1,seff1,scale1=1.0
-	
+	real(8)::h1(50)
+    
 	scale1=1.0d0
 	t1=hj-z
 	krsml=1.e-3
+    
+   
 
 !	epsilon1=max(eps1,0.1)
 !	epsilon2=max(eps2,0.1)
@@ -256,9 +268,11 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
     
     
 	
-					
-	call lamda_spg(ienum,hj,element(ienum).xygp(ndimension,IGP),lamda,ISTEP)                   						
-                    
+	!IF(MINVAL(HHEAD-NODE(ELEMENT(IENUM).NODE(1:NHH)).COORD(NDIMENSION))>1.D-4) THEN
+ !       LAMDA=1.0D0
+ !   ELSE
+	    call lamda_spg(ienum,hj,element(ienum).xygp(ndimension,IGP),lamda,ISTEP)                   						
+    !ENDIF                
     if(iiter>1) lamda=(element(ienum).kr(IGP)+lamda)/2.0D0
                     
     element(ienum).kr(IGP)=lamda 
@@ -1236,7 +1250,7 @@ END SUBROUTINE
 
 SUBROUTINE Model_MESHTOPO_INI()
     USE MESHADJ,ONLY:SETUP_EDGE_ADJL,SEDGE,NSEDGE,SNADJL,GETGMSHET,ELTTYPE, &
-                        SETUP_FACE_ADJL,SFACE,NSFACE, &
+                        SETUP_FACE_ADJL,SFACE,NSFACE, SETUP_EDGE_BC_SOLVER,&
                         SETUP_ADJACENT_ELEMENT_SOLVER,SETUP_SUBZONE_SOLVER
     USE solverds,ONLY:isIniSEdge,NODE,ELEMENT,NDIMENSION,NQWNODE,QWELLNODE,WELLBORE,WELLBORE_SPGFACE,PIPE2,ENUM,QWAN,NNUM
     IMPLICIT NONE
@@ -1249,6 +1263,7 @@ SUBROUTINE Model_MESHTOPO_INI()
         CALL SETUP_EDGE_ADJL(SEDGE,NSEDGE,SNADJL)
         CALL SETUP_FACE_ADJL(SFACE,NSFACE,SEDGE,NSEDGE)
         CALL SETUP_ADJACENT_ELEMENT_SOLVER(SEDGE,SFACE,ELEMENT,NDIMENSION)
+        IF(NDIMENSION==2) CALL SETUP_EDGE_BC_SOLVER()
         DO I=1,3
             XYLMT(1,I)=MAXVAL(NODE.COORD(I))
             XYLMT(2,I)=MINVAL(NODE.COORD(I))
@@ -1576,6 +1591,7 @@ SUBROUTINE INI_SPHFLOW(IELT)
     INTEGER::I,J,IELT1,N1,N2,N3,K
     REAL(8)::XV1(3),T1,HK1,PHI1,TPHI1,WR1,L1,DV1(3),PI1,ZV1(3),YV1(3),D1,ANGLE1(7),SPT1(3,100),SR1,ORG1(3),try0,try1,try2
     REAL(8)::RDIS2(400)
+    
     if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
     
         

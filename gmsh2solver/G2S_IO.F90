@@ -424,6 +424,18 @@ subroutine kwcommand(term,unit)
                         endif
                         
                         if(element(n1).et==23) then
+!Triangle12/15:
+!
+!
+! 2
+! | \
+! 10   9
+! |     \
+! 5 (13)  4
+! |         \
+!11 (14) (12) 8
+! |             \
+! 0---6---3---7---1                            
                             en1(4)=element(n1).node(5)
 						    en1(5)=element(n1).node(8)
 						    en1(6)=element(n1).node(11)
@@ -438,11 +450,44 @@ subroutine kwcommand(term,unit)
 						    en1(15)=element(n1).node(13)
 						    element(n1).node(4:15)=en1(4:15)                            
                         end if    
-					case(11) !tet10最后两个节点的的顺序互换，以便和FEASOLVER一致。
+                    case(11) !tet10最后两个节点的的顺序互换，以便和FEASOLVER一致。
+                        !Tetrahedron10:
+                        !
+                        !           2
+                        !         ,/|`\
+                        !       ,/  |  `\
+                        !     ,6    '.   `5
+                        !   ,/       9     `\
+                        ! ,/         |       `\
+                        !0--------4--'.--------1
+                        ! `\.         |      ,/
+                        !    `\.      |    ,8
+                        !       `7.   '. ,/
+                        !          `\. |/
+                        !             `3
+                        !                      
 						n2=element(n1).node(element(n1).nnode-1)
 						element(n1).node(element(n1).nnode-1)=element(n1).node(element(n1).nnode)
 						element(n1).node(element(n1).nnode)=n2
-					case(18) !PRM15
+                    case(18) !PRM15
+                    !Prism15:            
+                    !
+                    !       3            
+                    !     ,/|`\          
+                    !   9  |  11        
+                    ! ,/    |    `\      
+                    !4------10-----5     
+                    !|      12      |     
+                    !|      |      |     
+                    !|      |      |     
+                    !|      |      |     
+                    !13     |      14    
+                    !|      0      |     
+                    !|    ,/ `\    |     
+                    !|  ,6     `8  |     
+                    !|,/         `\|     
+                    !1------7------2     
+                        
 						en1(1:15)=element(n1).node
 						element(n1).node(9)=en1(8);element(n1).node(8)=en1(10);element(n1).node(10)=en1(13);
 						element(n1).node(11)=en1(15);element(n1).node(12)=en1(14);element(n1).node(13)=en1(9);
@@ -575,6 +620,8 @@ subroutine kwcommand(term,unit)
 				if(nread>1) DataPoint(i).order=int(ar(2))  
 				if(nread>2) DataPoint(i).spgroup=int(ar(3))
                 if(nread>3) DataPoint(i).issumq=int(ar(4))
+                if(nread>4) DataPoint(i).isstat=int(ar(5))
+               
             end do
 		case('enddatapoint')
         	strL1=LEN('DataPoint')
@@ -1205,7 +1252,7 @@ subroutine Tosolver()
     if(ndatapoint>0) then
         WRITE(UNIT,170) NDATAPOINT
         do i=1, NDATAPOINT
-			write(unit,171) DATAPOINT(I).NNODE,DATAPOINT(I).ISSUMQ
+			write(unit,171) DATAPOINT(I).NNODE,DATAPOINT(I).ISSUMQ,DATAPOINT(I).ISSTAT
 			write(unit,172) node(DATAPOINT(I).NODE).inode
 		end do
     end if
@@ -1254,7 +1301,7 @@ subroutine Tosolver()
 163 FORMAT("//{UNODE(I)=",I7,",DNODE(I)=",I7,",n(R),So(R),[Profileshape(1),Profileshape(2)]}")
 
 170 FORMAT(/"DATAPOINT,NUM=",I7)
-171	FORMAT(/2I7)
+171	FORMAT(/3I7)
 172 FORMAT(10(I7,1X))
 
 end subroutine

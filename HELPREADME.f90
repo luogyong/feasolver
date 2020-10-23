@@ -106,12 +106,13 @@ subroutine write_readme_feasolver()
     README(IPP(I)) = "//{...}  //共NUM行"	
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//STEP FUNCTION,NUM=...(I),STEP=...(I)[,BASE=1]   //NUM=步方程的个数,STEP=步数.,BASE=0，请同时输入地应力步(第0步)的FACTOR，这是要输入STEP+1个factors"  
+	README(IPP(I)) = "//STEP FUNCTION,NUM=...(I),STEP=...(I)[,BASE=1,SCALE=1.0]   //NUM=步方程的个数,STEP=步数.,BASE=0，请同时输入地应力步(第0步)的FACTOR，这时要输入STEP+1个factors"  
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD STEP FUNCTION IS USED TO STEP FUNCTION DATA."//'"'
 	README(IPP(I)) = "//{[FACTOR(0)(R)],FACTOR(1)(R),FACTOR(2)(R),...,FACTOR(STEP)(R),TITLE(A)& 
                          \N// FACTOR(ISTEP)=第ISTEP步边界或荷载的系数. &
                          \N//当FACTOR(ISTEP)=-999时,此边界或荷载在此步中失效（无作用）. &
-                         \N//!表单元生死时，0为死1为生。"C  
+                         \N//!表单元生死时，0为死1为生.&
+                         \N//scale,因子的缩放因子,即factor=factor_input*scale.默认为1.仅方便输入"C  
 	README(IPP(I)) = "//{...}  //共NUM行"
 
 

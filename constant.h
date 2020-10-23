@@ -226,6 +226,7 @@
 	integer,parameter::kr_spg=68
 	integer, parameter::mw_spg = 69
 	integer,parameter::sumq=70
+	integer,parameter::snet=120
 			
 	integer,parameter::SFR=71 !Stress Failure Ratio
 	INTEGER,PARAMETER::sfr_sita=72 

@@ -331,7 +331,7 @@ contains
 		
 		
 
-	10  FORMAT("meshscale=1;")
+	10  FORMAT('SetFactory("OpenCASCADE");', /, 'meshscale=1;')
 	20	FORMAT("Point(",I<INC>,")={",3(E15.7,","),E15.7,"*meshscale};")
 	30	FORMAT("Line(",I<INC>,")={",I6,",",I6,"};")
 	40  FORMAT("Line Loop(",I<INC>,")={",<NV1>(I6,","),I6,"};")

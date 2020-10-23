@@ -145,6 +145,7 @@ module DS_Gmsh2Solver
         integer::SPGroup !Startpoint Group,这个Group只有一个点。
 		integer::order=0
         integer::issumq=0 !/=0, 表示仅输出各节点的流量和。
+        integer::isstat=0 ! ISSTAT>0,输出此数据集内各变量的统计量，包括[sum,max,min,mean,median,mad,std,kurtosis,skewness]
         integer::nnode=0
         integer,allocatable::node(:)        
     end type

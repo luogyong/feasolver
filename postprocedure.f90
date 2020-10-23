@@ -439,12 +439,14 @@ end subroutine
 !This subroutine is used to output these nodal quantivites.
 subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 	use solverds
+    USE forlab,ONLY:MEAN,MEDIAN,MAD,STD,kurtosis,SKEWNESS
+    USE STREAMFUNCTION
 	implicit none
 	INTEGER,INTENT(IN)::FILE_UNIT,ISTEP,ISUBTS,ITER
-	LOGICAL,SAVE::ISFIRSTCALL1	
-	integer::i,j,k,idof,IDISQ1=0,NVO1=0,NQ1=0
-	
+	LOGICAL,SAVE::ISFIRSTCALL1,HASOUT1	
+	integer::i,j,k,idof,IDISQ1=0,NVO1=0,NQ1=0,N1	
 	REAL(8)::SUMQ1=0
+    REAL(8),ALLOCATABLE::AVAL1(:)
 
     !IF(.NOT.ALLOCATED(VEC)) ALLOCATE(VEC(3,NNUM))
     !VEC=0.0D0
@@ -482,6 +484,12 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 			case(head)
 				idof=4
 				NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
+            CASE(SNET)
+                IF(NDIMENSION<3) THEN
+                    NodalQ(:,i,NnodalQ)=STREAMFUNCTIONCAL()
+                ELSE
+                    NodalQ(:,i,NnodalQ)=0.D0
+                ENDIF
 			case(Phead)
 				idof=4
 				if(ndimension==2) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))-node.coord(2)
@@ -587,11 +595,11 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 			case(peeq)
 				NodalQ(:,i,NnodalQ)=node.peeq
 			case(xf_out)
-				NodalQ(:,i,NnodalQ)=node.coord(1)+tdisp(node.dof(1))
+				NodalQ(:,i,NnodalQ)=node.coord(1)+tdisp(node.dof(1))*solver_control.disf_scale	
 			case(yf_out)
-				NodalQ(:,i,NnodalQ)=node.coord(2)+tdisp(node.dof(2))
+				NodalQ(:,i,NnodalQ)=node.coord(2)+tdisp(node.dof(2))*solver_control.disf_scale	
 			case(zf_out)
-				NodalQ(:,i,NnodalQ)=node.coord(3)+tdisp(node.dof(3))
+				NodalQ(:,i,NnodalQ)=node.coord(3)+tdisp(node.dof(3))*solver_control.disf_scale	
 			case(gradx)
 				do j=1,nnum
                     if(allocated(node(j).igrad)) then
@@ -674,8 +682,10 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 	
 	do i=1,nnum
 		write(file_unit,999) (NodalQ(i,j,nnodalq),j=1,nvo)
-	end do
-	
+    end do
+    
+
+    
 	IF(NDATAPOINT>0) THEN
 		IF(ISTEP==1.AND.ISUBTS==1) THEN
 			IF(SOLVER_CONTROL.ISPARASYS<=1) THEN
@@ -685,7 +695,8 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
                 OPEN(DATAPOINT_UNIT,FILE=resultfile,STATUS='UNKNOWN',ACCESS='APPEND')
             ENDIF
 			
-		END IF
+        END IF
+	    HASOUT1=.FALSE.        
 		DO I=1,NDATAPOINT		
 			IF (DATAPOINT(I).ISSUMQ==0) THEN
 				DO J=1,DATAPOINT(I).NNODE
@@ -699,9 +710,48 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 				NVO1=1
 				WRITE(DATAPOINT_UNIT,120) SOLVER_CONTROL.ISPARASYS,SOLVER_CONTROL.CaseID,I,ISTEP,ISUBTS,ITER,J,SUMQ1,'SUMQ'
 				
-			ENDIF
+            ENDIF
+            IF(DATAPOINT(I).ISSTAT>0) THEN
+                IF(.NOT.ALLOCATED(DATAPOINT(I).STAT)) ALLOCATE(DATAPOINT(I).STAT(9+6,NVO))
+                !stat([sum,[max,X,Y,Z],[min,X,Y,Z],mean,median,mad,std,kurtosis,skewness],[nval])
+                IF(.NOT.HASOUT1) THEN
+                    write(DATAPOINT_UNIT,130) 'VAR','SUM','MAX','X','Y','Z','MIN','X','Y','Z','MEAN','MEDIAN','MAD','STD','KURTOSIS','SKEWNESS'  
+                    HASOUT1=.TRUE.
+                ENDIF
+                DO J=1,NVO
+                    AVAL1=NodalQ(DATAPOINT(I).NODE,J,nnodalq)
+                    !SUM
+                    DATAPOINT(I).STAT(1,J)= SUM(AVAL1)                    
+                    !MAX
+                    N1=MAXLOC(AVAL1,DIM=1)
+                    DATAPOINT(I).STAT(2,J)= AVAL1(N1)
+                    DATAPOINT(I).STAT(3:5,J)= Node(DATAPOINT(I).NODE(N1)).COORD
+                    !MIN
+                    N1=MINLOC(AVAL1,DIM=1)
+                    DATAPOINT(I).STAT(6,J)= AVAL1(N1)
+                    DATAPOINT(I).STAT(7:9,J)= Node(DATAPOINT(I).NODE(N1)).COORD
+                    !MEAN
+                    DATAPOINT(I).STAT(10,J)= MEAN(AVAL1)
+                    !MEDIAN
+                    DATAPOINT(I).STAT(11,J)= MEDIAN(AVAL1)
+                    !MAD
+                    DATAPOINT(I).STAT(12,J)= MAD(AVAL1)
+                    !STD
+                    DATAPOINT(I).STAT(13,J)= STD(AVAL1)
+                    !kurtosis
+                    DATAPOINT(I).STAT(14,J)= kurtosis(AVAL1)
+                    !skewness
+                    DATAPOINT(I).STAT(15,J)= skewness(AVAL1)
+                    
+                    write(DATAPOINT_UNIT,131) SOLVER_CONTROL.ISPARASYS,SOLVER_CONTROL.CaseID,I,ISTEP,ISUBTS,ITER,OUTVAR(VO(J)).NAME(1:14),DATAPOINT(I).STAT(:,J)
+                ENDDO
+                
+                
+            ENDIF            
 		
-		END DO		
+        END DO
+        
+
 		
         !ISFIRSTCALL1=.FALSE.
 	END IF
@@ -713,6 +763,8 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 100	FORMAT("IPARASYS",7X,"CaseID",9X,"DATASET",8X,"ISTEP",10X,"ISUBTS",9X,"ITER",11X,"NO",13X,<NVO>A15)
 110 FORMAT(7(I14,X),<nvo>(E14.7,X))
 120 FORMAT(7(I14,X),<NVO1>(E14.7,X),"//",<NVO1>A15)
+130 FORMAT("IPARASYS",7X,"CaseID",9X,"DATASET",8X,"ISTEP",10X,"ISUBTS",9X,"ITER",11X,<16>(A14,X))
+131 FORMAT(6(I14,X),A14,X,15(E14.7,X))   
                                            
 
 	!if(allocated(NodalQ)) deallocate(NodalQ)
@@ -795,17 +847,17 @@ subroutine pointout_barfamily(file_unit,ieset)
 			case(xf_out)
 				do j=1,n1
                     inode1=eset(ieset).outorder(j)
-					NodalQ(inode1,i,NnodalQ)=node(inode1).coord(1)+tdisp(node(inode1).dof(1))
+					NodalQ(inode1,i,NnodalQ)=node(inode1).coord(1)+tdisp(node(inode1).dof(1))*solver_control.disf_scale	
 				end do
 			case(yf_out)
 				do j=1,n1
                     inode1=eset(ieset).outorder(j)
-					NodalQ(inode1,i,NnodalQ)=node(inode1).coord(2)+tdisp(node(inode1).dof(2))
+					NodalQ(inode1,i,NnodalQ)=node(inode1).coord(2)+tdisp(node(inode1).dof(2))*solver_control.disf_scale	
 				end do
 			case(zf_out)
 				do j=1,n1
                     inode1=eset(ieset).outorder(j)
-					NodalQ(inode1,i,NnodalQ)=node(inode1).coord(3)+tdisp(node(inode1).dof(3))
+					NodalQ(inode1,i,NnodalQ)=node(inode1).coord(3)+tdisp(node(inode1).dof(3))*solver_control.disf_scale	
 				end do
 			
 				
@@ -1028,11 +1080,11 @@ subroutine BlOCKout(file_unit)
 			case(peeq)
 				write(file_unit,999)  node.peeq
 			case(xf_out)
-				write(file_unit,999) node.coord(1)+tdisp(node.dof(1))
+				write(file_unit,999) node.coord(1)+tdisp(node.dof(1))*solver_control.disf_scale
 			case(yf_out)
-				write(file_unit,999) node.coord(2)+tdisp(node.dof(2))
+				write(file_unit,999) node.coord(2)+tdisp(node.dof(2))*solver_control.disf_scale
 			case(zf_out)
-				write(file_unit,999) node.coord(3)+tdisp(node.dof(3))	
+				write(file_unit,999) node.coord(3)+tdisp(node.dof(3))*solver_control.disf_scale	
 			case(gradx)
 				write(file_unit,999) (node(j).igrad(1),j=1,20)		
 			case(grady)

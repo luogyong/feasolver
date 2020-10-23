@@ -1,7 +1,9 @@
 ﻿MODULE MESHADJ
-USE solverds,ONLY:MAX_NODE_ADJ,MAX_FACE_ADJ   
+USE solverds,ONLY:MAX_NODE_ADJ,MAX_FACE_ADJ,NNUM,PI,NODE,NDIMENSION   
 USE MESHGEO
 USE quicksort
+
+implicit none
 
 INTERFACE SETUP_EDGE_ADJL
     MODULE PROCEDURE SETUP_EDGE_ADJL_MODEL,SETUP_EDGE_ADJL_TET,SETUP_EDGE_ADJL_SOLVER
@@ -52,10 +54,162 @@ SUBROUTINE SETUP_EDGE_BC()
     
     DEALLOCATE(IA1)
     
-  
+END SUBROUTINE
+
+SUBROUTINE SETUP_EDGE_BC_SOLVER()
+    IMPLICIT NONE
+    INTEGER::I,J,N1,N2,N3,INODE1,OUTBC1=0
+    INTEGER,ALLOCATABLE::IA1(:,:),ISACTIVE1(:),LOOP1(:),IA2(:,:),ELOOP1(:)
+    REAL(8)::X1(2,4),XC1(3),T1
+    
+    NSE_BC=COUNT(SEDGE.ENUM==1)
+    ALLOCATE(SEDGE_BC(NSE_BC),ISACTIVE1(NSE_BC),LOOP1(NSE_BC+1),ELOOP1(NSE_BC),BLOOPS(0:MAXBLOOPS),IA1(2,NNUM),IA2(2,NNUM))
+    NSE_BC=0;IA1=0;IA2=0
+    DO I=1,NSEDGE
+        IF(SEDGE(I).ENUM==1) THEN
+            NSE_BC=NSE_BC+1
+            SEDGE_BC(NSE_BC)=I
+            DO J=1,2
+                N1=MINLOC(IA1(:,SEDGE(I).V(J)),MASK=IA1(:,SEDGE(I).V(J))==0,DIM=1)
+                IF(N1==0) THEN
+                    STOP "SIMPLE LOOP IS ASSUMED"
+                ENDIF
+                IA1(N1,SEDGE(I).V(J))=SEDGE(I).V(MOD(J,2)+1)
+                IF(J==1) THEN
+                    IA2(N1,SEDGE(I).V(J))=NSE_BC
+                ELSE
+                    IA2(N1,SEDGE(I).V(J))=-NSE_BC
+                ENDIF
+            ENDDO
+        ENDIF
+    ENDDO
+
+    ISACTIVE1=1
+    T1=1.D20
+    DO I=1,NSE_BC
+        IF(ISACTIVE1(I)/=1) CYCLE
+        INODE1=2
+        IF(INODE1<3) THEN
+            LOOP1(1:2)=SEDGE(SEDGE_BC(I)).V
+            ELOOP1(1)=SEDGE_BC(I)
+            ISACTIVE1(I)=0
+        ENDIF
+        DO WHILE(.TRUE.) 
+            N2=LOOP1(INODE1);N1=LOOP1(INODE1-1)        
+            N3=MINLOC(IA1(:,N2)-N1,MASK=ABS(IA1(:,N2)-N1)>0,DIM=1)
+            ELOOP1(INODE1)=SIGN(SEDGE_BC(ABS(IA2(N3,N2))),IA2(N3,N2))
+            LOOP1(INODE1+1)=IA1(N3,N2)
+            INODE1=INODE1+1
+            ISACTIVE1(ABS(IA2(N3,N2)))=0
+            IF(LOOP1(1)==LOOP1(INODE1)) THEN   !假定边界都是闭合的环             
+                NBLOOPS=NBLOOPS+1
+                IF(NBLOOPS>MAXBLOOPS) THEN
+                    PRINT *, "MAX BLOOPS IS ",MAXBLOOPS
+                    STOP
+                ENDIF
+                !BLOOPS(NBLOOPS).NODE=LOOP1(1:INODE1)
+                BLOOPS(NBLOOPS).EDGE=ELOOP1(1:INODE1-1)
+                DO J=1,INODE1-1
+                    BLOOPS(NBLOOPS).NODE=[BLOOPS(NBLOOPS).NODE,LOOP1(J),SEDGE(ABS(ELOOP1(J))).MIDPNT]
+                ENDDO
+                BLOOPS(NBLOOPS).NODE=[BLOOPS(NBLOOPS).NODE,LOOP1(1)] !首尾节点相同。
+                !IF(ELOOP1(1)>0) THEN
+                !    BLOOPS(NBLOOPS).ISOUTBC=1
+                !    OUTBC1=NBLOOPS                    
+                !ENDIF
+                BLOOPS(NBLOOPS).NNODE=SIZE(BLOOPS(NBLOOPS).NODE)
+                BLOOPS(NBLOOPS).NEDGE=INODE1-1
+                DO J=1,3
+                    BLOOPS(NBLOOPS).BBOX(1,J)=MINVAL(NODE(LOOP1(1:INODE1)).COORD(J))
+                    BLOOPS(NBLOOPS).BBOX(2,J)=MAXVAL(NODE(LOOP1(1:INODE1)).COORD(J))
+                    !最外围的边界
+                    if(j==1.AND.BLOOPS(NBLOOPS).BBOX(1,J)<T1) THEN
+                        T1=BLOOPS(NBLOOPS).BBOX(1,J)
+                        OUTBC1=NBLOOPS 
+                    ENDIF
+                ENDDO
+                EXIT
+            ENDIF
+        ENDDO
+    ENDDO
+    
+    BLOOPS(OUTBC1).ISOUTBC=1
+    BLOOPS(0)=BLOOPS(OUTBC1) !存多连通区域合并为单连通域的边界
+    
+    
+
+    !CHECK    
+    !IF(NODE_LOOP_BC(1)/=NODE_LOOP_BC(NNLBC)) THEN    
+    !    STOP "ERROR.THE FIRST AND THE LAST NODE SHOULD BE IDENTICAL.SUB=SETUP_EDGE_BC"
+    !ENDIF
+    
+    
+    DEALLOCATE(IA1,IA2,LOOP1,ISACTIVE1)
     
 END SUBROUTINE
 
+
+!!convert multiple connected domain to simple connected domain.
+!SUBROUTINE M2SDOMAIN()
+!    
+!    INTEGER::I,OUTBC1
+!    REAL(KIND=RPRE)::XC1(3)
+!        
+!    OUTBC1=MAXLOC(BLOOPS.ISOUTBC,DIM=1)
+!        
+!    IF(NBLOOPS>1) THEN
+!        DO I=1,NBLOOPS
+!            IF(I==OUTBC1) CYCLE
+!            DO J=1,NDIMENSION
+!                XC1(J)=SUM(NODE(BLOOPS(I).NODE(1:BLOOPS(I).NNODE-1)).COORD(J))/(BLOOPS(I).NNODE-1)
+!            ENDDO
+!            
+!            N1=MINLOC(NORM2(RESHAPE([NODE(BLOOPS(0).NODE).COORD(1)-XC1(1),&
+!                NODE(BLOOPS(0).NODE).COORD(2)-XC1(2)],([BLOOPS(0).NNODE,2])),DIM=2),DIM=1)
+!            N2=MINLOC(NORM2(RESHAPE([NODE(BLOOPS(I).NODE).COORD(1)-NODE(BLOOPS(0).NODE(N1)).COORD(1),&
+!                NODE(BLOOPS(I).NODE).COORD(2)-NODE(BLOOPS(0).NODE(N1)).COORD(2)],([BLOOPS(I).NNODE,2])),DIM=2),DIM=1)
+!            BLOOPS(I).PCUT=[N1,N2]
+!            BLOOPS(I).EDGECUT=GETPATH_SOLVER(N1,N2)
+!            
+!                
+!        ENDDO
+!        
+!    ENDIF 
+!    
+!END SUBROUTINE
+
+    
+    
+
+FUNCTION GETPATH_SOLVER(S1,E1) RESULT(PATH)
+!返回连接节点S1和E1之间的单元边。
+    IMPLICIT NONE
+    INTEGER,INTENT(IN)::S1,E1
+    INTEGER,ALLOCATABLE::PATH(:)
+    REAL(8)::ALPHA1
+    INTEGER::N1,IEDGE1,N2,MAXLENGTH1=1000
+    
+    N1=S1
+    
+    DO WHILE(.TRUE.)
+        ALPHA1=angle2d(NODE(n1).COORD(1:2),NODE(E1).COORD(1:2))
+        IEDGE1=minloc(ABS(sedge(ABS(SNADJL(N1).EDGE)).ANGLE-ALPHA1),DIM=1)
+        N2=SNADJL(N1).EDGE(IEDGE1)
+        PATH=[PATH,N2]
+        IF(N2>0) THEN
+            N1=sedge(N2).V(2)
+        ELSE
+            N1=SEDGE(-N2).V(1)
+        ENDIF
+        IF(N1==E1) EXIT      
+        IF(SIZE(PATH)>MAXLENGTH1) THEN
+            PRINT *, 'PATH SEEMS TOO LONG.PLEASE CONFIRM.'
+            MAXLENGTH1=MAXLENGTH1+100
+            PAUSE
+        ENDIF
+    ENDDO
+
+END FUNCTION
 
 !SET EDGE FOR SOLVER MODEL ELEMENT. 
 SUBROUTINE SETUP_EDGE_ADJL_SOLVER(EDGE_L,NEDGE_L,NADJL)
@@ -69,7 +223,8 @@ SUBROUTINE SETUP_EDGE_ADJL_SOLVER(EDGE_L,NEDGE_L,NADJL)
     INTEGER::VMAX1,VMIN1,IEDGE1,ET1,NEDGE1,N1,N2,V1(2)
     INTEGER::I,J
     INTEGER,ALLOCATABLE::E1(:,:)    
-  
+    REAL(8)::DX1,DY1
+    
     MAXADJL1=MAX_NODE_ADJ
     
     IF(.NOT.ISINI_GMSHET) THEN
@@ -135,9 +290,13 @@ SUBROUTINE SETUP_EDGE_ADJL_SOLVER(EDGE_L,NEDGE_L,NADJL)
             IF(.NOT.EDGE_L(IEDGE1).ISINI) THEN
                 EDGE_L(IEDGE1).V=V1
                 EDGE_L(IEDGE1).DIS=NORM2(NODE_L(EDGE_L(IEDGE1).V(1)).COORD-NODE_L(EDGE_L(IEDGE1).V(2)).COORD)
+                EDGE_L(IEDGE1).angle=angle2D(NODE_L(EDGE_L(IEDGE1).V(1)).COORD,NODE_L(EDGE_L(IEDGE1).V(2)).COORD)                
                 EDGE_L(IEDGE1).ISINI=.TRUE.
                 NEDGE_L=IEDGE1
-                
+                IF(ELTTYPE(ET1).NMIDPNT>0) THEN
+                    EDGE_L(IEDGE1).NMIDPNT=ELTTYPE(ET1).NMIDPNT
+                    EDGE_L(IEDGE1).MIDPNT=ELEMENT_L(I).NODE(ELTTYPE(ET1).MIDPNT(:,J))
+                ENDIF
                 NADJL(EDGE_L(IEDGE1).V).NNUM=NADJL(EDGE_L(IEDGE1).V).NNUM+1
             ENDIF
             IF(EDGE_L(IEDGE1).ENUM==0) ALLOCATE(EDGE_L(IEDGE1).ELEMENT(5),EDGE_L(IEDGE1).SUBID(5))
@@ -148,6 +307,7 @@ SUBROUTINE SETUP_EDGE_ADJL_SOLVER(EDGE_L,NEDGE_L,NADJL)
 			ENDIF
             EDGE_L(IEDGE1).ELEMENT(EDGE_L(IEDGE1).ENUM)=I			
             EDGE_L(IEDGE1).SUBID(EDGE_L(IEDGE1).ENUM)=J
+            
 		ENDDO
         
         NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM=NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM+1
@@ -155,6 +315,7 @@ SUBROUTINE SETUP_EDGE_ADJL_SOLVER(EDGE_L,NEDGE_L,NADJL)
     
     DO I=1, NNODE_L
         ALLOCATE(NADJL(I).NODE(NADJL(I).NNUM),NADJL(I).ELEMENT(NADJL(I).ENUM),NADJL(I).SUBID(NADJL(I).ENUM))
+        ALLOCATE(NADJL(I).EDGE(NADJL(I).NNUM))
         NADJL(I).ENUM=0;NADJL(I).NNUM=0
     ENDDO
     
@@ -171,12 +332,48 @@ SUBROUTINE SETUP_EDGE_ADJL_SOLVER(EDGE_L,NEDGE_L,NADJL)
         NADJL(EDGE_L(I).V).NNUM=NADJL(EDGE_L(I).V).NNUM+1
         DO J=1,2
             N1=EDGE_L(I).V(J)
-            NADJL(N1).NODE(NADJL(N1).NNUM)=EDGE_L(I).V(MOD(J,2)+1)            
+            NADJL(N1).NODE(NADJL(N1).NNUM)=EDGE_L(I).V(MOD(J,2)+1)
+            IF(J==1) THEN
+                NADJL(N1).EDGE(NADJL(N1).NNUM)=I !正向
+            ELSE
+                NADJL(N1).EDGE(NADJL(N1).NNUM)=-I !反向
+            ENDIF
         ENDDO
     ENDDO   
     
     RETURN
 ENDSUBROUTINE
+
+
+real(8) function angle2D(p1,p2)
+!返回线段p1-p2的方向角(与x轴的角alpha), -pi<alpha<=pi
+    real(8),intent(in)::p1(2),p2(2)
+    real(8)::dx1,dy1
+    
+    dx1=p2(1)-p1(1);dy1=p2(2)-p1(2);
+    if(norm2([dx1,dy1])<1.e-7) then
+        print *, "线段的长度为0,无法求其角度。angle2D(p1,p2)"
+        angle2D=1./0.d0
+        return
+    endif
+    
+    IF(ABS(DX1)>1.E-7) THEN
+        angle2d=ATAN(DY1/DX1)
+        IF(DX1<0.D0) THEN
+            IF(DY1>0.D0) THEN
+                angle2d=angle2d+PI()
+            ELSE
+                angle2d=angle2d-PI()
+            ENDIF
+        ENDIF
+    ELSE
+        IF(DY1>0) THEN
+            angle2d=PI()/2.
+        ELSE
+            angle2d=-PI()/2.
+        ENDIF
+    ENDIF
+end function
 
 !SET EDGE FOR MODEL ELEMENT. 
 SUBROUTINE SETUP_EDGE_ADJL_MODEL(EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NODE_L,NNODE_L,ESET,NESET)
@@ -710,7 +907,14 @@ SUBROUTINE SETUP_FACE_ADJL_Solver(FACE_L,NFACE_L,EDGE_L,NEDGE_L)
 		ELEMENT_L(I).NFACE=NFACE1
         NV1=ELTTYPE(ET1).NNODE
         NODE1(1:NV1)=ELEMENT_L(I).NODE(1:NV1)
-        ALLOCATE(ELEMENT_L(I).FACE(NFACE1),ELEMENT_L(I).ADJELT(NFACE1))
+        ALLOCATE(ELEMENT_L(I).FACE(NFACE1))
+        IF(ELTTYPE(ET1).DIM==2) THEN
+            ALLOCATE(ELEMENT_L(I).ADJELT(ELTTYPE(ET1).NEDGE))
+        ELSEIF(ELTTYPE(ET1).DIM==3) THEN
+            ALLOCATE(ELEMENT_L(I).ADJELT(ELTTYPE(ET1).NFACE))
+        ELSE
+            ALLOCATE(ELEMENT_L(I).ADJELT(ELTTYPE(ET1).NNODE))
+        ENDIF
         IF(ALLOCATED(ELEMENT_L(I).ADJELT)) ELEMENT_L(I).ADJELT=0
         !DO J=1,NV1
         !    N1=MINLOC(NODE1(1:NV1),MASK=NODE1(1:NV1)>0,DIM=1)

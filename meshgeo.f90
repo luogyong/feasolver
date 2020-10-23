@@ -24,7 +24,7 @@ TYPE NODE_ADJ_TYDEF
     LOGICAL::ISINI=.FALSE.
     INTEGER::NNUM=0,ENUM=0
 	INTEGER::ISDEAD=0
-    INTEGER,ALLOCATABLE::NODE(:),ELEMENT(:),SUBID(:) !SUBID IS INDEX WHICH NODE OF THE ELEMENT IS THE NODE
+    INTEGER,ALLOCATABLE::NODE(:),ELEMENT(:),SUBID(:),EDGE(:) !SUBID IS INDEX WHICH NODE OF THE ELEMENT IS THE NODE
 ENDTYPE
 TYPE(NODE_ADJ_TYDEF),ALLOCATABLE::SNADJL(:)
 
@@ -33,10 +33,10 @@ TYPE EDGE_TYDEF
     INTEGER::V(2)=0
     INTEGER::HKEY=-1
     CHARACTER(64)::CKEY=""
-    REAL(8)::DIS=0.D0
+    REAL(8)::DIS=0.D0,ANGLE
     INTEGER::ENUM=0
-	INTEGER::ISDEAD=0
-    INTEGER,ALLOCATABLE::ELEMENT(:),SUBID(:) !SUBID IS INDEX WHICH EDGE OF THE ELEMENT IS THE EDGE
+	INTEGER::ISDEAD=0,NMIDPNT=0
+    INTEGER,ALLOCATABLE::ELEMENT(:),SUBID(:),MIDPNT(:) !SUBID IS INDEX WHICH EDGE OF THE ELEMENT IS THE EDGE
 ENDTYPE
 TYPE(EDGE_TYDEF),ALLOCATABLE::EDGE(:),MEDGE(:),SEDGE(:)
 TYPE FACE_TYDEF
@@ -66,8 +66,19 @@ ENDTYPE
 TYPE(TET_TYDEF),ALLOCATABLE::TET(:)
 INTEGER::NTET=0
 
-INTEGER,ALLOCATABLE::EDGE_BC(:),FACE_BC(:),NODE_LOOP_BC(:)
-INTEGER::NE_BC=0,NF_BC=0,NNLBC=0
+INTEGER,ALLOCATABLE::EDGE_BC(:),FACE_BC(:),NODE_LOOP_BC(:),SEDGE_BC(:)
+INTEGER::NE_BC=0,NF_BC=0,NNLBC=0,NSE_BC=0
+
+TYPE BLOOPS_TYDEF
+    INTEGER::NNODE=0,NEDGE=0,ISOUTBC=0
+    INTEGER::PCUT(2) !主边界与此边界相连路径的的端点
+    INTEGER,ALLOCATABLE::NODE(:),EDGE(:),EDGECUT(:)    
+    REAL(8)::BBOX(2,3)
+    
+ENDTYPE
+TYPE(BLOOPS_TYDEF),ALLOCATABLE::BLOOPS(:)
+INTEGER::NBLOOPS=0,MAXBLOOPS=100
+
 
 
 
@@ -75,9 +86,9 @@ INTEGER::NE_BC=0,NF_BC=0,NNLBC=0
 
 
 type et_type
-	integer::nnode=0,nedge=0,nface=0,ntet=0		!NOTE THAT THE NNODE IS ONLY THE END NODE NUMBER 
+	integer::nnode=0,nedge=0,nface=0,ntet=0,NMIDPNT=0		!NOTE THAT THE NNODE IS ONLY THE END NODE NUMBER 
 	character(512)::description
-	integer,allocatable::edge(:,:),face(:,:),FaceEdge(:,:)
+	integer,allocatable::edge(:,:),face(:,:),FaceEdge(:,:),MIDPNT(:,:)
 	integer,allocatable::tet(:,:) !,tetEDGE(:,:),TETFACE(:,:)
 	INTEGER::DIM=-1
 	!edge(2,nedge),
@@ -1023,12 +1034,13 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 				Elttype(ET).FACEEDGE=Elttype(ET).FACE
 				Elttype(ET).TET(:,1)=[1,2,3,0]
 			CASE(9) !6-NODED-TRIANGLE
-                ELTTYPE(ET).NNODE=3
+                ELTTYPE(ET).NNODE=3;ELTTYPE(ET).NMIDPNT=1
 				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1;Elttype(ET).NTET=4;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
 				
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1],(/2,3/))
+                Elttype(ET).MIDPNT=RESHAPE([4,5,6],(/1,3/))
 				Elttype(ET).FACE(:,1)=[3,1,2,3,0]
 				Elttype(ET).FACEEDGE=Elttype(ET).FACE
 				Elttype(ET).TET(:,:)=RESHAPE([1,4,6,0,&
@@ -1037,11 +1049,12 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                                                4,5,6,0],&
                                                (/4,4/))				
 			CASE(23) !15-NODED-TRIANGLE
-                ELTTYPE(ET).NNODE=3
+                ELTTYPE(ET).NNODE=3;ELTTYPE(ET).NMIDPNT=3
 				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1;Elttype(ET).NTET=16;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1],(/2,3/))
+                Elttype(ET).MIDPNT(:,:)=RESHAPE([7,4,8,9,5,10,11,6,12],(/3,3/))
 				Elttype(ET).FACE(:,1)=[3,1,2,3,0]
 				Elttype(ET).FACEEDGE=Elttype(ET).FACE
 				Elttype(ET).TET(:,:)=RESHAPE([ 1,7,12,0,&
@@ -1079,11 +1092,12 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                                               3,4,1,0],(/4,2/))				
                 
 			CASE(16) !8-noded-QUADRANGLE
-                ELTTYPE(ET).NNODE=4
+                ELTTYPE(ET).NNODE=4;ELTTYPE(ET).NMIDPNT=1
 				Elttype(ET).NEDGE=4;Elttype(ET).NFACE=1;Elttype(ET).NTET=6;ELTTYPE(ET).DIM=2				
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
-				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1],(/2,4/))                
+				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1],(/2,4/))
+                Elttype(ET).MIDPNT(:,:)=RESHAPE([5,6,7,8],(/1,4/))
 				Elttype(ET).FACE(:,:)=RESHAPE([4,1,2,3,4],&
 											  (/5,1/))
 				Elttype(ET).FACEEDGE=Elttype(ET).FACE
@@ -1112,11 +1126,12 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                 Elttype(ET).TET(:,:)=RESHAPE([1,2,3,4], (/4,1/))
 
 			CASE(11) !10-noded-TETRAHEDRON
-                ELTTYPE(ET).NNODE=4
+                ELTTYPE(ET).NNODE=4;ELTTYPE(ET).NMIDPNT=1
 				Elttype(ET).NEDGE=6;Elttype(ET).NFACE=4;Elttype(ET).NTET=8;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1,1,4,2,4,3,4],(/2,6/))
+                Elttype(ET).MIDPNT(:,:)=RESHAPE([5,6,7,8,9,10],(/1,6/))                
 				Elttype(ET).FACE(:,:)=RESHAPE([3,2,1,3,0,&
 											   3,1,2,4,0,&
 											   3,2,3,4,0,&
@@ -1187,13 +1202,14 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 												1,6,4,5],(/4,3/))
 
 			CASE(18) !15-NODE PRISM
-                ELTTYPE(ET).NNODE=6
+                ELTTYPE(ET).NNODE=6;ELTTYPE(ET).NMIDPNT=1
 				Elttype(ET).NEDGE=9;Elttype(ET).NFACE=5;Elttype(ET).NTET=14;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))			
 				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,1,&
 											   4,5,5,6,6,4,&
 											   1,4,2,5,3,6],(/2,9/))
+                Elttype(ET).MIDPNT(:,:)=RESHAPE([7:15],(/1,9/))
 				Elttype(ET).FACE(:,:)=RESHAPE([3,2,1,3,0,&
 											   3,4,5,6,0,&
 											   4,1,2,5,4,&

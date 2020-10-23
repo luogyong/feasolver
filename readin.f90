@@ -1379,7 +1379,8 @@ subroutine solvercommand(term,unit)
 				call skipcomment(unit)
 				call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
 				datapoint(i).nnode=int(ar(1))
-				if(n1>1) datapoint(i).issumq=1
+				if(n1>1) datapoint(i).issumq=int(ar(2))
+                if(n1>2) datapoint(i).isstat=int(ar(3))
 				allocate(datapoint(i).node(datapoint(i).nnode))
 				call skipcomment(unit)
 				read(unit,*) datapoint(i).node
@@ -1606,7 +1607,9 @@ subroutine solvercommand(term,unit)
 					case('nspwell')
 						solver_control.nspwell=int(property(i).value)
 					case('wellaniso')
-						solver_control.wellaniso=int(property(i).value)                        
+						solver_control.wellaniso=int(property(i).value)   
+                    case('disf_scale')
+                        solver_control.disf_scale=property(i).value  
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -1843,7 +1846,7 @@ subroutine solvercommand(term,unit)
 			end do
 		case('sf','step_function','step function')
 			print *, 'Reading STEP FUNCTION data...'
-            n2=1
+            n2=1;t1=1.0d0
 			do i=1,pro_num
 				select case(property(i).name)
 					case('num')
@@ -1852,6 +1855,8 @@ subroutine solvercommand(term,unit)
 						nstep=int(property(i).value)
                     case('base')
                         n2=int(property(i).value)
+                    case('scale')
+                        t1=property(i).value
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -1863,9 +1868,9 @@ subroutine solvercommand(term,unit)
 				sf(i).factor=0.0
 				call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
 				if(excelformat==0) then
-					sf(i).factor(n2:nstep)=ar(1:n1)                    
+					sf(i).factor(n2:nstep)=ar(1:n1)*t1                    
 				else
-					sf(int(ar(1))).factor(n2:nstep)=ar(2:n1)
+					sf(int(ar(1))).factor(n2:nstep)=ar(2:n1)*t1
 				endif
                 IF(NSET==1) SF(I).TITLE=SET(1)
 			end do
@@ -2374,6 +2379,9 @@ subroutine solvercommand(term,unit)
 					case('mw')
 						outvar(mw_spg).name='mw'
 						outvar(mw_spg).value=mw_spg
+                    case('vsf')
+						outvar(snet).name='VSF'
+						outvar(snet).value=snet
 					case('sfr')
 						outvar(SFR).name='SFR'
 						outvar(SFR).value=SFR
@@ -2428,7 +2436,10 @@ subroutine solvercommand(term,unit)
 							outvar(Gradz).name='Iz'
 							outvar(Gradz).value=Gradz
 							outvar(Vz).name='Vz'
-							outvar(Vz).value=Vz							
+							outvar(Vz).value=Vz
+                        else
+                            outvar(snet).name='VSF'
+						    outvar(snet).value=snet
 						ENDIF						
 					case('dis')
 					  outvar(disx).name='disx'  
