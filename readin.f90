@@ -82,6 +82,7 @@
 		EXCAB_EXTREMEBEAMRES_FILE=trim(drive)//trim(dir)//trim(name)//'_exca_minmaxbeam.dat'
         Slope_file=trim(drive)//trim(dir)//trim(name)//'_slope_res.dat'
         well_file=trim(drive)//trim(dir)//trim(name)//'_well_res.dat'
+        flownet_file=trim(drive)//trim(dir)//trim(name)//'_flownet_tec.plot'
 	end if
     
 	open(99,file=resultfile3,status='replace')

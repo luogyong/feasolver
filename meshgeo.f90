@@ -3,7 +3,7 @@
 !USE solverds
 USE POS_IO
 USE hashtbl
-
+implicit none
 !PRIVATE
 !PUBLIC::EDGE,NEDGE,FACE,NFACE,SETUP_EDGE_TBL_TET,SETUP_FACE_TBL_TET,TET,NTET,&
 !        SETUP_SUB_TET4_ELEMENT,&
@@ -25,6 +25,7 @@ TYPE NODE_ADJ_TYDEF
     INTEGER::NNUM=0,ENUM=0
 	INTEGER::ISDEAD=0
     INTEGER,ALLOCATABLE::NODE(:),ELEMENT(:),SUBID(:),EDGE(:) !SUBID IS INDEX WHICH NODE OF THE ELEMENT IS THE NODE
+    !if edge()<0 means edge().vertex(2)=snadjl(), else vertex(1)=snadjl().   
 ENDTYPE
 TYPE(NODE_ADJ_TYDEF),ALLOCATABLE::SNADJL(:)
 
@@ -69,22 +70,6 @@ INTEGER::NTET=0
 INTEGER,ALLOCATABLE::EDGE_BC(:),FACE_BC(:),NODE_LOOP_BC(:),SEDGE_BC(:)
 INTEGER::NE_BC=0,NF_BC=0,NNLBC=0,NSE_BC=0
 
-TYPE BLOOPS_TYDEF
-    INTEGER::NNODE=0,NEDGE=0,ISOUTBC=0
-    INTEGER::PCUT(2) !主边界与此边界相连路径的的端点
-    INTEGER,ALLOCATABLE::NODE(:),EDGE(:),EDGECUT(:)    
-    REAL(8)::BBOX(2,3)
-    
-ENDTYPE
-TYPE(BLOOPS_TYDEF),ALLOCATABLE::BLOOPS(:)
-INTEGER::NBLOOPS=0,MAXBLOOPS=100
-
-
-
-
-
-
-
 type et_type
 	integer::nnode=0,nedge=0,nface=0,ntet=0,NMIDPNT=0		!NOTE THAT THE NNODE IS ONLY THE END NODE NUMBER 
 	character(512)::description
@@ -95,7 +80,9 @@ type et_type
 	!face: use node index to represent face. face(0:4,nface),face(0,:)==3,triangular face,==4, quadrilateral face
 	!FaceEdge: use edge index to represent face. FaceEdge(0:4,nface),FaceEdge(0,:)==3,triangular face, ==4, quadrilateral face
 	real(8),allocatable::weight(:,:) !�ֲ���Ԫ���ظ��ڵ�ֲ�ϵ��, weight(:,1) ƽ��������أ�weight(:,2) ƽ�������κ���;weight(:,3) ��Գƾ������أ�weight(:,4) ��Գ������κ��أ�
-												!Ŀǰֻ�ܴ���ƽ��Ӧ������������
+!contains
+!	procedure::int=>ET_GMSH_EDGE_FACE
+!    procedure::getgmshet=>
 end type
 type(et_type)::elttype(100)
 
@@ -112,8 +99,8 @@ ENDTYPE
 TYPE(SEARCHZONE_TYDEF),ALLOCATABLE::SEARCHZONE(:)
 INTEGER::NSZONE=1
 
-CONTAINS 
-
+CONTAINS
+    
 
 SUBROUTINE SETUP_SUBZONE_TET(MAXX,MINX,MAXY,MINY,MAXZ,MINZ,TET1)
     IMPLICIT NONE

@@ -62,7 +62,7 @@
 	! reordering nodal number
     Call clear_model()
 	allocate(Noutputorder(gnnode))
-	ALLOCATE(IPERM(gnnode))
+	ALLOCATE(IPERM(gnnode)) //IPERM(I),THE NEW NUMBER FOR THE NODE(I) 
 	call setup_adjList()
 	call reorder_nodal_number(IPERM,gnnode,adjL,maxadj)
 	do i=1,gnnode

@@ -964,7 +964,7 @@ subroutine calangle(ienum)
 		case(qua4,qua8)
 		
 			element(ienum).angle=pi()
-			element(ienum).angle(4)=2*pi()
+			element(ienum).angle(4)=2*PI()
 			do i=1,3
 				v1=i-1
 				if(v1<1) v1=4

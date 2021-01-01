@@ -2,6 +2,7 @@ module SolverMath
 IMPLICIT NONE
 
 INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
+REAL(8),PRIVATE,PARAMETER::PI=3.141592653589793
 
 contains
     
@@ -333,12 +334,43 @@ ENDSUBROUTINE
         integer ( kind = 4 ), parameter :: dim_num = 3
         real ( kind = 8 ),INTENT(IN):: N1(dim_num)
         real ( kind = 8 ),INTENT(IN):: N2(dim_num)
-        REAL(8),PARAMETER::PI=3.141592653589793
+        
         
         DihedralAngle=PI-DACOS(DOT_PRODUCT(N1,N2)/(NORM2(N1)*NORM2(N2)))
         
         
     
     end function
+    
+    real(8) function angle2D(p1,p2)
+!返回线段p1-p2的方向角(与x轴的角alpha), -pi<alpha<=pi
+    real(8),intent(in)::p1(:),p2(:)
+    real(8)::dx1,dy1
+
+    
+    dx1=p2(1)-p1(1);dy1=p2(2)-p1(2);
+    if(norm2([dx1,dy1])<1.e-7) then
+        print *, "线段的长度为0,无法求其角度。angle2D(p1,p2)"
+        angle2D=1./0.d0
+        return
+    endif
+    
+    IF(ABS(DX1)>1.E-7) THEN
+        angle2d=ATAN(DY1/DX1)
+        IF(DX1<0.D0) THEN
+            IF(DY1>0.D0) THEN
+                angle2d=angle2d+PI
+            ELSE
+                angle2d=angle2d-PI
+            ENDIF
+        ENDIF
+    ELSE
+        IF(DY1>0) THEN
+            angle2d=PI/2.
+        ELSE
+            angle2d=-PI/2.
+        ENDIF
+    ENDIF
+end function
 
 end module

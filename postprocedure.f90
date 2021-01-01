@@ -486,7 +486,7 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 				NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
             CASE(SNET)
                 IF(NDIMENSION<3) THEN
-                    NodalQ(:,i,NnodalQ)=STREAMFUNCTIONCAL()
+                    NodalQ(:,i,NnodalQ)=STREAMFUNCTIONCAL(ISTEP,ISUBTS)
                 ELSE
                     NodalQ(:,i,NnodalQ)=0.D0
                 ENDIF

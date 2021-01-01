@@ -304,13 +304,13 @@ module solverds
 		integer::et
         integer::eshape=-1 !0,point，101=line,203=triangle,204=quadrilateral,304=tet,308=hex,306=prism
         integer::system=0
-		character(1024)::zonetitle=""
+		character(1024)::zonetitle="",zonetitle_sf=""
 		character(64)::grouptitle=""
         integer::coupleset=-1
         integer::isini=0 !>0
         integer::sf=0 !stepfun
-		integer::mesh_share_id=0,out_mesh=.true. !for output tecplot.
-		
+		integer::mesh_share_id=0,out_mesh=.true.!for output tecplot.
+		integer::mesh_share_id_sf=0,out_mesh_sf=.true.
 		!for bar ane beam element only.
 		real(kind=DPN),allocatable::xyz_section(:,:) !单元集的统一的截面的四个角点的坐标，现假定一个单元集内的所有杆单元或梁单元的局部坐标一样。
 		integer,allocatable::outorder(:) !输出后处理时，同一局部坐标下节点的输出顺序，与element.node2节点号对应。
@@ -413,7 +413,9 @@ module solverds
 	
     TYPE DOFADJL_TYDEF
         INTEGER::NDOF=0,DOF_SIZE=20
-        INTEGER,ALLOCATABLE::DOF(:) !SORTED BY COLUMNS        
+        INTEGER,ALLOCATABLE::DOF(:) !SORTED BY COLUMNS 
+    CONTAINS
+        PROCEDURE::ADD_ITEM=>DOFADJL_ADD_ITEM
     ENDTYPE
     TYPE(DOFADJL_TYDEF),ALLOCATABLE::DOFADJL(:)
 	
@@ -428,7 +430,7 @@ module solverds
 
 	
 	character(1024)::title,resultfile,resultfile1,resultfile2,resultfile3,resultfile21,resultfile22,EXCAMSGFILE,EXCAB_BEAMRES_FILE,&
-					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE,SLOPE_FILE,helpfile,well_file
+					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE,SLOPE_FILE,helpfile,well_file,flownet_file
 	INTEGER::DATAPOINT_UNIT=29
 	integer::datapacking=1	!=1,point format:{x1,y1,z1},{x2,y2,z2},..., . (Default Format)
 						 != 2, block format, {x1,x2,...},{y1,y2,...},{z1,z2,...}
@@ -567,7 +569,58 @@ module solverds
    
     
     contains
+
+    SUBROUTINE DOFADJL_ADD_ITEM(SELF,ITEM) 
+        
+        class(DOFADJL_TYDEF)::self
+        INTEGER,INTENT(IN)::ITEM
+        INTEGER::I,N1
     
+
+        IF(.NOT.ALLOCATED(SELF.DOF)) THEN
+            ALLOCATE(SELF.DOF(SELF.DOF_SIZE))
+            SELF.DOF=0
+        ENDIF
+        IF(.NOT.ANY(SELF.DOF(1:SELF.NDOF)-ITEM==0)) THEN
+            
+            IF(SELF.NDOF+1>SELF.DOF_SIZE) THEN
+                CALL I_ENLARGE_AR(SELF.DOF,10)
+                SELF.DOF_SIZE=SELF.DOF_SIZE+10
+            ENDIF
+            IF(SELF.NDOF==0) THEN
+                N1=SELF.NDOF+1
+            ELSE
+                IF(ITEM>SELF.DOF(SELF.NDOF)) THEN
+                    N1=SELF.NDOF+1
+                ELSEIF(ITEM<SELF.DOF(1)) THEN
+                    N1=1
+                    SELF.DOF(SELF.NDOF+1:2:-1)=SELF.DOF(SELF.NDOF:1:-1)
+                ELSE
+                    N1=MINVAL(PACK([1:SELF.NDOF],SELF.DOF(:SELF.NDOF)-ITEM>0))
+                    SELF.DOF(SELF.NDOF+1:N1+1:-1)=SELF.DOF(SELF.NDOF:N1:-1)
+                ENDIF
+            ENDIF
+            SELF.DOF(N1)=ITEM
+            SELF.NDOF=SELF.NDOF+1
+        ENDIF
+    CONTAINS
+        SUBROUTINE I_ENLARGE_AR(AVAL,DSTEP)
+            IMPLICIT NONE
+            INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+            INTEGER,INTENT(IN)::DSTEP
+            INTEGER,ALLOCATABLE::VAL1(:)
+            INTEGER::LB1=0,UB1=0
+    
+            LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+            ALLOCATE(VAL1,SOURCE=AVAL)
+            DEALLOCATE(AVAL)
+            ALLOCATE(AVAL(LB1:UB1+DSTEP))
+            AVAL(LB1:UB1)=VAL1
+            !AVAL(UB1+1:UB1+10)=0
+            DEALLOCATE(VAL1)
+        END SUBROUTINE
+
+    ENDSUBROUTINE     
 
     
     FUNCTION GET_MAT_PROPERTY_ARRAY(MAT,IPARA,ISTEP) RESULT(VAL)
@@ -868,9 +921,8 @@ end module
 
 INCLUDE 'mkl_dss.f90' 
 MODULE MKLDS
-	
+
 	USE MKL_DSS
-	
 	TYPE(MKL_DSS_HANDLE) :: handle ! Allocate storage for the solver handle.
 	
 END MODULE

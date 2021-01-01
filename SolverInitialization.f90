@@ -1162,7 +1162,7 @@ subroutine fepv(ienum,dof1)
 		n2=1
 		do while(n2<=MNDOF)
 			if(dof1(n2)>0) then
-				element(ienum).g(n1)=node(element(ienum).node(j)).dof(dof1(n2))
+			 	element(ienum).g(n1)=node(element(ienum).node(j)).dof(dof1(n2))
 				n1=n1+1			
 			end if
 			n2=n2+1	
@@ -1178,12 +1178,12 @@ subroutine dofbw(ienum)
 	integer::ienum,n1,n2,n3,n4,j,DOF1(200),I
     
 
-	n1=minval(element(ienum).g)
-	n3=maxval(element(ienum).g)
+	!n1=minval(element(ienum).g)
+	!n3=maxval(element(ienum).g)
     DOF1(1:element(ienum).ndof)=element(ienum).g
     
     CALL quick_sort(DOF1(1:element(ienum).ndof))
-    
+    n1=dof1(1);n3=dof1(element(ienum).ndof)
 	do j=1,element(ienum).ndof
 		
 		
@@ -1191,11 +1191,11 @@ subroutine dofbw(ienum)
 			
 			if(.not.solver_control.ismkl) then
 				!for default solver,存下三角,bw(i)为第i行下角形带宽。
-!				n2=element(ienum).g(j)-n1+1
-!				if(bw(element(ienum).g(j))<n2) bw(element(ienum).g(j))=n2
+!				n2=dof1(j)-n1+1
+!				if(bw(dof1(j))<n2) bw(dof1(j))=n2
 				
-				if(bw(element(ienum).g(j))>n1) bw(element(ienum).g(j))=n1 !location of the most Left entry
-				Lmre(element(ienum).g(j))=element(ienum).g(j) !location of the most right entry
+				if(bw(dof1(j))>n1) bw(dof1(j))=n1 !location of the most Left entry
+				Lmre(dof1(j))=dof1(j) !location of the most right entry
 				
                 DO I=1,J
                     CALL SETUP_DOFADJL(DOF1(I),DOF1(J))
@@ -1203,19 +1203,19 @@ subroutine dofbw(ienum)
                 
 			else
 				!for mkl solver, 存上三角，bw(i)为第i行上角形带宽
-!				n2=n3-element(ienum).g(j)+1
-!				if(bw(element(ienum).g(j))<n2) bw(element(ienum).g(j))=n2
+!				n2=n3-dof1(j)+1
+!				if(bw(dof1(j))<n2) bw(dof1(j))=n2
 				
-				bw(element(ienum).g(j))=element(ienum).g(j) !location of the most Left entry
-				if(Lmre(element(ienum).g(j))<n3) Lmre(element(ienum).g(j))=n3 !location of the most right entry			
+				bw(dof1(j))=dof1(j) !location of the most Left entry
+				if(Lmre(dof1(j))<n3) Lmre(dof1(j))=n3 !location of the most right entry			
 				 DO I=J,element(ienum).ndof
                     CALL SETUP_DOFADJL(DOF1(I),DOF1(J))
                  ENDDO
 			end if
 
 		else
-			if(bw(element(ienum).g(j))>n1) bw(element(ienum).g(j))=n1 !location of the most Left entry
-			if(Lmre(element(ienum).g(j))<n3) Lmre(element(ienum).g(j))=n3 !location of the most right entry	
+			if(bw(dof1(j))>n1) bw(dof1(j))=n1 !location of the most Left entry
+			if(Lmre(dof1(j))<n3) Lmre(dof1(j))=n3 !location of the most right entry	
             DO I=1,element(ienum).ndof
                 CALL SETUP_DOFADJL(DOF1(I),DOF1(J))                
             ENDDO
@@ -1266,7 +1266,9 @@ SUBROUTINE SETUP_DOFADJL(ITEM,IDOF)
     
     
 
-ENDSUBROUTINE
+    ENDSUBROUTINE
+    
+    
 
 ! allocate room for element.km,b,d.
 subroutine el_alloc_room(ienum)
