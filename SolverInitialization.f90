@@ -751,11 +751,7 @@ subroutine Initialization()
 			CASE(ZT4_SPG,ZT6_SPG) !assume no flow occurs in the diections parallel to element faces.
 				node(element(i).node(1:element(i).nnum)).dof(4)=0
                 
-                if(.not.allocated(ispf)) then
-                    allocate(ispf(nnum,2))
-                    ispf=0
-                endif
-                
+               
                 CALL ZT_SPG_INI2(I)
 				
 				
@@ -775,7 +771,7 @@ subroutine Initialization()
 																	
                 end select
 				
-                !IF(ELEMENT(I).ET==ZT4_SPG.OR.ELEMENT(I).ET==ZT6_SPG) CALL ZT_SPG_INI(I)    
+                IF(ELEMENT(I).ET==ZT4_SPG2.OR.ELEMENT(I).ET==ZT6_SPG2) CALL ZT_SPG_INI2(I)    
                     
                
                
@@ -929,7 +925,7 @@ subroutine Initialization()
 			case(CPE3_SPG,CPE6_SPG,CPE4_SPG,CPE8_SPG,CPE4R_SPG,CPE8R_SPG,CPE15_SPG, &
 					 CPS4_SPG,CPS4R_SPG,CPS8_SPG,CPS8R_SPG,CPS6_SPG,CPS15_SPG, &	
 					 CAX3_SPG,CAX4_SPG,CAX4R_SPG,CAX6_SPG,CAX15_SPG,CAX8_SPG,CAX8R_SPG, &
-					 PRM6_SPG,PRM15_SPG,TET4_SPG,TET10_SPG)
+					 PRM6_SPG,PRM15_SPG,TET4_SPG,TET10_SPG,ZT4_SPG2,ZT6_SPG2)
 				dof1=0
 				dof1(4)=4
 				!allocate(element(i).g(element(i).ndof))
@@ -1351,14 +1347,14 @@ subroutine el_ini_D(ienum)
 			element(ienum).d(1,1)=material(mat1).property(1)
 			element(ienum).d(2,2)=material(mat1).property(2)
 			isys1=int(material(mat1).property(4))            
-            !IF(element(ienum).ET==ZT4_SPG.AND.(element(ienum).d(1,1)-element(ienum).d(2,2))>.1D-7) THEN
-            !    ISYS1=-1
-            !    T1=NORM2(GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1)))
-            !    VCOS1=GNODE(1,ELEMENT(IENUM).NODE2(4))-GNODE(1,ELEMENT(IENUM).NODE2(1))/T1
-            !    VSIN1=GNODE(2,ELEMENT(IENUM).NODE2(4))-GNODE(2,ELEMENT(IENUM).NODE2(1))/T1
-            !    coordinate(isys1).c(1,1)=VCOS1;coordinate(isys1).c(2,2)=VCOS1;
-            !    coordinate(isys1).c(2,1)=VSIN1;coordinate(isys1).c(1,2)=-VSIN1;
-            !ENDIF
+            IF(element(ienum).ET==ZT4_SPG2.AND.(element(ienum).d(1,1)-element(ienum).d(2,2))>.1D-7) THEN
+                ISYS1=-1
+                T1=NORM2(GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1)))
+                VCOS1=GNODE(1,ELEMENT(IENUM).NODE2(4))-GNODE(1,ELEMENT(IENUM).NODE2(1))/T1
+                VSIN1=GNODE(2,ELEMENT(IENUM).NODE2(4))-GNODE(2,ELEMENT(IENUM).NODE2(1))/T1
+                coordinate(isys1).c(1,1)=VCOS1;coordinate(isys1).c(2,2)=VCOS1;
+                coordinate(isys1).c(2,1)=VSIN1;coordinate(isys1).c(1,2)=-VSIN1;
+            ENDIF
 			if(isys1/=0.AND.ABS(element(ienum).d(1,1)-element(ienum).d(2,2))>.1D-7) then
                 
 				element(ienum).d(1:nd1,1:nd1)=matmul(matmul(coordinate(isys1).c(1:nd1,1:nd1), &
@@ -1370,17 +1366,17 @@ subroutine el_ini_D(ienum)
 			element(ienum).d(2,2)=material(mat1).property(2)
 			element(ienum).d(3,3)=material(mat1).property(3)
 			isys1=int(material(mat1).property(4))
-            !IF(element(ienum).ET==ZT6_SPG.AND.(element(ienum).d(1,1)-element(ienum).d(3,3))>.1D-7) THEN
-            !    ISYS1=-1
-            !    T1=NORM2(GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1)))
-            !    coordinate(isys1).c(1,:)=GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1))/T1
-            !    T1=NORM2(GNODE(:,ELEMENT(IENUM).NODE2(2))-GNODE(:,ELEMENT(IENUM).NODE2(1)))
-            !    coordinate(isys1).c(2,:)=GNODE(:,ELEMENT(IENUM).NODE2(2))-GNODE(:,ELEMENT(IENUM).NODE2(1))/T1
-            !    v1(:,1)=coordinate(isys1).c(1,:);v1(:,2)=coordinate(isys1).c(2,:);v1(:,3)=0.d0
-            !    coordinate(isys1).c(3,:)=NORMAL_TRIFACE(v1)
-            !    coordinate(isys1).c(3,:)=coordinate(isys1).c(3,:)/norm2(coordinate(isys1).c(3,:))
-            !    coordinate(isys1).c=transpose(coordinate(isys1).c)
-            !ENDIF            
+            IF(element(ienum).ET==ZT6_SPG2.AND.(element(ienum).d(1,1)-element(ienum).d(3,3))>.1D-7) THEN
+                ISYS1=-1
+                T1=NORM2(GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1)))
+                coordinate(isys1).c(1,:)=GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1))/T1
+                T1=NORM2(GNODE(:,ELEMENT(IENUM).NODE2(2))-GNODE(:,ELEMENT(IENUM).NODE2(1)))
+                coordinate(isys1).c(2,:)=GNODE(:,ELEMENT(IENUM).NODE2(2))-GNODE(:,ELEMENT(IENUM).NODE2(1))/T1
+                v1(:,1)=coordinate(isys1).c(1,:);v1(:,2)=coordinate(isys1).c(2,:);v1(:,3)=0.d0
+                coordinate(isys1).c(3,:)=NORMAL_TRIFACE(v1)
+                coordinate(isys1).c(3,:)=coordinate(isys1).c(3,:)/norm2(coordinate(isys1).c(3,:))
+                coordinate(isys1).c=transpose(coordinate(isys1).c)
+            ENDIF            
 			if(isys1/=0) then
 				element(ienum).d(1:nd1,1:nd1)=matmul(matmul(coordinate(isys1).c(1:nd1,1:nd1), &
 													element(ienum).d(1:nd1,1:nd1)),transpose(coordinate(isys1).c(1:nd1,1:nd1)))
@@ -1478,7 +1474,7 @@ subroutine xygp(ienum)
 		
 		do k=1,ndimension
 			element(ienum).xygp(k,j)=dot_product(ecp(element(ienum).et).lshape(:,j),node(element(ienum).node).coord(k))
-			!IF(ELEMENT(IENUM).ET==ZT4_SPG.OR.ELEMENT(IENUM).ET==ZT6_SPG) element(ienum).xygp(k,j)=dot_product(ecp(element(ienum).et).lshape(:,j),Gnode(K,element(ienum).node2))
+			IF(ELEMENT(IENUM).ET==ZT4_SPG2.OR.ELEMENT(IENUM).ET==ZT6_SPG2) element(ienum).xygp(k,j)=dot_product(ecp(element(ienum).et).lshape(:,j),Gnode(K,element(ienum).node2))
 		end do
 	end do
 
@@ -1496,12 +1492,12 @@ subroutine cal_epsilon(ienum)
 	nup2=maxloc(node(element(ienum).node).coord(ndimension),1)
 	coord_low1=node(element(ienum).node(nlow1)).coord
 	coord_up2=node(element(ienum).node(nup2)).coord
-	!IF(ELEMENT(IENUM).ET==ZT4_SPG.OR.ELEMENT(IENUM).ET==ZT6_SPG) THEN
-	!	nlow1=minloc(Gnode(NDIMENSION,element(ienum).node2),1)
-	!	nup2=maxloc(Gnode(NDIMENSION,element(ienum).node2),1)
-	!	coord_low1=Gnode(:,element(ienum).node2(nlow1))
-	!	coord_up2=Gnode(:,element(ienum).node2(nup2))
-	!ENDIF
+	IF(ELEMENT(IENUM).ET==ZT4_SPG2.OR.ELEMENT(IENUM).ET==ZT6_SPG2) THEN
+		nlow1=minloc(Gnode(NDIMENSION,element(ienum).node2),1)
+		nup2=maxloc(Gnode(NDIMENSION,element(ienum).node2),1)
+		coord_low1=Gnode(:,element(ienum).node2(nlow1))
+		coord_up2=Gnode(:,element(ienum).node2(nup2))
+	ENDIF
 	
 	nlowgp1=minloc(element(ienum).xygp(ndimension,:),1)
 	nupgp2=maxloc(element(ienum).xygp(ndimension,:),1)
@@ -1590,133 +1586,133 @@ SUBROUTINE NDOF_HEAD()
 ENDSUBROUTINE
 
 
-SUBROUTINE ZT_SPG_INI(IELT)
-    USE solverds
-    USE SolverMath
-    IMPLICIT NONE
-    INTEGER,INTENT(IN)::IELT
-    integer::i,j,K
-	integer::n1,n2,n3,n4,AELT1(2),IN1(10)
-	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord1(3,4)=0,cent1(3,2)=0,c1(3,3)=0,VEC1(3),t2
-    
-    
-    if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
-    !找出zt单元的由face1指向face2的向量VEC1
-    IF(ELEMENT(IELT).ET==ZT4_SPG) THEN
-        AELT1=ELEMENT(IELT).ADJELT([1,3])
-    ELSE
-        AELT1=ELEMENT(IELT).ADJELT([1,2])
-    ENDIF
-    where(AELT1<1)   AELT1=IELT
-
-    DO I=1,2
-        DO J=1,NDIMENSION
-            CENT1(J,I)=SUM(NODE(ELEMENT(AELT1(I)).NODE).COORD(J))/ELEMENT(AELT1(I)).NNUM            
-        ENDDO
-    ENDDO
-    VEC1=(CENT1(:,2)-CENT1(:,1))
-    t1=NORM2(VEC1)
-    
-    IF(ABS(t1)<1.E-6) THEN
-        PRINT *, 'ZT单元I的指向向量无法确定.I=',ielt
-    ELSE
-        vec1=vec1/t1
-    ENDIF
-    
-    T2=1.0D0
-	IF(ELEMENT(IELT).ET==ZT4_SPG) THEN
-        
-		!GENERATE THE GHOST NODE
-		T1=((NODE(ELEMENT(IELT).NODE(1)).COORD(1)-NODE(ELEMENT(IELT).NODE(2)).COORD(1))**2+ &
-			(NODE(ELEMENT(IELT).NODE(1)).COORD(2)-NODE(ELEMENT(IELT).NODE(2)).COORD(2))**2)**0.5D0
-		!LOCAL TO GLOBAL 
-		VCOS=(NODE(ELEMENT(IELT).NODE(2)).COORD(1)-NODE(ELEMENT(IELT).NODE(1)).COORD(1))/T1
-		VSIN=(NODE(ELEMENT(IELT).NODE(2)).COORD(2)-NODE(ELEMENT(IELT).NODE(1)).COORD(2))/T1
-		C1(1,1)=VCOS
-		C1(1,2)=-VSIN
-		C1(2,2)=VCOS
-		C1(2,1)=VSIN
-        t2=sign(1.d0,DOT_PRODUCT(VEC1(1:2),C1(1:2,2)))
-        C1(1:2,2)=T2*C1(1:2,2)        
-        !IF(DOT_PRODUCT(VEC1(1:2),C1(1:2,2))<0.D0) C1(1:2,2)=-C1(1:2,2)
-        !4#节点的局部坐标
-		!COORD1=0.D0;COORD1(2,1)=Matproperty(ELEMENT(IELT).MAT,14,1)
-  !      IF(ABS(COORD1(2,1))<1E-6) COORD1(2,1)=1.0D0
-		!COORD1(1,2)=0.D0;COORD1(2,2)=COORD1(2,1)
-		!IF(.NOT.ALLOCATED(GNODE)) ALLOCATE(GNODE(3,1000))
-		!IF(NGNODE+4>SIZE(GNODE,DIM=2)) CALL ENLARGE_GNODE(1000)
-		!NGNODE=NGNODE+1;GNODE(:,NGNODE)=NODE(ELEMENT(IELT).NODE(1)).COORD
-		!NGNODE=NGNODE+1;GNODE(:,NGNODE)=NODE(ELEMENT(IELT).NODE(2)).COORD
-		!COORD1(1:2,1)=MATMUL(C1(1:2,1:2),COORD1(1:2,1))
-		!NGNODE=NGNODE+1;GNODE(:,NGNODE)=COORD1(:,1)+NODE(ELEMENT(IELT).NODE(2)).COORD
-		!NGNODE=NGNODE+1;GNODE(:,NGNODE)=COORD1(:,1)+NODE(ELEMENT(IELT).NODE(1)).COORD
-		!ALLOCATE(ELEMENT(IELT).NODE2(4))
-		!ELEMENT(IELT).NODE2=[NGNODE-4+1:NGNODE:1]
-        N2=2
-        !IF(T2<0) THEN
-        !    IN1()=[3,4,0]
-        !ELSE
-        !    IN1=[1,2,0]            
-        !ENDIF
-                
-	ENDIF
-	IF(ELEMENT(IELT).ET==ZT6_SPG) THEN
-	    !LOCAL TO GLOBAL
-                    
-        do j=1,3
-            C1(:,j)=NODE(ELEMENT(IELT).NODE(j)).COORD;
-        enddo
-        C1(3,:)=NORMAL_TRIFACE(C1)
-        C1(3,:)=C1(3,:)/norm2(C1(3,:))
-        
-        t2=sign(1.d0,dot_product(vec1,c1(3,:)))
-        C1(3,:)=t2*C1(3,:)
-
-        T1=NORM2(NODE(ELEMENT(IELT).NODE(1)).COORD-NODE(ELEMENT(IELT).NODE(2)).COORD)
-        C1(1,:)=(NODE(ELEMENT(IELT).NODE(2)).COORD-NODE(ELEMENT(IELT).NODE(1)).COORD)/T1
-        C1(2,:)=0.d0
-        C1(2,:)=NORMAL_TRIFACE(RESHAPE([C1(2,:),C1(1,:),C1(3,:)],([3,3])))
-        C1(2,:)=C1(2,:)/norm2(C1(2,:))
-        C1=TRANSPOSE(C1)
-        !4#节点的坐标
-        IF(T2<0) THEN
-            IN1(1:6)=ELEMENT(IELT).NODE([4,6,5,1,3,2])
-            ELEMENT(IELT).NODE=IN1(1:6)
-            IN1(1:9)=-ELEMENT(IELT).EDGE([6,5,4,3,2,1,7,9,8])
-            ELEMENT(IELT).EDGE=IN1(1:9)
-            IN1(1:5)=ELEMENT(IELT).FACE([2,1,5,4,3])
-            ELEMENT(IELT).FACE=IN1(1:5)
-            IN1(1:5)=ELEMENT(IELT).ADJELT([2,1,5,4,3])
-            ELEMENT(IELT).ADJELT=IN1(1:5)
-        ENDIF
-        N2=3
-        
-    ENDIF 
-    
-    
-    
-	IF(.NOT.ALLOCATED(GNODE)) ALLOCATE(GNODE(3,1000))
-	IF(NGNODE+2*N2>SIZE(GNODE,DIM=2)) CALL ENLARGE_GNODE(1000)
-    COORD1=0.D0;COORD1(N2,1)=Matproperty(ELEMENT(IELT).MAT,14,1)
-    IF(ABS(COORD1(N2,1))<1E-6) COORD1(N2,1)=1.0D0
-    
-	COORD1(1:N2,1)=MATMUL(C1(1:N2,1:N2),COORD1(1:N2,1))
-   
-    DO I=1,N2    
-	    !NGNODE=NGNODE+1;
-        GNODE(:,NGNODE+I)=NODE(ELEMENT(IELT).NODE(I)).COORD
-        IF(ELEMENT(IELT).ET==ZT6_SPG) THEN
-            N3=I
-        ELSE
-            N3=MOD(I,N2)+1
-        ENDIF
-        GNODE(:,NGNODE+N2+N3)=COORD1(:,1)+NODE(ELEMENT(IELT).NODE(I)).COORD
-    ENDDO
-
-	ALLOCATE(ELEMENT(IELT).NODE2(2*N2))
-	ELEMENT(IELT).NODE2=[NGNODE+1:NGNODE+2*N2]
-    
-    NGNODE=NGNODE+2*N2
-
-ENDSUBROUTINE
+!SUBROUTINE ZT_SPG_INI(IELT)
+!    USE solverds
+!    USE SolverMath
+!    IMPLICIT NONE
+!    INTEGER,INTENT(IN)::IELT
+!    integer::i,j,K
+!	integer::n1,n2,n3,n4,AELT1(2),IN1(10)
+!	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord1(3,4)=0,cent1(3,2)=0,c1(3,3)=0,VEC1(3),t2
+!    
+!    
+!    if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
+!    !找出zt单元的由face1指向face2的向量VEC1
+!    IF(ELEMENT(IELT).ET==ZT4_SPG) THEN
+!        AELT1=ELEMENT(IELT).ADJELT([1,3])
+!    ELSE
+!        AELT1=ELEMENT(IELT).ADJELT([1,2])
+!    ENDIF
+!    where(AELT1<1)   AELT1=IELT
+!
+!    DO I=1,2
+!        DO J=1,NDIMENSION
+!            CENT1(J,I)=SUM(NODE(ELEMENT(AELT1(I)).NODE).COORD(J))/ELEMENT(AELT1(I)).NNUM            
+!        ENDDO
+!    ENDDO
+!    VEC1=(CENT1(:,2)-CENT1(:,1))
+!    t1=NORM2(VEC1)
+!    
+!    IF(ABS(t1)<1.E-6) THEN
+!        PRINT *, 'ZT单元I的指向向量无法确定.I=',ielt
+!    ELSE
+!        vec1=vec1/t1
+!    ENDIF
+!    
+!    T2=1.0D0
+!	IF(ELEMENT(IELT).ET==ZT4_SPG) THEN
+!        
+!		!GENERATE THE GHOST NODE
+!		T1=((NODE(ELEMENT(IELT).NODE(1)).COORD(1)-NODE(ELEMENT(IELT).NODE(2)).COORD(1))**2+ &
+!			(NODE(ELEMENT(IELT).NODE(1)).COORD(2)-NODE(ELEMENT(IELT).NODE(2)).COORD(2))**2)**0.5D0
+!		!LOCAL TO GLOBAL 
+!		VCOS=(NODE(ELEMENT(IELT).NODE(2)).COORD(1)-NODE(ELEMENT(IELT).NODE(1)).COORD(1))/T1
+!		VSIN=(NODE(ELEMENT(IELT).NODE(2)).COORD(2)-NODE(ELEMENT(IELT).NODE(1)).COORD(2))/T1
+!		C1(1,1)=VCOS
+!		C1(1,2)=-VSIN
+!		C1(2,2)=VCOS
+!		C1(2,1)=VSIN
+!        t2=sign(1.d0,DOT_PRODUCT(VEC1(1:2),C1(1:2,2)))
+!        C1(1:2,2)=T2*C1(1:2,2)        
+!        !IF(DOT_PRODUCT(VEC1(1:2),C1(1:2,2))<0.D0) C1(1:2,2)=-C1(1:2,2)
+!        !4#节点的局部坐标
+!		!COORD1=0.D0;COORD1(2,1)=Matproperty(ELEMENT(IELT).MAT,14,1)
+!  !      IF(ABS(COORD1(2,1))<1E-6) COORD1(2,1)=1.0D0
+!		!COORD1(1,2)=0.D0;COORD1(2,2)=COORD1(2,1)
+!		!IF(.NOT.ALLOCATED(GNODE)) ALLOCATE(GNODE(3,1000))
+!		!IF(NGNODE+4>SIZE(GNODE,DIM=2)) CALL ENLARGE_GNODE(1000)
+!		!NGNODE=NGNODE+1;GNODE(:,NGNODE)=NODE(ELEMENT(IELT).NODE(1)).COORD
+!		!NGNODE=NGNODE+1;GNODE(:,NGNODE)=NODE(ELEMENT(IELT).NODE(2)).COORD
+!		!COORD1(1:2,1)=MATMUL(C1(1:2,1:2),COORD1(1:2,1))
+!		!NGNODE=NGNODE+1;GNODE(:,NGNODE)=COORD1(:,1)+NODE(ELEMENT(IELT).NODE(2)).COORD
+!		!NGNODE=NGNODE+1;GNODE(:,NGNODE)=COORD1(:,1)+NODE(ELEMENT(IELT).NODE(1)).COORD
+!		!ALLOCATE(ELEMENT(IELT).NODE2(4))
+!		!ELEMENT(IELT).NODE2=[NGNODE-4+1:NGNODE:1]
+!        N2=2
+!        !IF(T2<0) THEN
+!        !    IN1()=[3,4,0]
+!        !ELSE
+!        !    IN1=[1,2,0]            
+!        !ENDIF
+!                
+!	ENDIF
+!	IF(ELEMENT(IELT).ET==ZT6_SPG) THEN
+!	    !LOCAL TO GLOBAL
+!                    
+!        do j=1,3
+!            C1(:,j)=NODE(ELEMENT(IELT).NODE(j)).COORD;
+!        enddo
+!        C1(3,:)=NORMAL_TRIFACE(C1)
+!        C1(3,:)=C1(3,:)/norm2(C1(3,:))
+!        
+!        t2=sign(1.d0,dot_product(vec1,c1(3,:)))
+!        C1(3,:)=t2*C1(3,:)
+!
+!        T1=NORM2(NODE(ELEMENT(IELT).NODE(1)).COORD-NODE(ELEMENT(IELT).NODE(2)).COORD)
+!        C1(1,:)=(NODE(ELEMENT(IELT).NODE(2)).COORD-NODE(ELEMENT(IELT).NODE(1)).COORD)/T1
+!        C1(2,:)=0.d0
+!        C1(2,:)=NORMAL_TRIFACE(RESHAPE([C1(2,:),C1(1,:),C1(3,:)],([3,3])))
+!        C1(2,:)=C1(2,:)/norm2(C1(2,:))
+!        C1=TRANSPOSE(C1)
+!        !4#节点的坐标
+!        IF(T2<0) THEN
+!            IN1(1:6)=ELEMENT(IELT).NODE([4,6,5,1,3,2])
+!            ELEMENT(IELT).NODE=IN1(1:6)
+!            IN1(1:9)=-ELEMENT(IELT).EDGE([6,5,4,3,2,1,7,9,8])
+!            ELEMENT(IELT).EDGE=IN1(1:9)
+!            IN1(1:5)=ELEMENT(IELT).FACE([2,1,5,4,3])
+!            ELEMENT(IELT).FACE=IN1(1:5)
+!            IN1(1:5)=ELEMENT(IELT).ADJELT([2,1,5,4,3])
+!            ELEMENT(IELT).ADJELT=IN1(1:5)
+!        ENDIF
+!        N2=3
+!        
+!    ENDIF 
+!    
+!    
+!    
+!	IF(.NOT.ALLOCATED(GNODE)) ALLOCATE(GNODE(3,1000))
+!	IF(NGNODE+2*N2>SIZE(GNODE,DIM=2)) CALL ENLARGE_GNODE(1000)
+!    COORD1=0.D0;COORD1(N2,1)=Matproperty(ELEMENT(IELT).MAT,14,1)
+!    IF(ABS(COORD1(N2,1))<1E-6) COORD1(N2,1)=1.0D0
+!    
+!	COORD1(1:N2,1)=MATMUL(C1(1:N2,1:N2),COORD1(1:N2,1))
+!   
+!    DO I=1,N2    
+!	    !NGNODE=NGNODE+1;
+!        GNODE(:,NGNODE+I)=NODE(ELEMENT(IELT).NODE(I)).COORD
+!        IF(ELEMENT(IELT).ET==ZT6_SPG) THEN
+!            N3=I
+!        ELSE
+!            N3=MOD(I,N2)+1
+!        ENDIF
+!        GNODE(:,NGNODE+N2+N3)=COORD1(:,1)+NODE(ELEMENT(IELT).NODE(I)).COORD
+!    ENDDO
+!
+!	ALLOCATE(ELEMENT(IELT).NODE2(2*N2))
+!	ELEMENT(IELT).NODE2=[NGNODE+1:NGNODE+2*N2]
+!    
+!    NGNODE=NGNODE+2*N2
+!
+!ENDSUBROUTINE
 

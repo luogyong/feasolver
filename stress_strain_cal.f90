@@ -285,7 +285,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 			end do
 		CASE(CPE6_SPG,CPE8R_SPG,CPE4_SPG,PRM15_SPG,TET10_SPG,CAX6_SPG,CAX8R_SPG,CAX4_SPG,&
 			 CPE6_CPL,CPE8R_CPL,CPE4_CPL,PRM15_CPL,TET10_CPL,CAX6_CPL,CAX8R_CPL,CAX4_CPL,&
-			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4)
+			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4,ZT4_SPG2)
 			do concurrent (i=n1:n2)
 				
 				do CONCURRENT (j=1:ecp(element(ienum).et).ndim)
@@ -356,7 +356,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 			end do			
 			
 			
-		CASE(prm6_spg,PRM6,PRM6_CPL)
+		CASE(prm6_spg,PRM6,PRM6_CPL,ZT6_SPG2)
 			DO CONCURRENT (I=1:2)
 				N1=3*I
 				N2=3*I+2
@@ -822,7 +822,7 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 			end do
 		CASE(CPE6_SPG,CPE8R_SPG,CPE4_SPG,PRM15_SPG,TET10_SPG,CAX6_SPG,CAX8R_SPG,CAX4_SPG,&
 			 CPE6_CPL,CPE8R_CPL,CPE4_CPL,PRM15_CPL,TET10_CPL,CAX6_CPL,CAX8R_CPL,CAX4_CPL,&
-			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4)
+			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4,ZT4_SPG2)
 			do concurrent (i=n1:n2)
 				
 
@@ -845,7 +845,7 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 
 			
 			
-		CASE(prm6_spg,PRM6,PRM6_CPL)
+		CASE(prm6_spg,PRM6,PRM6_CPL,ZT6_SPG2)
 			DO CONCURRENT (I=1:2)
 				N1=3*I
 				N2=3*I+2
@@ -979,10 +979,10 @@ subroutine calangle(ienum)
 				v2=i+1
 				vec1(:,1)=node(element(ienum).node(v1)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
 				vec1(:,2)=node(element(ienum).node(v2)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
-				!IF(ELEMENT(IENUM).ET==ZT4_SPG) THEN
-				!	vec1(:,1)=GNODE(1:2,element(ienum).node2(v1))-Gnode(1:2,element(ienum).node2(i))
-				!	vec1(:,2)=GNODE(1:2,element(ienum).node2(v2))-Gnode(1:2,element(ienum).node2(i))			
-				!ENDIF
+				IF(ELEMENT(IENUM).ET==ZT4_SPG2) THEN
+					vec1(:,1)=GNODE(1:2,element(ienum).node2(v1))-Gnode(1:2,element(ienum).node2(i))
+					vec1(:,2)=GNODE(1:2,element(ienum).node2(v2))-Gnode(1:2,element(ienum).node2(i))			
+				ENDIF
 				call vecangle(vec1,idim,jdim,angle)
 				element(ienum).angle(i)=angle
 				element(ienum).angle(4)=element(ienum).angle(4)-angle				
@@ -1028,14 +1028,23 @@ subroutine calangle(ienum)
                            
             do i=1,6
                 do j=1,4
-                    ar1(:,j)=node(element(ienum).node(IA2D2(j,i))).coord 
+                    IF(ELEMENT(IENUM).ET==ZT6_SPG2) THEN
+                        ar1(:,j)=Gnode(:,element(ienum).node(IA2D2(j,i)))
+                    ELSE
+                        ar1(:,j)=node(element(ienum).node(IA2D2(j,i))).coord
+                    ENDIF
                 enddo
                 element(ienum).angle(i)=solidangle(AR1(:,1:4))            
             enddo
             
             IF(ELEMENT(IENUM).NNUM>6) THEN
                 do i=1,6
-                    ar1(:,i)=node(element(ienum).node(i)).coord 
+                    IF(ELEMENT(IENUM).ET==ZT6_SPG2) THEN
+                        ar1(:,i)=Gnode(:,element(ienum).node(i))
+                    ELSE
+                        ar1(:,i)=node(element(ienum).node(i)).coord 
+                    ENDIF
+                        
                 enddo
                 !NOMRAL VECTOR OF THE FACE
                 VN1(:,1)=NORMAL_TRIFACE(AR1(:,[2,1,3]))

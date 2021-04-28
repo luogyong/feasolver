@@ -117,7 +117,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
         IF(ESET(ISET1).COUPLESET>0 &            
             .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
         nout1=1
-        if(eset(iset1).et==zt6_spg) nout1=2 !如果为zt6_spg,则底面和顶面单元各输出一次
+        if(eset(iset1).et==zt6_spg.OR.eset(iset1).et==zt6_spg2) nout1=2 !如果为zt6_spg,则底面和顶面单元各输出一次
         do izt1=1, nout1           
 		    
             if(izt1==2) then
@@ -214,7 +214,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 						    write(file_unit,9999) element(j).node([1,2,3,3,4,5,6,6])
                             !write(file_unit,9999) element(j).node([1,3,6,5])
                             !write(file_unit,9999) element(j).node([1,6,4,5])
-                    case(ZT6_SPG)
+                    case(ZT6_SPG,ZT6_SPG2)
                             nc=3
                             if(izt1==1) then
                                 write(file_unit,9999) element(j).node([1,2,3])
@@ -1194,10 +1194,10 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*5
 			case(prm15,prm15_spg,prm15_cpl)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*14
-			case(prm6,prm6_spg,prm6_cpl)
-				n1=(eset(iset1).enume-eset(iset1).enums+1)*1
-			case(ZT6_SPG)
-				n1=(eset(iset1).enume-eset(iset1).enums+1)*1                
+			!case(prm6,prm6_spg,prm6_cpl)
+			!	n1=(eset(iset1).enume-eset(iset1).enums+1)*1
+			!case(ZT6_SPG)
+			!	n1=(eset(iset1).enume-eset(iset1).enums+1)*1                
 			case(tet10,tet10_spg,tet10_cpl)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*8
 			case default
@@ -1269,7 +1269,7 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 		
         end if
 		
-        if(eset(iset1).et==zt6_spg) nzone_tec=nzone_tec+1 !zt6_spg 底面和顶面个输出一个zone,所以加+1
+        if(eset(iset1).et==zt6_spg.OR.eset(iset1).et==zt6_spg2) nzone_tec=nzone_tec+1 !zt6_spg 底面和顶面个输出一个zone,所以加+1
 	end do
 end subroutine
 

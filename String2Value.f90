@@ -184,6 +184,10 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 			value=zt4_spg
 		case('cpe6_spg')	
 			value=cpe6_spg
+		CASE('zt4_spg2')
+			value=zt4_spg2
+		case('zt6_spg2')	
+			value=zt6_spg2            
 		case('cpe4_spg')	
 			value=cpe4_spg
 		case('cpe8_spg')	

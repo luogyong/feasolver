@@ -60,7 +60,7 @@
 !   property(12)=sita_r !残余体积含水量
 !   property(13)=rw !水的重度
 !	property(14)=zerothickness element thickness,the default value is 1.
-!	Note that, for zt4_spg and zt6_spg, 实际为一维流单元，只用k1表示其垂直于单元边或面的渗透系数，property(14)为防渗墙厚度。	
+!	Note that, for zt4_spg and zt6_spg, 实际为一维流单元，只用k(ndimension)表示其垂直于单元边或面的渗透系数，property(14)为防渗墙厚度。	
 !case(bar)
 !	property(1)=E
 !	property(2)=A

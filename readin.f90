@@ -926,7 +926,7 @@ subroutine solvercommand(term,unit)
                         allocate(element1(i).node(2))
                         element1(i).node=int(ar(1:2)) 
                         element1(i).property(1:n1-2)=ar(3:n1) !direction vector.
-                    CASE(zt6_spg,zt4_spg)
+                    CASE(zt6_spg,zt4_spg,zt6_spg2,zt4_spg2)
                         call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
                         element1(i).nnum=nnum1
                         allocate(element1(i).node(nnum1))
@@ -3028,14 +3028,14 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1,eshape1)
 				EC1=CAX_CPL;NDOF1=18;nd1=4
             ENDIF
 			call EL_SFR2(ET1)			
-		case(CPE4_SPG,cax4_SPG,CPE4_CPL,cax4_CPL,ZT4_SPG)
+		case(CPE4_SPG,cax4_SPG,CPE4_CPL,cax4_CPL,ZT4_SPG,ZT4_SPG2)
 			nnum1=4
 			!ndof1=4
 			ngp1=4			
 			
 			stype='FEQUADRILATERAL'
             eshape1=204
-			IF(ET1==CPE4_SPG.OR.ET1==ZT4_SPG) THEN
+			IF(ET1==CPE4_SPG.OR.ET1==ZT4_SPG.OR.ET1==ZT4_SPG2) THEN
 				EC1=SPG2D;NDOF1=4;nd1=2
 			ENDIF
 			if(et1==CAX4_SPG) THEN
@@ -3128,16 +3128,16 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1,eshape1)
 			EC1=CAX_CPL;NDOF1=45;nd1=4           
 			ENDIF			
 			call EL_SFR2(ET1)
-		case(PRM6_SPG,PRM6,PRM6_CPL,ZT6_SPG)
+		case(PRM6_SPG,PRM6,PRM6_CPL,ZT6_SPG,ZT6_SPG2)
 			nnum1=6
 			!ndof1=6
 			ngp1=2
 			!nd1=3
 			!stype='FETETRAHEDRON'
             stype='FEBRICK'
-            if(ET1==ZT6_SPG) stype='FETRIANGLE'
+            if(ET1==ZT6_SPG.OR.ET1==ZT6_SPG2) stype='FETRIANGLE'
             eshape1=306
-			IF(ET1==PRM6_SPG.OR.ET1==ZT6_SPG) THEN
+			IF(ET1==PRM6_SPG.OR.ET1==ZT6_SPG.OR.ET1==ZT6_SPG2) THEN
 			EC1=SPG;NDOF1=6;nd1=3
 			ENDIF
             IF(ET1==PRM6) THEN
