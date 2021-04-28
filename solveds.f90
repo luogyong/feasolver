@@ -496,7 +496,7 @@ module solverds
 	integer,allocatable::bfgm_step(:)
     integer::mpi_rank = 0, mpi_size = 1, mpi_ierr
     LOGICAL::ISINISEDGE=.FALSE.,ISOUT_WELL_FILE=.FALSE.
-    
+    INTEGER,ALLOCATABLE::ISPF(:,:) 
     
     INTERFACE
           subroutine INVARIANT(stress,inv)

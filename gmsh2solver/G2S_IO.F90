@@ -191,8 +191,26 @@ subroutine kwcommand(term,unit)
         strL1=11
         write(*, 20) "ENDHELPFILE" 
         
-
-    
+    CASE('cut_off_wall_material','cow_mat','cowmat')
+        print *, 'READING cut_off_wall_material DATA...'
+        call skipcomment(unit)
+        read(unit,*) ncowmat
+        if(ncowmat>0) allocate(cowmat(ncowmat))
+        do i=1,ncowmat 
+            call skipcomment(unit)
+            call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
+            if(nread<2+2*ar(2)) then
+                print *,"Input Error in cowmat(i). i=",i
+                stop
+            end if
+            cowmat(i).id=ar(1)
+            cowmat(i).nmat=ar(2)
+            cowmat(i).Z=ar(3:2+2*ar(2):2)
+            cowmat(i).MAT=ar(4:2+2*ar(2):2)
+        enddo
+    CASE("endcowmat","endcut_off_wall_material","endcow_mat")
+        strL1=11
+        write(*, 20) "ENDCOWMAT"
 	CASE('off_merge')
 		call skipcomment(unit)
 		call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
@@ -401,6 +419,12 @@ subroutine kwcommand(term,unit)
 	  
 				allocate(element(n1).node(element(n1).nnode))
 				element(n1).node(1:element(n1).nnode)=int(ar(3+element(n1).ntag+1:3+element(n1).ntag+element(n1).nnode))
+                do J=1,3
+		            element(n1).bbox(1,J)=MINVAL(NODE(element(n1).node).XY(J))
+                    element(n1).bbox(2,J)=MAXVAL(NODE(element(n1).node).XY(J))
+                    element(n1).cent(j)=sum(node(element(n1).node).xy(j))/element(n1).nnode
+                enddo
+
 				select case(element(n1).et)
                     case(2,9,23)
                         if(ischeckacw) then
@@ -1170,6 +1194,7 @@ subroutine Tosolver()
 		item=len_trim(adjustL(physicalgroup(N1).et))
 		ITEM1=len_trim(adjustL(CH1))
         IF(physicalgroup(N1).nel==0) CYCLE
+        
         nset=nset+1
 		write(unit,120) physicalgroup(N1).nel,n1,physicalgroup(N1).et, &
 						physicalgroup(N1).mat(1),physicalgroup(N1).COUPLESET,physicalgroup(N1).SF,physicalgroup(N1).ISTOPO,CH1
@@ -1188,8 +1213,14 @@ subroutine Tosolver()
             do j=1,physicalgroup(N1).nel				
 			    N2=physicalgroup(N1).element(j)
                 IF(physicalgroup(N1).ISTOPO==0) THEN
-			        item=element(n2).nnode            
-			        write(unit,121) node(element(n2).node).inode
+                    if(physicalgroup(N1).ICOWMAT==0) THEN
+			            item=element(n2).nnode            
+			            write(unit,121) node(element(n2).node).inode
+                    ELSE
+                        item=element(n2).nnode+1            
+			            write(unit,121) node(element(n2).node).inode,physicalgroup(N1).COWMAT(J) !FOR ZT6_SPG AND ZT4_SPG
+                    ENDIF
+                    
                 ELSE
                     item=element(n2).nnode+2            
 			        write(unit,121) node(element(n2).node).inode,node(element(n2).toponode).inode

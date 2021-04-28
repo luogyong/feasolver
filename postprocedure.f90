@@ -4,8 +4,9 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	implicit none
 	integer::iincs,iiter,isubts,file_unit,ieset,file_diagram
 	logical::iscon,isfirstcall,isbarfamily,anybarfamily,isset1
-	integer::i,j,nc,n1,k,k1,iset1
+	integer::i,j,nc,n1,k,k1,iset1,izt1,nout1,nzone1
 	character(1024)::cstring=''
+    character(16)::cword1='',cword2='',cword3=''
 	real(8)::rar(MNDOF),t1
 
 	!
@@ -28,7 +29,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	
 !	call GS2LS_Displacement()
     !RESET ISACTIVE=2    
-    !é™„å±å•å…ƒçš„ä¾é™„å•å…ƒå¿…é¡»è¾“å‡ºï¼Œå³ä½¿å…¶çŠ¶æ€isactive=0ï¼Œä¸ºä½¿å…¶èƒ½å¤Ÿè¾“å‡ºï¼Œæš‚æ—¶ä»¤isactive/=0(=2)
+    !¸½Êôµ¥ÔªµÄÒÀ¸½µ¥Ôª±ØĞëÊä³ö£¬¼´Ê¹Æä×´Ì¬isactive=0£¬ÎªÊ¹ÆäÄÜ¹»Êä³ö£¬ÔİÊ±Áîisactive/=0(=2)
     
     DO I=1,ENUM
         IF(ELEMENT(I).ISACTIVE==0 &
@@ -108,138 +109,163 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
     
 	call tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 	isset1=.false.
-	
+	nzone1=0
 	do i=1,neset
+         
 		iset1=esetid(i)
 		if(sf(eset(iset1).sf).factor(iincs)==0) cycle
         IF(ESET(ISET1).COUPLESET>0 &            
-            .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !é™„å±å•å…ƒä¸è¾“å‡º !!!!!!!
-		write(file_unit,'(a1024)') eset(iset1).zonetitle
-		!if(anybarfamily) write(file_diagram,'(a1024)') eset(iset1).zonetitle
+            .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !¸½Êôµ¥Ôª²»Êä³ö !!!!!!!
+        nout1=1
+        if(eset(iset1).et==zt6_spg) nout1=2 !Èç¹ûÎªzt6_spg,Ôòµ×ÃæºÍ¶¥Ãæµ¥Ôª¸÷Êä³öÒ»´Î
+        do izt1=1, nout1           
+		    
+            if(izt1==2) then
+                write(cword1,*) nvo
+			    write(cword2,*) nzone1
+                write(cword3,*) maxval(esetid)+nzone1
+                cstring=trim(eset(iset1).zonetitle)//',VARSHARELIST=([1-'//trim(adjustL(cword1))//']=' &
+												//trim(adjustL(cword2))//')'//',STRANDID='//trim(adjustL(cword3))
+                if(.not.eset(iset1).out_mesh) then
+                    write(cword1,*) eset(iset1).mesh_share_id+1
+			        cstring=trim(eset(iset1).zonetitle)//',connectivitysharezone='//trim(adjustL(cword1))
+                endif
+                write(file_unit,'(a1024)') cstring 
+            else
+                write(file_unit,'(a1024)') eset(iset1).zonetitle
+            endif
+		    !if(anybarfamily) write(file_diagram,'(a1024)') eset(iset1).zonetitle
 		
-		isbarfamily=eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam.or.eset(iset1).et==beam2d.or.eset(iset1).et==ssp2d
+		    isbarfamily=eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam.or.eset(iset1).et==beam2d.or.eset(iset1).et==ssp2d
 		
-		if(isbarfamily) then
-			if(solver_control.datapaking)then
-				call pointout_barfamily(file_unit,iset1)
-				!call pointout_barfamily_diagram(file_diagram,i,iincs,isubts)
-			else
-				print *, "To be improved. SUB=outdata"    
-				!call blockout_barfamily(file_unit,ieset)
-			end if				
-		else
-			if(.not.isset1) then
-				if(solver_control.datapaking)then
-					call pointout(file_unit,IINCS,ISUBTS,IITER)					  
-				else
-					call blockout(file_unit)
-				end if
-				isset1=.true.
-			end if
-		end if
+		    if(isbarfamily) then
+			    if(solver_control.datapaking)then
+				    call pointout_barfamily(file_unit,iset1)
+				    !call pointout_barfamily_diagram(file_diagram,i,iincs,isubts)
+			    else
+				    print *, "To be improved. SUB=outdata"    
+				    !call blockout_barfamily(file_unit,ieset)
+			    end if				
+		    else
+			    if(.not.isset1) then
+				    if(solver_control.datapaking)then
+					    call pointout(file_unit,IINCS,ISUBTS,IITER)					  
+				    else
+					    call blockout(file_unit)
+				    end if
+				    isset1=.true.
+			    end if
+		    end if
 		
-		if(.not.eset(iset1).out_mesh) cycle
+		    if(.not.eset(iset1).out_mesh) cycle
 		
-		do j=eset(iset1).enums,eset(iset1).enume
+		    do j=eset(iset1).enums,eset(iset1).enume
 			
-			select case(eset(iset1).et)
-				case(cpe8,cps8,CAX8,cpe8r,cps8r,CAX8R, &
-						 cpe8_spg,cps8_spg,CAX8_spg,cpe8r_spg,cps8r_spg,CAX8R_spg, &
-						 cpe8_cpl,cps8_cpl,CAX8_cpl,cpe8r_cpl,cps8r_cpl,CAX8R_cpl) 
-					nc=4
-					write(file_unit,9999) element(j).node(8),element(j).node(1),&
-										element(j).node(5),element(j).node(5)
-					write(file_unit,9999) element(j).node(5),element(j).node(2),&
-										element(j).node(6),element(j).node(6)
-					write(file_unit,9999) element(j).node(6),element(j).node(3),&
-										element(j).node(7),element(j).node(7)
-					write(file_unit,9999) element(j).node(7),element(j).node(4),&
-										element(j).node(8),element(j).node(8)
-					write(file_unit,9999) element(j).node(5),element(j).node(6),&
-										element(j).node(7),element(j).node(8)								
-					case(cpe6,cps6,CAX6,&
-							 cpe6_spg,cps6_spg,CAX6_spg, &
-							 cpe6_cpl,cps6_cpl,cax6_cpl)
-						nc=3
-						write(file_unit,9999) element(j).node(1),element(j).node(4),&
-											element(j).node(6)
-						write(file_unit,9999) element(j).node(2),element(j).node(5),&
-											element(j).node(4)
-						write(file_unit,9999) element(j).node(3),element(j).node(6),&
-											element(j).node(5)
-						write(file_unit,9999) element(j).node(4),element(j).node(5),&
-											element(j).node(6)
-					case(cpe15,cps15,CAX15, &
-							 cpe15_spg,cps15_spg,CAX15_spg, &
-							 cpe15_cpl,cps15_cpl,CAX15_cpl)
-						nc=3
-						write(file_unit,9999) element(j).node(3),element(j).node(11),element(j).node(10)
-						write(file_unit,9999) element(j).node(11),element(j).node(6),element(j).node(14)
-						write(file_unit,9999) element(j).node(11),element(j).node(14),element(j).node(10)
-						write(file_unit,9999) element(j).node(10),element(j).node(14),element(j).node(5)
-						write(file_unit,9999) element(j).node(6),element(j).node(12),element(j).node(15)
-						write(file_unit,9999) element(j).node(6),element(j).node(15),element(j).node(14)
-						write(file_unit,9999) element(j).node(14),element(j).node(15),element(j).node(13)
-						write(file_unit,9999) element(j).node(14),element(j).node(13),element(j).node(5)
-						write(file_unit,9999) element(j).node(5),element(j).node(13),element(j).node(9)
-						write(file_unit,9999) element(j).node(12),element(j).node(1),element(j).node(7)
-						write(file_unit,9999) element(j).node(12),element(j).node(7),element(j).node(15)
-						write(file_unit,9999) element(j).node(15),element(j).node(7),element(j).node(4)
-						write(file_unit,9999) element(j).node(15),element(j).node(4),element(j).node(13)
-						write(file_unit,9999) element(j).node(13),element(j).node(4),element(j).node(8)
-						write(file_unit,9999) element(j).node(13),element(j).node(8),element(j).node(9)
-						write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(2)
-				case(prm6,prm6_spg,prm6_cpl,ZT6_SPG)
-						nc=4
+			    select case(eset(iset1).et)
+				    case(cpe8,cps8,CAX8,cpe8r,cps8r,CAX8R, &
+						     cpe8_spg,cps8_spg,CAX8_spg,cpe8r_spg,cps8r_spg,CAX8R_spg, &
+						     cpe8_cpl,cps8_cpl,CAX8_cpl,cpe8r_cpl,cps8r_cpl,CAX8R_cpl) 
+					    nc=4
+					    write(file_unit,9999) element(j).node(8),element(j).node(1),&
+										    element(j).node(5),element(j).node(5)
+					    write(file_unit,9999) element(j).node(5),element(j).node(2),&
+										    element(j).node(6),element(j).node(6)
+					    write(file_unit,9999) element(j).node(6),element(j).node(3),&
+										    element(j).node(7),element(j).node(7)
+					    write(file_unit,9999) element(j).node(7),element(j).node(4),&
+										    element(j).node(8),element(j).node(8)
+					    write(file_unit,9999) element(j).node(5),element(j).node(6),&
+										    element(j).node(7),element(j).node(8)								
+					    case(cpe6,cps6,CAX6,&
+							     cpe6_spg,cps6_spg,CAX6_spg, &
+							     cpe6_cpl,cps6_cpl,cax6_cpl)
+						    nc=3
+						    write(file_unit,9999) element(j).node(1),element(j).node(4),&
+											    element(j).node(6)
+						    write(file_unit,9999) element(j).node(2),element(j).node(5),&
+											    element(j).node(4)
+						    write(file_unit,9999) element(j).node(3),element(j).node(6),&
+											    element(j).node(5)
+						    write(file_unit,9999) element(j).node(4),element(j).node(5),&
+											    element(j).node(6)
+					    case(cpe15,cps15,CAX15, &
+							     cpe15_spg,cps15_spg,CAX15_spg, &
+							     cpe15_cpl,cps15_cpl,CAX15_cpl)
+						    nc=3
+						    write(file_unit,9999) element(j).node(3),element(j).node(11),element(j).node(10)
+						    write(file_unit,9999) element(j).node(11),element(j).node(6),element(j).node(14)
+						    write(file_unit,9999) element(j).node(11),element(j).node(14),element(j).node(10)
+						    write(file_unit,9999) element(j).node(10),element(j).node(14),element(j).node(5)
+						    write(file_unit,9999) element(j).node(6),element(j).node(12),element(j).node(15)
+						    write(file_unit,9999) element(j).node(6),element(j).node(15),element(j).node(14)
+						    write(file_unit,9999) element(j).node(14),element(j).node(15),element(j).node(13)
+						    write(file_unit,9999) element(j).node(14),element(j).node(13),element(j).node(5)
+						    write(file_unit,9999) element(j).node(5),element(j).node(13),element(j).node(9)
+						    write(file_unit,9999) element(j).node(12),element(j).node(1),element(j).node(7)
+						    write(file_unit,9999) element(j).node(12),element(j).node(7),element(j).node(15)
+						    write(file_unit,9999) element(j).node(15),element(j).node(7),element(j).node(4)
+						    write(file_unit,9999) element(j).node(15),element(j).node(4),element(j).node(13)
+						    write(file_unit,9999) element(j).node(13),element(j).node(4),element(j).node(8)
+						    write(file_unit,9999) element(j).node(13),element(j).node(8),element(j).node(9)
+						    write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(2)
+				    case(prm6,prm6_spg,prm6_cpl)
+						    nc=8
                         
-						write(file_unit,9999) element(j).node([1,2,3,5])
-                        write(file_unit,9999) element(j).node([1,3,6,5])
-                        write(file_unit,9999) element(j).node([1,6,4,5])
-																	
-                case(prm15,prm15_spg,prm15_cpl) !desolve into 14 tetrahedral element 
-						nc=4
-						write(file_unit,9999) element(j).node(1),element(j).node(7),element(j).node(9),element(j).node(13)
-						write(file_unit,9999) element(j).node(7),element(j).node(2),element(j).node(8),element(j).node(14)
-						write(file_unit,9999) element(j).node(8),element(j).node(3),element(j).node(9),element(j).node(15)
-						write(file_unit,9999) element(j).node(8),element(j).node(9),element(j).node(13),element(j).node(15)
-						write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(13),element(j).node(7)
-						write(file_unit,9999) element(j).node(8),element(j).node(14),element(j).node(13),element(j).node(7)
-						write(file_unit,9999) element(j).node(8),element(j).node(13),element(j).node(14),element(j).node(15)
-						write(file_unit,9999) element(j).node(4),element(j).node(10),element(j).node(12),element(j).node(13)
-						write(file_unit,9999) element(j).node(10),element(j).node(5),element(j).node(11),element(j).node(14)
-						write(file_unit,9999) element(j).node(11),element(j).node(6),element(j).node(12),element(j).node(15)
-						write(file_unit,9999) element(j).node(12),element(j).node(11),element(j).node(13),element(j).node(15)
-						write(file_unit,9999) element(j).node(11),element(j).node(12),element(j).node(13),element(j).node(10)
-						write(file_unit,9999) element(j).node(11),element(j).node(13),element(j).node(14),element(j).node(10)
-						write(file_unit,9999) element(j).node(11),element(j).node(14),element(j).node(13),element(j).node(15)
-					case(tet10,tet10_spg,tet10_cpl)
-						nc=4
-						write(file_unit,9999) element(j).node(8),element(j).node(7),element(j).node(5),element(j).node(1)
-						write(file_unit,9999) element(j).node(5),element(j).node(6),element(j).node(9),element(j).node(2)
-						write(file_unit,9999) element(j).node(6),element(j).node(7),element(j).node(10),element(j).node(3)
-						write(file_unit,9999) element(j).node(8),element(j).node(9),element(j).node(10),element(j).node(4)
-						write(file_unit,9999) element(j).node(6),element(j).node(7),element(j).node(8),element(j).node(10)
-						write(file_unit,9999) element(j).node(6),element(j).node(8),element(j).node(9),element(j).node(10)
-						write(file_unit,9999) element(j).node(8),element(j).node(7),element(j).node(6),element(j).node(5)
-						write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(6),element(j).node(5)
-					case(bar,bar2d,beam,beam2d,ssp2d)
-						nc=8
-						write(file_unit,9999) (((element(j).node2(k)-1)*4+k1,k1=1,4),k=1,element(j).nnum)
-					case default
-						nc=element(j).nnum
-						write(file_unit,9999) element(j).node(1:nc)
-			end select
-			
+						    write(file_unit,9999) element(j).node([1,2,3,3,4,5,6,6])
+                            !write(file_unit,9999) element(j).node([1,3,6,5])
+                            !write(file_unit,9999) element(j).node([1,6,4,5])
+                    case(ZT6_SPG)
+                            nc=3
+                            if(izt1==1) then
+                                write(file_unit,9999) element(j).node([1,2,3])
+                            else
+                                write(file_unit,9999) element(j).node([4,5,6])
+                            endif
+                    case(prm15,prm15_spg,prm15_cpl) !desolve into 14 tetrahedral element 
+						    nc=4
+						    write(file_unit,9999) element(j).node(1),element(j).node(7),element(j).node(9),element(j).node(13)
+						    write(file_unit,9999) element(j).node(7),element(j).node(2),element(j).node(8),element(j).node(14)
+						    write(file_unit,9999) element(j).node(8),element(j).node(3),element(j).node(9),element(j).node(15)
+						    write(file_unit,9999) element(j).node(8),element(j).node(9),element(j).node(13),element(j).node(15)
+						    write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(13),element(j).node(7)
+						    write(file_unit,9999) element(j).node(8),element(j).node(14),element(j).node(13),element(j).node(7)
+						    write(file_unit,9999) element(j).node(8),element(j).node(13),element(j).node(14),element(j).node(15)
+						    write(file_unit,9999) element(j).node(4),element(j).node(10),element(j).node(12),element(j).node(13)
+						    write(file_unit,9999) element(j).node(10),element(j).node(5),element(j).node(11),element(j).node(14)
+						    write(file_unit,9999) element(j).node(11),element(j).node(6),element(j).node(12),element(j).node(15)
+						    write(file_unit,9999) element(j).node(12),element(j).node(11),element(j).node(13),element(j).node(15)
+						    write(file_unit,9999) element(j).node(11),element(j).node(12),element(j).node(13),element(j).node(10)
+						    write(file_unit,9999) element(j).node(11),element(j).node(13),element(j).node(14),element(j).node(10)
+						    write(file_unit,9999) element(j).node(11),element(j).node(14),element(j).node(13),element(j).node(15)
+					    case(tet10,tet10_spg,tet10_cpl)
+						    nc=4
+						    write(file_unit,9999) element(j).node(8),element(j).node(7),element(j).node(5),element(j).node(1)
+						    write(file_unit,9999) element(j).node(5),element(j).node(6),element(j).node(9),element(j).node(2)
+						    write(file_unit,9999) element(j).node(6),element(j).node(7),element(j).node(10),element(j).node(3)
+						    write(file_unit,9999) element(j).node(8),element(j).node(9),element(j).node(10),element(j).node(4)
+						    write(file_unit,9999) element(j).node(6),element(j).node(7),element(j).node(8),element(j).node(10)
+						    write(file_unit,9999) element(j).node(6),element(j).node(8),element(j).node(9),element(j).node(10)
+						    write(file_unit,9999) element(j).node(8),element(j).node(7),element(j).node(6),element(j).node(5)
+						    write(file_unit,9999) element(j).node(9),element(j).node(8),element(j).node(6),element(j).node(5)
+					    case(bar,bar2d,beam,beam2d,ssp2d)
+						    nc=8
+						    write(file_unit,9999) (((element(j).node2(k)-1)*4+k1,k1=1,4),k=1,element(j).nnum)
+					    case default
+						    nc=element(j).nnum
+						    write(file_unit,9999) element(j).node(1:nc)
+			    end select
+            end do
+            nzone1=nzone1+1
 		end do			
 		
     end do
     
-    !æ¢å¤é™„å±å•å…ƒçš„ä¾é™„å•å…ƒçš„çŠ¶æ€
+    !»Ö¸´¸½Êôµ¥ÔªµÄÒÀ¸½µ¥ÔªµÄ×´Ì¬
     DO I=1,ENUM
         IF(ELEMENT(I).ISACTIVE==2) THEN
             ELEMENT(I).ISACTIVE=0
             NODE(ELEMENT(I).NODE).ISACTIVE=0
-            SF(ELEMENT(I).SF).FACTOR(IINCS)=1 !æœ¬æ¥åº”æ¢å¤ä¸º0ï¼Œä½†ä¸ºåç»­plot funcèƒ½å¤„ç†æ­¤æ¬¡è¾“å‡ºï¼Œä»¤å…¶ä¸º1. 
+            SF(ELEMENT(I).SF).FACTOR(IINCS)=1 !±¾À´Ó¦»Ö¸´Îª0£¬µ«ÎªºóĞøplot funcÄÜ´¦Àí´Ë´ÎÊä³ö£¬ÁîÆäÎª1. 
         ENDIF    
     ENDDO
 		
@@ -272,7 +298,7 @@ SUBROUTINE NODAL_ACTIVE_DOF(INODE,DOFS,ADOFS,NDOFS)
 	
 ENDSUBROUTINE
 
-subroutine BC_RHS_OUT(inc,iter,ISUBTS) !è¾“å‡ºèŠ‚ç‚¹è·è½½ï¼ˆåŠ›ã€æµé‡ï¼‰
+subroutine BC_RHS_OUT(inc,iter,ISUBTS) !Êä³ö½ÚµãºÉÔØ£¨Á¦¡¢Á÷Á¿£©
 	use solverds
 	implicit none
 	INTEGER,INTENT(IN)::INC,ITER,ISUBTS
@@ -428,7 +454,7 @@ subroutine tecplot_variables(cstring)
 		nvo=nvo+1
 		vo(nvo)=i
 		outvar(i).ivo=nvo
-		nvo=nvo+outvar(i).nval-1 !ä¸€ä¸ªå˜é‡åŒ…å«å¤šä¸ªæ•°çš„æƒ…å†µ
+		nvo=nvo+outvar(i).nval-1 !Ò»¸ö±äÁ¿°üº¬¶à¸öÊıµÄÇé¿ö
 		cstring=trim(adjustL(cstring))//'"'//trim(adjustL(outvar(i).name))//'",'
 	end do
 
@@ -829,7 +855,7 @@ subroutine pointout_barfamily(file_unit,ieset)
 				end do
 
 			case(Qx,Qy,Qz) !56,57,58
-				!åœ¨å±€éƒ¨åæ ‡ä¸‹ï¼ŒQx=QMILS(:,1),Qy=QMILS(:,2),Qz=QMILS(:,3),Mx=QMILS(:,4),,My=QMILS(:,5),Mz=QMILS(:,6)
+				!ÔÚ¾Ö²¿×ø±êÏÂ£¬Qx=QMILS(:,1),Qy=QMILS(:,2),Qz=QMILS(:,3),Mx=QMILS(:,4),,My=QMILS(:,5),Mz=QMILS(:,6)
 				
 				idof=vo(i)-55
 !				if(vo(i)==Qz) idof=vo(i)-54
@@ -865,13 +891,13 @@ subroutine pointout_barfamily(file_unit,ieset)
 	end do
 	
 	do i=1,n1
-		!1ä¸ªèŠ‚ç‚¹å¯¹åº”4ä¸ªèŠ‚ç‚¹ï¼Œè¿™4ä¸ªèŠ‚ç‚¹åªæ˜¯x,y,zä¸åŒï¼Œå…¶å®ƒèŠ‚ç‚¹é‡ç›¸åŒã€‚
+		!1¸ö½Úµã¶ÔÓ¦4¸ö½Úµã£¬Õâ4¸ö½ÚµãÖ»ÊÇx,y,z²»Í¬£¬ÆäËü½ÚµãÁ¿ÏàÍ¬¡£
         inode1=eset(ieset).outorder(i)
 		do k=1,4
 		
 			x1=nodalQ(i,1,nnodalq)+eset(ieset).xyz_section(1,k)
 			y1=nodalQ(i,2,nnodalq)+eset(ieset).xyz_section(2,k)
-			z1=nodalQ(i,3,nnodalq)+eset(ieset).xyz_section(3,k) !å¯¹äºæ†ç³»å•å…ƒï¼Œåœ¨å‘½ä»¤outdataä¸­ï¼Œå¿…é¡»å«æœ‰Z.
+			z1=nodalQ(i,3,nnodalq)+eset(ieset).xyz_section(3,k) !¶ÔÓÚ¸ËÏµµ¥Ôª£¬ÔÚÃüÁîoutdataÖĞ£¬±ØĞëº¬ÓĞZ.
 			write(file_unit,999) x1,y1,z1,(NodalQ(inode1,j,nnodalq),j=4,nvo)
 		
 		end do
@@ -925,7 +951,7 @@ subroutine Shear_Moment_ILS_barfamily(ieset,QM)
 	
 	do i=1,n1
 		
-		n2=eset(ieset).elist(1,i) !eset(ieset).elist(1) è‚¯å®šä¸ä¸ºé›¶ï¼›elist(2)ä¸ºé›¶æˆ–ä¸elist(1)åå·ã€‚
+		n2=eset(ieset).elist(1,i) !eset(ieset).elist(1) ¿Ï¶¨²»ÎªÁã£»elist(2)ÎªÁã»òÓëelist(1)·´ºÅ¡£
 		n3=eset(ieset).elist(2,i)
 		if(n3/=0) then
 			if(n2>0) then
@@ -933,19 +959,19 @@ subroutine Shear_Moment_ILS_barfamily(ieset,QM)
 				n3=eset(ieset).elist(1,i)
 			end if
 			
-			!ç¬¬(-n2)å•å…ƒä¸­ï¼Œç¬¬2ä¸ªèŠ‚ç‚¹ä¸ºeset(ieset).noutorder(i)
-			!ç¬¬n3å•å…ƒä¸­ï¼Œç¬¬1ä¸ªèŠ‚ç‚¹ä¸ºeset(ieset).noutorder(i)		
+			!µÚ(-n2)µ¥ÔªÖĞ£¬µÚ2¸ö½ÚµãÎªeset(ieset).noutorder(i)
+			!µÚn3µ¥ÔªÖĞ£¬µÚ1¸ö½ÚµãÎªeset(ieset).noutorder(i)		
 			do j=1,n4
 				QM(i,j)=(element(-n2).gforceILS(j+n4)+element(n3).gforceILS(j))/2.
 			end do
 		else
 			if(n2<0) then
-				!ç¬¬(-n2)å•å…ƒä¸­ï¼Œç¬¬2ä¸ªèŠ‚ç‚¹ä¸ºeset(ieset).noutorder(i)
+				!µÚ(-n2)µ¥ÔªÖĞ£¬µÚ2¸ö½ÚµãÎªeset(ieset).noutorder(i)
 				do j=1,n4
 					QM(i,j)=element(-n2).gforceILS(j+n4)
 				end do				
 			else 
-				!ç¬¬(n2)å•å…ƒä¸­ï¼Œç¬¬1ä¸ªèŠ‚ç‚¹ä¸ºeset(ieset).noutorder(i)
+				!µÚ(n2)µ¥ÔªÖĞ£¬µÚ1¸ö½ÚµãÎªeset(ieset).noutorder(i)
 				do j=1,n4
 					QM(i,j)=element(n2).gforceILS(j)
 				end do				
@@ -1146,7 +1172,7 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 		isbarfamily=eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam.or.eset(iset1).et==beam2d.or.eset(iset1).et==ssp2d
 		
 		if(isbarfamily) then
-			write(cword2,*) 4*eset(iset1).noutorder !å°†æ†ç³»å•å…ƒä»¥å…­é¢ä½“å®ä½“å•å…ƒè¾“å‡ºï¼Œæ–¹ä¾¿åå¤„ç†ã€‚
+			write(cword2,*) 4*eset(iset1).noutorder !½«¸ËÏµµ¥ÔªÒÔÁùÃæÌåÊµÌåµ¥ÔªÊä³ö£¬·½±ãºó´¦Àí¡£
 		else
 			write(cword2,*) nnum
 		end if
@@ -1168,8 +1194,10 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*5
 			case(prm15,prm15_spg,prm15_cpl)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*14
-			case(prm6,prm6_spg,prm6_cpl,ZT6_SPG)
-				n1=(eset(iset1).enume-eset(iset1).enums+1)*3                
+			case(prm6,prm6_spg,prm6_cpl)
+				n1=(eset(iset1).enume-eset(iset1).enums+1)*1
+			case(ZT6_SPG)
+				n1=(eset(iset1).enume-eset(iset1).enums+1)*1                
 			case(tet10,tet10_spg,tet10_cpl)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*8
 			case default
@@ -1239,8 +1267,9 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 			eset(iset1).zonetitle=trim(eset(iset1).zonetitle)//',VARSHARELIST=([1-'//trim(adjustL(cword1))//']=' &
 												//trim(adjustL(cword2))//')'
 		
-		end if
+        end if
 		
+        if(eset(iset1).et==zt6_spg) nzone_tec=nzone_tec+1 !zt6_spg µ×ÃæºÍ¶¥Ãæ¸öÊä³öÒ»¸özone,ËùÒÔ¼Ó+1
 	end do
 end subroutine
 
@@ -1350,7 +1379,7 @@ subroutine generate_brickelement_bar_beam(ieset)
 	allocate(eset(ieset).xyz_section(3,4))
     eset(ieset).xyz_section=0.d0
 	
-	!!!!å‡å®šåŒä¸€å•å…ƒé›†çš„ææ–™æ˜¯ä¸€æ ·çš„,å±€éƒ¨åæ ‡æ˜¯ä¸€æ ·ã€‚
+	!!!!¼Ù¶¨Í¬Ò»µ¥Ôª¼¯µÄ²ÄÁÏÊÇÒ»ÑùµÄ,¾Ö²¿×ø±êÊÇÒ»Ñù¡£
 	if(eset(ieset).et==bar.or.eset(ieset).et==bar2d) hy1=material(element(n1).mat).property(3)
 	if(eset(ieset).et==beam.or.eset(ieset).et==beam2d.or.eset(ieset).et==ssp2d) hy1=material(element(n1).mat).property(7)
 	if(eset(ieset).et==bar.or.eset(ieset).et==bar2d) hz1=material(element(n1).mat).property(4)
@@ -1358,7 +1387,7 @@ subroutine generate_brickelement_bar_beam(ieset)
 	
 	if(abs(hy1)<1e-7) hy1=0.1
 	if(abs(hz1)<1e-7) hz1=0.1
-	!!!!åœ¨å±€éƒ¨åæ ‡ä¸‹çš„åæ ‡
+	!!!!ÔÚ¾Ö²¿×ø±êÏÂµÄ×ø±ê
 	eset(ieset).xyz_section(2,1)=-hy1/2.
 	eset(ieset).xyz_section(3,1)=-hz1/2.
 	eset(ieset).xyz_section(2,2)=hy1/2.
@@ -1368,7 +1397,7 @@ subroutine generate_brickelement_bar_beam(ieset)
 	eset(ieset).xyz_section(2,4)=-hy1/2.
 	eset(ieset).xyz_section(3,4)=hz1/2.
 	
-	!!!!å‡å®šåŒä¸€å•å…ƒé›†çš„å±€éƒ¨åæ ‡æ˜¯ä¸€æ ·ã€‚
+	!!!!¼Ù¶¨Í¬Ò»µ¥Ôª¼¯µÄ¾Ö²¿×ø±êÊÇÒ»Ñù¡£
 	transm1=transpose(element(n1).g2l)
 	
 	do i=1,4
@@ -1412,7 +1441,7 @@ subroutine generate_brickelement_bar_beam(ieset)
 			n4=minloc(abs(eset(ieset).elist(:,n3)),dim=1)
 			
 			if(j==1) eset(ieset).elist(n4,n3)=i
-			if(j==2) eset(ieset).elist(n4,n3)=-i !è¡¨ç¤ºç¬¬iä¸ªå•å…ƒçš„ç¬¬2ä¸ªèŠ‚ç‚¹ä¸ºn3.
+			if(j==2) eset(ieset).elist(n4,n3)=-i !±íÊ¾µÚi¸öµ¥ÔªµÄµÚ2¸ö½ÚµãÎªn3.
 		end do
 	end do
 	
@@ -1467,7 +1496,7 @@ subroutine pointout_barfamily_diagram()
             iset1=esetid(i)
 			IF(eset(iset1).EC/=STRU) CYCLE
 			
-			!åŒä¸€å•å…ƒé›†ä¸­çš„æ‰€æœ‰å•å…ƒçš„å±€éƒ¨åæ ‡ä¸€æ ·
+			!Í¬Ò»µ¥Ôª¼¯ÖĞµÄËùÓĞµ¥ÔªµÄ¾Ö²¿×ø±êÒ»Ñù
 			v1=(/0.d0,1.d0,0.d0/)
 			v1=matmul(transpose(element(eset(iset1).enums).g2l),v1)
 			
@@ -1599,7 +1628,7 @@ subroutine pointout_barfamily_diagram()
         IF(eset(iset1).EC/=STRU) CYCLE
         LCS=0.D0
 
-        !åŒä¸€é›†çš„å±€éƒ¨åæ ‡ç³»ç›¸åŒ
+        !Í¬Ò»¼¯µÄ¾Ö²¿×ø±êÏµÏàÍ¬
                 
         lcs(1:ndimension,1:ndimension)=transpose(element(eset(iset1).enums).g2l(1:ndimension,1:ndimension))*T1
                                       

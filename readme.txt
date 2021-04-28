@@ -60,8 +60,7 @@
 !   property(12)=sita_r !残余体积含水量
 !   property(13)=rw !水的重度
 !	property(14)=zerothickness element thickness,the default value is 1.
-!	Note that, for zt4_spg and zt6_spg, element k1 k2 and k3 is the ktx and kty and knz in local element system,which ,kn
-!   is normal to element face and kt is tangent.k1=k2 is assuming ,which means the premeability is transverse-anisotropty	
+!	Note that, for zt4_spg and zt6_spg, 实际为一维流单元，只用k1表示其垂直于单元边或面的渗透系数，property(14)为防渗墙厚度。	
 !case(bar)
 !	property(1)=E
 !	property(2)=A
@@ -120,4 +119,4 @@
 !	9)pe_ssp2d: (1)=1,fixed(default); =2,slip;=0:free
 !	10)soilspring: (1 to 6)=ko,ka,kp,ks,单元所涉及的长度,Pw。
 !	11)spring： (2:5): minVal,maxVal,ks,以及单元所涉及的长度。
-!	12)zt4_spg: (1):permeabile side length of an element, that is the distance between node 1 and 4(2 or 3)
+!	12)zt4_spg,ZT6_SPG: (1):AREA

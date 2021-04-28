@@ -29,7 +29,11 @@ SUBROUTINE SPG_Q_UPDATE(STEPDIS,bload,HHEAD,INIHEAD,DT,nbload,ienum,iiter,istep,
             CALL SPHFLOW_Q_K_SPMETHOD(STEPDIS,IENUM,ISTEP,IITER)
         endif        
         
-        BLOAD=ELEMENT(IENUM).FLUX    
+        BLOAD=ELEMENT(IENUM).FLUX
+    CASE(ZT4_SPG,ZT6_SPG)
+        CALL ZTE_Q_K_UPDATE(STEPDIS,IENUM,ISTEP,IITER)
+        BLOAD=ELEMENT(IENUM).FLUX
+        
     CASE DEFAULT
 
 	    ND1=ELEMENT(IENUM).ND
@@ -2220,4 +2224,273 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
             KR=KR+1/K1*GQ_TET4_O3(5,K)*6.D0
         ENDIF
     ENDDO
+ENDSUBROUTINE
+    
+SUBROUTINE ZT_SPG_INI2(IELT)
+    USE solverds
+    USE SolverMath
+    IMPLICIT NONE
+    INTEGER,INTENT(IN)::IELT
+    !INTEGER,INTENT(INOUT)::ISPF(:,:)
+    integer::i,j,K
+	integer::n1,n2,n3,n4,AELT1(2),IN1(10)
+	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord1(3,4)=0,cent1(3,2)=0,c1(3,3)=0,VEC1(3),t2
+    
+    
+    if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
+    !找出zt单元的由face1指向face2的向量VEC1
+    IF(ELEMENT(IELT).ET==ZT4_SPG) THEN
+        AELT1=ELEMENT(IELT).ADJELT([1,3])
+    ELSE
+        AELT1=ELEMENT(IELT).ADJELT([1,2])
+    ENDIF
+    where(AELT1<1)   AELT1=IELT
+    
+    !把防渗墙临空面上的节点设为出溢边界
+    N2=ELEMENT(IELT).NNUM/2
+    DO I=1,2
+        N1=(I-1)*N2
+        IF(AELT1(I)==IELT) THEN
+            ISPF(ELEMENT(IELT).NODE(N1+1:N1+N2),1)=ELEMENT(IELT).NODE(N1+1:N1+N2)
+            ISPF(ELEMENT(IELT).NODE(N1+1:N1+N2),2)=ELEMENT(IELT).SF
+        ENDIF
+    ENDDO
+
+    DO I=1,2
+        DO J=1,NDIMENSION
+            CENT1(J,I)=SUM(NODE(ELEMENT(AELT1(I)).NODE).COORD(J))/ELEMENT(AELT1(I)).NNUM            
+        ENDDO
+    ENDDO
+    VEC1=(CENT1(:,2)-CENT1(:,1))
+    t1=NORM2(VEC1)
+    
+    IF(ABS(t1)>1.E-6) THEN
+    !    PRINT *, 'ZT单元I的指向向量无法确定.I=',ielt
+    !ELSE
+        vec1=vec1/t1
+    ENDIF
+    
+    T2=1.0D0
+    T1=NORM2(NODE(ELEMENT(IELT).NODE(1)).COORD-NODE(ELEMENT(IELT).NODE(2)).COORD)
+    C1=0.d0
+    allocate(element(IELT).km(ELEMENT(IELT).NNUM,ELEMENT(IELT).NNUM))
+    ELEMENT(IELT).KM=0.D0
+    DO I=1,ELEMENT(IELT).NNUM
+        ELEMENT(IELT).KM(I,I)=1.D0
+    ENDDO
+    
+    ELEMENT(IELT).KM(1,4)=-1.D0
+    ELEMENT(IELT).KM(4,1)=-1.D0
+    
+	IF(ELEMENT(IELT).ET==ZT4_SPG) THEN
+
+		!LOCAL TO GLOBAL 
+		VCOS=(NODE(ELEMENT(IELT).NODE(2)).COORD(1)-NODE(ELEMENT(IELT).NODE(1)).COORD(1))/T1
+		VSIN=(NODE(ELEMENT(IELT).NODE(2)).COORD(2)-NODE(ELEMENT(IELT).NODE(1)).COORD(2))/T1
+		C1(1,1)=VCOS
+		C1(1,2)=VSIN
+		C1(2,2)=VCOS
+		C1(2,1)=-VSIN
+        C1(3,3)=1.D0
+        
+        ELEMENT(IELT).SIGN=INT(sign(1.0,dot_product(vec1,c1(2,:))))
+        
+        !使薄元的局部坐标正向(厚度方向)与两相邻实体单元的方向一致(相邻单元1(与薄元单元面1相邻的单元)指向相邻单元2.)。
+        IF(ELEMENT(IELT).SIGN<0) THEN
+            IN1(1:4)=ELEMENT(IELT).NODE([2,1,4,3])
+            ELEMENT(IELT).NODE=IN1(1:4)
+            IN1(1:4)=-ELEMENT(IELT).EDGE([1,4,3,2])
+            ELEMENT(IELT).EDGE=IN1(1:4)
+            IN1(1:4)=-ELEMENT(IELT).ADJELT([1,4,3,2])
+            ELEMENT(IELT).ADJELT=IN1(1:4)
+            
+            ELEMENT(IELT).SIGN=1
+		    C1(1:2,1:2)=-C1(1:2,1:2)            
+        ENDIF        
+        
+        ELEMENT(IELT).PROPERTY(1)=T1
+        ELEMENT(IELT).KM(2,3)=-1.D0
+        ELEMENT(IELT).KM(3,2)=-1.D0        
+            
+	ELSE
+	
+	    !LOCAL TO GLOBAL
+                    
+        do j=1,3
+            C1(:,j)=NODE(ELEMENT(IELT).NODE(j)).COORD;
+        enddo
+        C1(3,:)=NORMAL_TRIFACE(C1)
+        ELEMENT(IELT).PROPERTY(1)=0.5*norm2(C1(3,:))
+        C1(3,:)=C1(3,:)/ELEMENT(IELT).PROPERTY(1)/2.0
+        C1(1,:)=(NODE(ELEMENT(IELT).NODE(2)).COORD-NODE(ELEMENT(IELT).NODE(1)).COORD)/T1
+        C1(2,:)=0.d0
+        C1(2,:)=NORMAL_TRIFACE(RESHAPE([C1(2,:),C1(1,:),C1(3,:)],([3,3])))
+        C1(2,:)=C1(2,:)/norm2(C1(2,:))
+        
+        ELEMENT(IELT).SIGN=INT(sign(1.0,dot_product(vec1,c1(3,:))))
+        !使薄元的局部坐标正向(厚度方向)与两相邻实体单元的方向一致(相邻单元1(与薄元单元面1相邻的单元)指向相邻单元2.)。
+        IF(ELEMENT(IELT).SIGN<0) THEN
+           
+            IN1(1:6)=ELEMENT(IELT).NODE([1,3,2,4,6,5])
+            ELEMENT(IELT).NODE=IN1(1:6)
+            IN1(1:9)=ELEMENT(IELT).EDGE([3,2,1,6,5,4,7,8,9])
+            ELEMENT(IELT).EDGE=[-IN1(1:6),IN1(7:9)]
+            IN1(1:5)=ELEMENT(IELT).FACE([1,2,5,4,3])
+            ELEMENT(IELT).FACE=-IN1(1:5)
+            IN1(1:5)=ELEMENT(IELT).ADJELT([1,2,5,4,3])
+            ELEMENT(IELT).ADJELT=IN1(1:5)
+            
+            ELEMENT(IELT).SIGN=1
+            !UPDATE SYS
+            C1(3,:)=-C1(3,:)
+            C1(1,:)=-C1(1,:)
+            
+        ENDIF        
+        
+        ELEMENT(IELT).KM(2,5)=-1.D0
+        ELEMENT(IELT).KM(5,2)=-1.D0        
+        ELEMENT(IELT).KM(3,6)=-1.D0
+        ELEMENT(IELT).KM(6,3)=-1.D0          
+        
+    ENDIF
+    ELEMENT(IELT).G2L=C1
+    IF(ABS(MATERIAL(ELEMENT(IELT).MAT).PROPERTY(14))<1E-10) MATERIAL(ELEMENT(IELT).MAT).PROPERTY(14)=1.D0
+    
+    T1=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(1)*ELEMENT(IELT).PROPERTY(1)/MATERIAL(ELEMENT(IELT).MAT).PROPERTY(14)/ELEMENT(IELT).NNUM*2 !KA/L
+     
+    ELEMENT(IELT).KM=ELEMENT(IELT).KM*T1
+    
+    IF(.NOT.ALLOCATED(element(IELT).igrad)) then
+        ALLOCATE(element(IELT).igrad(ELEMENT(IELT).ND,ELEMENT(IELT).NGP+ELEMENT(IELT).NNUM))
+        ALLOCATE(element(IELT).VELOCITY(ELEMENT(IELT).ND,ELEMENT(IELT).NGP+ELEMENT(IELT).NNUM))
+        element(IELT).igrad=0.d0;element(IELT).VELOCITY=0.d0        
+    endif
+    
+    DO I=1,ELEMENT(IELT).NNUM
+        IF(.NOT.ALLOCATED(NODE(ELEMENT(IELT).NODE(I)).IGRAD)) THEN
+            ALLOCATE(NODE(ELEMENT(IELT).NODE(I)).IGRAD(NDIMENSION),NODE(ELEMENT(IELT).NODE(I)).VELOCITY(NDIMENSION))
+            NODE(ELEMENT(IELT).NODE(I)).IGRAD=0.D0;NODE(ELEMENT(IELT).NODE(I)).VELOCITY=0.D0
+        ENDIF
+    ENDDO
+
+CONTAINS
+        
+    
+ENDSUBROUTINE
+    
+SUBROUTINE ZTE_Q_K_UPDATE(STEPDIS,IELT,ISTEP,IITER)  
+    USE solverds    
+    IMPLICIT NONE
+    INTEGER,INTENT(IN)::IELT,ISTEP,IITER
+    REAL(8),INTENT(IN)::STEPDIS(NDOF)
+    
+    REAL(8),ALLOCATABLE::NH1(:)
+    INTEGER::CNODE1(6),ND1,NGP1,N1,J
+    REAL(8)::K1(4),IGRAD1,L1,KR1,KP1,Z1,V1,A1,T1,NQ1(8)
+   
+        
+ 
+    NH1=STEPDIS(ELEMENT(IELT).G)
+    
+    NGP1=element(IELT).NGP
+	N1=element(IELT).NNUM/2
+    IF(ELEMENT(IELT).ET==ZT4_SPG) THEN
+        CNODE1(1:2)=[4,3]
+        ND1=2
+    ELSE
+        CNODE1(1:3)=[4,5,6]
+        ND1=3
+    ENDIF
+    L1=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(14)
+    KP1=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(1)
+    A1=ELEMENT(IELT).PROPERTY(1)/N1
+	do j=1,N1
+                   
+		      
+					
+		!gradient ELEMENT(IELT).SIGN
+        IGRAD1=(NH1(CNODE1(J))-NH1(J))/L1
+
+
+        !节点梯度
+        IF(ELEMENT(IELT).ET==ZT4_SPG) THEN
+		    element(IELT).igrad(1:nd1,NGP1+J)=ELEMENT(IELT).G2L(2,:)*IGRAD1
+        ELSE
+            element(IELT).igrad(1:nd1,NGP1+J)=ELEMENT(IELT).G2L(3,:)*IGRAD1
+        ENDIF
+        
+        element(IELT).igrad(1:nd1,NGP1+CNODE1(J))=element(IELT).igrad(1:nd1,NGP1+J)
+        
+		!velocity
+        Z1=NODE(ELEMENT(IELT).NODE(J)).COORD(NDIMENSION)
+        IF(.NOT.ALLOCATED(element(IELT).kr)) THEN
+            allocate(element(IELT).Kr(NGP1+N1*2),element(IELT).Mw(NGP1+N1*2))
+			element(IELT).kr=1.0D0
+			element(IELT).Mw=0.0D0
+        ENDIF
+        IF(NH1(J)-Z1<0.D0.OR.NH1(CNODE1(J))-Z1<0.D0) THEN
+            KR1=1E-3
+        ELSE
+            KR1=1.D0
+        ENDIF
+        KR1=(KR1+element(IELT).kr(NGP1+J))/2.0
+        element(IELT).kr(NGP1+J)=KR1
+        element(IELT).kr(NGP1+CNODE1(J))=KR1
+        V1=-KR1*KP1*IGRAD1        
+
+        !节点速度
+        IF(ELEMENT(IELT).ET==ZT4_SPG) THEN
+		    element(IELT).velocity(1:nd1,NGP1+J)=ELEMENT(IELT).G2L(2,:)*V1
+        ELSE
+            element(IELT).velocity(1:nd1,NGP1+J)=ELEMENT(IELT).G2L(3,:)*V1
+        ENDIF
+        
+        element(IELT).velocity(1:nd1,NGP1+CNODE1(J))=element(IELT).velocity(1:nd1,NGP1+J)
+        
+		!节点流量
+        NQ1(J)=V1*A1;NQ1(CNODE1(J))=-NQ1(J)
+        
+        T1=KR1*KP1*A1/L1
+        if(solver_control.bfgm==continuum.or.solver_control.bfgm==consistent.or.solver_control.bfgm==inistress) then
+            isref_spg=1
+            if(j==1) element(IELT).km=0.0D0
+			ELEMENT(IELT).KM(J,J)=T1
+            ELEMENT(IELT).KM(CNODE1(J),CNODE1(J))=T1
+            ELEMENT(IELT).KM(J,CNODE1(J))=-T1
+            ELEMENT(IELT).KM(CNODE1(J),J)=-T1
+		end if
+					
+    end do
+    
+    !NQ1=MATMUL(ELEMENT(IELT).KM,NH1)
+    IF(.NOT.ALLOCATED(element(IELT).flux)) ALLOCATE(element(IELT).flux(N1*2))    
+    element(IELT).flux=NQ1(1:N1*2)
+    
+ENDSUBROUTINE
+    
+SUBROUTINE ZT_SPFACE_BC()
+    use solverds,only:bc_tydef,nseep,NumNSeep,NODE,NNUM,NDIMENSION,ISPF
+    implicit none
+    !integer,ALLOCATABLE::ISPF(:,:) 
+    TYPE(bc_tydef),ALLOCATABLE::NSEEP1(:)
+    INTEGER::N1,I,N2,N3
+    
+    N1=COUNT(ISPF(:,1)>0)
+    ALLOCATE(NSEEP1(N1))
+    N2=0
+    DO I=1,NNUM
+        N3=ISPF(I,1)
+        IF(N3>0)THEN
+            N2=N2+1
+            NSEEP1(N2).NODE=N3
+            NSEEP1(N2).SF=ISPF(I,2)
+            NSEEP1(N2).DOF=4
+            NSEEP1(N2).ISDEAD=0
+            NSEEP1(N2).VALUE=NODE(N3).COORD(NDIMENSION)
+        ENDIF
+    ENDDO
+    NSEEP=[NSEEP,NSEEP1]
+    NumNSeep=NumNSeep+N1
+    DEALLOCATE(NSEEP1,ISPF)
+    
 ENDSUBROUTINE

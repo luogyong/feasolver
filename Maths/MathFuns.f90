@@ -256,7 +256,7 @@ ENDSUBROUTINE
 
 
 
-   !è®¡ç®—å››é¢ä½“çš„å…¶ä¸­çš„ä¸€ä¸ªé¡¶ç‚¹ï¼ˆç¬¬ä¸€ä¸ªï¼‰ar(:,1)çš„ç«‹ä½“è§’ï¼Œä»¥angleè¿”å›žã€‚    
+   !¼ÆËãËÄÃæÌåµÄÆäÖÐµÄÒ»¸ö¶¥µã£¨µÚÒ»¸ö£©ar(:,1)µÄÁ¢Ìå½Ç£¬ÒÔangle·µ»Ø¡£    
 	real(8) function solidangle(ar)
 	   implicit none
 	   
@@ -264,7 +264,7 @@ ENDSUBROUTINE
        integer::i
        real(8)::br(3,3),t1,v1
 	   real(8)::cosA,cosB,cosC,A,B,C,p
-	   !brå­˜å‚¨ç”±arå½¢æˆä¸‰ä¸ªå‘é‡ï¼ŒåŒæ—¶åŒ–ä¸ºå•ä½å‘é‡
+	   !br´æ´¢ÓÉarÐÎ³ÉÈý¸öÏòÁ¿£¬Í¬Ê±»¯Îªµ¥Î»ÏòÁ¿
 	   do i=1,3
 	      br(:,i)=ar(:,i+1)-ar(:,1) 
 		  t1=(br(1,i)**2+br(2,i)**2+br(3,i)**2)**0.5
@@ -275,11 +275,11 @@ ENDSUBROUTINE
 		  br(:,i)=br(:,i)/t1
        end do
 	   
-       !æ±‚brä¸­ç¬¬ä¸€ã€äºŒå‘é‡æ‰€ç»„æˆçš„å¤¹è§’
+       !ÇóbrÖÐµÚÒ»¡¢¶þÏòÁ¿Ëù×é³ÉµÄ¼Ð½Ç
        cosA=br(1,1)*br(1,2)+br(2,1)*br(2,2)+br(3,1)*br(3,2)
        cosB=br(1,1)*br(1,3)+br(2,1)*br(2,3)+br(3,1)*br(3,3)
 	   cosC=br(1,3)*br(1,2)+br(2,3)*br(2,2)+br(3,3)*br(3,2)
-	   !å› ä¸ºä¸‰ä¸ªå‘é‡éƒ½åŒ–ä¸ºäº†å•ä½å‘é‡ã€‚
+	   !ÒòÎªÈý¸öÏòÁ¿¶¼»¯ÎªÁËµ¥Î»ÏòÁ¿¡£
        A=dacos(cosA)
        B=dacos(cosB)
 	   C=dacos(cosC)
@@ -287,17 +287,17 @@ ENDSUBROUTINE
 	   t1=(sin(p)*sin(p-A)*sin(p-B)*sin(p-C))**0.5/(2*cos(A/2)*cos(B/2)*cos(C/2))
        solidangle=2*dasin(t1)
        
-!	   !æ±‚ç¬¬ä¸€ã€äºŒå‘é‡æ‰€ç»„æˆä¸‰è§’å½¢çš„é¢ç§¯
+!	   !ÇóµÚÒ»¡¢¶þÏòÁ¿Ëù×é³ÉÈý½ÇÐÎµÄÃæ»ý
 !       s=sin(A)/2
-!	   !æ±‚å››é¢ä½“çš„ä½“ç§¯:abs(v1)/6
+!	   !ÇóËÄÃæÌåµÄÌå»ý:abs(v1)/6
 !	   call dt(br,v1)
 !	   v1=abs(v1)/6
-!	   !æ±‚é«˜h
+!	   !Çó¸ßh
 !       h=3*v1/s
-!	   !ä¸‰è§’å½¢çƒé¢çš„é¢ç§¯s
+!	   !Èý½ÇÐÎÇòÃæµÄÃæ»ýs
 !	   s=1*h*A/2
        !s=A+B+C-3.1415926536
-	   !ç«‹ä½“è§’ï¼Œçƒé¢åº¦
+	   !Á¢Ìå½Ç£¬ÇòÃæ¶È
        !angle=s/4/3.1415926536
        !solidangle=s
 	end function
@@ -328,7 +328,7 @@ ENDSUBROUTINE
   
     end function
     
-    !äºŒé¢è§’ï¼Œå•ä½å¼§åº¦,N1,N2ä¸ºé¢çš„æ–¹å‘çŸ¢é‡
+    !¶þÃæ½Ç£¬µ¥Î»»¡¶È,N1,N2ÎªÃæµÄ·½ÏòÊ¸Á¿
     real(8) function DihedralAngle(N1,N2) 
         implicit none
         integer ( kind = 4 ), parameter :: dim_num = 3
@@ -343,14 +343,14 @@ ENDSUBROUTINE
     end function
     
     real(8) function angle2D(p1,p2)
-!è¿”å›žçº¿æ®µp1-p2çš„æ–¹å‘è§’(ä¸Žxè½´çš„è§’alpha), -pi<alpha<=pi
+!·µ»ØÏß¶Îp1-p2µÄ·½Ïò½Ç(ÓëxÖáµÄ½Çalpha), -pi<alpha<=pi
     real(8),intent(in)::p1(:),p2(:)
     real(8)::dx1,dy1
 
     
     dx1=p2(1)-p1(1);dy1=p2(2)-p1(2);
     if(norm2([dx1,dy1])<1.e-7) then
-        print *, "çº¿æ®µçš„é•¿åº¦ä¸º0,æ— æ³•æ±‚å…¶è§’åº¦ã€‚angle2D(p1,p2)"
+        print *, "Ïß¶ÎµÄ³¤¶ÈÎª0,ÎÞ·¨ÇóÆä½Ç¶È¡£angle2D(p1,p2)"
         angle2D=1./0.d0
         return
     endif

@@ -285,7 +285,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 			end do
 		CASE(CPE6_SPG,CPE8R_SPG,CPE4_SPG,PRM15_SPG,TET10_SPG,CAX6_SPG,CAX8R_SPG,CAX4_SPG,&
 			 CPE6_CPL,CPE8R_CPL,CPE4_CPL,PRM15_CPL,TET10_CPL,CAX6_CPL,CAX8R_CPL,CAX4_CPL,&
-			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4,ZT4_SPG)
+			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4)
 			do concurrent (i=n1:n2)
 				
 				do CONCURRENT (j=1:ecp(element(ienum).et).ndim)
@@ -356,7 +356,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 			end do			
 			
 			
-		CASE(prm6_spg,PRM6,PRM6_CPL,ZT6_SPG)
+		CASE(prm6_spg,PRM6,PRM6_CPL)
 			DO CONCURRENT (I=1:2)
 				N1=3*I
 				N2=3*I+2
@@ -383,7 +383,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 								ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				END DO				
 			END DO
-        CASE(WELLBORE,WELLBORE_SPGFACE,PIPE2,SPHFLOW,SEMI_SPHFLOW)
+        CASE(WELLBORE,WELLBORE_SPGFACE,PIPE2,SPHFLOW,SEMI_SPHFLOW,ZT4_SPG,ZT6_SPG)
         
 		CASE DEFAULT
 			PRINT *, 'NO SUCH AN ELEMENT TYPE. SUB extrapolation_stress_strain_cal'
@@ -681,7 +681,9 @@ subroutine E2N_stress_strain(ISTEP,isubts)
                     IF(ELEMENT(I).ET==SPHFLOW.OR.ELEMENT(I).ET==SEMI_SPHFLOW) THEN
                         TDISP(ELEMENT(I).G(2))=TDISP(ELEMENT(I).G(1))
                         CYCLE
-                    ENDIF                    
+                    ENDIF
+                    
+                    !IF(ELEMENT(I).ET==ZT4_SPG.OR.ELEMENT(I).ET==ZT6_SPG) CYCLE
                     
                     IF(solver_control.i2ncal/=SPR) THEN
 					    IF(SOLVER_CONTROL.I2NWEIGHT==WEIGHT_ANGLE) THEN
@@ -692,6 +694,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
                     
 					    
                         !T2=node(element(i).node(j)).ANGLE/VANGLE(J)
+
 					    node(element(i).node(j)).igrad=node(element(i).node(j)).igrad &
 					    +element(i).igrad(:,n1+j)*T2
 					    node(element(i).node(j)).velocity=node(element(i).node(j)).velocity &
@@ -699,7 +702,12 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 					    node(element(i).node(j)).kr=node(element(i).node(j)).kr &
 					    +element(i).kr(n1+j)*T2	
 					    node(element(i).node(j)).mw=node(element(i).node(j)).mw &
-					    +element(i).mw(n1+j)*T2	
+					    +element(i).mw(n1+j)*T2
+                        
+                        !N2=element(i).node(j)
+                        !IF(N2==1) THEN
+                        !    N2=1
+                        !ENDIF
                     ENDIF
 					
                 end do
@@ -814,7 +822,7 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 			end do
 		CASE(CPE6_SPG,CPE8R_SPG,CPE4_SPG,PRM15_SPG,TET10_SPG,CAX6_SPG,CAX8R_SPG,CAX4_SPG,&
 			 CPE6_CPL,CPE8R_CPL,CPE4_CPL,PRM15_CPL,TET10_CPL,CAX6_CPL,CAX8R_CPL,CAX4_CPL,&
-			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4,ZT4_SPG)
+			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4)
 			do concurrent (i=n1:n2)
 				
 
@@ -837,7 +845,7 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 
 			
 			
-		CASE(prm6_spg,PRM6,PRM6_CPL,ZT6_SPG)
+		CASE(prm6_spg,PRM6,PRM6_CPL)
 			DO CONCURRENT (I=1:2)
 				N1=3*I
 				N2=3*I+2
@@ -846,7 +854,7 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				enddo			
 			END DO
-        CASE(WELLBORE,WELLBORE_SPGFACE,PIPE2,SPHFLOW,SEMI_SPHFLOW)
+        CASE(WELLBORE,WELLBORE_SPGFACE,PIPE2,SPHFLOW,SEMI_SPHFLOW,ZT4_SPG,ZT6_SPG)
         
 		CASE DEFAULT
 			PRINT *, 'NO SUCH A ELEMENT TYPE. SUB extrapolation_stress_strain_cal'
@@ -971,10 +979,10 @@ subroutine calangle(ienum)
 				v2=i+1
 				vec1(:,1)=node(element(ienum).node(v1)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
 				vec1(:,2)=node(element(ienum).node(v2)).coord(1:2)-node(element(ienum).node(i)).coord(1:2)
-				IF(ELEMENT(IENUM).ET==ZT4_SPG) THEN
-					vec1(:,1)=GNODE(1:2,element(ienum).node2(v1))-Gnode(1:2,element(ienum).node2(i))
-					vec1(:,2)=GNODE(1:2,element(ienum).node2(v2))-Gnode(1:2,element(ienum).node2(i))			
-				ENDIF
+				!IF(ELEMENT(IENUM).ET==ZT4_SPG) THEN
+				!	vec1(:,1)=GNODE(1:2,element(ienum).node2(v1))-Gnode(1:2,element(ienum).node2(i))
+				!	vec1(:,2)=GNODE(1:2,element(ienum).node2(v2))-Gnode(1:2,element(ienum).node2(i))			
+				!ENDIF
 				call vecangle(vec1,idim,jdim,angle)
 				element(ienum).angle(i)=angle
 				element(ienum).angle(4)=element(ienum).angle(4)-angle				

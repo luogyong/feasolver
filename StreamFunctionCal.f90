@@ -682,18 +682,17 @@ END SUBROUTINE
             allocate(SELF.K(NDOF1,NDOF1),SELF.QC(NDOF1,NDOF1))
             allocate(B1(2,NDOF1))
 
-		    r1=1.0
-		    if(element(ielt).ec==CAX_SPG) then
-			    r1=abs(element(ielt).xygp(1,i))
-			    if(abs(r1)<1e-7) r1=1.0e-7
-		    end if            
-            
-            
+     
           
             self.k=0.0D0
             self.qc=0.0d0
             
 	        do i=1,element(IELT).ngp
+                r1=1.0
+                if(element(ielt).ec==CAX_SPG) then
+			        r1=abs(element(ielt).xygp(1,i))
+			        if(abs(r1)<1e-7) r1=1.0e-7
+		        end if 
 		        self.k=self.k+ecp(element(IELT).et).weight(I)*element(IELT).DETJAC(I)*R1* MATMUL( &
 				        TRANSPOSE(element(IELT).b(:,:,I)),element(IELT).b(:,:,I))
                 

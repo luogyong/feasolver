@@ -58,8 +58,11 @@ module DS_Gmsh2Solver
 		integer::nnode=0,nedge=0,nface=0
 		integer,allocatable::node(:)
         INTEGER,ALLOCATABLE::EDGE(:),FACE(:)
-        INTEGER::TOPONODE(2)=0 !只对由高次单元生成的一次对wellbore类单元有用，但其他面元或体元为高次单元时，因wellbore类单元目前只有2节点的一次单元，所以对高次线单元进行了分解，
+        INTEGER::TOPONODE(2)=0 !只对由高次单元生成一次对wellbore类单元有用，当其他面元或体元为高次单元时，因wellbore类单元目前只有2节点的一次单元，所以对高次线单元进行了分解，
+        REAL(8)::BBOX(2,3)=0.D0 !MIN,MAX OF X,Y AND Z
+        REAL(8)::CENT(3)=0.D0
         !toponode记录当前单元对应的高次单元的端节点，以便进行后面的拓扑邻接分析。
+        
     !CONTAINS
     !    PROCEDURE::GET_EDGE=>SET_ELEMENT_EDGE
     !    PROCEDURE::GET_FACE=>SET_ELEMENT_FACE
@@ -69,13 +72,13 @@ module DS_Gmsh2Solver
 	
 	
 	type physicalGroup_type
-		integer::isini=0,SF=0,istopo=0 !对与由高次单元生成的一次Wellbore类单元，istopo==1,要输出对应的toponode节点。 
+		integer::isini=0,SF=0,istopo=0 !对于由高次单元生成的一次Wellbore类单元，istopo==1,要输出对应的toponode节点。 
 		integer::ndim,COUPLESET=0 !COUPLESET>0 AND <>itself，表此单元组的单元与physicalgroup(COUPLESET)的单元相同。 by default it was set to be itself
 		logical::ismodel=.FALSE.,ISMASTER=.TRUE. !phgpnum(:) OUPLESET>0 AND <>itself, ismaster=.false. then let elemnt=coupleset.element
-        integer::ET_GMSH=0 
+        integer::ET_GMSH=0,icowmat=0 !icowmat>0时，表此防渗墙为材料分段防渗墙 
 		character(32)::name=''
 		integer::nel=0
-		integer,allocatable::element(:)
+		integer,allocatable::element(:),COWMAT(:)
 		integer::mat(50)=0
 		character(32)::ET="ELT_BC_OR_LOAD"
 		INTEGER::LAYERGROUP(50)=0	
@@ -204,7 +207,13 @@ module DS_Gmsh2Solver
     TYPE(WELLBORE_TYDEF),ALLOCATABLE::WELLBORE(:)
     INTEGER::NWELLBORE=0,wellh2lmethod=0
     
-
+    TYPE COWMAT_TYDEF
+        INTEGER::ID=0,NMAT=0
+        REAL(8),ALLOCATABLE::Z(:)
+        INTEGER,ALLOCATABLE::MAT(:)
+    ENDTYPE
+    TYPE(COWMAT_TYDEF),ALLOCATABLE::COWMAT(:)
+    INTEGER::NCOWMAT=0
     CONTAINS
     
     REAL(8) FUNCTION LINEARFILEDCAL(BCG,X,Y,Z)

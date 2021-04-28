@@ -178,7 +178,19 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//{ABSOLUTED PATH OF THE FILES}*{NCOPYFILE(I)}  // 共NCOPYFILE行."
 	README(IPP(I)) = "//$ENDCOPYFILE" 
 
-    
+	README(IPP(I)) ="\N//******************************************************************************************************"C
+	README(IPP(I)) = "//$CUT_OFF_WALL_MATERIAL"
+	README(IPP(I))=  "//"//'"'//"THE CUT_OFF_WALL_MATERIAL IS USED TO INPUT MATID FOR A CUT OFF WALL,IF ITS MATERIAL IS VARIED ALONG DEPTH."//'"'
+    README(IPP(I)) = "//假定材料分割线为水平线(由一竖向高程定义分割点)，仅当防渗墙的渗透系数沿深度分段变化时,利用此参数进行说明."
+    README(IPP(I)) = "//基于效率,避免搜索,G2S生成防渗墙薄元要求属于同一防渗墙的所有重叠单元对均在一个PG里面. Gmsh crack功能可以重叠单元对,"
+    README(IPP(I)) = "//但只能通过其Plugin(Crack).PhysicalGroup整体输出重叠单元对,"
+    README(IPP(I)) = "//而其它包含Plugin(Crack).PhysicalGroup里面几何体的物理组只输出crack前的单元，"
+    README(IPP(I)) = "//所以无法在GROUPPARAMETER以比Plugin(Crack).PhysicalGroup更小的PG进行无厚度防渗墙的定义."    
+	README(IPP(I)) = "//{NCOW}"  
+	README(IPP(I)) = "//{GROUPID,N,Z1,MATID1,...,ZN,MATIDN}*{NCOW}  // 共NCOW行."
+    README(IPP(I)) = "//GROUPID=防渗墙的物理组id,N=材料分段数(N>1,=1时直接由GROUPPARAMETER中的matid确定,不用在此进行)"
+    README(IPP(I)) = "//Zi,MATIDi=按zi从上到下的依次输入分段点的高程zi及对应的材料号"    
+	README(IPP(I)) = "//$ENDCUT_OFF_WALL_MATERIAL"    
 
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$ELEVATION"

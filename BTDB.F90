@@ -30,7 +30,7 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
 	!initialize node coordinates
 	do i=1,nnode
 		xy(1:ndim,i)=node(element(ienum).node(i)).coord(1:ndim)
-		IF(ELEMENT(IENUM).ET==ZT4_SPG.OR.ELEMENT(IENUM).ET==ZT6_SPG) xy(1:ndim,i)=GNODE(1:NDIM,ELEMENT(IENUM).NODE2(I))
+		!IF(ELEMENT(IENUM).ET==ZT4_SPG.OR.ELEMENT(IENUM).ET==ZT6_SPG) xy(1:ndim,i)=GNODE(1:NDIM,ELEMENT(IENUM).NODE2(I))
 	end do
 	
 	do i=1,kelb

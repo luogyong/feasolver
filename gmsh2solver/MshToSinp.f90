@@ -62,7 +62,7 @@
 	! reordering nodal number
     Call clear_model()
 	allocate(Noutputorder(gnnode))
-	ALLOCATE(IPERM(gnnode)) //IPERM(I),THE NEW NUMBER FOR THE NODE(I) 
+	ALLOCATE(IPERM(gnnode)) !IPERM(I),THE NEW NUMBER FOR THE NODE(I) 
 	call setup_adjList()
 	call reorder_nodal_number(IPERM,gnnode,adjL,maxadj)
 	do i=1,gnnode
@@ -683,52 +683,117 @@ SUBROUTINE GEN_ZEROTHICKNESS_ELEMENT()
 	USE HASHTBL
     USE IFPORT
 	IMPLICIT NONE
-	INTEGER::I,J,K,IPGROUP1,NNODE1,NODE1(50),NVAL1,N1,N2,IEL1,IEL2
+	INTEGER::I,J,K,K1,K2,IPGROUP1,NNODE1,NODE1(50),NVAL1,N1,N2,IEL1,IEL2
 	CHARACTER(LEN=:),ALLOCATABLE::KEY1
 	TYPE(DICT_DATA),ALLOCATABLE::VAL1(:)
 	REAL(8)::XY1(3)
-	
+	INTEGER,ALLOCATABLE::IA1(:)
+    REAL(8),ALLOCATABLE::RA1(:)
 	DO I=1,nphgp
 		IPGROUP1=PHGPNUM(I)
 		CALL LOWCASE(physicalgroup(IPGROUP1).ET,LEN_TRIM(physicalgroup(IPGROUP1).ET))
-		IF(physicalgroup(IPGROUP1).ET=='zt_cpe4_spg'.OR.physicalgroup(IPGROUP1).ET=='zt_prm6_spg') THEN
+		IF(physicalgroup(IPGROUP1).ET=='zt4_spg'.OR.physicalgroup(IPGROUP1).ET=='zt6_spg') THEN
 			
 			!IF(.NOT.EDGE_TBL.IS_INIT) CALL SETUP_EDGE_TBL()
 			!IF(physicalgroup(IPGROUP1).NDIM/=1) STOP "DIMENSION ERROR.ERRORS IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
 			!IF(physicalgroup(IPGROUP1).ET_GMSH/=1) STOP "ET ERROR.ERRORS IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
-			IF(MOD(physicalgroup(IPGROUP1).NEL,2)/=0) STOP "ELEMENT NUMBER ERROR.ERRORS IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
-				
-			N1=physicalgroup(IPGROUP1).NEL/2
-				
+            N1=physicalgroup(IPGROUP1).NEL
+			IF(MOD(N1,2)/=0) STOP "ELEMENT NUMBER ERROR.ERRORS IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
+            
+            !按形心是否重合，找重叠单元对
+            IF(ALLOCATED(IA1)) DEALLOCATE(IA1)
+            ALLOCATE(IA1(N1))
+            IA1=0
+            DO J=1,N1-1
+                IF(IA1(J)/=0) CYCLE
+                IEL1=physicalgroup(IPGROUP1).ELEMENT(J)
+                
+                DO K2=N1/2+J,N1+N1/2+J-1 !按gmsh输出crack单元的顺序，1:N1/2的单元与N1/2+1:N1的单元一一对应。这里考虑更一般的情况，进行了循环一周的匹配寻找。
+                    K=MOD(K2-1,N1)+1
+                    
+                    IF(IA1(K)/=0) CYCLE
+                    IEL2=physicalgroup(IPGROUP1).ELEMENT(K)
+                    N2=0
+                    DO K1=1,modeldimension
+                        IF(ABS(ELEMENT(IEL2).CENT(K1)-ELEMENT(IEL1).CENT(K1))>1.D-7) EXIT
+                        
+                        N2=N2+1
+                    ENDDO
+                    IF(N2==modeldimension) THEN
+                        IA1(J)=K;IA1(K)=J
+                        EXIT
+                    ENDIF
+                        
+                ENDDO
+            ENDDO
+            
+            IF(ANY(IA1==0)) THEN
+                PRINT *, 'SOME ELEMENT CANNOT FIND THEIR OVERLAYING ELEMENTS. SUB=GEN_ZEROTHICKNESS_ELEMENT'
+                PAUSE
+            ENDIF
+            
+			!N1=physicalgroup(IPGROUP1).NEL/2
+			N2=0	
 			DO J=1,N1
+                IF(IA1(J)<=0) CYCLE
 				IEL1=physicalgroup(IPGROUP1).ELEMENT(J)
-				IEL2=physicalgroup(IPGROUP1).ELEMENT(N1+J)
+				IEL2=physicalgroup(IPGROUP1).ELEMENT(IA1(J))
                 NODE1(1:ELEMENT(IEL1).NNODE)=ELEMENT(IEL1).NODE
 				NODE1(ELEMENT(IEL1).NNODE+1:ELEMENT(IEL1).NNODE+ELEMENT(IEL2).NNODE)=ELEMENT(IEL2).NODE
 				ELEMENT(IEL1).NNODE=ELEMENT(IEL1).NNODE*2
 				DEALLOCATE(ELEMENT(IEL1).NODE)
 				ALLOCATE(ELEMENT(IEL1).NODE,SOURCE=NODE1(1:ELEMENT(IEL1).NNODE))
+                IA1(IA1(J))=0;IA1(J)=-IEL1
+                N2=N2+1
+                physicalgroup(IPGROUP1).ELEMENT(N2)=IEL1
 			ENDDO
-				
-			physicalgroup(IPGROUP1).NEL=N1
-				
+			IF(N2/=N1/2) THEN
+                PRINT *, 'SOME THING WRONG!SUB=GEN_ZEROTHICKNESS_ELEMENT.'
+                PAUSE
+            ENDIF
+			physicalgroup(IPGROUP1).NEL=N1/2
+
+            !         DO J=1,N1
+   !             IF(IA1(J)<0)
+   !             physicalgroup(IPGROUP1).ELEMENT(1:N1/2)=IA1
+			!ENDDO	
 			!RAMDOM CHECK MATCH
-			DO J=1,10
-				N2=MOD(IRAND(1),physicalgroup(IPGROUP1).NEL)+1
-				N2=physicalgroup(IPGROUP1).ELEMENT(N2)
-				DO K=1,ELEMENT(N2).NNODE/2
-					XY1=NODE(ELEMENT(N2).NODE(K)).XY-NODE(ELEMENT(N2).NODE(K+ELEMENT(N2).NNODE/2)).XY
-					IF(NORM2(XY1)>1E-6) STOP "MATCH ERROR IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
-				ENDDO
-			ENDDO
-			!REORDER NODAL NUMBER zt_cpe4_spg
-			IF(physicalgroup(IPGROUP1).ET=='zt_cpe4_spg') THEN
+			!DO J=1,10
+			!	N2=MOD(IRAND(1),physicalgroup(IPGROUP1).NEL)+1
+			!	N2=physicalgroup(IPGROUP1).ELEMENT(N2)
+			!	DO K=1,ELEMENT(N2).NNODE/2
+			!		XY1=NODE(ELEMENT(N2).NODE(K)).XY-NODE(ELEMENT(N2).NODE(K+ELEMENT(N2).NNODE/2)).XY
+			!		IF(NORM2(XY1)>1E-6) STOP "MATCH ERROR IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
+			!	ENDDO
+			!ENDDO
+			!REORDER NODAL NUMBER zt4_spg
+			IF(physicalgroup(IPGROUP1).ET=='zt4_spg') THEN
 				DO J=1,physicalgroup(IPGROUP1).NEL
 					N2=ELEMENT(physicalgroup(IPGROUP1).ELEMENT(J)).NODE(3)
 					ELEMENT(physicalgroup(IPGROUP1).ELEMENT(J)).NODE(3)=ELEMENT(physicalgroup(IPGROUP1).ELEMENT(J)).NODE(4)
 					ELEMENT(physicalgroup(IPGROUP1).ELEMENT(J)).NODE(4)=N2
 				ENDDO
-			ENDIF
+            ENDIF
+            
+            !如防渗墙的材料沿高程变化，则重新为每个单元指定材料号
+            IA1=0
+            if(ncowmat>0) then
+                if(any(cowmat.id==ipgroup1)) then
+                    N1=MINLOC(ABS(cowmat.id-ipgroup1),dim=1)
+                    physicalgroup(IPGROUP1).ICOWMAT=N1                    
+                    DO J=1,physicalgroup(IPGROUP1).NEL
+                        N2=physicalgroup(IPGROUP1).ELEMENT(J)
+                        DO K=1,COWMAT(N1).NMAT
+                            IF(ELEMENT(N2).CENT(MODELDIMENSION)-COWMAT(N1).Z(K)>0) THEN
+                                IA1(J)=COWMAT(N1).MAT(K)
+                                EXIT
+                            ENDIF                            
+                        ENDDO
+                    ENDDO
+                    physicalgroup(IPGROUP1).COWMAT=IA1(1:physicalgroup(IPGROUP1).NEL)
+                endif
+            endif
+            
 		ENDIF
 	ENDDO
 	

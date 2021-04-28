@@ -232,7 +232,11 @@ SUBROUTINE SETUP_EDGE_ADJL_SOLVER(EDGE_L,NEDGE_L,NADJL)
                 ELEMENT_L(I).EDGE(J)=IEDGE1
                 EDGE_L(IEDGE1).V=V1
                 EDGE_L(IEDGE1).DIS=NORM2(NODE_L(EDGE_L(IEDGE1).V(1)).COORD-NODE_L(EDGE_L(IEDGE1).V(2)).COORD)
-                EDGE_L(IEDGE1).angle=angle2D(NODE_L(EDGE_L(IEDGE1).V(1)).COORD,NODE_L(EDGE_L(IEDGE1).V(2)).COORD)                
+                IF(NDIMENSION==2.AND.EDGE_L(IEDGE1).DIS>1E-7) THEN
+                    EDGE_L(IEDGE1).angle=angle2D(NODE_L(EDGE_L(IEDGE1).V(1)).COORD,NODE_L(EDGE_L(IEDGE1).V(2)).COORD)                
+                ELSE
+                    EDGE_L(IEDGE1).angle=1./0.D0
+                ENDIF
                 EDGE_L(IEDGE1).ISINI=.TRUE.
                 NEDGE_L=IEDGE1
                 IF(ELTTYPE(ET1).NMIDPNT>0) THEN
