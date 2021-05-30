@@ -35,9 +35,9 @@
 *.pdf
 #*.vfproj
 #*.sln
-*.suo
-*.u2d
-*.manifest
+#*.suo
+#*.u2d
+#*.manifest
 [Dd]ebug*/
 [Rr]elease*/
 /~$LGYADDIN.xlam
