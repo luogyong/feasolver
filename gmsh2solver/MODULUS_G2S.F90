@@ -178,7 +178,7 @@ module DS_Gmsh2Solver
 	integer,allocatable::adjL(:,:)
 	integer::maxadj=100
 	
-	integer::modeldimension=2
+	integer::modeldimension=2,ISREORDER=1
     integer::IsoutMS=0
     REAL(8),ALLOCATABLE::ELEVATION(:,:)
     

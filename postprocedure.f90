@@ -491,25 +491,25 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 					call GS2LS_Displacement(outvar(disx).system,idof,NodalQ(:,i,NnodalQ),nnum)
 					!NodalQ(:,i,NnodalQ)=tdispINLS(node.dof(idof))
 				else
-					NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
+					where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 				end if
 			case(disy)
 				idof=2
 				if(outvar(disy).system/=0) then					
 					call GS2LS_Displacement(outvar(disy).system,idof,NodalQ(:,i,NnodalQ),nnum)
 				else
-					NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
+					where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 				end if
 			case(disz)
 				idof=3
 				if(outvar(disz).system/=0) then					
 					call GS2LS_Displacement(outvar(disz).system,idof,NodalQ(:,i,NnodalQ),nnum)
 				else
-					NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
+					where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 				end if
 			case(head)
 				idof=4
-				NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
+				where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
             CASE(SNET)
                 IF(NDIMENSION<3) THEN
                     NodalQ(:,i,NnodalQ)=STREAMFUNCTIONCAL(ISTEP,ISUBTS)
@@ -518,101 +518,102 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
                 ENDIF
 			case(Phead)
 				idof=4
-				if(ndimension==2) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))-node.coord(2)
-				if(ndimension==3) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))-node.coord(3)												
+				where(node.dof(idof)>0.and.ndimension==2) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))-node.coord(2)
+				where(node.dof(idof)>0.and.ndimension==3) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))-node.coord(3)												
 			case(Rx)
 				idof=5
 				if(outvar(Rx).system/=0) then					
 					call GS2LS_Displacement(outvar(rx).system,idof,NodalQ(:,i,NnodalQ),nnum)
 				else
-					NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
+					where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 				end if
 			case(Ry)
 				idof=6
 				if(outvar(Ry).system/=0) then					
 					call GS2LS_Displacement(outvar(ry).system,idof,NodalQ(:,i,NnodalQ),nnum)
 				else
-					NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
+					where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 				end if
 			case(Rz)
 				idof=7
 				if(outvar(Rz).system/=0) then					
 					call GS2LS_Displacement(outvar(rz).system,idof,NodalQ(:,i,NnodalQ),nnum)
 				else
-					NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
+					where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 				end if
 								
-			case(sxx)
+            case(sxx)
+                
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).stress(1)
+					IF(ALLOCATED(NODE(J).STRESS)) NodalQ(j,i,NnodalQ)=node(j).stress(1)
 				end do
 			case(syy)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).stress(2)
+					IF(ALLOCATED(NODE(J).STRESS)) NodalQ(j,i,NnodalQ)=node(j).stress(2)
 				end do  
 			case(szz)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).stress(3)
+					IF(ALLOCATED(NODE(J).STRESS)) NodalQ(j,i,NnodalQ)=node(j).stress(3)
 				end do
 			case(sxy)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).stress(4)	
+					IF(ALLOCATED(NODE(J).STRESS)) NodalQ(j,i,NnodalQ)=node(j).stress(4)	
 				end do
 			case(syz)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).stress(5)
+					IF(ALLOCATED(NODE(J).STRESS)) NodalQ(j,i,NnodalQ)=node(j).stress(5)
 				end do
 			case(szx)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).stress(6)
+					IF(ALLOCATED(NODE(J).STRESS)) NodalQ(j,i,NnodalQ)=node(j).stress(6)
 				end do
 			case(exx)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).strain(1)
+					IF(ALLOCATED(NODE(J).STRAIN)) NodalQ(j,i,NnodalQ)=node(j).strain(1)
 				end do
 			case(eyy)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).strain(2)
+					IF(ALLOCATED(NODE(J).STRAIN)) NodalQ(j,i,NnodalQ)=node(j).strain(2)
 				end do
 			case(ezz)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).strain(3)
+					IF(ALLOCATED(NODE(J).STRAIN)) NodalQ(j,i,NnodalQ)=node(j).strain(3)
 				end do
 			case(exy)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).strain(4)
+					IF(ALLOCATED(NODE(J).STRAIN)) NodalQ(j,i,NnodalQ)=node(j).strain(4)
 				end do
 			case(eyz)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).strain(5)
+					IF(ALLOCATED(NODE(J).STRAIN)) NodalQ(j,i,NnodalQ)=node(j).strain(5)
 				end do
 			case(ezx)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).strain(6)
+					IF(ALLOCATED(NODE(J).STRAIN)) NodalQ(j,i,NnodalQ)=node(j).strain(6)
 				end do
 			case(pexx)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).pstrain(1)
+					IF(ALLOCATED(NODE(J).PSTRAIN)) NodalQ(j,i,NnodalQ)=node(j).pstrain(1)
 				end do
 			case(peyy)
 				do j=1,nnum	
-					NodalQ(j,i,NnodalQ)=node(j).pstrain(2)
+					IF(ALLOCATED(NODE(J).PSTRAIN)) NodalQ(j,i,NnodalQ)=node(j).pstrain(2)
 				end do
 			case(pezz)
 				do j=1,nnum	
-					NodalQ(j,i,NnodalQ)=node(j).pstrain(3)
+					IF(ALLOCATED(NODE(J).PSTRAIN)) NodalQ(j,i,NnodalQ)=node(j).pstrain(3)
 				end do	
 			case(pexy)
 				do j=1,nnum	
-					NodalQ(j,i,NnodalQ)=node(j).pstrain(4)
+					IF(ALLOCATED(NODE(J).PSTRAIN)) NodalQ(j,i,NnodalQ)=node(j).pstrain(4)
 				end do
 			case(peyz)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).pstrain(5)
+					IF(ALLOCATED(NODE(J).PSTRAIN)) NodalQ(j,i,NnodalQ)=node(j).pstrain(5)
 				end do
 			case(pezx)
 				do j=1,nnum
-					NodalQ(j,i,NnodalQ)=node(j).pstrain(6)
+					IF(ALLOCATED(NODE(J).PSTRAIN)) NodalQ(j,i,NnodalQ)=node(j).pstrain(6)
 				end do
 			case(sigma_mises)
 				NodalQ(:,i,NnodalQ)=node.mises
@@ -621,11 +622,11 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 			case(peeq)
 				NodalQ(:,i,NnodalQ)=node.peeq
 			case(xf_out)
-				NodalQ(:,i,NnodalQ)=node.coord(1)+tdisp(node.dof(1))*solver_control.disf_scale	
+				where(node.dof(1)>0) NodalQ(:,i,NnodalQ)=node.coord(1)+tdisp(node.dof(1))*solver_control.disf_scale	
 			case(yf_out)
-				NodalQ(:,i,NnodalQ)=node.coord(2)+tdisp(node.dof(2))*solver_control.disf_scale	
+				where(node.dof(2)>0) NodalQ(:,i,NnodalQ)=node.coord(2)+tdisp(node.dof(2))*solver_control.disf_scale	
 			case(zf_out)
-				NodalQ(:,i,NnodalQ)=node.coord(3)+tdisp(node.dof(3))*solver_control.disf_scale	
+				where(node.dof(3)>0) NodalQ(:,i,NnodalQ)=node.coord(3)+tdisp(node.dof(3))*solver_control.disf_scale	
 			case(gradx)
 				do j=1,nnum
                     if(allocated(node(j).igrad)) then
@@ -692,12 +693,14 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 				enddo
 			CASE(PSIGMA)
 				do j=1,4
-					NodalQ(:,i+j-1,nnodalq)=node.psigma(j)
+					DO K=1,NNUM 
+                        IF(ALLOCATED(node(K).psigma)) NodalQ(K,i+j-1,nnodalq)=node(K).psigma(j)
+                    ENDDO
 				enddo				
 			case(NF)
 				do j=1,NDIMENSION
 					DO K=1,NNUM
-						NodalQ(K,i+j-1,nnodalq)=NI_NodalForce(NODE(K).DOF(J))
+						IF(NODE(K).DOF(J)>0) NodalQ(K,i+j-1,nnodalq)=NI_NodalForce(NODE(K).DOF(J))
 					ENDDO
 				enddo
 		end select

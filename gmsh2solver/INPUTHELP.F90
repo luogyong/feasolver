@@ -134,10 +134,10 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//$ENDWELLBORE"	    
     
 	README(IPP(I)) ="\N//******************************************************************************************************"C
-	README(IPP(I)) = "//$MODELDIMENSION"
+	README(IPP(I)) = "//$MODELINFO"
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD MODELDIMENSION IS USED TO DEFINE THE MODEL DIMENSION."//'"'
-	README(IPP(I)) = "//{MODELDIMENSION}   // MODELDIMENSION=2, 3"  
-	README(IPP(I)) = "//$ENDMODELDIMENSION"	
+	README(IPP(I)) = "//{MODELDIMENSION,ISREORDER}   // MODELDIMENSION=2, 3;ISORDER=0|1(是否优化节点编号,默认为1)"  
+	README(IPP(I)) = "//$ENDMODELINFO"	
 	
 	README(IPP(I)) ="\N//******************************************************************************************************"C
 	README(IPP(I)) = "//$GROUPPARAMETER"

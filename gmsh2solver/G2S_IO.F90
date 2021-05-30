@@ -660,12 +660,14 @@ subroutine kwcommand(term,unit)
 		case('endmodelgroup')	
 			strL1=LEN('modelgroup')
 			write(*, 20) "modelgroup"		
-		case('modeldimension')	
-			call skipcomment(unit)
-			read(unit,*) modeldimension
-		case('endmodeldimension')	
-			strL1=LEN('modeldimension')
-			write(*, 20) "modeldimension"				
+		case('modeldimension','modelinfo')	
+			!call skipcomment(unit)
+            call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
+			modeldimension=int(ar(1))
+            if(nread>1) isreorder=int(ar(2))
+		case('endmodeldimension','endmodelinfo')	
+			strL1=LEN('modelinfo')
+			write(*, 20) "modelinfo"				
 									
 		case('physicalnames')
 			call skipcomment(unit)
