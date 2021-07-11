@@ -15,7 +15,9 @@ subroutine readin()
 
 	term="Gmsh2Solver Files(*.g2s),*.g2s; &
                 Msh Files(*.msh), *.msh; &
-				Data Files(*.dat),*.dat; &
+				Data Files(*.dat),*.dat; Tetgen Mesh Files(*.ele),*.ele; &
+                & Tetgen Voronoi Files(*cell),*.cell; &
+        & Voro++ File(*.vol),*.vol; &
 			  Prof.Cao Program files(*.z7),*.z7; &
 			  All Files(*.*),*.*;"
 	term=trim(term)
@@ -41,7 +43,8 @@ subroutine readin()
             meshstructurefile=TRIM(FILEPATH)//'_meshstructure'//'.dat'
 		ELSE
 			open(UNIT1,file=INCLUDEFILE(I),status='old' )
-			!length = SPLITPATHQQ(INCLUDEFILE(I), drive, dir, name, ext)
+			length = SPLITPATHQQ(INCLUDEFILE(I), drive, dir, name, ext)
+          
 		ENDIF
 		
 		call read_execute(unit1,ext)
@@ -81,6 +84,8 @@ subroutine readin()
 subroutine read_execute(unit,ext)
 
 	use DS_Gmsh2Solver
+    use tetgen_io
+    use voropp
 	implicit none
 	integer,intent(in)::unit
 	character(*)::ext
@@ -90,32 +95,39 @@ subroutine read_execute(unit,ext)
 	character(1)::ch
 	
 	ef=0
-	
-	do while(ef==0)
-		term=''
-		read(unit,999,iostat=ef) term	
+	select case (trim(adjustl(ext)))
+    case('.ele','.cell')
+        call read_tetgen_file(unit)
+        call tetgen_to_tecplot()
+    case('.vol')
+        !call voropp_read(unit)
+        call voropp_handle(unit)
+    case default 
+	    do while(ef==0)
+		    term=''
+		    read(unit,999,iostat=ef) term	
 		
-		if(ef<0) exit
-		term=adjustl(term)
-		strL=len_trim(term)
-		if(strL==0) cycle
-		do i=1,strL !remove 'Tab'
-			if(term(i:i)/=char(9)) exit
-		end do
-		term=term(i:strL)
-		term=adjustl(term)
-		strL=len_trim(term)
-		if(strL==0) cycle		
-		!write(ch,'(a1)') term
-		if(term(1:1)=='$'.OR.TERM(1:3)=='OFF'.OR.TERM(1:3)=='off') then
-			if(term(1:1)=='$') term=term(2:strL)		
-			call lowcase(term,iterm)
-			!call translatetoproperty(term)			
-			term=adjustl(trim(term))
-			call kwcommand(term,unit)			 	
-		end if
-	end do
-
+		    if(ef<0) exit
+		    term=adjustl(term)
+		    strL=len_trim(term)
+		    if(strL==0) cycle
+		    do i=1,strL !remove 'Tab'
+			    if(term(i:i)/=char(9)) exit
+		    end do
+		    term=term(i:strL)
+		    term=adjustl(term)
+		    strL=len_trim(term)
+		    if(strL==0) cycle		
+		    !write(ch,'(a1)') term
+		    if(term(1:1)=='$'.OR.TERM(1:3)=='OFF'.OR.TERM(1:3)=='off') then
+			    if(term(1:1)=='$') term=term(2:strL)		
+			    call lowcase(term,iterm)
+			    !call translatetoproperty(term)			
+			    term=adjustl(trim(term))
+			    call kwcommand(term,unit)			 	
+		    end if
+	    end do
+    end select 
 999	format(a<iterm>)
 
 end subroutine
@@ -828,7 +840,8 @@ subroutine READ_OFF(FILE1,VERTEX1,NV1,FACE1,NF1)
 	
 	close(10)
 	
-end subroutine
+    end subroutine
+    
 subroutine skipcomment(unit)
 	implicit none
 	integer,intent(in)::unit
@@ -853,7 +866,7 @@ subroutine skipcomment(unit)
 		strL=len_trim(string)
 		if(strL==0) cycle
 
-		if(string(1:1)/='/') then
+		if(string(1:2)/='//'.and.string(1:1)/='#') then
 			backspace(unit)
 			exit
 		end if
@@ -1042,127 +1055,6 @@ subroutine not_nodal_force_weight(et)
 			stop
 		end select
 end subroutine
-
-   !把字符串中相当的数字字符(包括浮点型)转化为对应的数字
-   !如 '123'转为123,'14-10'转为14,13,12,11,10
-   !string中转化后的数字以数组ar(n1)返回，其中,n1为字符串中数字的个数:(注　1-3转化后为3个数字：1,2,3)
-   !nmax为数组ar的大小,string默认字符长度为512。
-   !num_read为要读入数据的个数。
-   !unit为文件号
-   !每次只读入一个有效行（不以'/'开头的行）
-   !每行后面以'/'开始的后面的字符是无效的。
-   subroutine  strtoint(unit,ar,nmax,n1,num_read,set,maxset,nset)
-	  implicit none
-	  logical::tof1,tof2
-	  integer::i,j,k,strl,ns,ne,n1,n2,n3,n4,step,nmax,& 
-			num_read,unit,ef,n5,nsubs,maxset,nset
-	  real(8)::ar(nmax),t1
-      character(32)::set(maxset)
-	  character(512)::string
-	  character(32)::substring(100)
-	  character(16)::legalC,SC
-
-		LegalC='0123456789.-+eE*'
-		sc=',; '//char(9)
-
-		n1=0
-		nset=0
-		ar=0
-		!set(1:maxset)=''
-	  do while(.true.)
-		 read(unit,'(a512)',iostat=ef) string
-		 if(ef<0) then
-			print *, 'file ended unexpected. sub strtoint()'
-			stop
-		 end if
-
-		 string=adjustL(string)
-		 strL=len_trim(string)
-		 
-		do i=1,strL !remove 'Tab'
-			if(string(i:i)/=char(9)) exit
-		end do
-		string=string(i:strL)
-		string=adjustl(string)
-		strL=len_trim(string)
-		if(strL==0) cycle
-
-		 if(string(1:1)/='/') then
-			
-			!每行后面以'/'开始的后面的字符是无效的。
-			if(index(string,'/')/=0) then
-				strL=index(string,'/')-1
-				string=string(1:strL)
-				strL=len_trim(string)
-			end if
-
-			nsubs=0
-			n5=1
-			do i=2,strL+1
-				if(index(sc,string(i:i))/=0.and.index(sc,string(i-1:i-1))==0) then
-					nsubs=nsubs+1					
-					substring(nsubs)=string(n5:i-1)					
-				end if
-				if(index(sc,string(i:i))/=0) n5=i+1
-			end do
-			
-			do i=1, nsubs
-				substring(i)=adjustl(substring(i))				
-				n2=len_trim(substring(i))
-				!the first character should not be a number if the substring is a set.
-				if(index('0123456789-+.', substring(i)(1:1))==0) then
-					!set
-					nset=nset+1
-					set(nset)=substring(i)
-					cycle
-				end if
-				n3=index(substring(i),'-')
-				n4=index(substring(i),'*')
-				tof1=.false.
-				if(n3>1) then
-				    tof1=(substring(i)(n3-1:n3-1)/='e'.and.substring(i)(n3-1:n3-1)/='E')
-				end if
-				if(tof1) then !处理类似于'1-5'这样的形式的读入数据
-					read(substring(i)(1:n3-1),'(i8)') ns
-					read(substring(i)(n3+1:n2),'(i8)') ne
-					if(ns>ne) then
-						step=-1
-					else
-						step=1
-					end if
-					do k=ns,ne,step
-						n1=n1+1
-						ar(n1)=k
-					end do				     	
-				else
-				     tof2=.false.
-				     if(n4>1) then
-				             tof2=(substring(i)(n4-1:n4-1)/='e'.and.substring(i)(n4-1:n4-1)/='E')
-				     end if
-					if(tof2) then !处理类似于'1*5'(表示5个1)这样的形式的读入数据
-						read(substring(i)(1:n4-1),*) t1
-						read(substring(i)(n4+1:n2),'(i8)') ne
-						ar((n1+1):(n1+ne))=t1
-						n1=n1+ne
-					else
-						n1=n1+1
-						read(substring(i),*) ar(n1)
-					end if	
-				end if			
-			end do
-		 else
-			cycle
-		 end if
-		
-		 if(n1<=num_read) then
-		    exit
-		 else
-		    if(n1>num_read)  print *, 'error!nt2>num_read. i=',n1
-		 end if
-	
-	  end do	
-
-   end subroutine
 
 
 
@@ -1375,7 +1267,7 @@ SUBROUTINE WRITE2GMSH_GEOFILE()
 	USE DS_Gmsh2Solver
 	IMPLICIT NONE
 	INTEGER::I,J,K,N1,IPG1,INC,LEN1,INC2,N2
-    INTEGER,EXTERNAL::INCOUNT
+    !INTEGER,EXTERNAL::INCOUNT
 	REAL(8)::T1,AT1(3)
 	REAL(8),ALLOCATABLE::MINDIS1(:)
 	INTEGER,ALLOCATABLE::NODEID1(:),EDGEID1(:),FACEID1(:) !LOCAL IDS FOR NODES AND EDGES 
@@ -1504,7 +1396,7 @@ SUBROUTINE WRITE2GMSH_GEOFILEi(NODE_L,NNODE_L,EDGE_L,NEDGE_L,FACE_L,NFACE_L,VOLU
 	CHARACTER(LEN=*),INTENT(IN)::FILE_L
 	
 	INTEGER::I,J,K,N1,IPG1,INC,LEN1,INC2,N2,AN1(4)
-    INTEGER,EXTERNAL::INCOUNT
+    !INTEGER,EXTERNAL::INCOUNT
 	REAL(8)::T1,AT1(3)
 	REAL(8),ALLOCATABLE::MINDIS1(:)
 	INTEGER,ALLOCATABLE::NODEID1(:),EDGEID1(:),FACEID1(:) !LOCAL IDS FOR NODES AND EDGES 
@@ -1627,18 +1519,7 @@ SUBROUTINE WRITE2GMSH_GEOFILEi(NODE_L,NNODE_L,EDGE_L,NEDGE_L,FACE_L,NFACE_L,VOLU
 ENDSUBROUTINE
 
 
-INTEGER FUNCTION INCOUNT(N)
-    IMPLICIT NONE
-    INTEGER,INTENT(IN)::N
-    REAL(8)::T1
-    INTEGER::I
 
-    T1=ABS(N)
-    INCOUNT=INT(LOG10(T1))+1
-	IF(N<0) INCOUNT=INCOUNT+1
-    
-
-END FUNCTION
 
 SUBROUTINE OUTMESHSTRUCTURE()
     USE DS_Gmsh2Solver
