@@ -4,6 +4,7 @@
 !Generate 3D 6-node prism element.
 Subroutine Generate_3D_MODEL()
 	use meshds
+    use CutoffWall
 	implicit none
 	logical::istet
 	integer::et1,i,j,k,n1,n2
@@ -12,6 +13,10 @@ Subroutine Generate_3D_MODEL()
 	
 	!Output the node and read in the elevation data
     call st_membrance()
+    
+    do i=1,ncow
+        call cowall(i).gen_element()
+    enddo
     
 	call First_Order_PrismElement_Gen()
     
@@ -53,10 +58,11 @@ end Subroutine
         
 	    allocate(Tetelt(3*soillayer*nelt))
         
-	    elt.ismodel=0
+	    elt(:nelt).ismodel=0
+        n2=count(elt(:nelt).isdel==.false.)
 	    do i=1,nelt
             
-	      if(elt(i).isdel) cycle         
+             if(elt(i).isdel) cycle         
 	         do j=1,soillayer
 				 if(zone(elt(i).zn).ismodel(j)/=1) cycle
                  if(index(zone(elt(i).zn).solver_et(j),'cpe')>0) then
@@ -86,13 +92,13 @@ end Subroutine
                  do k=1,3
 						prmelt(nprmelt).node(k)=elt(i).node(k)+(j-1)*nnode
 						!重节点（高程相等的节点）
-						if(node(prmelt(nprmelt).node(k)).subbw/=0) &
-							prmelt(nprmelt).node(k)=node(prmelt(nprmelt).node(k)).subbw
+						if(node(prmelt(nprmelt).node(k)).iptr/=0) &
+							prmelt(nprmelt).node(k)=node(prmelt(nprmelt).node(k)).iptr
 							
 						prmelt(nprmelt).node(3+k)=elt(i).node(k)+(j)*nnode
 						!重节点（高程相等的节点）
-						if(node(prmelt(nprmelt).node(3+k)).subbw/=0) & 
-							prmelt(nprmelt).node(3+k)=node(prmelt(nprmelt).node(3+k)).subbw
+						if(node(prmelt(nprmelt).node(3+k)).iptr/=0) & 
+							prmelt(nprmelt).node(3+k)=node(prmelt(nprmelt).node(3+k)).iptr
 						
 						if(prmelt(nprmelt).node(k)==prmelt(nprmelt).node(3+k)) then
 							iat(k)=1
@@ -180,8 +186,8 @@ end Subroutine
         
         allocate(elt1(nelt+nprmelt+ntetelt))
         elt1(1:nelt)=elt
-        if(nprmelt>0) elt1(nelt+1:nelt+nprmelt)=prmelt
-        if(ntetelt>0) elt1(nelt+nprmelt+1:nelt+nprmelt+ntetelt)=tetelt
+        if(nprmelt>0) elt1(nelt+1:nelt+nprmelt)=prmelt(1:nprmelt)
+        if(ntetelt>0) elt1(nelt+nprmelt+1:nelt+nprmelt+ntetelt)=tetelt(1:ntetelt)
         deallocate(elt)
         allocate(elt,source=elt1)
         deallocate(elt1,prmelt,tetelt)
@@ -205,8 +211,8 @@ end Subroutine
         type(point_tydef),allocatable::node1(:)
  
 		
-	 
-       
+	    if(issoilinterpolated) return
+        
         
         if(any(node(1:nnode).havesoildata<2)) then
 	
@@ -364,7 +370,7 @@ end Subroutine
         do i=1,nnode
             if(node(i).havesoildata==0) cycle
             do j=soillayer,1,-1
-                if(node(i).elevation(j-1)>node(i).elevation(j)) node(i).elevation(j-1)=node(i).elevation(j)           
+                if(node(i).elevation(j-1)>node(i).elevation(j)) node(i).elevation(j-1)=node(i).elevation(j)          
             enddo
         enddo
         
@@ -407,16 +413,16 @@ end Subroutine
 				    n2=(k)*nnode+i
 				    t1=node(n1).z-node(n2).z
 				    if(abs(t1)<1e-4) then
-					    node(n2).subbw=n1 !<>0,dead
+					    node(n2).iptr=n1 !<>0,dead
 					    Lt1(k)=.true.					
                     end if
                 end do
 		    end do
 	    end do	
-		
-
-        
+     
         deallocate(at1,lt1)
+        
+        issoilinterpolated=.true.
         
 	end subroutine
 	
@@ -430,6 +436,7 @@ end Subroutine
 		real(8)::t1,t2,ar1(1000),x0,y0
 		
 		
+        
 		allocate(node1(nnode))
         
 		do i=1,nmeminp2

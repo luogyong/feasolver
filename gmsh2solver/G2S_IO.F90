@@ -419,7 +419,7 @@ subroutine kwcommand(term,unit)
 					allocate(element(n1).tag(element(n1).ntag))
 					element(n1).tag(1:element(n1).ntag)=int(ar(3+1:3+element(n1).ntag))
 					physicalgroup(element(n1).tag(1)).nel=physicalgroup(element(n1).tag(1)).nel+1
-					physicalgroup(element(n1).tag(1)).ET_GMSH=ELEMENT(N1).ET !å‡å®šåŒä¸€GROUPçš„å•å…ƒç±»å‹ç›¸åŒ
+					physicalgroup(element(n1).tag(1)).ET_GMSH=ELEMENT(N1).ET !¼Ù¶¨Í¬Ò»GROUPµÄµ¥ÔªÀàĞÍÏàÍ¬
                     
                     if(nacw/=element(n1).tag(2)) then                        
                         ischeckacw=.true.
@@ -486,7 +486,7 @@ subroutine kwcommand(term,unit)
 						    en1(15)=element(n1).node(13)
 						    element(n1).node(4:15)=en1(4:15)                            
                         end if    
-                    case(11) !tet10æœ€åä¸¤ä¸ªèŠ‚ç‚¹çš„çš„é¡ºåºäº’æ¢ï¼Œä»¥ä¾¿å’ŒFEASOLVERä¸€è‡´ã€‚
+                    case(11) !tet10×îºóÁ½¸ö½ÚµãµÄµÄË³Ğò»¥»»£¬ÒÔ±ãºÍFEASOLVERÒ»ÖÂ¡£
                         !Tetrahedron10:
                         !
                         !           2
@@ -1084,7 +1084,7 @@ subroutine Tosolver()
 		N1=phgpnum(i)		
 		CH1=physicalgroup(N1).NAME
 		call lowcase(physicalgroup(N1).et,len(physicalgroup(N1).et))
-		if(.NOT.physicalgroup(N1).ISMODEL) cycle  !ET=ELT_BC_OR_LOADçš„å•å…ƒç»„ä¸è¾“å‡º
+		if(.NOT.physicalgroup(N1).ISMODEL) cycle  !ET=ELT_BC_OR_LOADµÄµ¥Ôª×é²»Êä³ö
 		item=len_trim(adjustL(physicalgroup(N1).et))
 		ITEM1=len_trim(adjustL(CH1))
         IF(physicalgroup(N1).nel==0) CYCLE

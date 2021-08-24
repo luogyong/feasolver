@@ -49,7 +49,7 @@
 
 		close(1)
 
-		if(.not.allocated(zone)) allocate(zone(znum))
+		if(.not.allocated(zone)) allocate(zone(0:znum))
 
 
    !把圆形控制线和building加入到控制线数中
@@ -122,8 +122,9 @@ if(keypn>0) then
 		csl(0).conpoint(1,i)=node(i).x
 		csl(0).conpoint(2,i)=node(i).y
 		csl(0).conpoint(3,i)=node(i).s
+       
 	end do
-   
+    csl(0).point=kp(1:keypn)
     
 end if
 
@@ -189,6 +190,8 @@ enddo
 	 use meshds
 	 use ds_t
      use BC_HANDLE
+     use CutoffWall
+     use geomodel,only:blo,nblo
 	 implicit none
 	 integer::i,j,k,j1
 	
@@ -201,9 +204,9 @@ enddo
 	 character(16)::noun
 	 integer::dnmax,dn     
      real(8)::t1,t2
-     real(8),allocatable::ar(:)
+     real(8),allocatable::ar(:),ar1(:)
 	 type(arr_tydef)::ts1
-	 logical::isall1
+	 logical::isall1,iserror1
 	 
 	!INTERFACE
 	!	SUBROUTINE strtoint(unit,ar,nmax,n1,num_read,isall)
@@ -248,6 +251,15 @@ enddo
                 read(unit,*) model(i).izone,model(i).ilayer,model(i).mat,model(i).SF,model(i).COUPLESET,model(i).et,model(i).name
                 call lowcase(model(i).et)
            enddo
+        case('cow','cutoffwall')
+            print *,'Reading CutOffWall data...'
+            call skipcomment(unit)
+            read(unit,*) ncow
+            allocate(cowall(ncow))
+            if(ncow>0) call cowall(1).help(cowall(1).helpstring)
+            do i=1,ncow
+                call cowall(i).readin(unit)
+            enddo             
 		case('zonebc')
             print *,'Reading ZoneBC data...'
             call skipcomment(unit)
@@ -272,13 +284,23 @@ enddo
                 call linebc(i).readin(unit)
                 !call zonebc(i).set_bc
                 !call lowcase(model(i).et)
-            enddo         
-        
+            enddo    
+            
+        case('blo','booleanobject')
+		    print *,'Reading BOOLEAN OBJECT data'
+            call skipcomment(unit) 
+            read(unit,*) nblo
+            allocate(blo(nblo))
+            if(nblo>0) call blo(1).help(blo(1).helpstring)
+            do i=1,nblo
+                call blo(i).readin(unit,i)
+            enddo 
+            
 	    case('point','p')
 		
 		   print *,'Reading POINT data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,'(A512)') '\n Point的输入格式为:\n &
+		   write(*,'(A1024)') '\n Point的输入格式为:\n &
            &    0) Point[,soillayer=#,inpmethod=0|1,zorder=0|1,isnorefined=0|1|2] \n  &
            &    1) 点数(inpn);\n &
            &    2) 序号(num),坐标(x),坐标(y),[elevation(1:soillayer+1)][,meshsize]. 共inpn行.\n &
@@ -288,7 +310,8 @@ enddo
            &        c)isnorefined,是否加密网格,0=No(默认,细分，且由网格最大尺寸为相邻点的最近距离),1=Yes(不细分),-1=NO(细分，尺寸按输入,如不输入，则网格尺寸为且相邻点的最大距离).\n &
            &        d)meshsize=该点附近的网格大小(可不输入). \n &
            &        e)soillayer=模型的土层数(默认0) \n &
-           &        f)elevation=该点的各土层面高程(soillayer>0时输入)'c
+           &        f)elevation=该点的各土层面高程(soillayer>0时输入) \n &
+           &        h) 当soillayer>0时，最外圈模型边界点要求输入各地层高程，因为外插不可控。\n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
             do i=1, pro_num
                 select case(property(i).name)
@@ -311,6 +334,7 @@ enddo
 		   read(unit,*) inpn
 	       allocate(arr_t(inpn),geology(inpn))
 		   ngeo=inpn
+           iserror1=.false.
 		   do i=1,inpn
 			   call strtoint(unit,ar,dnmax,dn,dnmax)
 			   k=nint(ar(1))
@@ -328,7 +352,22 @@ enddo
                         else
                             arr_t(k).soildata=ar(4+soillayer:4:-1)
                         endif
-                        if(any(abs(arr_t(k).soildata+999)<1.d-6)) arr_t(k).havesoildata=1
+                        !if(any(arr_t(k).soildata(2:4)-arr_t(k).soildata(1:3))<0.0)
+                        if(all(abs(arr_t(k).soildata+999.0)<1.d-6)) then
+                            arr_t(k).havesoildata=0
+                        elseif(any(abs(arr_t(k).soildata+999.0)<1.d-6)) then
+                            arr_t(k).havesoildata=1
+                        endif
+                        if(arr_t(k).havesoildata>0) then
+                            ar1=pack(arr_t(k).soildata,abs(arr_t(k).soildata+999.0)>=1.d-6)
+                            if(size(ar1)>1) then
+                                if(any(ar1(2:)-ar1(1:size(ar1)-1)<0.d0)) then
+                                    print *, 'Elevation conflits in POint i=',k  
+                                    iserror1=.true.
+                                endif
+                            endif
+                        endif
+                        
                         if(dn<=4+soillayer) n1=0                         
                         geology(k).isini=1
 						geology(k).node=k
@@ -346,7 +385,9 @@ enddo
                        endif
                     endif
 			   end if			   	
-		   end do
+           end do
+           
+           if(iserror1) pause
        	   !read(unit,*) ((arr_t(i).num,arr_t(i).x,arr_t(i).y),i=1,inpn)
 		
 		   xmin=arr_t(1).x
@@ -376,7 +417,7 @@ enddo
 		   winxul=0.0
 			winxlr=(xmax-xmin)/xyscale
 		   !求输入点　点与点之间最小距离如果点的尺寸大小大于该数值，则令该点的尺寸为该数值
-		
+           call merge_duplicated_Point(xyscale)
 		   call minsize()
 			allocate(segindex(inpn,inpn))
 			segindex=0
@@ -459,25 +500,37 @@ enddo
 		      !read(unit,*) material(i).kx,material(i).ky,material(i).u
 		   end do
 
-		case('zone','ZONE')
+		case('zone','z')
 		   print *,'Reading ZONE data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,*) '\n zone的输入格式为:\n &
-               & 1)区域数(znum);\n &
-               & 2) \n &
-               &  (a) 区域坐标数(num)[,OutGmshType,iElevation,mat(1:soillayer)];!OutGmshType=1 Physical Volume only; =2 Physical Surface only; =3, both;if OutGmshType=2/3, iElevation指定输出哪个高程的面。\n &
-               &  (b) 点号(num个). \n &
-               & ..... \n 共znum个.\n'c
+           
+		   write(*,*) "\n zone的输入格式为:\n &
+                & 1)区域数(znum);\n &	
+                & 2) \n &
+                &  (a) 区域边界点数(num>0)或区域内闭环数的负数(num<0)[,OutGmshType,iElevation,mat(1:soillayer)];。\n &
+                &  (b) 当num>0时，输入区域边界点号(num个);当num<0时，输入区域内部各闭环(由各控制线构成最小闭合区域)内任一点的点号). \n &
+                & ..... \n 共znum个.\n &
+                & notes: \n &
+                & 1) OutGmshType=1 Physical Volume only; \n &
+                &				 =2 Physical Surface only; \n &
+                &				 =3, both; \n &
+                & if OutGmshType=2/3, iElevation指定输出哪个高程的面(高程面的定义是从小高程面往大高程面方向（0:soillayer）)。\n &
+                & 2) 区域有2种定义方法: \n &
+                &    2.1) 一是由区域边界点定义(num>0),这时,如果大区域包含小区域，则把小区域放前. \n &
+                &    2.2) 二是由组成区域的各闭环内任一点的点号(num<0),该区域的闭环数为|num|. \n &
+                & 3) 区域边界线应该为控制线,要用CL输入相应的边界。&
+                & 4）模型由各zone内单元组成，不输出不在任一zone内的单元.\n"C							
 		   oldcolor = SETTEXTCOLOR(INT2(15))
            call skipcomment(unit)
 		   read(unit,*) znum
 		   noun='zone'
-		   if(znum>0) then
-			  allocate(zone(znum))
+           allocate(zone(0:znum))
+		   if(znum>0) then			  
 			  do i=1,znum
 				 !call indataerror(i,noun,unit)
 				 call strtoint(unit,ar,dnmax,dn,dnmax)
-                 zone(i).num=int(ar(1))
+                 if(int(ar(1))<0) zone(i).format=1
+                 zone(i).num=abs(int(ar(1)))
                  if(dn>1) then
                     zone(i).OutGmshType=int(ar(2))
                  endif
@@ -494,24 +547,31 @@ enddo
 				 !read(unit,*) zone(i).num,zone(i).k !//.k is material number.
 
 				 allocate(zone(i).point(2,zone(i).num))
-
-
-
-				 call strtoint(unit,ar,dnmax,dn,zone(i).num)
-								 
-				 do j=1,zone(i).num
-				    k=int(ar(j))
-				    zone(i).point(1,j)=arr_t(k).x
-				    zone(i).point(2,j)=arr_t(k).y
-					if(zone(i).point(1,j)<zone(i).xmin) zone(i).xmin=zone(i).point(1,j)
-					if(zone(i).point(1,j)>zone(i).xmax) zone(i).xmax=zone(i).point(1,j)
-					if(zone(i).point(2,j)<zone(i).ymin) zone(i).ymin=zone(i).point(2,j)
-					if(zone(i).point(2,j)>zone(i).ymax) zone(i).ymax=zone(i).point(2,j)
-	    		 end do
+                 call strtoint(unit,ar,dnmax,dn,zone(i).num)
+                 
+                
+                 if(dn==zone(i).num) then
+  
+					 zone(i).cp=int(ar(1:zone(i).num))			 
+				     do j=1,zone(i).num
+				        k=int(ar(j))
+				        zone(i).point(1,j)=arr_t(k).x
+				        zone(i).point(2,j)=arr_t(k).y
+					    if(zone(i).point(1,j)<zone(i).xmin) zone(i).xmin=zone(i).point(1,j)
+					    if(zone(i).point(1,j)>zone(i).xmax) zone(i).xmax=zone(i).point(1,j)
+					    if(zone(i).point(2,j)<zone(i).ymin) zone(i).ymin=zone(i).point(2,j)
+					    if(zone(i).point(2,j)>zone(i).ymax) zone(i).ymax=zone(i).point(2,j)
+                     end do
+                
+                else
+                    print *,'error in input zone(i) boundary data. i=',i
+                    stop
+                endif
 			  end do
 		   end if
 		
 
+            
 		case('control line','cl','controlline')
            print *,'Reading CONTROL LINE data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
@@ -584,7 +644,7 @@ enddo
 !			end if
 
 
-		case('key point','kp','keypoint')
+		case('kp','mb','modelboundry','key point','keypoint')
 		   print *,'Reading KEY POINT data'
            oldcolor = SETTEXTCOLOR(INT2(10))
 		   write(*,'(a256)') '\n key point的输入格式为:\n 1)点数(keypn);\n 2) 坐标号(keypn个). \n'c
@@ -606,6 +666,7 @@ enddo
                 allocate(kp1(n1))
                 kp1=b
            endif
+           kp=kp1
            
           
 	       do i=1,keypn

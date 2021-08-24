@@ -228,7 +228,7 @@ subroutine	del_element_update_edge(el)
 	integer::i,n1
 	integer,intent(in)::el	
 
-	do i=1,3
+	do i=1,elt(el).nnum
 		n1=elt(el).edge(i)
 		if(edge(n1).e(1)==el) edge(n1).e(1)=-1
 		if(edge(n1).e(2)==el) edge(n1).e(2)=-1
@@ -239,7 +239,8 @@ subroutine	del_element_update_edge(el)
 			edge(n1).v=0 
 			 
 		end if
-	end do
+    end do
+    elt(el).nnum=0
 			
 end subroutine
 
@@ -248,7 +249,7 @@ subroutine linearsoilinterpolate_tri(ielt,inode)
     use meshDS
     integer,intent(in)::ielt,inode
     real(8)::shafun(3)=0,tri(2,3)
-    integer::i
+    integer::i,n1
     
     if(node(inode).havesoildata==2) return
       
@@ -268,18 +269,25 @@ subroutine linearsoilinterpolate_tri(ielt,inode)
                     abs(node(elt(ielt).node(i)).elevation+999.d0)>1.e-7)
             enddo
         endif
+        node(inode).havesoildata=2
+        
     endif
+    
     if(node(inode).havesoildata==1) then
+        n1=0
         do i=0,soillayer
             if(abs(node(inode).elevation(i)+999.d0)<1.e-7) then
                 if(any(abs(node(elt(ielt).node(1:3)).elevation(i)+999.d0)<1.e-7)) then
                     print *,'UNBALE TO INTERPOLATE. THE NODE(I) OF THE INDCLUDING ELEMENT(J) HAS UNKOWN ELEVATION IN LAYER(K). (I,J,K)= ',INODE,IELT,I   
+                    n1=1
                 else
                     node(inode).elevation(i)=dot_product(shafun,node(elt(ielt).node(1:3)).elevation(i))
                 endif
             endif
         enddo
+        if(n1==0) node(inode).havesoildata=2
     endif
+    
 contains
     
 function trishafun(tri,x,y) result(shafun)

@@ -286,13 +286,13 @@ end subroutine
 	  
       if(L<1) return
       
-	  do i=1,3
+	  do i=1,elt(L).nnum
 		  if(elt(L).adj(i)==T) then
 			 elt(L).adj(i)=EPT1
 			 return
 		  end if
 	  end do
-	  if(i>3) then
+	  if(i>elt(L).nnum) then
 		  print *, 'ERROR IN SUBROUTINE EDG.ELEMENT NOT ADJACENT.'
 		  STOP
 	  end if
@@ -402,6 +402,8 @@ subroutine Removeadjlist(v1,v2)
 		end do
 	end do
 end subroutine
+    
+    
 
 !Enlarge Array ELT() by increment 50000
 subroutine EnlargeElement()

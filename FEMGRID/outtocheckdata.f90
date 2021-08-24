@@ -19,7 +19,7 @@
 		cstring='VARIABLES='//'"X","Y","Z"'
 		write(unit,'(a256)') cstring
 		n1=0
-		do i=1,znum
+		do i=0,znum
 			write(cs(1),'(i15)') i
 			write(cs(3),'(i15)') nnode
 			if(zone(i).ntrie3n>0) then

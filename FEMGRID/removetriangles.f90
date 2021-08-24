@@ -3,23 +3,36 @@
   subroutine RemoveT()
      use meshDS
      implicit none
-	 integer::i,j
+	 integer::i,j,iseg1,edge1(nedge)
+     integer,allocatable::bedge1(:)
+     real(8)::PT(2)
 	 logical::callbybuilding
 	
-	 callbybuilding=.false.
-	 do i=1,cln
-	    if((csl(i).hole==1).and.(csl(i).flag==1)) 	call executeRemoveT(csl(i),callbybuilding)
-	 end do
+	 !callbybuilding=.false.
+	 !do i=1,cln
+	 !   if((csl(i).hole==1).and.(csl(i).flag==1)) 	call executeRemoveT(csl(i),callbybuilding)
+	 !end do
+     call SETUP_SEARCH_ZONE_2D((Xmax-Xmin)/xyscale,0.d0,(Ymax-Ymin)/xyscale,0.d0,elt(1:nelt))
+     edge1=0
+	 do i=0,cln
+	    if(i==0.or.((csl(i).hole==1).and.(csl(i).flag==1))) 	then
+            do j=1,csl(i).num
+                iseg1=segindex(csl(i).point(j),csl(i).point(mod(j,csl(i).num)+1))
+                edge1(abs(seg(iseg1).get_edge(csl(i).conpoint(1:2,j))))=1                    
+            enddo
+               
+        endif    
+     end do
+     bedge1=pack([1:nedge],edge1==1)
+     PT=Find_Point_Inside_Polygon_2D_edge(bedge1)
+     bedge1=elt_bounded_by_edges(pt,bedge1)
+     
+     elt(1:nelt).isdel=.true.
+     elt(bedge1).isdel=.false.
+     do i=1,nelt
+        if(elt(i).isdel) call del_element(i)
+     enddo
 
-!	open(14,file='clearmesh.txt',status='replace')
-!	Ept=>Ehead
-!	i=1
-!	do while(associated(ept))
-!      write(14,'(5I8,L5)') i,node(elt(ept).node(1)).number,node(elt(ept).node(2)).number,node(elt(ept).node(3)).number,elt(ept).kcd,elt(ept).flag
-!	  i=i+1
-!	  Ept=>elt(ept).next
-!	end do
-!	close(14)
 	
   end subroutine
 

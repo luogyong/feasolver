@@ -48,36 +48,43 @@
 		<Filter Name="Header Files" Filter="fi;fd;h;inc"/>
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<Filter Name="Features">
 		<File RelativePath="..\6&amp;15_noded_trinagle.f90"/>
 		<File RelativePath=".\BC_HANDLE.f90"/>
-		<File RelativePath="..\BoundPointMesh.f90"/>
+		<File RelativePath=".\CutOffWall.f90"/>
+		<File RelativePath="..\limitanalysisGrid.f90"/>
+		<File RelativePath="..\out_geomodel_to_gmsh.f90"/>
+		<File RelativePath="..\PrismElement.f90"/>
+		<File RelativePath=".\Structure-model-geo.f90">
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File></Filter>
+		<Filter Name="graph">
 		<File RelativePath="..\checkdata.f90"/>
-		<File RelativePath=".\CutOffWall.f90">
-			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
+		<File RelativePath="..\graph.f90"/></Filter>
+		<Filter Name="IO">
+		<File RelativePath="..\meshinp.f90"/>
+		<File RelativePath="..\output.f90"/>
+		<File RelativePath="..\outtocheckdata.f90"/></Filter>
+		<Filter Name="mesh">
+		<File RelativePath="..\BoundPointMesh.f90"/>
 		<File RelativePath="..\data_structure.f90"/>
 		<File RelativePath="..\divideline.f90"/>
 		<File RelativePath="..\ds2.f90"/>
 		<File RelativePath="..\EKCD.F90"/>
-		<File RelativePath="..\graph.f90"/>
 		<File RelativePath="..\InsertPoints.f90"/>
 		<File RelativePath="..\keypointmesh.f90"/>
-		<File RelativePath="..\limitanalysisGrid.f90"/>
-		<File RelativePath="..\mc40.for"/>
-		<File RelativePath="..\mc40dependency.for"/>
-		<File RelativePath="..\mc49.for"/>
 		<File RelativePath="..\mesh.f90"/>
-		<File RelativePath="..\meshinp.f90"/>
-		<File RelativePath="..\..\..\..\..\github\functional-fortran\src\lib\mod_functional.f90"/>
-		<File RelativePath="..\..\..\..\..\github\functional-fortran\src\lib\mod_interfaces.f90"/>
-		<File RelativePath="..\out_geomodel_to_gmsh.f90"/>
-		<File RelativePath="..\output.f90"/>
-		<File RelativePath="..\outtocheckdata.f90"/>
-		<File RelativePath="..\PrismElement.f90"/>
-		<File RelativePath="..\..\Module\quicksort.f90"/>
-		<File RelativePath="..\readme.dat"/>
 		<File RelativePath="..\removetriangles.f90"/>
 		<File RelativePath="..\repair control line.f90"/>
 		<File RelativePath="..\Sloan_algorithm.f90"/>
-		<File RelativePath=".\Structure-model-geo.f90"/>
-		<File RelativePath="..\structuremesh.f90"/></Filter></Files>
+		<File RelativePath="..\structuremesh.f90"/></Filter>
+		<Filter Name="ThirdParts">
+		<Filter Name="reorder">
+		<File RelativePath="..\mc40.for"/>
+		<File RelativePath="..\mc40dependency.for"/>
+		<File RelativePath="..\mc49.for"/></Filter>
+		<File RelativePath="..\..\..\..\..\github\functional-fortran\src\lib\mod_functional.f90"/>
+		<File RelativePath="..\..\..\..\..\github\functional-fortran\src\lib\mod_interfaces.f90"/>
+		<File RelativePath="..\..\Module\quicksort.f90"/></Filter>
+		<File RelativePath="..\readme.dat"/></Filter></Files>
 	<Globals/></VisualStudioProject>

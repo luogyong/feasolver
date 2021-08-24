@@ -13,7 +13,20 @@
 	 allocate(cpphead(0:cln)) 	 
 	 
     !各子域的从属子域的个数之和
-	 n1=0
+     
+	do j=1,ngeo
+		if(geology(j).isini==0) cycle
+ 		xi=arr_t(geology(j).node).x
+		yi=arr_t(geology(j).node).y
+		si=arr_t(geology(j).node).s
+		call fin2d(xi,yi,si,n1)
+		
+        NODE(N1).HAVESOILDATA=ARR_T(geology(j).node).HAVESOILDATA
+        NODE(N1).ELEVATION=GEOLOGY(J).ELEVATION
+        geology(j).node=n1
+    end do
+    
+	n1=0
 	n2=0
 	if(keypn==0) n2=1
 	 do i=n2,cln-n1
@@ -89,8 +102,8 @@
 		       cpp=>cpptail
 		       nullify(cpptail)
            endif
-		end if
-		
+        end if
+        
 
 	 end do
   
@@ -102,16 +115,8 @@
 		call fin2d(xi,yi,si,n1)
 
 	end do
-	
-	do i=1,ngeo
-		if(geology(i).isini==0) cycle
- 		xi=arr_t(geology(i).node).x
-		yi=arr_t(geology(i).node).y
-		si=arr_t(geology(i).node).s
-		call fin2d(xi,yi,si,n1)
-		geology(i).node=n1
-		    	    
-	end do
+
+
 
 
   end subroutine
@@ -130,8 +135,11 @@
 	 do i=1,nnode
 	 	if(abs(xt-node(i).x)>1e-6) cycle
 	 	if(abs(yt-node(i).y)>1e-6) cycle
-	   	tof1=.true.
-		n1=i
+        d=((xt-node(i).x)**2+(yt-node(i).y)**2)**0.5
+        if(d*xyscale<1e-4) then
+            tof1=.true.
+		    n1=i
+        endif
 		exit				 
 	 end do
      
@@ -155,7 +163,7 @@
 	  implicit none
 	  integer::n4
 	  real(8)::xi,yi,si,xj,yj,sj,t1,t2
-	  real(8)::ar(3,200),br(3)
+	  real(8)::ar(3,200),br(3),xmin1,xmax1,ymin1,ymax1
 	  integer::i,j,k
 	  logical::tof1,tof2
       n4=0
@@ -163,7 +171,13 @@
 	  ar(1,n4)=xi
       ar(2,n4)=yi
 	  ar(3,n4)=si
+      xmin1=min(xi,xj);xmax1=max(xi,xj);ymin1=min(yi,yj);ymax1=max(yi,yj)
+      
 	  do i=1,inpn
+        if(arr_t(i).x+precision<xmin1)  cycle  
+	    if(arr_t(i).x-precision>xmax1)  cycle
+	    if(arr_t(i).y+precision<ymin1)  cycle  
+	    if(arr_t(i).y-precision>ymax1)  cycle
 	     t1=(arr_t(i).x-xi)**2+(arr_t(i).y-yi)**2
 		 if(t1<1e-7) cycle
          t1=(arr_t(i).x-xj)**2+(arr_t(i).y-yj)**2
@@ -283,15 +297,19 @@
 	        implicit none
 	        logical::tof1
 	        integer::i,j,k,n1
-	        real(8)::xt,yt
+	        real(8)::xt,yt,t1
      
 	        tof1=.false.;n1=0
 	        do i=1,inpn
 	        if(abs(xt-arr_t(i).x)>1e-6) cycle
 	        if(abs(yt-arr_t(i).y)>1e-6) cycle
-	        tof1=.true.
-	        n1=i
-	        exit				 
+            t1=xyscale*((xt-arr_t(i).x)**2+(yt-arr_t(i).y)**2)**0.5
+	        if(t1<1.d-4) then
+                tof1=.true.
+	            n1=i
+                exit
+            endif
+	        				 
 	        end do
         end  subroutine     
    end subroutine

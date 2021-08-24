@@ -1,30 +1,39 @@
 module CutoffWall
-USE meshDS,ONLY:strtoint,seg,segindex,edge,nedge,node,elt,nnode,nelt,ENLARGE_AR
+USE meshDS,ONLY:strtoint,seg,segindex,edge,nedge,node,elt,nnode,nelt,ENLARGE_AR,adjlist,soillayer
 use ds_t,only:arr_t
 
 implicit none
 private
-    
+real ( kind = 8 ), parameter :: Pi = 3.141592653589793D+00
+public::cowall,ncow
+
 type cutoffwall_type
-    integer::NCP=0,mat=1 !icl‰∏∫Èò≤Ê∏óÂ¢ôÊâÄÂú®ÁöÑÊéßÂà∂Á∫øÁºñÂè∑
-    
-    real(8)::thick=0 !Â¢ôÂéö
-    integer,allocatable::cp(:) !ÊéßÂà∂ÁÇπÂú®ËæìÂÖ•Êï∞ÁªÑ‰∏≠ÁºñÂè∑
-    real(8),allocatable::be(:) !Â∫ïÈ´òÁ®ã
+    integer::NCP=0,mat=1 !iclŒ™∑¿…¯«ΩÀ˘‘⁄µƒøÿ÷∆œﬂ±‡∫≈    
+    real(8)::thick=0 !«Ω∫Ò
+    integer,allocatable::cp(:) !øÿ÷∆µ„‘⁄ ‰»Î ˝◊È÷–±‡∫≈
+    real(8),allocatable::be(:),te(:) !µ◊∏ﬂ≥Ã,∂•∏ﬂ≥Ã
         
         
     character(512):: helpstring= &
-    'CUTOFFWALLÁöÑËæìÂÖ•Ê†ºÂºè‰∏∫: \n &
-        & 1)NCOW(Èò≤Ê∏óÂ¢ô‰∏™Êï∞); \n & 
-        & 2.1) NCP(ËæπÁïåÊéßÂà∂ÁÇπÊï∞),MAT(ÊùêÊñôÂè∑),THICKNESS(Â¢ôÂéö) \n &
-        & 2.2) CP(1:NCP)(ÂêÑÊéßÂà∂ÁÇπÂè∑) \n &
-        & 2.3) BE(1:NCP)(ÂêÑÊéßÂà∂ÁÇπÁöÑÂ¢ôÂ∫ïÈ´òÁ®ã) \n'C    
+    'CUTOFFWALLµƒ ‰»Î∏Ò ΩŒ™: \n &
+        & 1)NCOW(∑¿…¯«Ω∏ˆ ˝); \n & 
+        & 2.1) NCP(±ﬂΩÁøÿ÷∆µ„ ˝),MAT(≤ƒ¡œ∫≈),THICKNESS(«Ω∫Ò) \n &
+        & 2.2) CP(1:NCP)(∏˜øÿ÷∆µ„∫≈) \n &
+        & 2.3) BE(1:NCP)(∏˜øÿ÷∆µ„µƒ«Ωµ◊∏ﬂ≥Ã)£¨ ‰»Îbe(i)=-999±Ì æi¥¶«Ωµ◊∏ﬂ≥ÃŒ™ƒ£–Õµÿµ◊∏ﬂ≥Ã. \n &
+        & 2.4) TE(1:NCP)(∏˜øÿ÷∆µ„µƒ«Ω∂•∏ﬂ≥Ã)£¨ ‰»Îte(i)=-999±Ì æi¥¶«Ω∂•∏ﬂ≥ÃŒ™ƒ£–Õµÿ±Ì∏ﬂ≥Ã. \n &
+        & ◊¢“‚: \n &
+        &     a) »ÁŒ™±’∫œµƒ∑¿…¯«Ω£¨‘Ú¡Ó ◊Œ≤Ω⁄µ„œ‡Õ¨. \n &
+        &     b) ∏˜øÿ÷∆µ„∂®“Âµƒ±ﬂ±ÿ–Î“—‘⁄øÿ÷∆œﬂ(CL)∂®“Â. 'C
+        
+        
     contains
         procedure,nopass::help=>write_help
         PROCEDURE::READIN=>COW_read
         PROCEDURE::GEN_ELEMENT=>GEN_COW_ELEMENT
         !PROCEDURE::OUTPUT=>COW_write            
 endtype
+type(cutoffwall_type),allocatable::cowall(:)
+integer::ncow=0
     
 contains    
 subroutine write_help(helpstring,unit)
@@ -61,7 +70,8 @@ subroutine  COW_read(this,unit)
     THIS.CP=INT(AR(1:SIZE(THIS.CP,DIM=1)))
     call strtoint(unit,ar,dnmax,dn,dnmax)
     THIS.BE=AR(1:SIZE(THIS.BE,DIM=1))
-    
+    call strtoint(unit,ar,dnmax,dn,dnmax)
+    THIS.TE=AR(1:SIZE(THIS.BE,DIM=1))    
 	!end do
 
 endsubroutine
@@ -70,13 +80,14 @@ endsubroutine
 subroutine GEN_COW_ELEMENT(this)
     implicit none
     class(cutoffwall_type)::this
-    integer::i,j,k,K1,n1,n2,n3,N4,iseg1,nnum1,nedge1,ielt1,ielt2,iflag,ED1,ED2
-    integer,allocatable::node1(:),node2(:),edge1(:),elt1(:),edge2(:),elt2(:)
+    integer::i,j,k,K1,n1,n2,n3,N4,iseg1,nnum1,nedge1,ielt1,ielt2,iflag,ED1,ED2,v1(2),ALLOC_ERR
+    integer,allocatable::node1(:),node2(:),edge1(:),elt1(:),edge2(:),elt2(:),edge3(:),edge4(:)
     logical::isclose
+    real(8)::val1(2)
     
     !gen new nodes
     n1=0
-    node.subbw=0 !ÂÄüÁî®
+    node.subbw=0 !ΩË”√
     node.layer=0
     isclose=this.cp(1)==this.cp(this.ncp)
     do i=1,this.ncp-1
@@ -85,6 +96,8 @@ subroutine GEN_COW_ELEMENT(this)
         !call seg(iseg1).getparas(nnum=nnum1,nedge=nedge1)
 
         node1=seg(iseg1).get_node([arr_t(this.cp(i)).x,arr_t(this.cp(i)).y])
+        nnum1=size(node1)
+        
         if(i<this.ncp-1) then
             n1=nnum1-1
         elseif(.not.isclose) then !not close. add the last one
@@ -93,36 +106,59 @@ subroutine GEN_COW_ELEMENT(this)
         node2=[node2,node1(1:n1)]
         edge1=seg(iseg1).get_edge([arr_t(this.cp(i)).x,arr_t(this.cp(i)).y])
         edge2=[edge2,edge1]
+        !interpolate wall elevation
+        if(abs(this.te(i)+999.)<1e-6) this.te(i)=node(node1(1)).elevation(soillayer)
+        if(abs(this.te(i+1)+999.)<1e-6) this.te(i+1)=node(node1(nnum1)).elevation(soillayer)
+        if(abs(this.be(i)+999.)<1e-6) this.be(i)=node(node1(1)).elevation(0)
+        if(abs(this.be(i+1)+999.)<1e-6) this.be(i+1)=node(node1(nnum1)).elevation(0)
+        
+        do j=1,n1
+            if(.not.allocated(node(node1(j)).we)) allocate(node(node1(j)).we(2))
+            node(node1(j)).we(1)=linearint([arr_t(this.cp(i)).x],this.te(i),[arr_t(this.cp(i+1)).x],this.te(i+1),[node(node1(j)).x])
+            node(node1(j)).we(2)=linearint([arr_t(this.cp(i)).x],this.be(i),[arr_t(this.cp(i+1)).x],this.be(i+1),[node(node1(j)).x])
+        enddo
     enddo
       
     n1=size(node2)
     if(size(node)<nnode+n1) call enlarge_ar(node,n1)
     do j=1,n1
-        nnode=nnode+1
+        nnode=nnode+1        
         node(nnode)=node(node2(j))
-        node(node1(j)).subbw=nnode
+        node(node2(j)).subbw=nnode
         node(nnode).subbw=node2(j)
-    enddo        
-        
+    enddo
+    
+           
     !split elements
-    n1=size(edge2);n2=n1
-    if(.not.isclose) n2=n2-1
-    EDGE1=SPREAD(0,1,N2) !ÂÄüÁî®   
+    !n1=size(edge2);n2=n1
+    !if(.not.isclose) n2=n2-1
+    !EDGE1=SPREAD(0,1,n1) !ΩË”√
+    if(allocated(edge1)) deallocate(edge1)
+    allocate(edge1(0:n1))
+    edge1=0
     !n1=0
-    do j=1,n2
-        n3=mod(j,n2)+1
-        elt1=FIND_ELT_ON_HEADING_LEFT(node2(n3),edge2(j),edge2(n3))
+    allocate(edge3(0:n1))
+    
+    if(isclose) then
+        edge3=abs([edge2(n1),edge2])
+    else
+        edge3=[0,abs(edge2),0]
+    endif
+    
+    do j=1,n1
+
+        elt1=FIND_ELT_ON_HEADING_LEFT(node2(j),edge3(j-1),edge3(j))
+ 
         elt2=[elt2,elt1] !
-        IF(J==1) THEN
-            edge1(J)=size(elt1)
-        ELSE
-            EDGE1(J)=EDGE1(J-1)+SIZE(ELT1)
-        ENDIF
+
+        EDGE1(J)=EDGE1(J-1)+SIZE(ELT1)
+        
     enddo
     
     !UPDATE EDGE
-    DO J=1,N2
-        n3=mod(j,n2)+1
+    edge4=merge(edge3,0,.false.)    
+    DO J=1,N1
+        
         IF(J==1) THEN
             N4=0
         ELSE
@@ -131,27 +167,32 @@ subroutine GEN_COW_ELEMENT(this)
         DO K=N4+1,EDGE1(J)
             IF(ELT2(K)<1) CYCLE
             DO K1=1,ELT(ELT2(K)).NNUM
-                IF(ELT(ELT2(K)).NODE(K1)==NODE2(N3)) THEN
-                    ELT(ELT2(K)).NODE(K1)=NODE(NODE2(N3)).SUBBW
+                IF(ELT(ELT2(K)).NODE(K1)==NODE2(J)) THEN
+                    ELT(ELT2(K)).NODE(K1)=NODE(NODE2(J)).SUBBW                    
                 ENDIF
                 ED1=ELT(ELT2(K)).EDGE(K1)
-                IF(ANY(EDGE2==ED1)) THEN
+                IF(ANY(EDGE3==ED1)) THEN
                 !GEN A NEW EDGE
                     nedge=nedge+1
                     if(nedge>size(edge,dim=1)) call enlarge_ar(edge,100)
                     edge(nedge)=edge(ED1)
                     EDGE(NEDGE).E(1)=ELT2(K)
                     EDGE(NEDGE).E(2)=-1
-                    EDGE(ED1).E=MERGE(EDGE(ED1).E,-1,EDGE(ED1).E/=ELT2(K))                    
+                    !EDGE(ED1).E=MERGE(EDGE(ED1).E,-1,EDGE(ED1).E/=ELT2(K))                     
                     ELT(ELT2(K)).EDGE(K1)=NEDGE
+                    WHERE(EDGE3==ED1) EDGE4=NEDGE
                     ED1=NEDGE
+                    
                 ENDIF
-                
-                WHERE(EDGE(ED1).V==NODE2(N3))
-                    EDGE(ED1).V=NODE(NODE2(N3)).SUBBW
+                IF(ED1/=NEDGE.AND.ANY(EDGE(ED1).V==NODE2(J))) THEN
+                    CALL REMOVEADJLIST(EDGE(ED1).V(1),EDGE(ED1).V(2))
+                ENDIF
+                WHERE(EDGE(ED1).V==NODE2(J))
+                    EDGE(ED1).V=NODE(NODE2(J)).SUBBW                    
                 ENDWHERE
-                
-                
+                IF(ANY(EDGE(ED1).V==NODE(NODE2(J)).SUBBW )) THEN
+                    CALL ADDADJLIST(EDGE(ED1).V(1),EDGE(ED1).V(2),ED1)
+                ENDIF                
             ENDDO
         ENDDO
     
@@ -159,55 +200,83 @@ subroutine GEN_COW_ELEMENT(this)
     
         
     !gen zerothickness element
+    n2=size(edge2)
     if(size(elt)<nelt+n2) call enlarge_ar(elt,n2)
     do i=1,n2
         nelt=nelt+1
-
+        if(i==1) n4=nelt
+        ed1=abs(edge2(i))
+        if(edge2(i)>0) then
+            v1=edge(ed1).v
+        else
+            v1=edge(ed1).v(2:1:-1)
+        endif
         elt(nelt).et=-1 
         elt(nelt).nnum=4
-        elt(nelt).node(1:4)=[edge(edge2(i)).v,node(edge(edge2(i)).v(2:1:-1)).subbw]
-        ielt1=elt2(i)
-        elt(nelt).adj(3)=ielt1
+        elt(nelt).node(1:4)=[v1,node(v1(2:1:-1)).subbw]
+        elt(nelt).mat=this.mat
+                
+                
+        ielt1=elt2(edge1(i))
+        
+        elt(nelt).adj(1)=ielt1
             
-        if(edge(edge2(i)).e(1)/=ielt1) then
-            ielt2=edge(edge2(i)).e(1)
+        if(edge(ed1).e(1)/=ielt1) then
+            ielt2=edge(ed1).e(1)
+            edge(ed1).e(1)=nelt
         else
-            ielt2=edge(edge2(i)).e(2)
+            ielt2=edge(ed1).e(2)
+            edge(ed1).e(2)=nelt
         endif
-        elt(nelt).adj(1)=ielt2
+        elt(nelt).adj(3)=ielt2
         
         
         
-        !ÊääÂçïÂÖÉL‰∏≠ÂéüÊù•‰∏éTÁõ∏ËøûÁöÑËæπÊõ¥Êñ∞‰∏∫‰∏éEPT1Áõ∏Ëøû
+        !∞—µ•‘™L÷–‘≠¿¥”ÎTœ‡¡¨µƒ±ﬂ∏¸–¬Œ™”ÎEPT1œ‡¡¨
         !iflag==1 ept1=>null()
         IF(IELT2>0) call EDG(ielt1,ielt2,nelt,IFlag) 
         IF(IELT1>0) call edg(ielt2,ielt1,nelt,iflag)
 
-        if(i>1.and.i<n2) then
-            elt(nelt).adj(2)=nelt+1
-            elt(nelt).adj(4)=nelt-1
+        
+        elt(nelt).adj(2)=nelt+1
+        elt(nelt).adj(4)=nelt-1
+       
+        if(isclose) then
+            if(i==1) elt(nelt).adj(4)=n4+n2-1
+            if(i==n2) elt(nelt).adj(2)=n4
         else
-            if(isclose) then
-                if(i==1) elt(nelt).adj(4)=n2
-                if(i==n1) elt(nelt).adj(2)=1
-            else
-                if(i==1) elt(nelt).adj(4)=-1
-                if(i==n1) elt(nelt).adj(2)=-1                
-            endif
+            if(i==1) elt(nelt).adj(4)=-1
+            if(i==n2) elt(nelt).adj(2)=-1                
         endif
+       
         
         !update edges
         
         nedge=nedge+1
         if(nedge>size(edge,dim=1)) call enlarge_ar(edge,100)
-        edge(nedge)=edge(edge2(i))
-        edge(nedge).v=node(edge(edge2(i)).v).subbw
-        edge(nedge).e=[ielt1,ielt2]
-        
-            
+        !edge(nedge)=edge(ed1)
+        edge(nedge).v=elt(nelt).node([4,1])
+        edge(nedge).e=[nelt,elt(nelt).adj(4)]
+        if(i==1) n3=nedge
+        call addadjlist(edge(nedge).v(1),edge(nedge).v(2),nedge)
+        if((.not.isclose).and.(i==n2)) then
+            nedge=nedge+1
+            if(nedge>size(edge,dim=1)) call enlarge_ar(edge,100)
+            !edge(nedge)=edge(ed1)
+            edge(nedge).v=elt(nelt).node(2:3)
+            edge(nedge).e=[nelt,elt(nelt).adj(2)]
+            call addadjlist(edge(nedge).v(1),edge(nedge).v(2),nedge)            
+        end if
+
+        if(isclose.and.(i==n2)) then
+            elt(nelt).edge=[ed1,n3,edge4(i),nedge]
+        else
+            elt(nelt).edge=[ed1,nedge+1,edge4(i),nedge]
+        endif
     enddo
-        
     
+    
+    deallocate(node1,node2,edge1,elt1,edge2,elt2,edge3,edge4,STAT = ALLOC_ERR)
  
     node.subbw=0
     node.layer=0
@@ -215,30 +284,66 @@ endsubroutine
 
 
 FUNCTION find_ELT_ON_HEADING_LEFT(V,BE1,BE2) RESULT(ELT1)
-!ËøîÂõû‰ª•V‰∏∫È°∂ÁÇπÔºåBE1-BE2ÂâçËøõÊñπÂêëÂ∑¶ËæπÁöÑÊâÄÊúâÂçïÂÖÉ,BE1,BE2ÊòØ‰ª•VÂÖ¨ÂÖ±È°∂ÁÇπÁöÑËæπ
-!Â¶ÇÊûúÊ≤°ÊúâÔºåËøîÂõûELT1(1)=-1
+!∑µªÿ“‘VŒ™∂•µ„£¨BE1-BE2«∞Ω¯∑ΩœÚ◊Û±ﬂµƒÀ˘”–µ•‘™,BE1,BE2 «“‘Vπ´π≤∂•µ„µƒ±ﬂ
+!»Áπ˚√ª”–£¨∑µªÿELT1(1)=-1
+!»Áπ˚BE1<1,’‚¡ÓBE1Œ™”ÎBE2º–Ω«◊Ó¥Ûµƒ±ﬂ(◊Ó∆Ω––µƒ±ﬂ)
+!»Áπ˚BE2<1,’‚¡ÓBE2Œ™”ÎBE1º–Ω«◊Ó◊Ó–°µƒ±ﬂ(◊Ó∆Ω––µƒ±ﬂ)
 IMPLICIT NONE
-INTEGER,INTENT(IN)::V,BE1,BE2
+INTEGER,INTENT(IN)::V
+INTEGER,INTENT(INOUT)::BE1,BE2
 INTEGER,ALLOCATABLE::ELT1(:)
 
-INTEGER::I,J,N1,IELT1,ELT2(100),NC1,IELT2=0,IEDGE0,V0
-REAL(8)::T1
+INTEGER::I,J,N1,n2,IELT1,ELT2(100),NC1,IELT2=0,IEDGE0,V0,e1(2)
+REAL(8)::T1,x1(2,3),t2,t3=0
+
+E1=[be1,be2]
+
+if(all(e1<1)) then
+    print *,'no edge supplied.'
+    elt1=[-1]    
+    return
+endif
+    
+
+if(any(E1<1)) then
+    if(E1(1)<1) then
+        n2=2
+    else
+        n2=1
+    endif
+    n1=minloc(abs(adjlist(v).edge(1:adjlist(v).count)-E1(n2)),dim=1)
+    x1(:,3)=[node(N1).x,node(N1).y]
+    t1=1e6;
+    do i=1,adjlist(v).count
+        if(adjlist(v).edge(i)==E1(n2)) cycle
+        n1=adjlist(v).node(i)
+        x1(:,1)=[node(n1).x,node(n1).y]
+        x1(:,2)=[node(v).x,node(v).y]
+        t2=abs(angle_rad_2d (X1(:,1),X1(:,2),X1(:,3))-Pi)
+        if(t2<t1) then
+            t1=t2
+            E1(mod(n2,2)+1)=adjlist(v).edge(i)
+        endif        
+    enddo
+endif    
+BE1=E1(1);BE2=E1(2)
+
 !FOUND THE FIRST ELEMENT
-IF(EDGE(BE1).V(1)==V) THEN
-    V0=EDGE(BE1).V(2)
-ELSEIF(EDGE(BE1).V(2)==V) THEN
-    V0=EDGE(BE1).V(1)
+IF(EDGE(E1(1)).V(1)==V) THEN
+    V0=EDGE(E1(1)).V(2)
+ELSEIF(EDGE(E1(1)).V(2)==V) THEN
+    V0=EDGE(E1(1)).V(1)
 ELSE
-    PRINT *,'THE EDGE BE1 SHOULD INCLUDE THE VETEX V. BE1,V=',BE1,V
+    PRINT *,'THE EDGE E1(1) SHOULD INCLUDE THE VETEX V. E1(1),V=',E1(1),V
     STOP
 ENDIF
 
 IELT2=0
 DO I=1,2
-    IELT1=EDGE(BE1).E(I)
+    IELT1=EDGE(E1(1)).E(I)
     IF(IELT1>0.AND.IELT2==0) THEN
-        DO J=1,3
-            !T1=((NODE(ELT(IELT1).NODE(J)).X-NODE(V0).X)**2+(NODE(ELT(IELT1).NODE(J)).Y-NODE(V0).Y)**2)**0.5 !V0ÂæàÂèØËÉΩÂ∑≤ÁªèÂàÜÁ¶ªÂá∫‰∏§‰∏™ÈáçÂêàÁöÑËäÇÁÇπ„ÄÇ
+        DO J=1,ELT(IELT1).NNUM
+            !T1=((NODE(ELT(IELT1).NODE(J)).X-NODE(V0).X)**2+(NODE(ELT(IELT1).NODE(J)).Y-NODE(V0).Y)**2)**0.5 !V0∫‹ø…ƒ‹“—æ≠∑÷¿Î≥ˆ¡Ω∏ˆ÷ÿ∫œµƒΩ⁄µ„°£
         
             IF(ELT(IELT1).NODE(J)==V0.AND.ELT(IELT1).NODE(MOD(J,3)+1)==V) THEN
                 IELT2=IELT1
@@ -251,14 +356,27 @@ ENDDO
 
 NC1=0
 IF(IELT2>0) THEN
-    NC1=NC1+1
-    ELT2(NC1)=IELT2   
+  
     DO WHILE(.TRUE.)
-        N1=MOD(IEDGE0,3)+1
+        
+        NC1=NC1+1        
+        IF(NC1>100) THEN
+            ERROR STOP  'ERROR IN FUNCTION find_ELT_ON_HEADING_LEFT'
+        ENDIF        
+        ELT2(NC1)=IELT2 
+        
+        N1=MOD(IEDGE0,ELT(IELT2).NNUM)+1
         IEDGE0=ELT(IELT2).EDGE(N1)
-        IF(IEDGE0==BE2) EXIT
+        IF(IEDGE0==E1(2)) EXIT
         IELT2=ELT(IELT2).ADJ(N1)
-        IF(IELT2<1) EXIT
+        IF(IELT2<1) EXIT        
+        DO I=1,ELT(IELT2).NNUM
+            IF(ELT(IELT2).EDGE(I)==IEDGE0) THEN
+                IEDGE0=I
+                EXIT
+            ENDIF
+        ENDDO
+        
     ENDDO
     ELT1=ELT2(1:NC1)
 ELSE
@@ -268,6 +386,103 @@ ENDIF
 
 
 endfunction
+
+
+function angle_rad_2d ( p1, p2, p3 )
+
+!*****************************************************************************80
+!
+!! ANGLE_RAD_2D returns the angle in radians swept out between two rays in 2D.
+!
+!  Discussion:
+!    Clockwise is positive
+!    Except for the zero angle case, it should be true that
+!
+!      ANGLE_RAD_2D ( P1, P2, P3 ) + ANGLE_RAD_2D ( P3, P2, P1 ) = 2 * PI
+!
+!        P1
+!        /
+!       /    
+!      /     
+!     /  
+!    P2--------->P3
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    15 January 2005
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input, real ( kind = 8 ) P1(2), P2(2), P3(2), define the rays
+!    P1 - P2 and P3 - P2 which define the angle.
+!
+!    Output, real ( kind = 8 ) ANGLE_RAD_2D, the angle swept out by the rays,
+!    in radians.  0 <= ANGLE_RAD_2D < 2 * PI.  If either ray has zero
+!    length, then ANGLE_RAD_2D is set to 0.
+!
+  implicit none
+
+  real ( kind = 8 ) angle_rad_2d
+  real ( kind = 8 ) p(2)
+  real ( kind = 8 ) p1(2)
+  real ( kind = 8 ) p2(2)
+  real ( kind = 8 ) p3(2)
+  real ( kind = 8 ), parameter :: r8_pi = 3.141592653589793D+00
+
+  p(1) = ( p3(1) - p2(1) ) * ( p1(1) - p2(1) ) &
+       + ( p3(2) - p2(2) ) * ( p1(2) - p2(2) )
+
+  p(2) = ( p3(1) - p2(1) ) * ( p1(2) - p2(2) ) &
+       - ( p3(2) - p2(2) ) * ( p1(1) - p2(1) )
+
+  if ( all ( p(1:2) == 0.0D+00)  ) then
+    angle_rad_2d = 0.0D+00
+    return
+  end if
+
+  angle_rad_2d = atan2 ( p(2), p(1) )
+
+  if ( angle_rad_2d < 0.0D+00 ) then
+    angle_rad_2d = angle_rad_2d + 2.0D+00 * r8_pi
+  end if
+
+  return
+end
+
+real(8) function linearint(x1,v1,x2,v2,xi)
+    real(8),intent(in)::x1(:),v1,x2(:),v2,xi(:)
+    real(8)::dx(size(x1))
+    real(8)::k
+    integer::i,n1
+    
+    if(abs(v1-v2)<1e-7) then
+        linearint=v1
+        return
+    endif
+    
+    n1=size(x1,dim=1)
+    dx=x2-x1
+    
+    do i=1,n1
+        if(abs(dx(i))>1e-6) then
+            linearint=(v2-v1)/dx(i)*(xi(i)-x1(i))+v1            
+            exit
+        endif
+    enddo
+    
+    if(i>n1) linearint=1/0.d0
+    
+    
+end function
+
 
 end module
     

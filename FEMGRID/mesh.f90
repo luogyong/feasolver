@@ -2,6 +2,7 @@
   program  mainmesh
 		use meshds
 		USE DFPORT
+        use CutoffWall
 		character*8 char_time
 		integer::i,n1,nc,iflag
 		REAL time_begin, time_end
@@ -18,54 +19,57 @@
 		print *, 'Read in data completed.Begin to allocate space...', char_time
 
 
-		!ÂØπÂÖ®Âå∫ÂèòÈáèÁî®Âå∫ÂüüÂèòÈáèÁöÑÁõ∏Â∫îÂÄºËøõË°åÂàùÂßãÂåñ
+		!∂‘»´«¯±‰¡ø”√«¯”Ú±‰¡øµƒœ‡”¶÷µΩ¯––≥ı ºªØ
 		!call initialize_m(i)	  
 		call TIME(char_time)
 		print *, 'Begin to insert nodes in control lines... ', char_time	
 		!call BPInsert(i)
 		call CLinsert
 		call TIME(char_time)
-		print *, 'Control lines have been divided. Begin to generate the initial mesh, please wait‚Ä¶: ', char_time	
+		print *, 'Control lines have been divided. Begin to generate the initial mesh, please wait°≠: ', char_time	
 
 		if(keypn>0) then
 !			call BPmesh
 			call kpmesh
 			call TIME(char_time)
 			print *, ''
-			write(*,*), 'Initial mesh has been generated. Begin to repair control line, please wait‚Ä¶: ', char_time		 
+			write(*,*), 'Initial mesh has been generated. Begin to repair control line, please wait°≠: ', char_time		 
 
 			iflag=0
 			call RCL_4th(iflag)
-			call Removesupertri()			
+			!call Removesupertri()			
 			call RemoveT()
 			call TIME(char_time)
 			if(isnorefined<1) then
-				print *, 'Control lines have been repaired in the initial mesh. Begin to refine the initial mesh, please warit‚Ä¶: ', char_time
+				print *, 'Control lines have been repaired in the initial mesh. Begin to refine the initial mesh, please warit°≠: ', char_time
 				call InsertPoint()
 				call TIME(char_time)
-				print *, 'Refine mesh completed. Begin to repair control lines again, please wait‚Ä¶: ', char_time
+				print *, 'Refine mesh completed. Begin to repair control lines again, please wait°≠: ', char_time
 				iflag=1
 				call RCL_4th(iflag)
 				call time(char_time)
 			endif
-			print *, 'Delaunay triangular Mesh completed. Begin to  handle other tasks, please wait‚Ä¶: ', char_time	 	 	 	 
+			print *, 'Delaunay triangular Mesh completed. Begin to  handle other tasks, please wait°≠: ', char_time	 	 	 	 
 		end if
 		
 		!call seg_initialize()
 		
 		if(nsm>0) call structuremesh()
-		call group()
+		!call group()
+        CALL tri_elt_group2d()
         
 		call elementgroup()
 		call limitanalysisgrid()
 		call time(char_time)	 
-		print *, '‰∏ªÂüüÁΩëÊ†ºÂ§ÑÁêÜÂÆåÊàêÔºåËØ∑Ê£ÄÊü•ÁΩëÊ†º„ÄÇÂ¶ÇÊûúË¶Å‰øùÂ≠òÊï∞ÊçÆ,ËØ∑ÊåâSaveData‚Ä¶: ', char_time
+		print *, '÷˜”ÚÕ¯∏Ò¥¶¿ÌÕÍ≥…£¨«ÎºÏ≤ÈÕ¯∏Ò°£»Áπ˚“™±£¥Ê ˝æ›,«Î∞¥SaveData°≠: ', char_time
 		CALL CPU_TIME ( time_end )
 		print *, 'nnode=',nnode,'ENUMBER=',ENUMBER
 		PRINT *, 'Time of operation was ', time_end - time_begin, ' seconds'
 		!call meshoutput()
-		!call debug()
+		
+        
 		CALL CLEAR_EDGE_ELEMENT()
+        !call debug()
 		call graph
 
   end program
@@ -89,7 +93,8 @@
 	end do
 	ENUMBER=N1
 	
-  ENDSUBROUTINE
+ENDSUBROUTINE
+    
   subroutine group()
 		use meshds
 		implicit none
@@ -123,30 +128,139 @@
 
 		end do
 
-  end subroutine
+    end subroutine
+    
+    subroutine tri_elt_group2d()
+		use meshds
+		implicit none
+		integer::i,j,K,IELT1,N1,N2,iseg1,ielt2
+		real(8)::xc,yc,PT(2)
+		logical::tof
+        integer::stack1(10000),EDGE1(NEDGE),EDGE2(NEDGE)
+        
+        ELT(1:NELT).ZN=0
+        
+        call SETUP_SEARCH_ZONE_2D((Xmax-Xmin)/xyscale,0.d0,(Ymax-Ymin)/xyscale,0.d0,elt(1:nelt))
+        EDGE1=0;
+        DO I=1,ZNUM
+            IF(ZONE(I).FORMAT==1) THEN
+                EDGE2=0
+                DO K=1,ZONE(I).NUM
+                    IELT1=POINTlOC_2D(ZONE(I).POINT(:,K),-1)
+                    IF(IELT1<1) THEN
+                        PRINT *, 'NO TRIANGLE ELEMENT IN ZONE(I).I=',I
+                        CYCLE
+                    ENDIF
+                    STACK1(1)=IELT1
+                    ELT(IELT1).ZN=I
+                    if(zone(i).outgmshtype>=2) ELT(IELT1).ZN2=I
+                    N2=1
+                    DO WHILE(N2>0)
+                        IELT1=STACK1(N2)                
+                        N2=N2-1
+                        DO J=1,ELT(IELT1).NNUM
+                            N1=ELT(IELT1).EDGE(J)
+                            EDGE2(N1)=EDGE2(N1)+1
+                            IF(EDGE(N1).ISCEDGE==0.AND.EDGE1(N1)/=I) THEN
+                                EDGE1(N1)=I                            
+                                IELT2=ELT(IELT1).ADJ(J)
+                                IF(IELT2>0) THEN
+                                    N2=N2+1
+                                    STACK1(N2)=IELT2
+                                    ELT(IELT2).ZN=I
+                                    if(zone(i).outgmshtype>=2) ELT(IELT2).ZN2=I
+                                ENDIF
+                            ENDIF
+                        
+                        ENDDO
+            
+                    ENDDO
+                ENDDO
+                ZONE(I).NBE=COUNT(EDGE2==1)
+                ZONE(I).BEDGE=PACK([1:NEDGE],EDGE2==1)
+            ELSE
+                if(zone(i).nbe==0) then
+                    do j=1,zone(i).num
+                        iseg1=segindex(zone(i).cp(j),zone(i).cp(mod(j,zone(i).num)+1))
+                        zone(i).bedge=[zone(i).bedge,(seg(iseg1).get_edge(zone(i).point(:,j)))]                    
+                    enddo
+                    zone(i).bedge=abs(zone(i).bedge)
+                    zone(i).nbe=size(zone(i).bedge)
+                endif                
+                
+                PT=Find_Point_Inside_Polygon_2D(zone(i).point)
+                IELT1=POINTlOC_2D(PT,-1)
+                IF(IELT1<1) THEN
+                    PRINT *, 'NO TRIANGLE ELEMENT IN ZONE(I).I=',I
+                    CYCLE
+                ENDIF
+                STACK1(1)=IELT1
+                IF(ELT(IELT1).ZN==0) ELT(IELT1).ZN=I !’‚÷÷∏Ò Ω“™«¯∑÷¥Û«¯Ã◊–°«¯µƒ«Èøˆ
+                if(zone(i).outgmshtype>=2.and.ELT(IELT1).ZN2==-1) ELT(IELT1).ZN2=I
+                N2=1
+                
+                edge2=0
+                edge2(zone(i).bedge)=1
+                
+                DO WHILE(N2>0)
+                    IELT1=STACK1(N2) 
+
+                    N2=N2-1
+                    DO J=1,ELT(IELT1).NNUM
+                        N1=ELT(IELT1).EDGE(J)
+                        IF(EDGE2(N1)==0.AND.EDGE1(N1)/=I) THEN
+                            EDGE1(N1)=I                            
+                            IELT2=ELT(IELT1).ADJ(J)
+                            IF(IELT2>0) THEN
+                                N2=N2+1
+                                STACK1(N2)=IELT2
+                                IF(ELT(IELT2).ZN==0) ELT(IELT2).ZN=I !’‚÷÷∏Ò Ω“™«¯∑÷¥Û«¯Ã◊–°«¯µƒ«Èøˆ
+                                if(zone(i).outgmshtype>=2.and.ELT(IELT2).ZN2==-1) ELT(IELT2).ZN2=I
+                            ENDIF
+                        ENDIF
+                    ENDDO
+                ENDDO
+            ENDIF
+        ENDDO
+        
+
+    end subroutine  
+    
+    
+
 
 subroutine debug()
 	use meshds
 	implicit none
-	integer::i
+	integer::i,n1
 
 	open(3,file=trim(path_name)//'_bug.dat',status='replace')
 	write(3,'(a5)') 'NODES'
+    WRITE(3,30) 
 	do i=1,nnode
-		write(3,'(i6,2f15.6)') i,node(i).x,node(i).y
+        N1=ADJLIST(I).COUNT
+		write(3,31) i,node(i).x,node(i).y,ADJLIST(I).NODE(1:N1),ADJLIST(I).EDGE(1:N1)
 	end do
 	write(3,'(a5)') 'EDGES'
+    WRITE(3,20) 
 	do i=1,nedge
 		if(edge(i).v(1)*edge(i).v(2)==0) cycle
-		write(3,'(3I6)') i,edge(i).v 
+		write(3,'(<3>(I6,X))') i,edge(i).v 
 	end do
 	write(3,'(a8)') 'ELEMENTS'
+    WRITE(3,10) 
 	do ept=1,nelt
 		if(elt(ept).isdel) cycle
-		write(3,'(7I6)') elt(ept).number,elt(ept).node(1:3),elt(ept).edge(1:3)
+        n1=ELT(EPT).NNUM
+		write(3,11) elt(ept).number,elt(ept).node(1:N1),elt(ept).edge(1:N1),elt(ept).adj(1:N1)
 	end do
 	close(3)
 
+10 format(5X,'NO',3('NODEI',X),3(3X,'EDGEI'),3(3X,'ADJEI'))
+11 FORMAT(<1+3*N1>(I6,X))
+20 FORMAT(5X,'NO',5X,'V1',5X,'V2')
+30 FORMAT(5X,'NO',15X,'X',15X,'Y',(2X,'ADJNI'),(2X,'ADJNE')) 
+31 FORMAT(I6,X,2(F15.6,X),<N1>(I6,X),<N1>(I6,X))
 end subroutine
 
   

@@ -1,5 +1,5 @@
 module meshDS
-    
+    use quicksort
 	integer::maxstk, &
 					maxnnode=100000, &
 					newNodemax=10000, &
@@ -26,18 +26,18 @@ module meshDS
 
 	type point_tydef
      integer::number,bw !点的编号,semibandwidth（带宽）,荷载因子编号。
-	   real(8) x,y,z !点的坐标
+	   real(8)::x,y,z=0.0D0 !点的坐标
 	   real(8)::s  !该点附近的单元大小
 	   INTEGER::SUBBW  !=-999 ,the node is dead.
 	   integer::layer=0,onbdy=0 !nodal layer
        integer::havesoildata=0 ![0,1,2] 0,no;1,partially;2,completely yes.(all soillayers have elevation(no -999)) 
-       !
-       real(8),allocatable::elevation(:)
+       integer::iptr=0 !iptr=i,表明此节点在高程上i节点重合
+       real(8),allocatable::elevation(:),we(:) !we(1:2)=防渗墙顶和底高程
 	end type
 	type(point_tydef),allocatable,target::node(:)
 	type(point_tydef),allocatable::cp(:)  !control point
 	integer::nnode=0,tnode=0 !单层节点数，总节点数
-
+    integer,allocatable::kp(:)
 	                            										
 	type BP_tydef !bounded points
 	   type(point_tydef),pointer::npt=>null()
@@ -62,12 +62,13 @@ module meshDS
 	                                      !4-noded tetrahedral element:43, second order tetrahedral element: 103
                                 !21,line,element
                                 !42,quadrangle element
-	   integer::zn=1,number,ZN2=-1,mat=-1
-	   integer::edge(3)=0,ORIENT(3)=1 !the edge number in edge set.
+	   integer::zn=0,number,ZN2=-1,mat=-1
+	   integer::edge(4)=0,ORIENT(4)=1 !the edge number in edge set.
 	   real(8)::property(5)=0    !单元属性值
 	   integer::kcd=0,Maxedge=0  !单元的可分度,
 	   integer::adj(4)=-1 !if =-1,no adjacent element
        INTEGER::MOTHER=0,iLAYER=0,ISMODEL=1
+       real(8),allocatable::bbox(:,:)
 	end type
 !	type(element_tydef),pointer::Ehead,Ept,element,Etail!前四个指向划分好的单元，后两个指向包含插入点的三角形单元
 	type(element_tydef),target,allocatable::ELT(:)
@@ -124,18 +125,19 @@ module meshDS
 	   real(8)::xmin=1e15,ymin=1e15,xmax=-1e15,ymax=-1e15
 	   integer,allocatable::item(:),trie3n(:),Dise4n(:), trie6n(:),trie15n(:)
 	   integer::nitem=0,ntrie3n=0,ndise4n=0,ntrie6n=0,ntrie15n=0  !restriction:nitem=ntrie3n+ndise4n
-	   integer,allocatable::bedge(:),mat(:) !boundary edges id(point to edge),mat=每层土的材料号
+	   integer,allocatable::bedge(:),mat(:),cp(:) !boundary edges id(point to edge),mat=每层土的材料号
 	   integer::nbe=0 !number of bedge
+       integer::format=0 !=0，区域由边界点定义；=1，区域由内点定义
        !当生成PRM和TET时，以下各量会用到
        
        integer,allocatable::NPrm(:),NTet(:),PRM(:,:),TET(:,:),ISMODEL(:) 
        !区内每层土的棱柱单元和四面体单元的个数,PRM,每层棱柱单元在PRM_ELT中的下标,TET类似。
        !ISmodel=1,yes output in element form. 
        character(32),allocatable::solver_et(:),NAME(:)
-	end type
-    
-   
- 
+    end type
+
+        
+
 	type material_tydef
 	  real(8)::kx=0,ky=0,u=0,angle=0 !两个主方向的渗透系数和贮水系数,angle为渗透系数的主方向与几何坐标的夹角。以度输入(输入后转为弧度)，默认同向，逆时针方向为正。
 	end type
@@ -265,6 +267,16 @@ module meshDS
 	type(geology_point_tydef),allocatable::geology(:)
 	integer::ngeo=0
 	
+    TYPE::SEARCHZONE_TYDEF(dim)
+        integer,len::dim=3
+        INTEGER::NEL=0
+        integer::NDX(dim) !=1 !NDX=DIVISION IN X Y AND Y AXIS
+        REAL(8)::BBOX(2,dim) !MIN,MAX
+        INTEGER,ALLOCATABLE::ELEMENT(:)
+    ENDTYPE
+    TYPE(SEARCHZONE_TYDEF),ALLOCATABLE::SEARCHZONE(:)    
+    INTEGER::NSZONE=1
+    logical::isszinit=.false.
 	
 	
 	type solver_typdef
@@ -299,7 +311,7 @@ module meshDS
 	real(8)::triangle(2,3) !外包三角形三个顶点坐标
 	integer(4)::i4
 	integer::sizepoint  !!单元尺寸控制点的个数。
-	integer::znum=1   !区域数,分区域划分数。单区域划分时，zone不能为空。
+	integer::znum=0   !区域数,分区域划分数。单区域划分时，zone不能为空。
 	integer::mnum   !材料数
 	integer::hqnum  !给定水头的边边界
 	integer::ccln   !圆形控制线的个数
@@ -337,7 +349,36 @@ module meshDS
     
     character(512)::COPYFILE(100)
 	INTEGER::NCOPYFILE=0
-contains
+    logical::issoilinterpolated=.false.
+    
+    contains
+    
+    subroutine write_help(helpstring,unit)
+    USE IFQWIN
+    implicit none
+    character(*),intent(in)::helpstring
+    !class(ZoneBC_type)::this
+    integer,intent(in),optional::unit 
+    integer(4)::oldcolor
+    
+    oldcolor = SETTEXTCOLOR(INT2(10))
+	write(*,'(A)') trim(helpstring)
+	oldcolor = SETTEXTCOLOR(INT2(15)) 
+
+!10 FORMAT('BC的输入格式为:' \ &
+!            '1)组数(nbc);' \ & 
+!            '2)[BASE,IGROUP,ILAYER,LOC,BCTYPE,NDIM,DOF,STEPFUNC(0),VALUE,[A,B,C,D]]*nbc' \ &
+!            'NOTE:' \ &
+!            '   a) NDIM=[0,1,2,3] 分别表示点、线、面、体的约束. 因为边界条件（如位移，水头等）不具叠加性，所以NDIM取值对边界条件无影响.' \ &
+!            '   b) DOF=4(水头)，且VALUE=-999,表示节点的水头边界值为节点高程值。(模拟暴雨工况。)' \ &
+!            '   c) DOF(I)=1,2,...,7,分别表示约束X,Y,Z,H,MX,MY,MZ.' \ &
+!            '   d) [A,B,C,D] 平面场方程计算参数，边界值VALUE=A*X+B*Y+C*Z+D.' \ &
+!            '   e) BCTYPE=[0,1,2] 分别表示位移类，力类，出溢面类边界。' \ &
+!            '   f) BASE=[1,0] 分别表示边界是定义在ZONE上，还是在CL (control line)上。' \ &
+!            '   g) LOC=[1,0] 分别表示ILAYER指向的是第ilayer高程面，否则指向的是第ilayer单元层。' \ &
+!            '   h) IGROUP, IGROUP为zone的下标(ZONE(IGROUP))')
+    endsubroutine
+    
    !把字符串中相当的数字字符(包括浮点型)转化为对应的数字
    !如 '123'转为123,'14-10'转为14,13,12,11,10
    !string中转化后的数字以数组ar(n1)返回，其中,n1为字符串中数字的个数:(注　1-3转化后为3个数字：1,2,3)
@@ -374,11 +415,11 @@ contains
 		 if(strL==0) cycle
 
 
-		 if(string(1:1)/='/') then
+		 if(string(1:2)/='//') then
 			
 			!每行后面以'/'开始的后面的字符是无效的。
-			if(index(string,'/')/=0) then
-				strL=index(string,'/')-1
+			if(index(string,'//')/=0) then
+				strL=index(string,'//')-1
 				string=string(1:strL)
 				!string=adjustL(adjustR(string))
 				strL=len_trim(string)
@@ -600,7 +641,7 @@ ENDSUBROUTINE
                                 
                     
                 do k=1,2
-                    n2=cedge(j).v(k)
+                    n2=edge(cedge(j).edge).v(k)
                     if(k==1) then
                         sign1=1 !first vetex
                     else
@@ -630,8 +671,9 @@ ENDSUBROUTINE
             do j=1,this.nnum
                 n2=this.node(j)
                 if(node(n2).subbw*node(n2).layer/=0) cycle
-                if(abs(xi-node(n2).x)>1e-7) cycle
-                if(abs(yi-node(n2).y)>1e-7) cycle
+                !if(node(n2).subbw==
+                if(abs(xi-node(n2).x)>1e-6) cycle
+                if(abs(yi-node(n2).y)>1e-6) cycle
                 nnode1(1)=n2
                 exit
             enddo
@@ -654,12 +696,14 @@ ENDSUBROUTINE
                 endif
                     
                 if(n3>0) then
-                    nnode1(j)=cedge(n3).v(2)
+                    nnode1(j)=edge(cedge(n3).edge).v(2)
+                    this.edge(j-1)=cedge(n3).edge
                 else
                     n3=abs(n3)
-                    nnode1(j)=cedge(n3).v(1)
+                    nnode1(j)=edge(cedge(n3).edge).v(1)
+                    this.edge(j-1)=-cedge(n3).edge
                 endif
-                this.edge(j-1)=cedge(n3).edge
+                !this.edge(j-1)=cedge(n3).edge
             enddo
                 
             this.node=nnode1(1:this.nnum)
@@ -721,7 +765,7 @@ ENDSUBROUTINE
             if(abs(t1)<1e-7) then
                 inode=this.edge
             else
-                inode=this.edge(this.nedge:1:-1)
+                inode=-this.edge(this.nedge:1:-1)
             endif
         else 
             inode=this.edge
@@ -759,5 +803,428 @@ ENDSUBROUTINE
         if(present(sv)) this.sv=sv
         if(present(ev)) this.ev=ev 
         
-    endsubroutine    
+    endsubroutine   
+    
+    integer function v2edge(v1,v2)
+        integer,intent(in)::v1,v2
+        integer::n1,i
+        
+        n1=adjlist(v1).count
+        v2edge=0
+        do i=1,n1
+            if(adjlist(v1).node(i)==v2) then
+                v2edge=adjlist(v1).edge(i)
+                exit
+            endif
+        enddo
+    endfunction
+
+    SUBROUTINE SETUP_SEARCH_ZONE_2D(MAXX,MINX,MAXY,MINY,TET1)
+    !USE solverds,ONLY:ELEMENT_TYDEF
+    IMPLICIT NONE
+    REAL(8),INTENT(IN)::MAXX,MINX,MAXY,MINY
+    TYPE(ELEMENT_TYDEF)::TET1(:)
+    REAL(8)::DX,DY,DZ,BBOX1(2,2)
+    INTEGER::NDX,NDY,NDZ,I,J,K,N1,NTET1
+    
+    NDX=5;NDY=5 !;NDZ=5
+    DX=(MAXX-MINX)/NDX
+    IF(ABS(DX)<1.D-7) NDX=1
+    DY=(MAXY-MINY)/NDY
+    IF(ABS(DY)<1.D-7) NDY=1
+    !DZ=(MAXZ-MINZ)/NDZ
+    !IF(ABS(DZ)<1.D-7) NDZ=1
+    
+    NSZONE=NDX*NDY  !*NDZ
+    
+    IF(ALLOCATED(SEARCHZONE)) DEALLOCATE(SEARCHZONE)
+    ALLOCATE(SEARCHZONE(NSZONE))
+    
+    NTET1=SIZE(TET1)
+
+    N1=0
+    !DO I=1,NDZ
+        DO J=1,NDY
+            DO K=1,NDX
+                N1=N1+1
+                SEARCHZONE(N1).BBOX(1,1)=MINX+DX*(K-1)
+                SEARCHZONE(N1).BBOX(2,1)=MINX+DX*K
+                SEARCHZONE(N1).BBOX(1,2)=MINY+DY*(J-1)
+                SEARCHZONE(N1).BBOX(2,2)=MINY+DY*J 
+                !SEARCHZONE(N1).BBOX(1,3)=MINZ+DZ*(I-1)
+                !SEARCHZONE(N1).BBOX(2,3)=MINZ+DZ*I
+                IF(.NOT.ALLOCATED(SEARCHZONE(N1).ELEMENT)) ALLOCATE(SEARCHZONE(N1).ELEMENT(MAX(NTET1/NSZONE,100)))
+                SEARCHZONE(N1).ELEMENT=0
+                !SEARCHZONE(N1).NDX=[NDX,NDY,NDZ]
+                SEARCHZONE(N1).NDX(1:2)=[NDX,NDY]
+            ENDDO
+        ENDDO
+    !ENDDO
+    
+
+    
+    DO I=1,NTET1
+        
+        if(tet1(i).isdel.or.TET1(I).et/=0) CYCLE
+     
+		bbox1(1,1)=MINVAL(NODE(TET1(i).node(1:3)).X)
+        bbox1(2,1)=MAXVAL(NODE(TET1(i).node(1:3)).X)
+		bbox1(1,2)=MINVAL(NODE(TET1(i).node(1:3)).Y)
+        bbox1(2,2)=MAXVAL(NODE(TET1(i).node(1:3)).Y)
+
+        tet1(i).bbox=bbox1
+        
+        
+        DO J=1,NSZONE
+            
+            IF(NDX>1) THEN
+                IF(SEARCHZONE(J).BBOX(1,1)>BBOX1(2,1)) CYCLE !MIN>MAX
+                IF(SEARCHZONE(J).BBOX(2,1)<BBOX1(1,1)) CYCLE !MAX<MIN
+            ENDIF
+            IF(NDY>1) THEN
+                IF(SEARCHZONE(J).BBOX(1,2)>BBOX1(2,2)) CYCLE !MIN>MAX
+                IF(SEARCHZONE(J).BBOX(2,2)<BBOX1(1,2)) CYCLE !MAX<MIN 
+            ENDIF
+            !IF(SEARCHZONE(j).DIM>2.AND.NDZ>1) THEN
+            !    IF(SEARCHZONE(J).BBOX(1,3)>BBOX1(2,3)) CYCLE !MIN>MAX
+            !    IF(SEARCHZONE(J).BBOX(2,3)<BBOX1(1,3)) CYCLE !MAX<MIN 
+            !ENDIF
+            SEARCHZONE(J).NEL=SEARCHZONE(J).NEL+1
+            IF(SIZE(SEARCHZONE(J).ELEMENT)<SEARCHZONE(J).NEL) THEN
+                CALL I_ENLARGE_AR(SEARCHZONE(J).ELEMENT,100)
+            ENDIF
+            SEARCHZONE(J).ELEMENT(SEARCHZONE(J).NEL)=I
+        ENDDO
+    ENDDO
+    
+    !isszinit=.true.
+    
+    ENDSUBROUTINE
+    
+    
+    !search method:element-by-element，it is robust but may be comparily slow.
+!if tryiel>0, it the element and its nerghborhood will be searched firstly.
+INTEGER FUNCTION POINTlOC_2D(PT,TRYIEL)
+
+	IMPLICIT NONE
+	REAL(8),INTENT(IN)::PT(2)
+    INTEGER,INTENT(IN)::TRYIEL
+	INTEGER::I,J,K,ELT1(-10:0)
+	!LOGICAL,EXTERNAL::PtInTri,PtInTET
+    LOGICAL::ISFOUND=.FALSE.
+    REAL(8)::TRI1(2,3)
+	!INTEGER::SEARCHLIST(NTET)
+	!I=INT(1+(RANDOM(1))(NFACE-1))
+    
+    ISFOUND=.FALSE.    
+    POINTlOC_2D=0
+    DO J=1,NSZONE
+        IF(SEARCHZONE(J).NEL<1) CYCLE
+        IF(SEARCHZONE(J).NDX(1)>1) THEN
+            IF(PT(1)<SEARCHZONE(J).BBOX(1,1)) CYCLE
+            IF(PT(1)>SEARCHZONE(J).BBOX(2,1)) CYCLE
+        ENDIF
+        IF(SEARCHZONE(J).NDX(2)>1) THEN
+            IF(PT(2)<SEARCHZONE(J).BBOX(1,2)) CYCLE
+            IF(PT(2)>SEARCHZONE(J).BBOX(2,2)) CYCLE
+        ENDIF        
+  
+        
+        IF(TRYIEL>0) THEN
+            ELT1(-ELT(TRYIEL).NNUM)=TRYIEL
+            DO K=1,ELT(TRYIEL).NNUM
+                ELT1(-ELT(TRYIEL).NNUM+K)=ELT(TRYIEL).ADJ(K)
+            ENDDO
+            K=-ELT(TRYIEL).NNUM
+        ELSE
+            K=1
+        ENDIF
+        
+	    do K=K,SEARCHZONE(J).NEL
+            IF(K>0) THEN
+                I=SEARCHZONE(J).ELEMENT(K) 
+            ELSE
+                I=ELT1(K)
+            ENDIF
+            IF(I<1) CYCLE
+		    IF(ELT(I).ISDEL==1) CYCLE
+		    IF(ELT(I).BBOX(2,1)>=PT(1).and.ELT(I).BBOX(1,1)<=PT(1)) then
+			    IF(ELT(I).BBOX(2,2)>=PT(2).and.ELT(I).BBOX(1,2)<=PT(2)) then
+				    !IF(POSDATA.NDIM>2) THEN
+					   ! IF(ELT(I).BBOX(2,3)<PT(3).and.ELT(I).BBOX(1,3)>PT(3)) CYCLE
+				    !ENDIF
+                    TRI1(1,:)=NODE(ELT(I).NODE(1:3)).X
+                    TRI1(2,:)=NODE(ELT(I).NODE(1:3)).Y
+                    CALL triangle_contains_point_2d_2 ( TRI1, PT, ISFOUND )
+					IF(ISFOUND) THEN
+                        POINTlOC_2D=I
+                        EXIT
+                    ENDIF
+			    ENDIF
+		    endif
+        ENDDO
+        
+        IF(ISFOUND) EXIT
+
+    ENDDO
+	   
+
+	RETURN
+ENDFUNCTION    
+    
+subroutine triangle_contains_point_2d_2 ( t, p, inside )
+
+!*****************************************************************************80
+!
+!! TRIANGLE_CONTAINS_POINT_2D_2 finds if a point is inside a triangle in 2D.
+!
+!  Discussion:
+!
+!    The routine assumes that the vertices are given in counter clockwise
+!    order.  If the triangle vertices are actually given in clockwise 
+!    order, this routine will behave as though the triangle contains
+!    no points whatsoever!
+!
+!    The routine determines if a point P is "to the right of" each of the lines
+!    that bound the triangle.  It does this by computing the cross product
+!    of vectors from a vertex to its next vertex, and to P.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    07 June 2006
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input, real ( kind = 8 ) T(2,3), the triangle vertices.
+!    The vertices should be given in counter clockwise order.
+!
+!    Input, real ( kind = 8 ) P(2), the point to be checked.
+!
+!    Output, logical ( kind = 4 ) INSIDE, is TRUE if the point is 
+!    inside the triangle.
+!
+  implicit none
+
+  integer ( kind = 4 ), parameter :: dim_num = 2
+
+  logical ( kind = 4 ) inside
+  integer ( kind = 4 ) j
+  integer ( kind = 4 ) k
+  real ( kind = 8 ) p(dim_num)
+  real ( kind = 8 ) t(dim_num,3)
+
+  do j = 1, 3
+
+    k = mod ( j, 3 ) + 1
+
+    if ( 0.0D+00 < ( p(1) - t(1,j) ) * ( t(2,k) - t(2,j) ) &
+                 - ( p(2) - t(2,j) ) * ( t(1,k) - t(1,j) ) ) then
+      inside = .false.
+      return
+    end if
+
+  end do
+
+  inside = .true.
+
+  return
+end
+
+function Find_Point_Inside_Polygon_2D(Poly) result(Pt)
+    
+    implicit none
+    real(8),intent(in)::poly(:,:)
+    real(8)::Pt(2)
+    real(8)::x1,xmin1,xmax1,dx1
+    real(8),allocatable::y1(:)
+    integer::i,n1,n2
+    
+    n1=size(poly,dim=2)
+    xmin1=minval(poly(1,:))
+    xmax1=maxval(poly(1,:))
+    dx1=(xmax1-xmin1)/200.
+    x1=(xmax1+xmin1)/2.0
+    do while(any(abs(poly(1,:)-x1) <1e-7))
+        x1=x1+dx1
+        if(x1>=xmax1) then
+            print *, 'failed in getting a trail x in function Find_Point_Inside_Polygon_2D'
+            stop
+        endif
+    enddo
+        
+    do i=1,n1
+        n2=mod(i,n1)+1
+        if((x1-poly(1,i))*(x1-poly(1,n2))<0) then
+            y1=[y1,(poly(2,i)-poly(2,n2))/(poly(1,i)-poly(1,n2))*(x1-poly(1,i))+poly(2,i)]
+        endif
+    enddo
+
+    call quick_sort(y1)
+    pt=[x1,(y1(1)+y1(2))/2]
+  
+end function
+
+function Find_Point_Inside_Polygon_2D_edge(bedge) result(Pt)
+    
+    implicit none
+    integer,intent(in)::bedge(:)
+    real(8)::Pt(2)
+    real(8)::x1,xmin1,xmax1,dx1
+    real(8),allocatable::y1(:),xt1(:)
+    integer::i,n1,n2,v1(2)
+    
+    n1=size(bedge,dim=1)
+	xt1=node(edge(bedge).v(1)).x !close boundaries, edge.v(2)与edge.v(1)重合
+    xmin1=minval(xt1) 
+    xmax1=maxval(xt1)
+    dx1=(xmax1-xmin1)/200.
+    x1=(xmax1+xmin1)/2.0
+    do while(any(abs(xt1-x1) <1e-7))
+        x1=x1+dx1
+        if(x1>=xmax1) then
+            print *, 'failed in getting a trail x in function Find_Point_Inside_Polygon_2D_edge'
+            stop
+        endif
+    enddo
+        
+    do i=1,n1
+        v1=edge(bedge(i)).v
+        if((x1-node(v1(1)).x)*(x1-node(v1(2)).x)<0.) then
+            y1=[y1,(node(v1(2)).y-node(v1(1)).y)/(node(v1(2)).x-node(v1(1)).x) &
+		*(x1-node(v1(1)).x)+node(v1(1)).y]
+        endif
+    enddo
+
+    call quick_sort(y1)
+    pt=[x1,(y1(1)+y1(2))/2]
+  
+end function
+
+function elt_bounded_by_edges(PT,ibedge) result(ielt)
+!给出区域内的一点pt和区域边界的单元边edge(ibedge)
+!返回区域内的所有单元
+!区域可以是多连通区域，只要iedge包含所有边界边
+    implicit none
+    real(8),intent(in)::PT(2)
+    integer,intent(in)::ibedge(:)
+    integer,allocatable::ielt(:)
+    integer::J,IELT1,IELT2,STACK1(10000),N1,N2,EDGE1(NEDGE),EDGE2(NEDGE),ELT1(1:NELT)           
+
+    IELT1=POINTlOC_2D(PT,-1)
+    IF(IELT1<1) THEN
+        PRINT *, 'NO TRIANGLE ELEMENT IN THE REGION.'
+    ENDIF
+    ELT1=0
+    STACK1(1)=IELT1
+    ELT1(IELT1)=1
+    N2=1
+                
+    edge2=0
+    edge2(Ibedge)=1
+                
+    DO WHILE(N2>0)
+        IELT1=STACK1(N2) 
+			
+        N2=N2-1
+        DO J=1,ELT(IELT1).NNUM
+            N1=ELT(IELT1).EDGE(J)
+            IF(EDGE2(N1)==0.AND.EDGE1(N1)/=1) THEN
+                EDGE1(N1)=1                            
+                IELT2=ELT(IELT1).ADJ(J)
+                N2=N2+1
+                STACK1(N2)=IELT2
+                ELT1(IELT2)=1
+            ENDIF
+        ENDDO
+    ENDDO
+    IELT=PACK([1:NELT],ELT1(1:NELT)==1)
+end function
+subroutine triangle_contains_point_2d_3 ( t, p, inside )
+
+!*****************************************************************************80
+!
+!! TRIANGLE_CONTAINS_POINT_2D_3 finds if a point is inside a triangle in 2D.
+!
+!  Discussion:
+!
+!    This routine is the same as TRIANGLE_CONTAINS_POINT_2D_2, except
+!    that it does not assume an ordering of the points.  It should
+!    work correctly whether the vertices of the triangle are listed
+!    in clockwise or counter clockwise order.
+!
+!    The routine determines if a point P is "to the right of" each of the lines
+!    that bound the triangle.  It does this by computing the cross product
+!    of vectors from a vertex to its next vertex, and to P.
+!
+!    The point is inside the triangle if it is to the right of all
+!    the lines, or to the left of all the lines.
+!
+!    This version was suggested by Paulo Ernesto of Maptek Brasil.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    07 June 2006
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input, real ( kind = 8 ) T(2,3), the triangle vertices.
+!
+!    Input, real ( kind = 8 ) P(2), the point to be checked.
+!
+!    Output, logical ( kind = 4 ) INSIDE, is TRUE if the point is 
+!    inside the triangle.
+!
+  implicit none
+
+  integer ( kind = 4 ), parameter :: dim_num = 2
+
+  real ( kind = 8 ) dir_new
+  real ( kind = 8 ) dir_old
+  logical ( kind = 4 ) inside
+  integer ( kind = 4 ) j
+  integer ( kind = 4 ) k
+  real ( kind = 8 ) p(dim_num)
+  real ( kind = 8 ) t(dim_num,3)
+
+  dir_old = 0.0D+00
+
+  do j = 1, 3
+
+    k = mod ( j, 3 ) + 1
+
+    dir_new = ( p(1) - t(1,j) ) * ( t(2,k) - t(2,j) ) &
+            - ( p(2) - t(2,j) ) * ( t(1,k) - t(1,j) )
+    
+    if ( dir_new * dir_old < 0.0D+00 ) then
+      inside = .false.
+      return
+    end if
+
+    if ( dir_new /= 0.0D+00 ) then
+      dir_old = dir_new
+    end if
+
+  end do
+
+  inside = .true.
+
+  return
+end
+    
 end module

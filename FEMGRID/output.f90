@@ -63,7 +63,12 @@
 		if(node(i).subbw/=0) cycle
 		noutputorder(IPERM(node(i).number))=i	
 		node(i).number=IPERM(node(i).number)		
-	end do
+    end do
+    do i=1,tnode
+		if(node(i).iptr>0) node(i).number=node(node(i).iptr).number		
+    end do
+    
+    
 	DEALLOCATE(IPERM)
 
  
@@ -661,7 +666,7 @@ subroutine elementgroup()
         
 	end do
 
-	do i=1,znum
+	do i=0,znum
 		if(allocated(zone(i).item)) deallocate(zone(i).item)
 		allocate(zone(i).item(zone(i).nitem))
 		if(allocated(zone(i).dise4n)) deallocate(zone(i).dise4n)

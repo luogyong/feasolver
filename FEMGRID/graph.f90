@@ -57,12 +57,12 @@ subroutine graph
 	result = INSERTMENUQQ (7, 0, $MENUCHECKED, 'Element'c, nul)
 	result = INSERTMENUQQ (7, 1, $MENUENABLED, 'TRIELEMENTS'c, tri_element)
 	result = INSERTMENUQQ (7, 2, $MENUENABLED, 'DISCONTINUITIES'c, DISCONTINUITIES)
-	result = INSERTMENUQQ (7, 3, $MENUENABLED, 'é˜²æ¸—å¢™å•å…ƒ'c, cut_off_wall_element)
-	result = INSERTMENUQQ (7, 4, $MENUENABLED, 'è¶Šæµå•å…ƒ'c, nul)
-	result = INSERTMENUQQ (7, 5, $MENUENABLED, 'æ¥è§¦å•å…ƒ'c, contact_element)
+	result = INSERTMENUQQ (7, 3, $MENUENABLED, '·ÀÉøÇ½µ¥Ôª'c, cut_off_wall_element)
+	result = INSERTMENUQQ (7, 4, $MENUENABLED, 'Ô½Á÷µ¥Ôª'c, nul)
+	result = INSERTMENUQQ (7, 5, $MENUENABLED, '½Ó´¥µ¥Ôª'c, contact_element)
 	result = INSERTMENUQQ (7, 6, $MENUENABLED, 'et7'c, sple_element)
 	result = INSERTMENUQQ (7, 7, $MENUENABLED, 'penaltyelement'c, penaltyelementshow)
-	result = INSERTMENUQQ (7, 8, $MENUENABLED, 'æ‰€æœ‰å•å…ƒ'c, all_element)
+	result = INSERTMENUQQ (7, 8, $MENUENABLED, 'ËùÓĞµ¥Ôª'c, all_element)
 
 	result = INSERTMENUQQ (8, 0, $MENUENABLED, 'Update'c, nul)
 	!	result = INSERTMENUQQ (8, 1, $MENUENABLED, 'Boundarycondition'c, Updatebc)
@@ -486,10 +486,11 @@ subroutine graph
 			
 			 case(8)
 			   msg=''
-			   write(nnum,'(i6)') elt(ept).NUMBER
+			   write(nnum,'(i6)') ept
 			   msg=trim(adjustL(nnum))
-			
-			   call moveto_w((node(elt(ept).node(1)).x+node(elt(ept).node(2)).x+node(elt(ept).node(3)).x)/3,(node(elt(ept).node(1)).y+node(elt(ept).node(2)).y+node(elt(ept).node(3)).y)/3,wxy)			
+               write(nnum,'(i6)') elt(ept).NUMBER 
+               msg=trim(adjustl(msg))//'N'//trim(adjustL(nnum))
+			   call moveto_w(sum(node(elt(ept).node(1:elt(ept).nnum)).x)/elt(ept).nnum,sum(node(elt(ept).node(1:elt(ept).nnum)).y)/elt(ept).nnum,wxy)			
 			   call outgtext(trim(msg))	
 			   			 					
 			 case(9)
@@ -499,15 +500,18 @@ subroutine graph
 			   call moveto_w((node(elt(ept).node(1)).x+node(elt(ept).node(2)).x+node(elt(ept).node(3)).x)/3,(node(elt(ept).node(1)).y+node(elt(ept).node(2)).y+node(elt(ept).node(3)).y)/3,wxy)			
 			   call outgtext(trim(msg))
 			 case(10)
-			   do k=1,3
+			   do k=1,elt(ept).nnum
                    !IF(EDGE(elt(ept).edge(k)).ISZONEBC/=-1.AND.EDGE(elt(ept).edge(k)).ISCEDGE==0) THEN
 				       write(nnum,'(i6)') elt(ept).edge(k)
+                       msg=trim(adjustL(nnum))
+                       write(nnum,'(i6)') edge(elt(ept).edge(k)).num
+                       msg=trim(adjustl(msg))//'N'//trim(adjustL(nnum))
 				       x1=(node(edge(elt(ept).edge(k)).v(1)).x+ &
 				   	    node(edge(elt(ept).edge(k)).v(2)).x)/2
 				       y1=(node(edge(elt(ept).edge(k)).v(1)).y+ &
 				   	    node(edge(elt(ept).edge(k)).v(2)).y)/2				   	
 				       call moveto_w(x1,y1,wxy)			
-				       call outgtext(trim(adjustL(nnum)))
+				       call outgtext(trim(adjustL(msg)))
                    !ENDIF
 			   end do
 		 end select		
@@ -560,7 +564,7 @@ subroutine graph
     subroutine cut_off_wall_element()
        use ds_t
        implicit none
-       element_type=2
+       element_type=-1
     end subroutine
     subroutine sple_element()
        use ds_t
@@ -681,7 +685,7 @@ subroutine graph
 	  end do
 
 	  print *, 'Element Quality statistics:'
-	  print *, '    åŒºé—´    ','       å•å…ƒæ•°     ','     %     '
+	  print *, '    Çø¼ä    ','       µ¥ÔªÊı     ','     %     '
 	  write(*,'(a12,i14,f9.2)') '[0,0.1)',ar(0),ar(0)/real(sum)*100
 	  write(*,'(a12,i14,f9.2)') '[0.1,0.2)',ar(1),ar(1)/real(sum)*100
 	  write(*,'(a12,i14,f9.2)') '[0.2,0.3)',ar(2),ar(2)/real(sum)*100
@@ -696,7 +700,7 @@ subroutine graph
    end subroutine
 
 
-	!ç»™å‡ºå•å…ƒELçš„å½¢çŠ¶ç³»æ•°coeï¼š2Ri/Rc,Rc,Riåˆ†åˆ«ä¸‰è§’å½¢å•å…ƒçš„å¤–æ¥åœ†å’Œå†…æ¥åœ†åŠå¾„ã€‚
+	!¸ø³öµ¥ÔªELµÄĞÎ×´ÏµÊıcoe£º2Ri/Rc,Rc,Ri·Ö±ğÈı½ÇĞÎµ¥ÔªµÄÍâ½ÓÔ²ºÍÄÚ½ÓÔ²°ë¾¶¡£
 	subroutine Rr(el,coe)
 	   use meshds
 	   implicit none

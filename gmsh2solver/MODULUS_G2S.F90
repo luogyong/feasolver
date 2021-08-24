@@ -25,7 +25,7 @@ module DS_Gmsh2Solver
         INTEGER::V(4)=0,EDGE(4)=0
         INTEGER::HKEY=-1
         CHARACTER(64)::CKEY="" 		
-        INTEGER::ISTRISURFACE=0 !<-1 与face反向
+        INTEGER::ISTRISURFACE=0 !<-1 ��face����
         REAL(8)::UNORMAL(3)=0.D0		
         INTEGER::NEL=0
         INTEGER,ALLOCATABLE::ELEMENT(:),SUBID(:) !SUBID IS INDEX WHICH FACE OF THE ELEMENT IS THE FACE       
@@ -58,10 +58,10 @@ module DS_Gmsh2Solver
 		integer::nnode=0,nedge=0,nface=0
 		integer,allocatable::node(:)
         INTEGER,ALLOCATABLE::EDGE(:),FACE(:)
-        INTEGER::TOPONODE(2)=0 !只对由高次单元生成一次对wellbore类单元有用，当其他面元或体元为高次单元时，因wellbore类单元目前只有2节点的一次单元，所以对高次线单元进行了分解，
+        INTEGER::TOPONODE(2)=0 !ֻ���ɸߴε�Ԫ����һ�ζ�wellbore�൥Ԫ���ã���������Ԫ����ԪΪ�ߴε�Ԫʱ����wellbore�൥ԪĿǰֻ��2�ڵ��һ�ε�Ԫ�����ԶԸߴ��ߵ�Ԫ�����˷ֽ⣬
         REAL(8)::BBOX(2,3)=0.D0 !MIN,MAX OF X,Y AND Z
         REAL(8)::CENT(3)=0.D0
-        !toponode记录当前单元对应的高次单元的端节点，以便进行后面的拓扑邻接分析。
+        !toponode��¼��ǰ��Ԫ��Ӧ�ĸߴε�Ԫ�Ķ˽ڵ㣬�Ա���к���������ڽӷ�����
         
     !CONTAINS
     !    PROCEDURE::GET_EDGE=>SET_ELEMENT_EDGE
@@ -72,10 +72,10 @@ module DS_Gmsh2Solver
 	
 	
 	type physicalGroup_type
-		integer::isini=0,SF=0,istopo=0 !对于由高次单元生成的一次Wellbore类单元，istopo==1,要输出对应的toponode节点。 
-		integer::ndim,COUPLESET=0 !COUPLESET>0 AND <>itself，表此单元组的单元与physicalgroup(COUPLESET)的单元相同。 by default it was set to be itself
+		integer::isini=0,SF=0,istopo=0 !�����ɸߴε�Ԫ���ɵ�һ��Wellbore�൥Ԫ��istopo==1,Ҫ�����Ӧ��toponode�ڵ㡣 
+		integer::ndim,COUPLESET=0 !COUPLESET>0 AND <>itself�����˵�Ԫ��ĵ�Ԫ��physicalgroup(COUPLESET)�ĵ�Ԫ��ͬ�� by default it was set to be itself
 		logical::ismodel=.FALSE.,ISMASTER=.TRUE. !phgpnum(:) OUPLESET>0 AND <>itself, ismaster=.false. then let elemnt=coupleset.element
-        integer::ET_GMSH=0,icowmat=0 !icowmat>0时，表此防渗墙为材料分段防渗墙 
+        integer::ET_GMSH=0,icowmat=0 !icowmat>0ʱ�����˷���ǽΪ���Ϸֶη���ǽ 
 		character(32)::name=''
 		integer::nel=0
 		integer,allocatable::element(:),COWMAT(:)
@@ -98,8 +98,8 @@ module DS_Gmsh2Solver
 		!edge(2,nedge),
 		!face: use node index to represent face. face(0:4,nface),face(0,:)==3,triangular face,==4, quadrilateral face
 		!FaceEdge: use edge index to represent face. FaceEdge(0:4,nface),FaceEdge(0,:)==3,triangular face, ==4, quadrilateral face
-		real(8),allocatable::weight(:,:) !分布单元荷载各节点分布系数, weight(:,1) 平面均布荷载；weight(:,2) 平面三角形荷载;weight(:,3) 轴对称均布荷载；weight(:,4) 轴对称三角形荷载，
-													!目前只能处理平面应变的两种情况。
+		real(8),allocatable::weight(:,:) !�ֲ���Ԫ���ظ��ڵ�ֲ�ϵ��, weight(:,1) ƽ��������أ�weight(:,2) ƽ�������κ���;weight(:,3) ��Գƾ������أ�weight(:,4) ��Գ������κ��أ�
+													!Ŀǰֻ�ܴ���ƽ��Ӧ������������
 	end type
 	type(et_type)::elttype(100)
 	
@@ -108,10 +108,10 @@ module DS_Gmsh2Solver
 		integer::ndim=0 !=0,point load; =1,line load; =2, planar load; =3,volume load;
 		integer::dof
 		integer::sf=0
-		real(8)::value=0  !当输入seepageface时，value=1,2,3 分别表示节点的水头值等于坐标x,y,z.
+		real(8)::value=0  !������seepagefaceʱ��value=1,2,3 �ֱ��ʾ�ڵ��ˮͷֵ��������x,y,z.
 		integer::n1=0,n2=0 !for spgface output
         real(8)::LFC(4)=0.d0 !FIELD=AX+BY+CY+D LFC()=[A,B,C,D]
-        integer::ISWELLCONDITION=0 !是否为井的边界，或出溢面
+        integer::ISWELLCONDITION=0 !�Ƿ�Ϊ���ı߽磬�������
         integer::spg_isdual=0
     CONTAINS
         PROCEDURE::GETVALUE=>LINEARFILEDCAL
@@ -145,10 +145,10 @@ module DS_Gmsh2Solver
     
     type out_data_typdef
         integer::Group
-        integer::SPGroup !Startpoint Group,这个Group只有一个点。
+        integer::SPGroup !Startpoint Group,���Groupֻ��һ���㡣
 		integer::order=0
-        integer::issumq=0 !/=0, 表示仅输出各节点的流量和。
-        integer::isstat=0 ! ISSTAT>0,输出此数据集内各变量的统计量，包括[sum,max,min,mean,median,mad,std,kurtosis,skewness]
+        integer::issumq=0 !/=0, ��ʾ��������ڵ�������͡�
+        integer::isstat=0 ! ISSTAT>0,��������ݼ��ڸ�������ͳ����������[sum,max,min,mean,median,mad,std,kurtosis,skewness]
         integer::nnode=0
         integer,allocatable::node(:)        
     end type
@@ -197,7 +197,7 @@ module DS_Gmsh2Solver
         INTEGER::NSPG_FACE=0,MAT=0,NQNODE=0
         REAL(8)::R,VALUE=0.D0
         INTEGER,ALLOCATABLE::SEMI_SF_IPG(:),SPG_FACE(:),QNODE(:,:) !,SINK_NODE_SPG_FACE(:)
-        !QNODE,统计各井流量时该井所属的节点，包括井口节点及出溢面上的所有节点。
+        !QNODE,ͳ�Ƹ�������ʱ�þ������Ľڵ㣬�������ڽڵ㼰�������ϵ����нڵ㡣
         REAL(8),ALLOCATABLE::DIR_VECTOR(:,:)
         
     CONTAINS
@@ -445,8 +445,8 @@ module DS_Gmsh2Solver
             ENDIF
             
             N5=ELEMENT(PHYSICALGROUP(N1).ELEMENT(1)).NNODE-1
-            !对于高次线单元，因wellbore类单元只有2节点的线单元，转化为2节点的线单元
-            N2=0;imethod1=wellh2lmethod !=0,把高次单元生成多个一次单元；=1,去除内部节点，只利用端节点生成1个一次单元
+            !���ڸߴ��ߵ�Ԫ����wellbore�൥Ԫֻ��2�ڵ���ߵ�Ԫ��ת��Ϊ2�ڵ���ߵ�Ԫ
+            N2=0;imethod1=wellh2lmethod !=0,�Ѹߴε�Ԫ���ɶ��һ�ε�Ԫ��=1,ȥ���ڲ��ڵ㣬ֻ���ö˽ڵ�����1��һ�ε�Ԫ
             IF(N5>1) THEN
                 if(imethod1==0) then
                     CALL ENLARGE_AR(PHYSICALGROUP(N1).ELEMENT,PHYSICALGROUP(N1).NEL*(N5-1)) 
@@ -460,16 +460,16 @@ module DS_Gmsh2Solver
                     ELEMENT(IEL1).NNODE=2
                     ELEMENT(IEL1).ET=1
                     IF(IMETHOD1==0) THEN
-                        !对于由高次线单元分解形成的一次单元，因后面单元拓扑邻接分析时，只分析高次单元的边(即忽略中间节点)，导致由含内部节点的单元的边不体现，
-                        !为解决此问题，输出对应高次单元的端节点，利用此端节点进行拓扑分析。
-                        !略显麻烦。
+                        !�����ɸߴ��ߵ�Ԫ�ֽ��γɵ�һ�ε�Ԫ������浥Ԫ�����ڽӷ���ʱ��ֻ�����ߴε�Ԫ�ı�(�������м�ڵ�)�������ɺ��ڲ��ڵ�ĵ�Ԫ�ı߲����֣�
+                        !Ϊ��������⣬�����Ӧ�ߴε�Ԫ�Ķ˽ڵ㣬���ô˶˽ڵ�������˷�����
+                        !�����鷳��
                         
                         ELEMENT(IEL1).TOPONODE=ELEMENT(IEL1).NODE(1:2) 
                         DO K=1,N5
                             IF(K<2) THEN
-                                N3=IEL1 !本身，ELEMENT
+                                N3=IEL1 !������ELEMENT
                             ELSE
-                                NEL=NEL+1 !新单元
+                                NEL=NEL+1 !�µ�Ԫ
                                 N3=NEL
                                 ELEMENT(N3)=ELEMENT(IEL1)
                             ENDIF
@@ -517,7 +517,7 @@ module DS_Gmsh2Solver
                     PHYSICALGROUP(N1).ET_GMSH=1
                     
                 ELSE
-                    !滤管井单元,井流出溢面单元              
+                    !�˹ܾ���Ԫ,���������浥Ԫ              
                     ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE
                     NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1]
                     DEALLOCATE(ELEMENT(IEL1).NODE)
@@ -528,23 +528,23 @@ module DS_Gmsh2Solver
                 
                 !SELECT CASE(IJ1)
                 !CASE(1)                   
-                ! !滤管井单元           
+                ! !�˹ܾ���Ԫ           
                 !    ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE
                 !    NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1]
                 !    DEALLOCATE(ELEMENT(IEL1).NODE)
                 !    N2=ELEMENT(IEL1).NNODE/2
                 !    ALLOCATE(ELEMENT(IEL1).NODE,SOURCE=NODE1([1:N2,ELEMENT(IEL1).NNODE:N2+1:-1]))
                 !    PHYSICALGROUP(N1).ET_GMSH=3   
-                !CASE(2) !管流单元
+                !CASE(2) !������Ԫ
                 !    !NOTHING TO DO
                 !    PHYSICALGROUP(N1).ET_GMSH=1
-                !CASE DEFAULT !井流出溢面单元                    
+                !CASE DEFAULT !���������浥Ԫ                    
                 !    ! :>>>>>>>>>>>>>>>>>>>>>>:
-                !    ! 1...........2>>>>>>>>>>5(SinkNode(滤管最上面的边界节点))   (井壁侧)  !实际为1-4和2-3两个线单元，第5个节点只是为统计井流量用。
+                !    ! 1...........2>>>>>>>>>>5(SinkNode(�˹�������ı߽�ڵ�))   (���ڲ�)  !ʵ��Ϊ1-4��2-3�����ߵ�Ԫ����5���ڵ�ֻ��Ϊͳ�ƾ������á�
                 !    ! |           |
                 !    ! 4           3                                                
                 !    ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE+1
-                !    N4=ELEMENT(PHYSICALGROUP(SELF.SINK_NODE_SPG_FACE(IJ1-2)).ELEMENT(1)).NODE(1) !此集只含一个单节点的单元
+                !    N4=ELEMENT(PHYSICALGROUP(SELF.SINK_NODE_SPG_FACE(IJ1-2)).ELEMENT(1)).NODE(1) !�˼�ֻ��һ�����ڵ�ĵ�Ԫ
                 !    N4=NODE(N4).N1
                 !    NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1,N4]
                 !    DEALLOCATE(ELEMENT(IEL1).NODE)
@@ -659,7 +659,7 @@ module DS_Gmsh2Solver
             ELT_BC(NELT_BC).NDIM=0
             ELT_BC(NELT_BC).DOF=4
             ELT_BC(NELT_BC).VALUE=SELF.VALUE
-            IF(SELF.BCTYPE==0) ELT_BC(NELT_BC).ISWELLCONDITION=1 !自流减压井水头边界，其出水量只出不进
+            IF(SELF.BCTYPE==0) ELT_BC(NELT_BC).ISWELLCONDITION=1 !������ѹ��ˮͷ�߽磬���ˮ��ֻ������
         ELSE            
             NELT_LOAD=NELT_LOAD+1
             IF(NELT_LOAD>SIZE(ELT_LOAD,DIM=1)) CALL ENLARGE_AR(ELT_LOAD,10)
@@ -736,14 +736,14 @@ module DS_Gmsh2Solver
 	    end do
     end subroutine    
     
-   !把字符串中相当的数字字符(包括浮点型)转化为对应的数字
-   !如 '123'转为123,'14-10'转为14,13,12,11,10
-   !string中转化后的数字以数组ar(n1)返回，其中,n1为字符串中数字的个数:(注　1-3转化后为3个数字：1,2,3)
-   !nmax为数组ar的大小,string默认字符长度为512。
-   !num_read为要读入数据的个数。
-   !unit为文件号
-   !每次只读入一个有效行（不以'//'开头的行）
-   !每行后面以'//'开始的后面的字符是无效的。
+   !���ַ������൱�������ַ�(����������)ת��Ϊ��Ӧ������
+   !�� '123'תΪ123,'14-10'תΪ14,13,12,11,10
+   !string��ת���������������ar(n1)���أ�����,n1Ϊ�ַ��������ֵĸ���:(ע��1-3ת����Ϊ3�����֣�1,2,3)
+   !nmaxΪ����ar�Ĵ�С,stringĬ���ַ�����Ϊ512��
+   !num_readΪҪ�������ݵĸ�����
+   !unitΪ�ļ���
+   !ÿ��ֻ����һ����Ч�У�����'//'��ͷ���У�
+   !ÿ�к�����'//'��ʼ�ĺ�����ַ�����Ч�ġ�
    subroutine  strtoint(unit,ar,nmax,n1,num_read,set,maxset,nset,ef1)
 	    implicit none
 	    logical::tof1,tof2
@@ -788,9 +788,9 @@ module DS_Gmsh2Solver
 		if(strL==0) cycle
         !call str_replace(string,'(',' ')
         !call str_replace(string,')',' ')
-		 if(string(1:2)/='//'.or.string(1:1)/='#') then
+		 if(string(1:2)/='//'.and.string(1:1)/='#') then
 			
-			!每行后面以'/'开始的后面的字符是无效的。
+			!ÿ�к�����'/'��ʼ�ĺ�����ַ�����Ч�ġ�
 			if(index(string,'//')/=0) then
 				strL=index(string,'//')-1
 				string=string(1:strL)
@@ -823,7 +823,7 @@ module DS_Gmsh2Solver
 				if(n3>1) then
 				    tof1=(substring(i)(n3-1:n3-1)/='e'.and.substring(i)(n3-1:n3-1)/='E')
 				end if
-				if(tof1) then !处理类似于'1-5'这样的形式的读入数据
+				if(tof1) then !����������'1-5'��������ʽ�Ķ�������
 					read(substring(i)(1:n3-1),'(i8)') ns
 					read(substring(i)(n3+1:n2),'(i8)') ne
 					if(ns>ne) then
@@ -840,7 +840,7 @@ module DS_Gmsh2Solver
 				     if(n4>1) then
 				             tof2=(substring(i)(n4-1:n4-1)/='e'.and.substring(i)(n4-1:n4-1)/='E')
 				     end if
-					if(tof2) then !处理类似于'1*5'(表示5个1)这样的形式的读入数据
+					if(tof2) then !����������'1*5'(��ʾ5��1)��������ʽ�Ķ�������
 						read(substring(i)(1:n4-1),*) t1
 						read(substring(i)(n4+1:n2),'(i8)') ne
 						ar((n1+1):(n1+ne))=t1

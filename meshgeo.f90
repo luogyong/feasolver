@@ -471,7 +471,9 @@ INTEGER FUNCTION POINTlOC(PT,TRYIEL)
 	!INTEGER::SEARCHLIST(NTET)
 	!I=INT(1+(RANDOM(1))(NFACE-1))
     
-    ISFOUND=.FALSE.    
+    ISFOUND=.FALSE. 
+    LASTLOC=0
+    POINTlOC=0
     
     DO J=1,NSZONE
         IF(SEARCHZONE(J).NEL<1) CYCLE
@@ -513,7 +515,7 @@ INTEGER FUNCTION POINTlOC(PT,TRYIEL)
 				    ENDIF
 				    IF(TET(I).DIM==2) THEN
 					    IF(PtInTri(PT, POSDATA.NODE(TET(I).V(1)).COORD, POSDATA.NODE(TET(I).V(2)).COORD, POSDATA.NODE(TET(I).V(3)).COORD)) THEN
-                            ISFOUND=.TRUE.
+                            ISFOUND=.TRUE.                            
                             EXIT
                         ENDIF
 				    ELSEIF(TET(I).DIM==3) THEN
@@ -524,14 +526,19 @@ INTEGER FUNCTION POINTlOC(PT,TRYIEL)
 				    ENDIF
 			    ENDIF
 		    endif
-	    ENDDO
+        ENDDO
         
+        IF(ISFOUND) THEN
+            LASTLOC=I
+            POINTlOC=I
+            EXIT
+        ENDIF
 
     ENDDO
 	
-	IF(.NOT.ISFOUND) I=0
-    LASTLOC=I
-    POINTlOC=I
+	!IF(.NOT.ISFOUND) I=0
+ !   LASTLOC=I
+ !   POINTlOC=I
 	RETURN
 ENDFUNCTION
 

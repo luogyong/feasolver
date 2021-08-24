@@ -262,7 +262,7 @@
 			   call  value(nnum,k)
 			   oldcolor=setcolorrgb(#ffff00)
 			   call outgtext(trim(adjustL(nnum)))
-			   b(k)=1
+			   b(k)=0
 			 end if
 		 end do
 		
@@ -275,7 +275,7 @@
 		    oldcolor=setcolorrgb(#ffff00)
             call moveto_w(csl(i).conpoint(1,1),csl(i).conpoint(2,1),wxy)
 		    call outgtext(trim(adjustL(nnum)))
-			b(k)=1
+			b(k)=0
 		 end if
 		
 
@@ -295,7 +295,7 @@
 			oldcolor=setcolorrgb(#ffff00)
 			call moveto_w(arr_t(k).x,arr_t(k).y,wxy)
 			call outgtext(trim(adjustL(nnum)))
-			b(k)=1		
+			b(k)=0		
 		 end if	
 	  end do
 
@@ -312,7 +312,7 @@
 			oldcolor=setcolorrgb(#ffff00)
 			call moveto_w(arr_t(k).x,arr_t(k).y,wxy)
 			call outgtext(trim(adjustL(nnum)))
-			b(k)=1		
+			b(k)=0		
 		 end if	
 	  end do
 
@@ -326,7 +326,7 @@
 			oldcolor=setcolorrgb(#ffff00)
 			call moveto_w(arr_t(k).x,arr_t(k).y,wxy)
 			call outgtext(trim(adjustL(nnum)))
-			b(k)=1		
+			b(k)=0		
 		 end if	
 	  end do
 

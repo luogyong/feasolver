@@ -79,7 +79,7 @@ module voropp
         close(unit1)
         
         
-        cmd1="tetgen -wefnNI "//trim(file1)
+        cmd1="tetgen -wefnnNI "//trim(file1)
         !result = SYSTEMQQ ("tetgen -wefnNI pack_six_cube_poly.node")
 
         CALL EXECUTE_COMMAND_LINE (cmd1, EXITSTAT=ESTAT,CMDSTAT=CSTAT, CMDMSG=CMSG)

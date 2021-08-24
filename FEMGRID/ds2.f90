@@ -19,5 +19,24 @@
      integer::element_type=-999
 	 integer::showvalue=-1  !=1,number;=2,subnum;=3,bt;=4,v;=5,material;=6,KCD=7,ELEMENT NUMBER=8
 	 integer::ativelayer=1
-	 integer::showvalue2=-1  !=1,arr_t.num,=2,arr_t.s 
+	 integer::showvalue2=-1  !=1,arr_t.num,=2,arr_t.s
+    contains
+        subroutine merge_duplicated_Point(xyscale)
+            implicit none
+            real(8),optional,intent(in)::xyscale
+            integer::i,j
+            real(8)::t1,t2
+            t2=1.d0
+            if(present(xyscale)) t2=xyscale
+            
+            do i=1,inpn-1
+                do j=i+1,inpn
+                    t1=t2*((arr_t(i).x-arr_t(j).x)**2+(arr_t(i).y-arr_t(j).y)**2)**0.5
+                    if(t1<1d-4) then
+                        arr_t(j)=arr_t(i)
+                    endif
+                enddo
+            enddo            
+        
+        end subroutine
   end module
