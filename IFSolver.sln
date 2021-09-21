@@ -16,6 +16,8 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "2DMeshGen", "FEMGRID\2DMesh
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TriTriIsect", "..\TriTriIsect\TriTriIsect.vcxproj", "{F3B81F2A-0479-4065-94CE-15E804B47B37}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gmshboolean", "..\gmshboolean\gmshboolean.vcxproj", "{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Mixed Platforms = Debug|Mixed Platforms
@@ -105,6 +107,20 @@ Global
 		{F3B81F2A-0479-4065-94CE-15E804B47B37}.Release|x64.ActiveCfg = Release|Win32
 		{F3B81F2A-0479-4065-94CE-15E804B47B37}.Release|x86.ActiveCfg = Release|Win32
 		{F3B81F2A-0479-4065-94CE-15E804B47B37}.Release|x86.Build.0 = Release|Win32
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Debug|Mixed Platforms.ActiveCfg = Debug|x64
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Debug|Mixed Platforms.Build.0 = Debug|x64
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Debug|Win32.ActiveCfg = Debug|Win32
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Debug|Win32.Build.0 = Debug|Win32
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Debug|x64.ActiveCfg = Debug|Win32
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Debug|x86.ActiveCfg = Debug|Win32
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Debug|x86.Build.0 = Debug|Win32
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Release|Win32.ActiveCfg = Release|Win32
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Release|Win32.Build.0 = Release|Win32
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Release|x64.ActiveCfg = Release|Win32
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Release|x86.ActiveCfg = Release|Win32
+		{CFB93ECE-D6F7-452B-8D53-2D8588CD04B3}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

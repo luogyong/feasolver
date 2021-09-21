@@ -251,7 +251,7 @@ enddo
                 read(unit,*) model(i).izone,model(i).ilayer,model(i).mat,model(i).SF,model(i).COUPLESET,model(i).et,model(i).name
                 call lowcase(model(i).et)
            enddo
-        case('cow','cutoffwall')
+        case('cow','cowall','cutoffwall')
             print *,'Reading CutOffWall data...'
             call skipcomment(unit)
             read(unit,*) ncow
@@ -259,6 +259,15 @@ enddo
             if(ncow>0) call cowall(1).help(cowall(1).helpstring)
             do i=1,ncow
                 call cowall(i).readin(unit)
+            enddo 
+        case('xzone')
+            print *,'Reading Excavated Zone data...'
+            call skipcomment(unit)
+            read(unit,*) nxzone
+            allocate(xzone(nxzone))
+            if(nxzone>0) call xzone(1).help(xzone(1).helpstring)
+            do i=1,nxzone
+                call xzone(i).readin(unit)
             enddo             
 		case('zonebc')
             print *,'Reading ZoneBC data...'
@@ -301,16 +310,17 @@ enddo
 		   print *,'Reading POINT data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
 		   write(*,'(A1024)') '\n Point的输入格式为:\n &
-           &    0) Point[,soillayer=#,inpmethod=0|1,zorder=0|1,isnorefined=0|1|2] \n  &
+           &    0) Point[,soillayer=#,inpmethod=0|1,zorder=0|1,isnorefined=0|1|-1|-a] \n  &
            &    1) 点数(inpn);\n &
            &    2) 序号(num),坐标(x),坐标(y),[elevation(1:soillayer+1)][,meshsize]. 共inpn行.\n &
            &    Notes: \n &
            &        a)Zorder,高程输入顺序，=0(默认)表高程elevation从底层往上输;=1反之. \n &
            &        b)inpmethod,土层插值方法,=0表膜方程插值;=1(默认),三角形线插. \n &
-           &        c)isnorefined,是否加密网格,0=No(默认,细分，且由网格最大尺寸为相邻点的最近距离),1=Yes(不细分),-1=NO(细分，尺寸按输入,如不输入，则网格尺寸为且相邻点的最大距离).\n &
-           &        d)meshsize=该点附近的网格大小(可不输入). \n &
-           &        e)soillayer=模型的土层数(默认0) \n &
-           &        f)elevation=该点的各土层面高程(soillayer>0时输入) \n &
+           &        c)isnorefined,是否加密网格,0=No(默认,细分，且由网格最大尺寸为相邻点的最小距离),1=Yes(不细分),-1=NO(细分，尺寸按输入,如不输入，则网格尺寸为且相邻点的最大距离);.\n &
+           &        d）=-a(/=1),细分，所有节点的网格尺寸按模型长度的1/a. \n &    
+           &        e)meshsize=该点附近的网格大小(可不输入). \n &
+           &        f)soillayer=模型的土层数(默认0) \n &
+           &        g)elevation=该点的各土层面高程(soillayer>0时输入) \n &
            &        h) 当soillayer>0时，最外圈模型边界点要求输入各地层高程，因为外插不可控。\n'c
 		   oldcolor = SETTEXTCOLOR(INT2(15))
             do i=1, pro_num
@@ -409,7 +419,12 @@ enddo
 		   do i=1,inpn
 				arr_t(i).x=(arr_t(i).x-xmin)/xyscale
 				arr_t(i).y=(arr_t(i).y-ymin)/xyscale
-				arr_t(i).s=arr_t(i).s/xyscale
+				
+                if(isnorefined<-1) then
+                    arr_t(i).s=1.d0/abs(isnorefined)
+                else
+                    arr_t(i).s=arr_t(i).s/xyscale
+                endif                
 		   end do
 
 		   winyul=0.0
@@ -1087,6 +1102,8 @@ enddo
          if(ARR_T(I).iss==0) then            
             if(isnorefined==-1) then
                 ARR_T(I).S=arr_t(I).maxs
+            elseif(isnorefined<-1) then
+                ARR_T(I).S=1.d0/abs(isnorefined)
             else
                 ARR_T(I).S=arr_t(I).mins
             endif            

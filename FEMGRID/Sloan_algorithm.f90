@@ -125,19 +125,19 @@ end subroutine
 		nedge=nedge+1
 		edge(nedge).v(1)=p
 		edge(nedge).v(2)=v1
-		call addadjList(p,v1,nedge)
+		call addadjlist(adjList,p,v1,nedge)
 		edge(nedge).e(1)=pehead
 		edge(nedge).e(2)=nelt
 		nedge=nedge+1
 		edge(nedge).v(1)=p
 		edge(nedge).v(2)=v2
-		call addadjList(p,v2,nedge)
+		call addadjlist(adjList,p,v2,nedge)
 		edge(nedge).e(1)=pehead
 		edge(nedge).e(2)=nelt-1
 		nedge=nedge+1
 		edge(nedge).v(1)=p
 		edge(nedge).v(2)=v3
-		call addadjList(p,v3,nedge)
+		call addadjlist(adjList,p,v3,nedge)
 		edge(nedge).e(1)=nelt-1
 		edge(nedge).e(2)=nelt		
 !		update element.edge()
@@ -232,8 +232,8 @@ end subroutine
 			edge(Redge(2)).e(2)=adjE(1)
 			edge(elt(R).edge(3)).e(1)=R
 			edge(elt(R).edge(3)).e(2)=adjE(3)	
-			call Removeadjlist(v1,v2)		
-			call addadjlist(p,v3,Redge(1))
+			call Removeadjlist(adjList,v1,v2)		
+			call addadjlist(adjList,p,v3,Redge(1))
 			!把L,R加入到stack中
 			!更新aja,和ajc的邻接表
 			if(adjE(1)/=-1) then
@@ -336,73 +336,7 @@ end subroutine
 
    end function
 
-!update the adjlist(i).node and adjlist(i).edge,where i=p and v.
- subroutine addadjlist(v1,v2,iedge)
-	use meshds
-	implicit none
-	integer::v1,v2,i,j,iedge,v(2),n1,n2,n3,nsize1
-	integer,pointer::node1(:)=>null(),edge1(:)=>null()
-	if(v1<0.or.v2<0) return !the edge in SuperTri is not taken into the list.
-	v(1)=v1
-	v(2)=v2
-	do i=1,2
-		if(.not.associated(adjlist(v(i)).node)) then
-			allocate(adjlist(v(i)).node(maxnadjlist),adjlist(v(i)).edge(maxnadjlist))
-			adjlist(v(i)).node=-1
-			adjlist(v(i)).edge=-1
-		end if
-	end do
-	if(.not.any(adjlist(v1).node==v2) ) then
-		do i=1,2
-			n1=v(i)
-			n2=v(mod(i,2)+1)
-			adjlist(n1).count=adjlist(n1).count+1
-			n3=adjlist(n1).count
-			nsize1=size(adjlist(n1).node)
-			if(adjlist(n1).count>nsize1) then				
-				allocate(node1(2*nsize1), edge1(2*nsize1))
-				node1(1:nsize1)=adjlist(n1).node
-				edge1(1:nsize1)=adjlist(n1).edge
-				deallocate(adjlist(n1)%node,adjlist(n1)%edge)
-				!allocate(adjlist(n1).node(2*nsize1),adjlist(n1).edge(2*nsize1))
-				adjlist(n1).node=>node1
-				adjlist(n1).edge=>edge1
-				adjlist(n1).node(nsize1+1:2*nsize1)=-1
-				adjlist(n1).edge(nsize1+1:2*nsize1)=-1
-				nullify(node1,edge1)
-			end if
-			adjlist(n1).node(n3)=n2
-			adjlist(n1).edge(n3)=iedge
-		end do		
-	end if
- end subroutine
-
-subroutine Removeadjlist(v1,v2)	
-	use meshds
-	implicit none
-	integer::v1,v2,i,j,v(2),n1,n2,nc1
-	
-	if(v1<0.or.v2<0) return !the edge in SuperTri is not taken into the list.
-	v(1)=v1
-	v(2)=v2
-	do i=1,2
-		n1=v(i)
-		n2=v(mod(i,2)+1)
-		nc1=adjlist(n1).count
-		do j=1,nc1
-			if(adjlist(n1).node(j)==n2) then
-				!move the last entry at the place j
-				adjlist(n1).node(j)=adjlist(n1).node(nc1)
-				adjlist(n1).node(nc1)=-1
-				adjlist(n1).edge(j)=adjlist(n1).edge(nc1)
-				adjlist(n1).edge(nc1)=-1
-				adjlist(n1).count=nc1-1
-				exit
-			end if
-		end do
-	end do
-end subroutine
-    
+  
     
 
 !Enlarge Array ELT() by increment 50000

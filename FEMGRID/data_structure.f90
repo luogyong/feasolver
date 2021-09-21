@@ -21,7 +21,7 @@ module meshDS
     
     INTERFACE ENLARGE_AR
         MODULE PROCEDURE I_ENLARGE_AR,R_ENLARGE_AR,NODE_ENLARGE_AR,ELEMENT_ENLARGE_AR,&
-                         edge_enlarge_ar
+                         edge_enlarge_ar,ADJLIST_ENLARGE_AR,AR2D_ENLARGE_AR
     END INTERFACE 
 
 	type point_tydef
@@ -31,7 +31,7 @@ module meshDS
 	   INTEGER::SUBBW  !=-999 ,the node is dead.
 	   integer::layer=0,onbdy=0 !nodal layer
        integer::havesoildata=0 ![0,1,2] 0,no;1,partially;2,completely yes.(all soillayers have elevation(no -999)) 
-       integer::iptr=0 !iptr=i,表明此节点在高程上i节点重合
+       integer::iptr=0,isb=0 !iptr=i,表明此节点在高程上i节点重合；!isb=1,zone boundary node;=2,model boundary node;=0,zone inside node
        real(8),allocatable::elevation(:),we(:) !we(1:2)=防渗墙顶和底高程
 	end type
 	type(point_tydef),allocatable,target::node(:)
@@ -51,7 +51,7 @@ module meshDS
        integer,allocatable::point(:)
 	end type
 	
-
+   
 	type element_tydef
 	   !type(point_tydef),pointer::xy1,xy2,xy3,xy4   !单元顶点的坐标
 	   logical::isdel=.false.
@@ -62,12 +62,14 @@ module meshDS
 	                                      !4-noded tetrahedral element:43, second order tetrahedral element: 103
                                 !21,line,element
                                 !42,quadrangle element
+                                !-1,不连续单元或防渗墙单元
 	   integer::zn=0,number,ZN2=-1,mat=-1
 	   integer::edge(4)=0,ORIENT(4)=1 !the edge number in edge set.
 	   real(8)::property(5)=0    !单元属性值
 	   integer::kcd=0,Maxedge=0  !单元的可分度,
 	   integer::adj(4)=-1 !if =-1,no adjacent element
        INTEGER::MOTHER=0,iLAYER=0,ISMODEL=1
+       integer,allocatable::selt(:) !selt(i)=0,no element gen at the ith layer.
        real(8),allocatable::bbox(:,:)
 	end type
 !	type(element_tydef),pointer::Ehead,Ept,element,Etail!前四个指向划分好的单元，后两个指向包含插入点的三角形单元
@@ -118,21 +120,30 @@ module meshDS
 	type size_point_tydef  !单元尺寸控制点
 	    real(8)::x,y,a,d !坐标，等差的第一项，等差
 	end type
-
+    type ar2d_tydef
+        integer::nnum=0
+        integer,allocatable::node(:)
+    endtype
+    TYPE ZONE_LAYGER_VOLUME_TYDEF
+        INTEGER::NVOL=0
+        type(ar2d_tydef),allocatable::bface(:)
+    ENDTYPE
 	type zone_tydef
 	   integer::num,k,OutGmshType=1,iElevation=1 !OutGmshType=1 Physical Volume only; =2 Physical Surface only; =3, both;if OutGmshType=2/3, iElevation指定输出哪个高程的面。       
 	   real(8),allocatable::point(:,:)
 	   real(8)::xmin=1e15,ymin=1e15,xmax=-1e15,ymax=-1e15
 	   integer,allocatable::item(:),trie3n(:),Dise4n(:), trie6n(:),trie15n(:)
 	   integer::nitem=0,ntrie3n=0,ndise4n=0,ntrie6n=0,ntrie15n=0  !restriction:nitem=ntrie3n+ndise4n
-	   integer,allocatable::bedge(:),mat(:),cp(:) !boundary edges id(point to edge),mat=每层土的材料号
-	   integer::nbe=0 !number of bedge
+	   integer,allocatable::bedge(:),bnode(:),mat(:),cp(:) !boundary edges id(point to edge),mat=每层土的材料号
+	   integer::nbe=0,nbn=0
        integer::format=0 !=0，区域由边界点定义；=1，区域由内点定义
        !当生成PRM和TET时，以下各量会用到
        
-       integer,allocatable::NPrm(:),NTet(:),PRM(:,:),TET(:,:),ISMODEL(:) 
+       integer,allocatable::NPrm(:),NTet(:),PRM(:,:),TET(:,:),ISMODEL(:)
        !区内每层土的棱柱单元和四面体单元的个数,PRM,每层棱柱单元在PRM_ELT中的下标,TET类似。
        !ISmodel=1,yes output in element form. 
+       type(ar2d_tydef),allocatable::bface(:)
+       type(ZONE_LAYGER_VOLUME_TYDEF),allocatable::vbface(:) !faces for each volume in each layer of each zone
        character(32),allocatable::solver_et(:),NAME(:)
     end type
 
@@ -198,6 +209,7 @@ module meshDS
 		integer::E(2)=-1  !the two elements sharing the element	
 		INTEGER::BRECT=0 !zone boudary rectangle face id of out to gmsh volume. 
         INTEGER::ISZONEBC=-1,ISCEDGE=0
+        integer::isxyoverlap=0 !在xy平面上，线段的两端点是否重合,主要是无厚度防渗墙单元的[2,3]和[4,1]节点的边
 	end type
 	type(edge_tydef),allocatable::edge(:)
 	integer::nedge=0
@@ -206,7 +218,7 @@ module meshDS
 		integer::count=0 !the number of adjacent node 
 		integer,pointer::node(:)=>null() !adjacent node
 		integer,pointer::edge(:)=>null() !adjacent edge
-	end type
+ 	end type
 	type(adjlist_tydef),allocatable::adjlist(:) !adjacent table for nodes
 
 	type constrained_edge_tydef
@@ -530,13 +542,11 @@ ENDSUBROUTINE
         INTEGER,ALLOCATABLE,INTENT(INOUT)::AVAL(:)
         INTEGER,INTENT(IN)::DSTEP
         INTEGER,ALLOCATABLE::VAL1(:)
-        INTEGER::LB1=0,UB1=0
+        INTEGER::LB1=0,UB1=0,ALLSTAT
         
-        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-        ALLOCATE(VAL1,SOURCE=AVAL)
-        DEALLOCATE(AVAL)
-        ALLOCATE(AVAL(LB1:UB1+DSTEP))
-        AVAL(LB1:UB1)=VAL1
+        
+        ALLOCATE(VAL1(dstep))
+        AVAL=[AVAL,VAL1]
         !AVAL(UB1+1:UB1+10)=0
         DEALLOCATE(VAL1)
     END SUBROUTINE
@@ -547,11 +557,8 @@ ENDSUBROUTINE
         REAL(8),ALLOCATABLE::VAL1(:)
         INTEGER::LB1=0,UB1=0
     
-        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-        ALLOCATE(VAL1,SOURCE=AVAL)
-        DEALLOCATE(AVAL)
-        ALLOCATE(AVAL(LB1:UB1+DSTEP))
-        AVAL(LB1:UB1)=VAL1
+        ALLOCATE(VAL1(dstep))
+        AVAL=[AVAL,VAL1]
         !AVAL(UB1+1:UB1+10)=0
         DEALLOCATE(VAL1)
     END SUBROUTINE
@@ -561,12 +568,8 @@ ENDSUBROUTINE
         TYPE(point_tydef),ALLOCATABLE::VAL1(:)
         INTEGER::LB1=0,UB1=0
     
-        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-        ALLOCATE(VAL1,SOURCE=AVAL)
-        DEALLOCATE(AVAL)
-        ALLOCATE(AVAL(LB1:UB1+DSTEP))
-        AVAL(LB1:UB1)=VAL1
-        !AVAL(UB1+1:UB1+10)=0
+        ALLOCATE(VAL1(dstep))
+        AVAL=[AVAL,VAL1]
         DEALLOCATE(VAL1)
     END SUBROUTINE   	
     SUBROUTINE ELEMENT_ENLARGE_AR(AVAL,DSTEP)
@@ -575,12 +578,8 @@ ENDSUBROUTINE
         TYPE(element_tydef),ALLOCATABLE::VAL1(:)
         INTEGER::LB1=0,UB1=0
     
-        LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
-        ALLOCATE(VAL1,SOURCE=AVAL)
-        DEALLOCATE(AVAL)
-        ALLOCATE(AVAL(LB1:UB1+DSTEP))
-        AVAL(LB1:UB1)=VAL1
-        !AVAL(UB1+1:UB1+10)=0
+        ALLOCATE(VAL1(dstep))
+        AVAL=[AVAL,VAL1]
         DEALLOCATE(VAL1)
     END SUBROUTINE   
     SUBROUTINE EDGE_ENLARGE_AR(AVAL,DSTEP)
@@ -593,12 +592,35 @@ ENDSUBROUTINE
         !LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
         ALLOCATE(VAL1(dstep))
         AVAL=[AVAL,VAL1]
-        !DEALLOCATE(AVAL)
-        !ALLOCATE(AVAL(LB1:UB1+DSTEP))
-        !AVAL(LB1:UB1)=VAL1
-        !AVAL(UB1+1:UB1+10)=0
         DEALLOCATE(VAL1)
     END SUBROUTINE 
+    SUBROUTINE AR2D_ENLARGE_AR(AVAL,DSTEP)
+        TYPE(ar2d_tydef),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+        INTEGER,INTENT(IN)::DSTEP
+        TYPE(ar2d_tydef),ALLOCATABLE::VAL1(:)
+        INTEGER::LB1=0,UB1=0
+        
+        
+        !LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+        ALLOCATE(VAL1(dstep))
+        AVAL=[AVAL,VAL1]
+        DEALLOCATE(VAL1)
+    END SUBROUTINE     
+    
+    
+    SUBROUTINE ADJLIST_ENLARGE_AR(AVAL,DSTEP)
+        TYPE(ADJLIST_tydef),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+        INTEGER,INTENT(IN)::DSTEP
+        TYPE(ADJLIST_tydef),ALLOCATABLE::VAL1(:)
+        INTEGER::LB1=0,UB1=0
+        
+        
+        !LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+        ALLOCATE(VAL1(dstep))
+        AVAL=[AVAL,VAL1]
+        DEALLOCATE(VAL1)
+    END SUBROUTINE    
+    
 	subroutine seg_initialize(this)
 		use ds_t,only:arr_t
 		!use meshds
@@ -805,7 +827,9 @@ ENDSUBROUTINE
         
     endsubroutine   
     
-    integer function v2edge(v1,v2)
+    integer function v2edge(adjlist,v1,v2)
+        implicit none
+        type(adjlist_tydef)::adjlist(:)
         integer,intent(in)::v1,v2
         integer::n1,i
         
@@ -818,6 +842,89 @@ ENDSUBROUTINE
             endif
         enddo
     endfunction
+    
+     !update the adjlist(i).node and adjlist(i).edge,where i=p and v.
+     subroutine addadjlist(adjlist,v1,v2,iedge,jedge)
+	    !use meshds,only:adjlist_tydef
+	    implicit none
+        type(adjlist_tydef),allocatable::adjlist(:)
+	    integer,intent(in)::v1,v2,iedge
+        integer,optional,intent(out)::jedge !如果iedge已经存在，则以jedge返回其位置,否则jedge=iedge
+        integer::i,j,v(2),n1,n2,n3,nsize1,jedge1
+	    integer,pointer::node1(:)=>null(),edge1(:)=>null()
+        
+	    if(v1<0.or.v2<0) return !the edge in SuperTri is not taken into the list.
+	    v(1)=v1
+	    v(2)=v2
+        if(any(v>size(adjlist))) call enlarge_ar(adjlist,100)
+	    do i=1,2
+		    if(.not.associated(adjlist(v(i)).node)) then
+			    allocate(adjlist(v(i)).node(maxnadjlist),adjlist(v(i)).edge(maxnadjlist))
+			    adjlist(v(i)).node=-1
+			    adjlist(v(i)).edge=-1
+		    end if
+        end do
+        !jedge1=0
+	    if(any(adjlist(v1).node==v2)) then
+            n2=minloc(abs(adjlist(v1).node-v2),dim=1)
+            jedge1=adjlist(v1).edge(n2)
+        else            
+		    do i=1,2
+			    n1=v(i)
+			    n2=v(mod(i,2)+1)
+			    adjlist(n1).count=adjlist(n1).count+1
+			    n3=adjlist(n1).count
+			    nsize1=size(adjlist(n1).node)
+			    if(adjlist(n1).count>nsize1) then				
+				    allocate(node1(2*nsize1), edge1(2*nsize1))
+				    node1(1:nsize1)=adjlist(n1).node
+				    edge1(1:nsize1)=adjlist(n1).edge
+				    deallocate(adjlist(n1)%node,adjlist(n1)%edge)
+				    !allocate(adjlist(n1).node(2*nsize1),adjlist(n1).edge(2*nsize1))
+				    adjlist(n1).node=>node1
+				    adjlist(n1).edge=>edge1
+				    adjlist(n1).node(nsize1+1:2*nsize1)=-1
+				    adjlist(n1).edge(nsize1+1:2*nsize1)=-1
+				    nullify(node1,edge1)
+			    end if
+			    adjlist(n1).node(n3)=n2
+			    adjlist(n1).edge(n3)=iedge
+            end do
+            jedge1=iedge
+        end if
+        if(present(jedge)) jedge=jedge1
+     end subroutine
+
+    subroutine Removeadjlist(adjlist,v1,v2)	
+	    !use meshds,only:adjlist_tydef
+        implicit none
+        type(adjlist_tydef)::adjlist(:)
+	    
+	    integer::v1,v2,i,j,v(2),n1,n2,nc1
+	
+	    if(v1<0.or.v2<0) return !the edge in SuperTri is not taken into the list.
+	    v(1)=v1
+	    v(2)=v2
+	    do i=1,2
+		    n1=v(i)
+		    n2=v(mod(i,2)+1)
+		    nc1=adjlist(n1).count
+		    do j=1,nc1
+			    if(adjlist(n1).node(j)==n2) then
+				    !move the last entry at the place j
+				    adjlist(n1).node(j)=adjlist(n1).node(nc1)
+				    adjlist(n1).node(nc1)=-1
+				    adjlist(n1).edge(j)=adjlist(n1).edge(nc1)
+				    adjlist(n1).edge(nc1)=-1
+				    adjlist(n1).count=nc1-1
+				    exit
+			    end if
+		    end do
+	    end do
+    end subroutine   
+    
+    
+    
 
     SUBROUTINE SETUP_SEARCH_ZONE_2D(MAXX,MINX,MAXY,MINY,TET1)
     !USE solverds,ONLY:ELEMENT_TYDEF

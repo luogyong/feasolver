@@ -1,17 +1,19 @@
 module CutoffWall
-USE meshDS,ONLY:strtoint,seg,segindex,edge,nedge,node,elt,nnode,nelt,ENLARGE_AR,adjlist,soillayer
+USE meshDS,ONLY:strtoint,seg,segindex,edge,nedge,node,elt,nnode,nelt,ENLARGE_AR, &
+    adjlist,soillayer,zone,Removeadjlist,addadjlist
 use ds_t,only:arr_t
 
 implicit none
 private
 real ( kind = 8 ), parameter :: Pi = 3.141592653589793D+00
-public::cowall,ncow
+public::cowall,ncow,xzone,nxzone
 
 type cutoffwall_type
     integer::NCP=0,mat=1 !icl为防渗墙所在的控制线编号    
     real(8)::thick=0 !墙厚
     integer,allocatable::cp(:) !控制点在输入数组中编号
     real(8),allocatable::be(:),te(:) !底高程,顶高程
+    integer,allocatable::node(:),element(:) !node=分离前防渗墙线上的节点（注意不是防渗墙单元的节点）,element=生成的防渗墙防渗墙单元
         
         
     character(512):: helpstring= &
@@ -30,12 +32,78 @@ type cutoffwall_type
         procedure,nopass::help=>write_help
         PROCEDURE::READIN=>COW_read
         PROCEDURE::GEN_ELEMENT=>GEN_COW_ELEMENT
+        PROCEDURE::wall_elevation=>update_wall_elevation
         !PROCEDURE::OUTPUT=>COW_write            
 endtype
 type(cutoffwall_type),allocatable::cowall(:)
 integer::ncow=0
+
+type xzone_tydef
+    integer::izone,isx=1,ncutf=0
+    real(8)::te
+    integer,allocatable::cutface(:) !if isx==1,facets on the cut face,isx==2,cutedge around the cut face.
+    character(1024)::helpstring= &
+        &"xzone的作用是实现切割和开挖。如isx==1(默认),则将处于izone内部的高于te的土体挖掉，==0仅仅进行切割；==2仅对zone的边界线进行切割\n &
+        & \n xZone的输入格式为:\n &
+        & 1)nxzone //结构体数  \n &	
+        & 2) izone,elevation,isx //分别为区域号及其底高程。\n &
+        & "C        
+contains
+    procedure,nopass::help=>write_help
+    procedure::readin=>xzone_readin
+    procedure::set=>xzone_set_elevation
+    !procedure::cut=>xzone_cut_gedge
+endtype
+type(xzone_tydef),allocatable::xzone(:)
+integer::nxzone=0
+
+    contains   
     
-contains    
+    subroutine xzone_readin(this,unit)
+        class(xzone_tydef)::this
+        integer,intent(in)::unit
+        INTEGER::I,J,N1,DN=0,NINC1
+        INTEGER,PARAMETER::DNMAX=1000
+        REAL(8)::AR(DNMAX) 
+        
+ 	    call strtoint(unit,ar,dnmax,dn,dnmax)
+	    !n1=I
+        THIS.izone=int(ar(1)) 
+        !THIS.ndim=int(ar(2))
+        THIS.te=ar(2)
+        if(dn>2) THIS.isx=int(ar(3))
+     
+    endsubroutine    
+
+    subroutine xzone_set_elevation(this)
+        class(xzone_tydef)::this
+        INTEGER::I,J,k,N1,ielt1
+        integer::node1(nnode)
+        
+        node1=0
+        do i=1,zone(this.izone).ntrie3n
+            ielt1=zone(this.izone).trie3n(i)
+            do j=1,3
+                n1=elt(ielt1).node(j)
+                if(node1(n1)==0) then
+                    do k=soillayer,0,-1
+                        if(node(n1).elevation(k)>this.te) then
+                            node(n1).elevation(k)=this.te
+                        else
+                            exit !elevation已经排序
+                        endif
+                    enddo
+                    node1(n1)=1
+                endif
+            enddo
+        enddo
+     
+    endsubroutine
+    
+    !subroutine xzone_cut_gedge()
+    !    class(xzone_tydef)::this
+    !endsubroutine
+    
 subroutine write_help(helpstring,unit)
     USE IFQWIN
     implicit none
@@ -80,16 +148,17 @@ endsubroutine
 subroutine GEN_COW_ELEMENT(this)
     implicit none
     class(cutoffwall_type)::this
-    integer::i,j,k,K1,n1,n2,n3,N4,iseg1,nnum1,nedge1,ielt1,ielt2,iflag,ED1,ED2,v1(2),ALLOC_ERR
+    integer::i,j,k,K1,n1,n2,n3,N4,iseg1,nnum1,nedge1,ielt1,ielt2,iflag,ED1,ED2,v1(2),ALLOC_ERR,nnum2
     integer,allocatable::node1(:),node2(:),edge1(:),elt1(:),edge2(:),elt2(:),edge3(:),edge4(:)
     logical::isclose
     real(8)::val1(2)
     
     !gen new nodes
-    n1=0
+    n1=0;n2=0
     node.subbw=0 !借用
     node.layer=0
     isclose=this.cp(1)==this.cp(this.ncp)
+    if(allocated(edge2)) deallocate(edge2)
     do i=1,this.ncp-1
         iseg1=segindex(this.cp(i),this.cp(i+1))
         !n1=n1+seg(iseg1).nnum-1
@@ -97,29 +166,24 @@ subroutine GEN_COW_ELEMENT(this)
 
         node1=seg(iseg1).get_node([arr_t(this.cp(i)).x,arr_t(this.cp(i)).y])
         nnum1=size(node1)
-        
-        if(i<this.ncp-1) then
-            n1=nnum1-1
-        elseif(.not.isclose) then !not close. add the last one
+        edge1=seg(iseg1).get_edge([arr_t(this.cp(i)).x,arr_t(this.cp(i)).y])
+        nnum2=size(edge1)
+        n1=nnum1-1
+        if(.not.isclose.and.i==this.ncp-1) then !not close. add the last one
             n1=nnum1
         endif        
         node2=[node2,node1(1:n1)]
-        edge1=seg(iseg1).get_edge([arr_t(this.cp(i)).x,arr_t(this.cp(i)).y])
-        edge2=[edge2,edge1]
-        !interpolate wall elevation
-        if(abs(this.te(i)+999.)<1e-6) this.te(i)=node(node1(1)).elevation(soillayer)
-        if(abs(this.te(i+1)+999.)<1e-6) this.te(i+1)=node(node1(nnum1)).elevation(soillayer)
-        if(abs(this.be(i)+999.)<1e-6) this.be(i)=node(node1(1)).elevation(0)
-        if(abs(this.be(i+1)+999.)<1e-6) this.be(i+1)=node(node1(nnum1)).elevation(0)
         
-        do j=1,n1
-            if(.not.allocated(node(node1(j)).we)) allocate(node(node1(j)).we(2))
-            node(node1(j)).we(1)=linearint([arr_t(this.cp(i)).x],this.te(i),[arr_t(this.cp(i+1)).x],this.te(i+1),[node(node1(j)).x])
-            node(node1(j)).we(2)=linearint([arr_t(this.cp(i)).x],this.be(i),[arr_t(this.cp(i+1)).x],this.be(i+1),[node(node1(j)).x])
-        enddo
+        edge2=[edge2,edge1]
+        !if(size(node2)/=size(edge2)) then
+        !    print *, size(node2),size(edge2)
+        !endif
+      
     enddo
       
     n1=size(node2)
+    n2=size(edge2)
+    this.node=node2
     if(size(node)<nnode+n1) call enlarge_ar(node,n1)
     do j=1,n1
         nnode=nnode+1        
@@ -185,13 +249,13 @@ subroutine GEN_COW_ELEMENT(this)
                     
                 ENDIF
                 IF(ED1/=NEDGE.AND.ANY(EDGE(ED1).V==NODE2(J))) THEN
-                    CALL REMOVEADJLIST(EDGE(ED1).V(1),EDGE(ED1).V(2))
+                    CALL Removeadjlist(adjList,EDGE(ED1).V(1),EDGE(ED1).V(2))
                 ENDIF
                 WHERE(EDGE(ED1).V==NODE2(J))
                     EDGE(ED1).V=NODE(NODE2(J)).SUBBW                    
                 ENDWHERE
                 IF(ANY(EDGE(ED1).V==NODE(NODE2(J)).SUBBW )) THEN
-                    CALL ADDADJLIST(EDGE(ED1).V(1),EDGE(ED1).V(2),ED1)
+                    CALL addadjlist(adjList,EDGE(ED1).V(1),EDGE(ED1).V(2),ED1)
                 ENDIF                
             ENDDO
         ENDDO
@@ -202,6 +266,7 @@ subroutine GEN_COW_ELEMENT(this)
     !gen zerothickness element
     n2=size(edge2)
     if(size(elt)<nelt+n2) call enlarge_ar(elt,n2)
+    this.element=nelt+[1:n2]
     do i=1,n2
         nelt=nelt+1
         if(i==1) n4=nelt
@@ -220,7 +285,8 @@ subroutine GEN_COW_ELEMENT(this)
         ielt1=elt2(edge1(i))
         
         elt(nelt).adj(1)=ielt1
-            
+        elt(nelt).zn=0
+        
         if(edge(ed1).e(1)/=ielt1) then
             ielt2=edge(ed1).e(1)
             edge(ed1).e(1)=nelt
@@ -256,16 +322,18 @@ subroutine GEN_COW_ELEMENT(this)
         if(nedge>size(edge,dim=1)) call enlarge_ar(edge,100)
         !edge(nedge)=edge(ed1)
         edge(nedge).v=elt(nelt).node([4,1])
+        edge(nedge).isxyoverlap=1
         edge(nedge).e=[nelt,elt(nelt).adj(4)]
         if(i==1) n3=nedge
-        call addadjlist(edge(nedge).v(1),edge(nedge).v(2),nedge)
+        call addadjlist(adjList,edge(nedge).v(1),edge(nedge).v(2),nedge)
         if((.not.isclose).and.(i==n2)) then
             nedge=nedge+1
             if(nedge>size(edge,dim=1)) call enlarge_ar(edge,100)
             !edge(nedge)=edge(ed1)
             edge(nedge).v=elt(nelt).node(2:3)
+            edge(nedge).isxyoverlap=1
             edge(nedge).e=[nelt,elt(nelt).adj(2)]
-            call addadjlist(edge(nedge).v(1),edge(nedge).v(2),nedge)            
+            call addadjlist(adjList,edge(nedge).v(1),edge(nedge).v(2),nedge)            
         end if
 
         if(isclose.and.(i==n2)) then
@@ -281,6 +349,41 @@ subroutine GEN_COW_ELEMENT(this)
     node.subbw=0
     node.layer=0
 endsubroutine
+
+subroutine update_wall_elevation(this)
+    implicit none
+    class(cutoffwall_type)::this
+    integer::i,j,k,K1,n1,iseg1,nnum1
+    integer,allocatable::node1(:)
+    logical::isclose
+    
+    
+    isclose=this.cp(1)==this.cp(this.ncp)
+    do i=1,this.ncp-1
+        iseg1=segindex(this.cp(i),this.cp(i+1))
+        !n1=n1+seg(iseg1).nnum-1
+        !call seg(iseg1).getparas(nnum=nnum1,nedge=nedge1)
+
+        node1=seg(iseg1).get_node([arr_t(this.cp(i)).x,arr_t(this.cp(i)).y])
+        nnum1=size(node1)
+        
+        n1=nnum1-1
+        if(.not.isclose.and.i==this.ncp-1) then !not close. add the last one
+            n1=nnum1
+        endif  
+        !interpolate wall elevation
+        if(abs(this.te(i)+999.)<1e-6) this.te(i)=node(node1(1)).elevation(soillayer)
+        if(abs(this.te(i+1)+999.)<1e-6) this.te(i+1)=node(node1(nnum1)).elevation(soillayer)
+        if(abs(this.be(i)+999.)<1e-6) this.be(i)=node(node1(1)).elevation(0)
+        if(abs(this.be(i+1)+999.)<1e-6) this.be(i+1)=node(node1(nnum1)).elevation(0)
+        
+        do j=1,n1
+            if(.not.allocated(node(node1(j)).we)) allocate(node(node1(j)).we(2))
+            node(node1(j)).we(1)=linearint([arr_t(this.cp(i)).x],this.te(i),[arr_t(this.cp(i+1)).x],this.te(i+1),[node(node1(j)).x])
+            node(node1(j)).we(2)=linearint([arr_t(this.cp(i)).x],this.be(i),[arr_t(this.cp(i+1)).x],this.be(i+1),[node(node1(j)).x])
+        enddo        
+    enddo
+end subroutine
 
 
 FUNCTION find_ELT_ON_HEADING_LEFT(V,BE1,BE2) RESULT(ELT1)

@@ -57,7 +57,9 @@
 		if(nsm>0) call structuremesh()
 		!call group()
         CALL tri_elt_group2d()
-        
+        do i=1,ncow
+            call cowall(i).gen_element()
+        enddo        
 		call elementgroup()
 		call limitanalysisgrid()
 		call time(char_time)	 
@@ -77,6 +79,7 @@
   
   SUBROUTINE CLEAR_EDGE_ELEMENT()
 	USE MESHDS
+    USE geomodel,ONLY:CHECK_ORIENT
 	IMPLICIT NONE
 	INTEGER::I,N1=0
 	N1=0
@@ -89,9 +92,11 @@
 	do i=1,NELT
 		if(ELT(i).ISDEL) cycle
 		N1=N1+1
-		ELT(I).NUMBER=N1
+		ELT(I).NUMBER=N1        
 	end do
 	ENUMBER=N1
+    
+    CALL CHECK_ORIENT()
 	
 ENDSUBROUTINE
     
@@ -136,13 +141,14 @@ ENDSUBROUTINE
 		integer::i,j,K,IELT1,N1,N2,iseg1,ielt2
 		real(8)::xc,yc,PT(2)
 		logical::tof
-        integer::stack1(10000),EDGE1(NEDGE),EDGE2(NEDGE)
+        integer::stack1(10000),EDGE1(NEDGE),EDGE2(NEDGE),ISCHK1(NELT),IA1(NNODE)
         
         ELT(1:NELT).ZN=0
         
         call SETUP_SEARCH_ZONE_2D((Xmax-Xmin)/xyscale,0.d0,(Ymax-Ymin)/xyscale,0.d0,elt(1:nelt))
         EDGE1=0;
         DO I=1,ZNUM
+            ISCHK1=0
             IF(ZONE(I).FORMAT==1) THEN
                 EDGE2=0
                 DO K=1,ZONE(I).NUM
@@ -158,6 +164,8 @@ ENDSUBROUTINE
                     DO WHILE(N2>0)
                         IELT1=STACK1(N2)                
                         N2=N2-1
+                        IF(ISCHK1(IELT1)==1) CYCLE
+                        ISCHK1(IELT1)=1
                         DO J=1,ELT(IELT1).NNUM
                             N1=ELT(IELT1).EDGE(J)
                             EDGE2(N1)=EDGE2(N1)+1
@@ -165,10 +173,12 @@ ENDSUBROUTINE
                                 EDGE1(N1)=I                            
                                 IELT2=ELT(IELT1).ADJ(J)
                                 IF(IELT2>0) THEN
-                                    N2=N2+1
-                                    STACK1(N2)=IELT2
-                                    ELT(IELT2).ZN=I
-                                    if(zone(i).outgmshtype>=2) ELT(IELT2).ZN2=I
+                                    IF(ISCHK1(IELT2)==0) THEN
+                                        N2=N2+1
+                                        STACK1(N2)=IELT2
+                                        ELT(IELT2).ZN=I
+                                        if(zone(i).outgmshtype>=2) ELT(IELT2).ZN2=I
+                                    ENDIF
                                 ENDIF
                             ENDIF
                         
@@ -178,14 +188,25 @@ ENDSUBROUTINE
                 ENDDO
                 ZONE(I).NBE=COUNT(EDGE2==1)
                 ZONE(I).BEDGE=PACK([1:NEDGE],EDGE2==1)
+                DO J=1,ZONE(I).NBE
+                    IA1(EDGE(ZONE(I).BEDGE(J)).V)=1
+                ENDDO
+                ZONE(I).BNODE=PACK([1:NNODE],IA1(1:NNODE)==1) !NOT SORTED
+                zone(i).nbn=size(zone(i).bnode)
             ELSE
                 if(zone(i).nbe==0) then
                     do j=1,zone(i).num
                         iseg1=segindex(zone(i).cp(j),zone(i).cp(mod(j,zone(i).num)+1))
-                        zone(i).bedge=[zone(i).bedge,(seg(iseg1).get_edge(zone(i).point(:,j)))]                    
+                        zone(i).bedge=[zone(i).bedge,seg(iseg1).get_edge(zone(i).point(:,j))]
+                        if(.not.allocated(zone(i).bnode)) then
+                            zone(i).bnode=[zone(i).bnode,seg(iseg1).get_node(zone(i).point(:,j))]
+                        else                            
+                            zone(i).bnode=[zone(i).bnode(:size(zone(i).bnode)-1),seg(iseg1).get_node(zone(i).point(:,j))]
+                        endif
                     enddo
                     zone(i).bedge=abs(zone(i).bedge)
                     zone(i).nbe=size(zone(i).bedge)
+                    zone(i).nbn=size(zone(i).bnode)-1 !ZONE BC IS CLOSE. EXCLUDE THE LAST NODE.
                 endif                
                 
                 PT=Find_Point_Inside_Polygon_2D(zone(i).point)
@@ -203,19 +224,22 @@ ENDSUBROUTINE
                 edge2(zone(i).bedge)=1
                 
                 DO WHILE(N2>0)
-                    IELT1=STACK1(N2) 
-
+                    IELT1=STACK1(N2)                     
                     N2=N2-1
+                    IF(ISCHK1(IELT1)==1) CYCLE
+                    ISCHK1(IELT1)=1
                     DO J=1,ELT(IELT1).NNUM
                         N1=ELT(IELT1).EDGE(J)
                         IF(EDGE2(N1)==0.AND.EDGE1(N1)/=I) THEN
                             EDGE1(N1)=I                            
                             IELT2=ELT(IELT1).ADJ(J)
                             IF(IELT2>0) THEN
-                                N2=N2+1
-                                STACK1(N2)=IELT2
-                                IF(ELT(IELT2).ZN==0) ELT(IELT2).ZN=I !这种格式要区分大区套小区的情况
-                                if(zone(i).outgmshtype>=2.and.ELT(IELT2).ZN2==-1) ELT(IELT2).ZN2=I
+                                IF(ISCHK1(IELT2)==0) THEN
+                                    N2=N2+1
+                                    STACK1(N2)=IELT2
+                                    IF(ELT(IELT2).ZN==0) ELT(IELT2).ZN=I !这种格式要区分大区套小区的情况
+                                    if(zone(i).outgmshtype>=2.and.ELT(IELT2).ZN2==-1) ELT(IELT2).ZN2=I
+                                ENDIF
                             ENDIF
                         ENDIF
                     ENDDO

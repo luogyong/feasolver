@@ -234,7 +234,7 @@ subroutine	del_element_update_edge(el)
 		if(edge(n1).e(2)==el) edge(n1).e(2)=-1
 		if(edge(n1).e(1)==-1.and.edge(n1).e(2)==-1) then
 			!update adjlist()
-			call Removeadjlist(edge(n1).v(1),edge(n1).v(2))	
+			call Removeadjlist(adjList,edge(n1).v(1),edge(n1).v(2))	
 			!if edge.v=0 then the edge is invalid.
 			edge(n1).v=0 
 			 

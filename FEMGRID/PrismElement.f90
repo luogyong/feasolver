@@ -4,7 +4,6 @@
 !Generate 3D 6-node prism element.
 Subroutine Generate_3D_MODEL()
 	use meshds
-    use CutoffWall
 	implicit none
 	logical::istet
 	integer::et1,i,j,k,n1,n2
@@ -12,16 +11,14 @@ Subroutine Generate_3D_MODEL()
 
 	
 	!Output the node and read in the elevation data
-    call st_membrance()
+    call st_membrance()  
+
     
-    do i=1,ncow
-        call cowall(i).gen_element()
-    enddo
     
 	call First_Order_PrismElement_Gen()
     
     call meshoutput()
-end Subroutine
+    end Subroutine
     
 !Subroutine Generate_tet_element()
 !	use meshds
@@ -39,10 +36,14 @@ end Subroutine
 !    
 !end Subroutine
 
+
+
+    
     
 
 	subroutine First_Order_PrismElement_Gen()
 	    use meshds
+        use CutoffWall
 	    implicit none
 		!logical,intent(in)::istet
 	    integer::i,j,k,n1,n2,n3,n4(2)=0,iat(3)=0,Vtet(4)=0,shift1=1
@@ -201,10 +202,12 @@ end Subroutine
 
 	subroutine st_membrance()
 		use meshds
+        use CutoffWall
+        USE geomodel,ONLY:GEN_SUBELEMENT,NGNODE
 		implicit none
-		integer::i,j,k,ng,maxbw1,a1,iflag,n1,j1,j2,n2,k1,pv1(3),err
+		integer::i,j,k,ng,maxbw1,a1,iflag,n1,j1,j2,n2,k1,pv1(4),err,pv2(2)
 		logical::isinp=.true.
-		real(8)::t1,b1(3),c1(3),xy(2,3),t2
+		real(8)::t1,b1(3),c1(3),xy(2,3),t2,KT1(2,2)
 		real(8),allocatable::Tm1(:),tm1b(:),load1(:),at1(:)	
 		INTEGER,ALLOCATABLE::IPERM(:),bw1(:)
 	    logical,allocatable::Lt1(:)
@@ -220,7 +223,7 @@ end Subroutine
 		
 		    do i=1,nelt
 			    if(elt(i).isdel) cycle
-			    n1=3
+			    n1=elt(i).nnum
 			    if(elt(i).et==6) n1=6
 			    if(elt(i).et==15) n1=15
 			    node(elt(i).node(1:n1)).subbw=0
@@ -260,10 +263,11 @@ end Subroutine
 		    !assemble the total km
 		    allocate(tm1(bw1(ng)),tm1b(bw1(ng)),load1(ng))
 		    tm1=0.0
-		
+		    KT1(1,1)=1.d10;KT1(2,2)=KT1(1,1);KT1(1,2)=-1.D10;KT1(2,1)=KT1(1,2)
 		    do i=1,nelt
 			    if(elt(i).isdel) cycle
-			    pv1(1:3)=node(elt(i).node(1:3)).number
+                n1=elt(i).nnum
+			    pv1(1:n1)=node(elt(i).node(1:n1)).number
 			    select case(elt(i).et)
 				    case(0)
 
@@ -286,8 +290,24 @@ end Subroutine
 							    tm1(a1)=tm1(a1)+t2							  
 						    end do
 					    end do
-					
-					
+                    case(-1)
+                        !无厚度单元对应节点的高程相等
+                        do k1=1,2
+                            if(k1==1) then
+                                pv2=pv1([2,3])
+                            else
+                                pv2=pv1([1,4])
+                            endif
+                            
+                            do j=1,2
+                                do k=1,2
+                                    if(pv2(j)<pv2(k))  cycle   
+							        T2=KT1(J,K)
+							        a1=bw1(pv2(j))-(pv2(j)-pv2(k))
+							        tm1(a1)=tm1(a1)+t2
+                                enddo
+                            enddo
+                        enddo
 				    case default
 					    Print *, 'Error! Membrance Interpolation. Only 3-noded element is considered.'
 					    stop
@@ -374,10 +394,18 @@ end Subroutine
             enddo
         enddo
         
+        do i=1,ncow
+            call cowall(i).wall_elevation()
+        enddo
+        !do i=1,nxzone
+        !    call xzone(i).set()
+        !enddo
+        
         allocate(node1(nnode))
 	    node1=node(1:nnode)
 	    deallocate(node)
 	    allocate(node(nnode*(soillayer+1)))
+        NGNODE=nnode*(soillayer+1)
 	    do i=0,soillayer
 		    n1=nnode*i
             if(i==0) then
@@ -402,29 +430,37 @@ end Subroutine
 	    end do
         
 	    allocate(at1(0:soillayer),Lt1(0:soillayer))	
-    
+        
 	    do i=1,nnode
 		    Lt1=.false.
-		    do j=0, soillayer-1
+		    do j=0, soillayer
 			    if(Lt1(j)) cycle
-			    n1=(j)*nnode+i
+                n1=(j)*nnode+i
 			    do k=j+1,soillayer
 				    if(Lt1(k)) cycle
 				    n2=(k)*nnode+i
 				    t1=node(n1).z-node(n2).z
-				    if(abs(t1)<1e-4) then
-					    node(n2).iptr=n1 !<>0,dead
-					    Lt1(k)=.true.					
+				    if(abs(t1)<1.d-4) then
+					    node(n2).iptr=n1 !<>0,dead !保留下层重节点
+					    Lt1(k)=.true.
                     end if
                 end do
+                if(Lt1(j)==.false.) node(n1).iptr=n1
 		    end do
-	    end do	
+        end do	
      
+        CALL Gen_SubElement()
+        
         deallocate(at1,lt1)
         
         issoilinterpolated=.true.
         
-	end subroutine
+        
+        
+    end subroutine
+    
+    
+
 	
 	
 	subroutine bc_meminp()
