@@ -3,6 +3,7 @@
 		use meshds
 		USE DFPORT
         use CutoffWall
+        use triangle_io
 		character*8 char_time
 		integer::i,n1,nc,iflag
 		REAL time_begin, time_end
@@ -18,40 +19,45 @@
 		call TIME(char_time)  	 
 		print *, 'Read in data completed.Begin to allocate space...', char_time
 
+        if(libtriangle.method>=0) then
+            call libtriangle.exe(path_name)
+            call libtriangle.getdata(element=elt,node=node,edge=edge,adjlist=adjlist,cedge=cedge)
+            nelt=size(elt);nnode=size(node);nedge=size(edge);ncedge=size(cedge);            
+        else
+            
+		    !对全区变量用区域变量的相应值进行初始化
+		    !call initialize_m(i)	  
+		    call TIME(char_time)
+		    print *, 'Begin to insert nodes in control lines... ', char_time	
+		    !call BPInsert(i)
+		    call CLinsert
+		    call TIME(char_time)
+		    print *, 'Control lines have been divided. Begin to generate the initial mesh, please wait…: ', char_time	
 
-		!对全区变量用区域变量的相应值进行初始化
-		!call initialize_m(i)	  
-		call TIME(char_time)
-		print *, 'Begin to insert nodes in control lines... ', char_time	
-		!call BPInsert(i)
-		call CLinsert
-		call TIME(char_time)
-		print *, 'Control lines have been divided. Begin to generate the initial mesh, please wait…: ', char_time	
+		    if(keypn>0) then
+    !			call BPmesh
+			    call kpmesh
+			    call TIME(char_time)
+			    print *, ''
+			    write(*,*), 'Initial mesh has been generated. Begin to repair control line, please wait…: ', char_time		 
 
-		if(keypn>0) then
-!			call BPmesh
-			call kpmesh
-			call TIME(char_time)
-			print *, ''
-			write(*,*), 'Initial mesh has been generated. Begin to repair control line, please wait…: ', char_time		 
-
-			iflag=0
-			call RCL_4th(iflag)
-			!call Removesupertri()			
-			call RemoveT()
-			call TIME(char_time)
-			if(isnorefined<1) then
-				print *, 'Control lines have been repaired in the initial mesh. Begin to refine the initial mesh, please warit…: ', char_time
-				call InsertPoint()
-				call TIME(char_time)
-				print *, 'Refine mesh completed. Begin to repair control lines again, please wait…: ', char_time
-				iflag=1
-				call RCL_4th(iflag)
-				call time(char_time)
-			endif
-			print *, 'Delaunay triangular Mesh completed. Begin to  handle other tasks, please wait…: ', char_time	 	 	 	 
-		end if
-		
+			    iflag=0
+			    call RCL_4th(iflag)
+			    !call Removesupertri()			
+			    call RemoveT()
+			    call TIME(char_time)
+			    if(isnorefined<1) then
+				    print *, 'Control lines have been repaired in the initial mesh. Begin to refine the initial mesh, please warit…: ', char_time
+				    call InsertPoint()
+				    call TIME(char_time)
+				    print *, 'Refine mesh completed. Begin to repair control lines again, please wait…: ', char_time
+				    iflag=1
+				    call RCL_4th(iflag)
+				    call time(char_time)
+			    endif
+			    print *, 'Delaunay triangular Mesh completed. Begin to  handle other tasks, please wait…: ', char_time	 	 	 	 
+		    end if
+		endif
 		!call seg_initialize()
 		
 		if(nsm>0) call structuremesh()
@@ -145,14 +151,14 @@ ENDSUBROUTINE
         
         ELT(1:NELT).ZN=0
         
-        call SETUP_SEARCH_ZONE_2D((Xmax-Xmin)/xyscale,0.d0,(Ymax-Ymin)/xyscale,0.d0,elt(1:nelt))
+        call SETUP_SEARCH_ZONE_2D(SEARCHZONE,NSZONE,(Xmax-Xmin)/xyscale,0.d0,(Ymax-Ymin)/xyscale,0.d0,NODE(1:NNODE),elt(1:nelt))
         EDGE1=0;
         DO I=1,ZNUM
             ISCHK1=0
             IF(ZONE(I).FORMAT==1) THEN
                 EDGE2=0
                 DO K=1,ZONE(I).NUM
-                    IELT1=POINTlOC_2D(ZONE(I).POINT(:,K),-1)
+                    IELT1=POINTlOC_2D(ZONE(I).POINT(:,K),-1,SEARCHZONE,NODE(1:NNODE),ELT)
                     IF(IELT1<1) THEN
                         PRINT *, 'NO TRIANGLE ELEMENT IN ZONE(I).I=',I
                         CYCLE
@@ -210,7 +216,7 @@ ENDSUBROUTINE
                 endif                
                 
                 PT=Find_Point_Inside_Polygon_2D(zone(i).point)
-                IELT1=POINTlOC_2D(PT,-1)
+                IELT1=POINTlOC_2D(PT,-1,SEARCHZONE,NODE(1:NNODE),ELT)
                 IF(IELT1<1) THEN
                     PRINT *, 'NO TRIANGLE ELEMENT IN ZONE(I).I=',I
                     CYCLE

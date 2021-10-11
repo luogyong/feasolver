@@ -384,9 +384,9 @@ module geomodel
                     n3=elt(i).edge(k)
                     if(n2>0) then
                         selt(nselt).adj(2+k)=(n2-1)*soillayer+j
-                        IF(NSELT==3491) THEN
-                            PRINT *, 'ADJ(J)',2+K,selt(nselt).adj(2+k)
-                        ENDIF
+                        !IF(NSELT==3491) THEN
+                        !    PRINT *, 'ADJ(J)',2+K,selt(nselt).adj(2+k)
+                        !ENDIF
                     else
                         selt(nselt).adj(2+k)=-1 
                     endif
@@ -497,8 +497,10 @@ module geomodel
                 else  
                     if(selt(n3).adj(1)/=ia1(j-1)) then
                         selt(n3).adj(1)=ia1(j-1)
+                        N4=selt(n3).face(1)
                         face(selt(n3).face(1)).isdel=.true.
                         selt(n3).face(1)=selt(ia1(j-1)).face(2)
+                        face(selt(n3).face(1)).isdel=.FALSE.
                         where(face(selt(n3).face(1)).e/=ia1(j-1)) face(selt(n3).face(1)).e=n3
                     endif
                     
@@ -516,9 +518,10 @@ module geomodel
                 else
                     if(selt(n3).adj(2)/=ia1(j+1)) then
                         selt(n3).adj(2)=ia1(j+1)
-                        !face(selt(n3).face(2)).isdel=.true.
+                        N4=selt(n3).face(2)
                         face(selt(n3).face(2)).isdel=.true.
                         selt(n3).face(2)=selt(ia1(j+1)).face(1)
+                        face(selt(n3).face(2)).isdel=.FALSE.
                         where(face(selt(n3).face(2)).e/=ia1(j+1)) face(selt(n3).face(2)).e=n3
                     endif
                 endif
@@ -556,7 +559,7 @@ module geomodel
                 ENDIF
             ENDIF
             
-            n1=face(i).nnum
+            
             if(any(e1<0)) then
                 face(i).isb=1
             elseif(selt(e1(1)).zn/=selt(e1(2)).zn) then
@@ -564,22 +567,27 @@ module geomodel
             elseif(selt(e1(1)).zn==selt(e1(2)).zn.and.(selt(e1(1)).ilayer/=selt(e1(2)).ilayer)) then
                 face(i).isb=3
             endif
-            
-            DO j=1,NXZONE
-            !MARK THE FACES ON THE CUT FACE
-                IF(XZONE(J).ISX/=2) THEN
-                    WHERE(FACE(XZONE(j).CUTFACE).ISB==0) FACE(XZONE(j).CUTFACE).ISB=4
-                ELSE
-                    WHERE(GEDGE(XZONE(j).CUTFACE).ISB==0) GEDGE(XZONE(j).CUTFACE).ISB=4
-                ENDIF                
-            ENDDO
-            
+        enddo
+        
+        
+        DO j=1,NXZONE
+        !MARK THE FACES ON THE CUT FACE
+            IF(XZONE(J).ISX/=2) THEN
+                WHERE(FACE(XZONE(j).CUTFACE).ISB==0) FACE(XZONE(j).CUTFACE).ISB=4
+            ELSE
+                WHERE(GEDGE(XZONE(j).CUTFACE).ISB==0) GEDGE(XZONE(j).CUTFACE).ISB=4
+            ENDIF                
+        ENDDO
+        
+        do i=1,nface
+            if(face(i).isdel)  cycle
+            n1=face(i).nnum
             if(face(i).isb>0) then
                 gedge(abs(face(i).edge(1:n1))).isb=face(i).isb
                 node(face(i).node(1:n1)).isb=face(i).isb
                 call bface2zonebface(i)
             endif
-        enddo
+        end do
         
         DO I=1,ZNUM
             DO J=1,SOILLAYER
@@ -1161,12 +1169,12 @@ module geomodel
             face(nface+2).edge(face(nface+2).nnum)=gedge(ngedge).iptr
             gedge(ngedge).subid(2)=face(nface+2).nnum
             
-            !令第一个子面nfane+1为上子面。
-            if(any(node(vface1(iw1)).z<be)) then
-                face(nface+3)=face(nface+1)
-                face(nface+1)=face(nface+2)
-                face(nface+2)=face(nface+3)
-            endif
+            !令第一个子面nface+1为上子面。
+            !if(any(node(vface1(iw1)).z<be)) then
+            !    face(nface+3)=face(nface+1)
+            !    face(nface+1)=face(nface+2)
+            !    face(nface+2)=face(nface+3)
+            !endif
             face(nface+1:nface+3).cutedge=0                 
             call edge_adjlist_add_face(nface+1)  
             call edge_adjlist_add_face(nface+2)
@@ -2389,24 +2397,41 @@ module geomodel
 
 	END FUNCTION
     
+    !SUBROUTINE CHECK_ORIENT()
+    !    INTEGER::I,J,V1,V2
+    !    
+    !    DO I=1,NELT
+    !        IF(ELT(I).ISDEL) CYCLE
+    !        V2=EDGE(ELT(I).EDGE(1)).V(2)
+    !        DO J=2,ELT(I).NNUM
+    !            V1=EDGE(ELT(I).EDGE(J)).V(1)
+    !            IF(V2/=V1)THEN
+    !                ELT(I).ORIENT(J)=-1
+    !                V2=EDGE(ELT(I).EDGE(J)).V(1)
+    !            ELSE
+    !                ELT(I).ORIENT(J)=1;V2=EDGE(ELT(I).EDGE(J)).V(2)
+    !            ENDIF
+    !        ENDDO
+    !    ENDDO
+    !    
+    !ENDSUBROUTINE
+    
+    
     SUBROUTINE CHECK_ORIENT()
-        INTEGER::I,J,V1,V2
-        
+        INTEGER::I,J        
         DO I=1,NELT
             IF(ELT(I).ISDEL) CYCLE
-            V2=EDGE(ELT(I).EDGE(1)).V(2)
-            DO J=2,ELT(I).NNUM
-                V1=EDGE(ELT(I).EDGE(J)).V(1)
-                IF(V2/=V1)THEN
+            
+            DO J=1,ELT(I).NNUM
+                IF(ELT(I).NODE(J)/=EDGE(ELT(I).EDGE(J)).V(1)) THEN
                     ELT(I).ORIENT(J)=-1
-                    V2=EDGE(ELT(I).EDGE(J)).V(1)
                 ELSE
-                    ELT(I).ORIENT(J)=1;V2=EDGE(ELT(I).EDGE(J)).V(2)
+                    ELT(I).ORIENT(J)=1                
                 ENDIF
             ENDDO
         ENDDO
         
-    ENDSUBROUTINE
+    ENDSUBROUTINE    
     
     SUBROUTINE SELT_ENLARGE_AR(AVAL,DSTEP)
         TYPE(subelt_tydef),ALLOCATABLE,INTENT(INOUT)::AVAL(:)

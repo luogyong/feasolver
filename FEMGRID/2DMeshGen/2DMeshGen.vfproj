@@ -57,7 +57,8 @@
 		<File RelativePath="..\PrismElement.f90"/>
 		<File RelativePath=".\Structure-model-geo.f90">
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File></Filter>
+			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
+		<File RelativePath=".\triangle_io.f90"/></Filter>
 		<Filter Name="graph">
 		<File RelativePath="..\checkdata.f90"/>
 		<File RelativePath="..\graph.f90"/></Filter>

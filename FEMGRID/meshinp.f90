@@ -4,6 +4,7 @@
 		use ds_t
 		use dflib
         use ifport
+        
 		implicit none
 
 
@@ -35,17 +36,18 @@
 		inquire(1,name=nme)
 		length = SPLITPATHQQ(nme, drive, dir, name, ext)
         msg = CHDIR(trim(drive)//trim(dir))
-        
+        path_name=trim(drive)//trim(dir)//trim(name)
+        title=trim(name)
 		unit=1
 		itype=0
 		call read_execute(unit,itype,keyword)
 
 
-		path_name=trim(drive)//trim(dir)//trim(name)
+		
 		resultfile=trim(path_name)//'.SINP'		
 
 		checkfile=trim(path_name)//'_check.plot'
-		title=trim(name)
+		
 
 		close(1)
 
@@ -142,6 +144,7 @@ do i=1,nmgroup
     zone(model(i).izone).ismodel(model(i).ilayer)=1
 enddo
 
+!call write_poly_file()
 
 
    print *,'Reading data COMPLETED.'
@@ -192,12 +195,14 @@ enddo
      use BC_HANDLE
      use CutoffWall
      use geomodel,only:blo,nblo
+     use triangle_io,only:libtriangle
 	 implicit none
 	 integer::i,j,k,j1
 	
 	 integer::nt1,nt2,n1,n2,ef,unit,ni,n3
 	 integer(4)::msg,oldcolor
-     character(256) term,string,str1
+     character(len=*) term
+     character(len=1024)::string,str1
 	 character(1)::ch
 	 CHARACTER(3)::SUPNO
 	 character(16)::legalC
@@ -229,6 +234,10 @@ enddo
 	 term=trim(term)
 	
 	 select case(term)
+         
+        case('mesh_by_triangle','triangle')
+            call libtriangle.readin(unit)       
+         
      
         case('model')
 		   print *,'Reading model data...'
@@ -310,18 +319,20 @@ enddo
 		   print *,'Reading POINT data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
 		   write(*,'(A1024)') '\n Point的输入格式为:\n &
-           &    0) Point[,soillayer=#,inpmethod=0|1,zorder=0|1,isnorefined=0|1|-1|-a] \n  &
+           &    0) Point[,soillayer=#,inpmethod=0|1|2,zorder=0|1,isnorefined=0|1|-1|-a] \n  &
            &    1) 点数(inpn);\n &
            &    2) 序号(num),坐标(x),坐标(y),[elevation(1:soillayer+1)][,meshsize]. 共inpn行.\n &
            &    Notes: \n &
            &        a)Zorder,高程输入顺序，=0(默认)表高程elevation从底层往上输;=1反之. \n &
-           &        b)inpmethod,土层插值方法,=0表膜方程插值;=1(默认),三角形线插. \n &
+           &        b)inpmethod,土层插值方法,=0表膜方程插值;=1(默认),三角形线插;=2背景网格线插. \n &
            &        c)isnorefined,是否加密网格,0=No(默认,细分，且由网格最大尺寸为相邻点的最小距离),1=Yes(不细分),-1=NO(细分，尺寸按输入,如不输入，则网格尺寸为且相邻点的最大距离);.\n &
            &        d）=-a(/=1),细分，所有节点的网格尺寸按模型长度的1/a. \n &    
            &        e)meshsize=该点附近的网格大小(可不输入). \n &
            &        f)soillayer=模型的土层数(默认0) \n &
            &        g)elevation=该点的各土层面高程(soillayer>0时输入) \n &
-           &        h) 当soillayer>0时，最外圈模型边界点要求输入各地层高程，因为外插不可控。\n'c
+           &        h) 当soillayer>0时，最外圈模型边界点要求输入各地层高程，因为外插不可控。\n &
+           &        i) 当采用第三方程序Triangle进行网格划分且要进行地层插值时，所有节点都必须输入确定的地层信息。\n &
+           &'C
 		   oldcolor = SETTEXTCOLOR(INT2(15))
             do i=1, pro_num
                 select case(property(i).name)
@@ -437,7 +448,7 @@ enddo
 			allocate(segindex(inpn,inpn))
 			segindex=0
 			allocate(seg(maxnseg))	   		   
-
+            
 		case('size point','sp')
 		   print *,'Reading SIZE POINT data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
@@ -1160,12 +1171,13 @@ enddo
 	
 	  implicit none
 	  integer::i,unit,ef,ITYPE
-	  character(256)::term,keyword
+	  character(len=2096)::term
+      character(len=*)::keyword
 	  character(1)::ch
 
 	  ef=0
 	  do while(ef==0)
-	     read(unit,'(a256)',iostat=ef) term	
+	     read(unit,'(A)',iostat=ef) term	
 		 if(ef<0) exit
 		 term=adjustl(term)
          if(len_trim(term)==0) cycle
@@ -1180,10 +1192,10 @@ enddo
 		 write(ch,'(a1)') term
 		 if(ch/='/') then
 	        backspace(unit)
-			read(unit,'(a256)') term
-			call lowcase(term)
-			call translatetoproperty(term)
+			read(unit,'(A)') term
 			
+			call translatetoproperty(term)
+			call lowcase(term)
 			if(itype>0) then
 			   if(index(keyword,trim(term))==0) cycle
 			end if
@@ -1250,8 +1262,19 @@ subroutine skipcomment(unit)
 		end if
 	end do
 	
-end subroutine
+    end subroutine
 
+    !FUNCTION is_numeric(string)
+    !    USE ieee_arithmetic
+    !    IMPLICIT NONE
+    !    CHARACTER(len=*), INTENT(IN) :: string
+    !    LOGICAL :: is_numeric
+    !    REAL :: x
+    !    INTEGER :: e
+    !    x = FOR_S_NAN
+    !    READ(string,'(F15.0)',IOSTAT=e) x
+    !    is_numeric = ((e == 0) .and. (.NOT. ISNAN(X)))
+    !END FUNCTION is_numeric
 
 subroutine translatetoproperty(term)
 
@@ -1279,9 +1302,9 @@ subroutine translatetoproperty(term)
 	use meshds
 	implicit none
 	integer::i
-	character(256)::term,keyword
-	integer::ns,ne,nc
-	character(32)::string(11)
+	character(len=*)::term
+	integer::ns,ne,nc,e
+	character(1024)::string(11),keyword
 	
 	term=adjustl(term)
 	ns=1
@@ -1312,25 +1335,22 @@ subroutine translatetoproperty(term)
 	do i=2,nc
 		ne=index(string(i),'=')
 		property(i-1).name=string(i)(1:ne-1)
-		read(string(i)(ne+1:len_trim(string(i))),*) property(i-1).value
+        call lowcase(property(i-1).name)
+        property(i-1).cvalue=trim(adjustl(string(i)(ne+1:len_trim(string(i)))))
+        !通过第一个字母是否是数字判断此字符串是否为数字
+        !if(is_numeric(property(i-1).cvalue)) then
+        !    read(trim(property(i-1).cvalue),*) property(i-1).value
+        !endif
+        if(verify(trim(property(i-1).cvalue),'0123456789.eE-+')==0)then
+		    read(string(i)(ne+1:len_trim(string(i))),*,IOSTAT=e) property(i-1).value
+        endif
 	end do
 
-end subroutine
+    end subroutine
 
-subroutine Err_msg(cstring)
-	use dflib
-	implicit none
-	character(*)::cstring
-	character(46)::term
-	integer(4)::msg
+    
 
-	term="No such Constant:  "//trim(cstring)
-	msg = MESSAGEBOXQQ(term,'Mistake'C,MB$ICONSTOP.OR.MB$OK.OR.MB$DEFBUTTON1)
-	if(msg==MB$IDOK) then
-		stop
-	end if	
-	
-end subroutine
+
 
 !elarge Array Node size by increment of 10000
 !Set Array Adjlist size equel to the size of Node

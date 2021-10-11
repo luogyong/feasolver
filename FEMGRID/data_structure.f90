@@ -29,10 +29,10 @@ module meshDS
 	   real(8)::x,y,z=0.0D0 !点的坐标
 	   real(8)::s  !该点附近的单元大小
 	   INTEGER::SUBBW  !=-999 ,the node is dead.
-	   integer::layer=0,onbdy=0 !nodal layer
+	   integer::layer=0,onbdy=0,marker !nodal layer
        integer::havesoildata=0 ![0,1,2] 0,no;1,partially;2,completely yes.(all soillayers have elevation(no -999)) 
-       integer::iptr=0,isb=0 !iptr=i,表明此节点在高程上i节点重合；!isb=1,zone boundary node;=2,model boundary node;=0,zone inside node
-       real(8),allocatable::elevation(:),we(:) !we(1:2)=防渗墙顶和底高程
+       integer::iptr=0,isb=0,nat=0 !iptr=i,表明此节点在高程上i节点重合；!isb=1,zone boundary node;=2,model boundary node;=0,zone inside node
+       real(8),allocatable::elevation(:),we(:),at(:) !we(1:2)=防渗墙顶和底高程
 	end type
 	type(point_tydef),allocatable,target::node(:)
 	type(point_tydef),allocatable::cp(:)  !control point
@@ -55,7 +55,7 @@ module meshDS
 	type element_tydef
 	   !type(point_tydef),pointer::xy1,xy2,xy3,xy4   !单元顶点的坐标
 	   logical::isdel=.false.
-       INTEGER::NNUM=3
+       INTEGER::NNUM=3,nat=0
 	   integer::node(15) !6-noded/15-noded triangleelement node in node().
 	   integer::et=0           !element type, 3-noded:0, 6-noded triangle:6; 15-noded:15 
 	                                      !6-noded prism element: 63; 15-noded prism element:153;
@@ -70,7 +70,7 @@ module meshDS
 	   integer::adj(4)=-1 !if =-1,no adjacent element
        INTEGER::MOTHER=0,iLAYER=0,ISMODEL=1
        integer,allocatable::selt(:) !selt(i)=0,no element gen at the ith layer.
-       real(8),allocatable::bbox(:,:)
+       real(8),allocatable::bbox(:,:),at(:)
 	end type
 !	type(element_tydef),pointer::Ehead,Ept,element,Etail!前四个指向划分好的单元，后两个指向包含插入点的三角形单元
 	type(element_tydef),target,allocatable::ELT(:)
@@ -175,6 +175,7 @@ module meshDS
 	type property_tydef
 		character(32)::name
 		real(8)::value
+        character(512)::cvalue=''
 	end type
 	type(property_tydef)::property(10) !one control line has 10 property value at most.
 	integer::pro_num
@@ -209,7 +210,7 @@ module meshDS
 		integer::E(2)=-1  !the two elements sharing the element	
 		INTEGER::BRECT=0 !zone boudary rectangle face id of out to gmsh volume. 
         INTEGER::ISZONEBC=-1,ISCEDGE=0
-        integer::isxyoverlap=0 !在xy平面上，线段的两端点是否重合,主要是无厚度防渗墙单元的[2,3]和[4,1]节点的边
+        integer::isxyoverlap=0,marker=0 !在xy平面上，线段的两端点是否重合,主要是无厚度防渗墙单元的[2,3]和[4,1]节点的边
 	end type
 	type(edge_tydef),allocatable::edge(:)
 	integer::nedge=0
@@ -252,7 +253,7 @@ module meshDS
 	!存储模型线段的（不是单元边）在seg中的位置（不包括以ccl形式输入的控制线，因为这类控制线上的点不在输入数组里面）。
 	type seg_type
         private
-		integer::icl !该线段中cpphead(icl)中位置
+		integer::icl,isbg=0 !该线段中cpphead(icl)中位置
 		integer::sv=0,ev=0 !节点在输入数组中的位置。
         logical::isini=.false.
 		!integer::isA2Z=1 !是否是顺序，1为顺序，即在cpphead(icl)链表中为sv-ev. 0为反序，ev-sv. 
@@ -280,7 +281,7 @@ module meshDS
 	integer::ngeo=0
 	
     TYPE::SEARCHZONE_TYDEF(dim)
-        integer,len::dim=3
+        integer,len::dim=2
         INTEGER::NEL=0
         integer::NDX(dim) !=1 !NDX=DIVISION IN X Y AND Y AXIS
         REAL(8)::BBOX(2,dim) !MIN,MAX
@@ -364,6 +365,29 @@ module meshDS
     logical::issoilinterpolated=.false.
     
     contains
+    
+    function readline(nunitr) result(line)
+        implicit none
+    
+        ! Reads line from unit=nunitr, ignoring blank lines
+        ! and deleting comments beginning with an exclamation point(//)
+        integer,intent(in)::nunitr
+        character (len=:),allocatable:: line
+        character(len=2048)::line1
+        integer::ios,ipos
+        do  
+          read(nunitr,'(a)', iostat=ios) line1      ! read input line
+          if(ios /= 0) return
+          line1=adjustl(line1)
+          ipos=index(line1,'//')
+          if(ipos == 1) cycle
+          if(ipos /= 0) line1=line1(:ipos-1)
+          if(len_trim(line1) /= 0) exit
+        end do
+        line=trim(line1)
+        return
+
+    end function readline 
     
     subroutine write_help(helpstring,unit)
     USE IFQWIN
@@ -516,6 +540,21 @@ module meshDS
 
    end subroutine
 
+subroutine Err_msg(cstring)
+	use dflib
+	implicit none
+	character(*)::cstring
+	character(46)::term
+	integer(4)::msg
+
+	term="No such Constant:  "//trim(cstring)
+	msg = MESSAGEBOXQQ(term,'Mistake'C,MB$ICONSTOP.OR.MB$OK.OR.MB$DEFBUTTON1)
+	if(msg==MB$IDOK) then
+		stop
+	end if	
+	
+end subroutine   
+   
 SUBROUTINE DO_COPYFILE(SRCFILE,IDESFILE)
 	IMPLICIT NONE
 	CHARACTER(512),INTENT(IN)::SRCFILE
@@ -795,16 +834,17 @@ ENDSUBROUTINE
     
     endfunction
     
-    subroutine seg_get_parameters(this,icl,sv,ev,isini,nnum,nedge)
+    subroutine seg_get_parameters(this,icl,sv,ev,isini,nnum,nedge,isbg)
         implicit none
         class(seg_type)::this
-        integer,intent(out),optional::icl,sv,ev,nnum,nedge
+        integer,intent(out),optional::icl,sv,ev,nnum,nedge,isbg
         logical,intent(out),optional::isini
         
         if(present(icl)) icl=this.icl
         if(present(sv)) sv=this.sv
         if(present(ev)) ev=this.ev
         if(present(isini)) isini=this.isini
+        if(present(isbg)) isbg=this.isbg
         if(present(nnum)) then
             if(.not.this.isini) call this.initialize
             nnum=this.nnum
@@ -815,16 +855,16 @@ ENDSUBROUTINE
         endif
     endsubroutine
     
-    subroutine seg_set_parameters(this,icl,sv,ev)
+    subroutine seg_set_parameters(this,icl,sv,ev,isbg)
         implicit none
         class(seg_type)::this
-        integer,intent(in),optional::icl,sv,ev
+        integer,intent(in),optional::icl,sv,ev,isbg
 
         
         if(present(icl)) this.icl=icl
         if(present(sv)) this.sv=sv
         if(present(ev)) this.ev=ev 
-        
+        if(present(isbg)) this.isbg=isbg 
     endsubroutine   
     
     integer function v2edge(adjlist,v1,v2)
@@ -926,11 +966,14 @@ ENDSUBROUTINE
     
     
 
-    SUBROUTINE SETUP_SEARCH_ZONE_2D(MAXX,MINX,MAXY,MINY,TET1)
+    SUBROUTINE SETUP_SEARCH_ZONE_2D(SZ,NSZ,MAXX,MINX,MAXY,MINY,NODE1,TET1)
     !USE solverds,ONLY:ELEMENT_TYDEF
     IMPLICIT NONE
+    TYPE(SEARCHZONE_TYDEF),ALLOCATABLE,INTENT(INOUT)::SZ(:)
+    INTEGER,INTENT(INOUT)::NSZ
     REAL(8),INTENT(IN)::MAXX,MINX,MAXY,MINY
     TYPE(ELEMENT_TYDEF)::TET1(:)
+    type(point_tydef),INTENT(IN)::NODE1(:)
     REAL(8)::DX,DY,DZ,BBOX1(2,2)
     INTEGER::NDX,NDY,NDZ,I,J,K,N1,NTET1
     
@@ -942,10 +985,10 @@ ENDSUBROUTINE
     !DZ=(MAXZ-MINZ)/NDZ
     !IF(ABS(DZ)<1.D-7) NDZ=1
     
-    NSZONE=NDX*NDY  !*NDZ
+    NSZ=NDX*NDY  !*NDZ
     
-    IF(ALLOCATED(SEARCHZONE)) DEALLOCATE(SEARCHZONE)
-    ALLOCATE(SEARCHZONE(NSZONE))
+    IF(ALLOCATED(SZ)) DEALLOCATE(SZ)
+    ALLOCATE(SZ(NSZ))
     
     NTET1=SIZE(TET1)
 
@@ -954,16 +997,16 @@ ENDSUBROUTINE
         DO J=1,NDY
             DO K=1,NDX
                 N1=N1+1
-                SEARCHZONE(N1).BBOX(1,1)=MINX+DX*(K-1)
-                SEARCHZONE(N1).BBOX(2,1)=MINX+DX*K
-                SEARCHZONE(N1).BBOX(1,2)=MINY+DY*(J-1)
-                SEARCHZONE(N1).BBOX(2,2)=MINY+DY*J 
-                !SEARCHZONE(N1).BBOX(1,3)=MINZ+DZ*(I-1)
-                !SEARCHZONE(N1).BBOX(2,3)=MINZ+DZ*I
-                IF(.NOT.ALLOCATED(SEARCHZONE(N1).ELEMENT)) ALLOCATE(SEARCHZONE(N1).ELEMENT(MAX(NTET1/NSZONE,100)))
-                SEARCHZONE(N1).ELEMENT=0
-                !SEARCHZONE(N1).NDX=[NDX,NDY,NDZ]
-                SEARCHZONE(N1).NDX(1:2)=[NDX,NDY]
+                SZ(N1).BBOX(1,1)=MINX+DX*(K-1)
+                SZ(N1).BBOX(2,1)=MINX+DX*K
+                SZ(N1).BBOX(1,2)=MINY+DY*(J-1)
+                SZ(N1).BBOX(2,2)=MINY+DY*J 
+                !SZ(N1).BBOX(1,3)=MINZ+DZ*(I-1)
+                !SZ(N1).BBOX(2,3)=MINZ+DZ*I
+                IF(.NOT.ALLOCATED(SZ(N1).ELEMENT)) ALLOCATE(SZ(N1).ELEMENT(MAX(NTET1/NSZ,100)))
+                SZ(N1).ELEMENT=0
+                !SZ(N1).NDX=[NDX,NDY,NDZ]
+                SZ(N1).NDX(1:2)=[NDX,NDY]
             ENDDO
         ENDDO
     !ENDDO
@@ -973,34 +1016,34 @@ ENDSUBROUTINE
     DO I=1,NTET1
         
         if(tet1(i).isdel.or.TET1(I).et/=0) CYCLE
-     
-		bbox1(1,1)=MINVAL(NODE(TET1(i).node(1:3)).X)
-        bbox1(2,1)=MAXVAL(NODE(TET1(i).node(1:3)).X)
-		bbox1(1,2)=MINVAL(NODE(TET1(i).node(1:3)).Y)
-        bbox1(2,2)=MAXVAL(NODE(TET1(i).node(1:3)).Y)
+        IF(ANY(TET1(i).NODE(1:3)<1)) CYCLE
+		bbox1(1,1)=MINVAL(NODE1(TET1(i).NODE(1:3)).X)
+        bbox1(2,1)=MAXVAL(NODE1(TET1(i).NODE(1:3)).X)
+		bbox1(1,2)=MINVAL(NODE1(TET1(i).NODE(1:3)).Y)
+        bbox1(2,2)=MAXVAL(NODE1(TET1(i).NODE(1:3)).Y)
 
         tet1(i).bbox=bbox1
         
         
-        DO J=1,NSZONE
+        DO J=1,NSZ
             
             IF(NDX>1) THEN
-                IF(SEARCHZONE(J).BBOX(1,1)>BBOX1(2,1)) CYCLE !MIN>MAX
-                IF(SEARCHZONE(J).BBOX(2,1)<BBOX1(1,1)) CYCLE !MAX<MIN
+                IF(SZ(J).BBOX(1,1)>BBOX1(2,1)) CYCLE !MIN>MAX
+                IF(SZ(J).BBOX(2,1)<BBOX1(1,1)) CYCLE !MAX<MIN
             ENDIF
             IF(NDY>1) THEN
-                IF(SEARCHZONE(J).BBOX(1,2)>BBOX1(2,2)) CYCLE !MIN>MAX
-                IF(SEARCHZONE(J).BBOX(2,2)<BBOX1(1,2)) CYCLE !MAX<MIN 
+                IF(SZ(J).BBOX(1,2)>BBOX1(2,2)) CYCLE !MIN>MAX
+                IF(SZ(J).BBOX(2,2)<BBOX1(1,2)) CYCLE !MAX<MIN 
             ENDIF
-            !IF(SEARCHZONE(j).DIM>2.AND.NDZ>1) THEN
-            !    IF(SEARCHZONE(J).BBOX(1,3)>BBOX1(2,3)) CYCLE !MIN>MAX
-            !    IF(SEARCHZONE(J).BBOX(2,3)<BBOX1(1,3)) CYCLE !MAX<MIN 
+            !IF(SZ(j).DIM>2.AND.NDZ>1) THEN
+            !    IF(SZ(J).BBOX(1,3)>BBOX1(2,3)) CYCLE !MIN>MAX
+            !    IF(SZ(J).BBOX(2,3)<BBOX1(1,3)) CYCLE !MAX<MIN 
             !ENDIF
-            SEARCHZONE(J).NEL=SEARCHZONE(J).NEL+1
-            IF(SIZE(SEARCHZONE(J).ELEMENT)<SEARCHZONE(J).NEL) THEN
-                CALL I_ENLARGE_AR(SEARCHZONE(J).ELEMENT,100)
+            SZ(J).NEL=SZ(J).NEL+1
+            IF(SIZE(SZ(J).ELEMENT)<SZ(J).NEL) THEN
+                CALL I_ENLARGE_AR(SZ(J).ELEMENT,100)
             ENDIF
-            SEARCHZONE(J).ELEMENT(SEARCHZONE(J).NEL)=I
+            SZ(J).ELEMENT(SZ(J).NEL)=I
         ENDDO
     ENDDO
     
@@ -1009,14 +1052,17 @@ ENDSUBROUTINE
     ENDSUBROUTINE
     
     
-    !search method:element-by-element，it is robust but may be comparily slow.
+!search method:element-by-element，it is robust but may be comparily slow.
 !if tryiel>0, it the element and its nerghborhood will be searched firstly.
-INTEGER FUNCTION POINTlOC_2D(PT,TRYIEL)
+INTEGER FUNCTION POINTlOC_2D(PT,TRYIEL,SZ,NSCH,ESCH)
 
 	IMPLICIT NONE
 	REAL(8),INTENT(IN)::PT(2)
     INTEGER,INTENT(IN)::TRYIEL
-	INTEGER::I,J,K,ELT1(-10:0)
+    TYPE(SEARCHZONE_TYDEF),INTENT(IN)::SZ(:)
+    type(point_tydef),INTENT(IN)::NSCH(:)
+    type(element_tydef),INTENT(IN)::ESCH(:)
+	INTEGER::I,J,K,ELT1(-10:0),NSZ
 	!LOGICAL,EXTERNAL::PtInTri,PtInTET
     LOGICAL::ISFOUND=.FALSE.
     REAL(8)::TRI1(2,3)
@@ -1025,43 +1071,45 @@ INTEGER FUNCTION POINTlOC_2D(PT,TRYIEL)
     
     ISFOUND=.FALSE.    
     POINTlOC_2D=0
-    DO J=1,NSZONE
-        IF(SEARCHZONE(J).NEL<1) CYCLE
-        IF(SEARCHZONE(J).NDX(1)>1) THEN
-            IF(PT(1)<SEARCHZONE(J).BBOX(1,1)) CYCLE
-            IF(PT(1)>SEARCHZONE(J).BBOX(2,1)) CYCLE
+    NSZ=SIZE(SZ)
+    DO J=1,NSZ
+        IF(SZ(J).NEL<1) CYCLE
+        IF(SZ(J).NDX(1)>1) THEN
+            IF(PT(1)<SZ(J).BBOX(1,1)) CYCLE
+            IF(PT(1)>SZ(J).BBOX(2,1)) CYCLE
         ENDIF
-        IF(SEARCHZONE(J).NDX(2)>1) THEN
-            IF(PT(2)<SEARCHZONE(J).BBOX(1,2)) CYCLE
-            IF(PT(2)>SEARCHZONE(J).BBOX(2,2)) CYCLE
+        IF(SZ(J).NDX(2)>1) THEN
+            IF(PT(2)<SZ(J).BBOX(1,2)) CYCLE
+            IF(PT(2)>SZ(J).BBOX(2,2)) CYCLE
         ENDIF        
   
         
         IF(TRYIEL>0) THEN
-            ELT1(-ELT(TRYIEL).NNUM)=TRYIEL
-            DO K=1,ELT(TRYIEL).NNUM
-                ELT1(-ELT(TRYIEL).NNUM+K)=ELT(TRYIEL).ADJ(K)
+            ELT1(-ESCH(TRYIEL).NNUM)=TRYIEL
+            DO K=1,ESCH(TRYIEL).NNUM
+                ELT1(-ESCH(TRYIEL).NNUM+K)=ESCH(TRYIEL).ADJ(K)
             ENDDO
-            K=-ELT(TRYIEL).NNUM
+            K=-ESCH(TRYIEL).NNUM
         ELSE
             K=1
         ENDIF
         
-	    do K=K,SEARCHZONE(J).NEL
+	    do K=K,SZ(J).NEL
             IF(K>0) THEN
-                I=SEARCHZONE(J).ELEMENT(K) 
+                I=SZ(J).ELEMENT(K) 
             ELSE
                 I=ELT1(K)
             ENDIF
             IF(I<1) CYCLE
-		    IF(ELT(I).ISDEL==1) CYCLE
-		    IF(ELT(I).BBOX(2,1)>=PT(1).and.ELT(I).BBOX(1,1)<=PT(1)) then
-			    IF(ELT(I).BBOX(2,2)>=PT(2).and.ELT(I).BBOX(1,2)<=PT(2)) then
+		    IF(ESCH(I).ISDEL) CYCLE
+            IF(ANY(ESCH(I).node(1:3)<1)) CYCLE 
+		    IF(ESCH(I).BBOX(2,1)>=PT(1).and.ESCH(I).BBOX(1,1)<=PT(1)) then
+			    IF(ESCH(I).BBOX(2,2)>=PT(2).and.ESCH(I).BBOX(1,2)<=PT(2)) then
 				    !IF(POSDATA.NDIM>2) THEN
-					   ! IF(ELT(I).BBOX(2,3)<PT(3).and.ELT(I).BBOX(1,3)>PT(3)) CYCLE
+					   ! IF(ESCH(I).BBOX(2,3)<PT(3).and.ESCH(I).BBOX(1,3)>PT(3)) CYCLE
 				    !ENDIF
-                    TRI1(1,:)=NODE(ELT(I).NODE(1:3)).X
-                    TRI1(2,:)=NODE(ELT(I).NODE(1:3)).Y
+                    TRI1(1,:)=NSCH(ESCH(I).NODE(1:3)).X
+                    TRI1(2,:)=NSCH(ESCH(I).NODE(1:3)).Y
                     CALL triangle_contains_point_2d_2 ( TRI1, PT, ISFOUND )
 					IF(ISFOUND) THEN
                         POINTlOC_2D=I
@@ -1132,7 +1180,7 @@ subroutine triangle_contains_point_2d_2 ( t, p, inside )
 
     k = mod ( j, 3 ) + 1
 
-    if ( 0.0D+00 < ( p(1) - t(1,j) ) * ( t(2,k) - t(2,j) ) &
+    if ( 1.0D-7 < ( p(1) - t(1,j) ) * ( t(2,k) - t(2,j) ) &
                  - ( p(2) - t(2,j) ) * ( t(1,k) - t(1,j) ) ) then
       inside = .false.
       return
@@ -1225,7 +1273,7 @@ function elt_bounded_by_edges(PT,ibedge) result(ielt)
     integer,allocatable::ielt(:)
     integer::J,IELT1,IELT2,STACK1(10000),N1,N2,EDGE1(NEDGE),EDGE2(NEDGE),ELT1(1:NELT)           
 
-    IELT1=POINTlOC_2D(PT,-1)
+    IELT1=POINTlOC_2D(PT,-1,SEARCHZONE,NODE(1:NNODE),ELT)
     IF(IELT1<1) THEN
         PRINT *, 'NO TRIANGLE ELEMENT IN THE REGION.'
     ENDIF

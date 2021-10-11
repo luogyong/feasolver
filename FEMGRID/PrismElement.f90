@@ -204,10 +204,11 @@ Subroutine Generate_3D_MODEL()
 		use meshds
         use CutoffWall
         USE geomodel,ONLY:GEN_SUBELEMENT,NGNODE
+        use triangle_io
 		implicit none
 		integer::i,j,k,ng,maxbw1,a1,iflag,n1,j1,j2,n2,k1,pv1(4),err,pv2(2)
 		logical::isinp=.true.
-		real(8)::t1,b1(3),c1(3),xy(2,3),t2,KT1(2,2)
+		real(8)::t1,b1(3),c1(3),xy(2,3),t2,KT1(2,2),pt1(2)
 		real(8),allocatable::Tm1(:),tm1b(:),load1(:),at1(:)	
 		INTEGER,ALLOCATABLE::IPERM(:),bw1(:)
 	    logical,allocatable::Lt1(:)
@@ -219,163 +220,179 @@ Subroutine Generate_3D_MODEL()
         
         if(any(node(1:nnode).havesoildata<2)) then
 	
-		    node.subbw=-999
+            if(inpmethod/=2) then
+		        node.subbw=-999
 		
-		    do i=1,nelt
-			    if(elt(i).isdel) cycle
-			    n1=elt(i).nnum
-			    if(elt(i).et==6) n1=6
-			    if(elt(i).et==15) n1=15
-			    node(elt(i).node(1:n1)).subbw=0
-		    end do
+		        do i=1,nelt
+			        if(elt(i).isdel) cycle
+			        n1=elt(i).nnum
+			        if(elt(i).et==6) n1=6
+			        if(elt(i).et==15) n1=15
+			        node(elt(i).node(1:n1)).subbw=0
+		        end do
 
-		    ng=0
+		        ng=0
 
-		    do i=1,nnode
-			    if(node(i).subbw/=0) then
-				    cycle
-			    end if
-			    ng=ng+1
-			    node(i).number=ng  !!!!
-		    end do
+		        do i=1,nnode
+			        if(node(i).subbw/=0) then
+				        cycle
+			        end if
+			        ng=ng+1
+			        node(i).number=ng  !!!!
+		        end do
 
-		    ALLOCATE(IPERM(nnode),Noutputorder(nnode),bw1(nnode),stat=err)
-		    call reorder_nodal_number(IPERM,nnode,node(1:),nelt,elt)
-            IPERM=IPERM-(NNODE-NG) !去掉不在模型中的节点
-		    do i=1,nnode
-			    if(node(i).subbw==0) then
-				    noutputorder(IPERM(node(i).number))=i	
-				    node(i).number=IPERM(node(i).number)
-			    end if			
-		    end do		
+		        ALLOCATE(IPERM(nnode),Noutputorder(nnode),bw1(nnode),stat=err)
+		        call reorder_nodal_number(IPERM,nnode,node(1:),nelt,elt)
+                IPERM=IPERM-(NNODE-NG) !去掉不在模型中的节点
+		        do i=1,nnode
+			        if(node(i).subbw==0) then
+				        noutputorder(IPERM(node(i).number))=i	
+				        node(i).number=IPERM(node(i).number)
+			        end if			
+		        end do		
 	    
-		    call csb(nnode,node(1:),nelt,elt)
+		        call csb(nnode,node(1:),nelt,elt)
 		
-		    bw1=0
-		    bw1(1)=node(noutputorder(1)).bw
-		    maxbw1=bw1(1)
-		    do i=2,ng
-			    n1=noutputorder(i)
-			    if(maxbw1<node(n1).bw) maxbw1=node(n1).bw
-			    bw1(i)=node(n1).bw+bw1(i-1)								
-		    end do
+		        bw1=0
+		        bw1(1)=node(noutputorder(1)).bw
+		        maxbw1=bw1(1)
+		        do i=2,ng
+			        n1=noutputorder(i)
+			        if(maxbw1<node(n1).bw) maxbw1=node(n1).bw
+			        bw1(i)=node(n1).bw+bw1(i-1)								
+		        end do
 		
-		    !assemble the total km
-		    allocate(tm1(bw1(ng)),tm1b(bw1(ng)),load1(ng))
-		    tm1=0.0
-		    KT1(1,1)=1.d10;KT1(2,2)=KT1(1,1);KT1(1,2)=-1.D10;KT1(2,1)=KT1(1,2)
-		    do i=1,nelt
-			    if(elt(i).isdel) cycle
-                n1=elt(i).nnum
-			    pv1(1:n1)=node(elt(i).node(1:n1)).number
-			    select case(elt(i).et)
-				    case(0)
+		        !assemble the total km
+		        allocate(tm1(bw1(ng)),tm1b(bw1(ng)),load1(ng))
+		        tm1=0.0
+		        KT1(1,1)=1.d10;KT1(2,2)=KT1(1,1);KT1(1,2)=-1.D10;KT1(2,1)=KT1(1,2)
+		        do i=1,nelt
+			        if(elt(i).isdel) cycle
+                    n1=elt(i).nnum
+			        pv1(1:n1)=node(elt(i).node(1:n1)).number
+			        select case(elt(i).et)
+				        case(0)
 
-					    xy(1,1:3)=node(elt(i).node(1:3)).x
-					    xy(2,1:3)=node(elt(i).node(1:3)).y
+					        xy(1,1:3)=node(elt(i).node(1:3)).x
+					        xy(2,1:3)=node(elt(i).node(1:3)).y
 				
-					    do j=1,3
-						    j1=mod(j,3)+1
-						    j2=mod(j1,3)+1
-						    b1(j)=xy(2,j1)-xy(2,j2)
-						    c1(j)=xy(1,j2)-xy(1,j1)
-					    end do
+					        do j=1,3
+						        j1=mod(j,3)+1
+						        j2=mod(j1,3)+1
+						        b1(j)=xy(2,j1)-xy(2,j2)
+						        c1(j)=xy(1,j2)-xy(1,j1)
+					        end do
 		      
-					    t1=(b1(1)*c1(2)-b1(2)*c1(1))/2
-					    do j=1,3
-					      do k=1,3				    
-							    if(pv1(j)<pv1(k))  cycle   
-							    t2=(b1(j)*b1(k)+c1(j)*c1(k))/(4*t1)
-							    a1=bw1(pv1(j))-(pv1(j)-pv1(k))
-							    tm1(a1)=tm1(a1)+t2							  
-						    end do
-					    end do
-                    case(-1)
-                        !无厚度单元对应节点的高程相等
-                        do k1=1,2
-                            if(k1==1) then
-                                pv2=pv1([2,3])
-                            else
-                                pv2=pv1([1,4])
-                            endif
+					        t1=(b1(1)*c1(2)-b1(2)*c1(1))/2
+					        do j=1,3
+					          do k=1,3				    
+							        if(pv1(j)<pv1(k))  cycle   
+							        t2=(b1(j)*b1(k)+c1(j)*c1(k))/(4*t1)
+							        a1=bw1(pv1(j))-(pv1(j)-pv1(k))
+							        tm1(a1)=tm1(a1)+t2							  
+						        end do
+					        end do
+                        case(-1)
+                            !无厚度单元对应节点的高程相等
+                            do k1=1,2
+                                if(k1==1) then
+                                    pv2=pv1([2,3])
+                                else
+                                    pv2=pv1([1,4])
+                                endif
                             
-                            do j=1,2
-                                do k=1,2
-                                    if(pv2(j)<pv2(k))  cycle   
-							        T2=KT1(J,K)
-							        a1=bw1(pv2(j))-(pv2(j)-pv2(k))
-							        tm1(a1)=tm1(a1)+t2
+                                do j=1,2
+                                    do k=1,2
+                                        if(pv2(j)<pv2(k))  cycle   
+							            T2=KT1(J,K)
+							            a1=bw1(pv2(j))-(pv2(j)-pv2(k))
+							            tm1(a1)=tm1(a1)+t2
+                                    enddo
                                 enddo
                             enddo
-                        enddo
-				    case default
-					    Print *, 'Error! Membrance Interpolation. Only 3-noded element is considered.'
-					    stop
+				        case default
+					        Print *, 'Error! Membrance Interpolation. Only 3-noded element is considered.'
+					        stop
 				
-			    end select
+			        end select
 	
 			
-		    end do
+		        end do
 		
-		    !形成边界
+		        !形成边界
 		
-		    call bc_meminp()	
+		        call bc_meminp()	
 		
 		
 
 
-		    !求解
+		        !求解
 		
-		    do i=0,soillayer
-			    tm1b=tm1
-			    load1=0.D0
-			    !线状边界
-			    do j=1,nmeminp
-				    do k=1,meminp(j).nvb
-					    if(abs(meminp(j).vbc(k,i)+999)<1e-6) cycle
-                        n1=node(meminp(j).nbc(k)).number
-					    tm1b(bw1(n1))=um
-					    load1(n1)=meminp(j).vbc(k,i)*um
-				    end do
-			    end do
-			    do j=1,nmeminp2
-				    do k=1,meminp2(j).nvb
+		        do i=0,soillayer
+			        tm1b=tm1
+			        load1=0.D0
+			        !线状边界
+			        do j=1,nmeminp
+				        do k=1,meminp(j).nvb
+					        if(abs(meminp(j).vbc(k,i)+999)<1e-6) cycle
+                            n1=node(meminp(j).nbc(k)).number
+					        tm1b(bw1(n1))=um
+					        load1(n1)=meminp(j).vbc(k,i)*um
+				        end do
+			        end do
+			        do j=1,nmeminp2
+				        do k=1,meminp2(j).nvb
                     
-					    if(abs(meminp2(j).vbc(k,i)+999)<1e-6) cycle
-                        n1=node(meminp2(j).nbc(k)).number
-					    tm1b(bw1(n1))=um
-					    load1(n1)=meminp2(j).vbc(k,i)*um
-				    end do
-			    end do
-			    !点状边界
-			    do j=1,ngeo
-				    if(geology(j).isini==0) cycle
-				    if(abs(geology(j).elevation(i)+999)<1e-6) cycle
-				    tm1b(bw1(node(geology(j).node).number))=um
-				    load1(node(geology(j).node).number)=geology(j).elevation(i)*um	  
-			    end do
+					        if(abs(meminp2(j).vbc(k,i)+999)<1e-6) cycle
+                            n1=node(meminp2(j).nbc(k)).number
+					        tm1b(bw1(n1))=um
+					        load1(n1)=meminp2(j).vbc(k,i)*um
+				        end do
+			        end do
+			        !点状边界
+			        do j=1,ngeo
+				        if(geology(j).isini==0) cycle
+				        if(abs(geology(j).elevation(i)+999.d0)<1e-6) cycle
+                        if(node(geology(j).node).subbw/=0) cycle
+				        tm1b(bw1(node(geology(j).node).number))=um
+				        load1(node(geology(j).node).number)=geology(j).elevation(i)*um	  
+                    end do
 			
-			    call chodec(tm1b,bw1,ng)
-			    call chosol(tm1b,bw1,load1,ng,maxbw1)
+			        call chodec(tm1b,bw1,ng)
+			        call chosol(tm1b,bw1,load1,ng,maxbw1)
 			
 			
-			    !if(.not.allocated(elevation)) allocate(elevation(0:soillayer,nnode))
-			    !n1=nnode*i
-			    do j=1,ng
-                    n2=noutputorder(j)
-				    !node(n1+n2).z=load1(j)
-                    if(.not.allocated(node(n2).elevation)) then
-                        allocate(node(n2).elevation(0:soillayer))                    
+			        !if(.not.allocated(elevation)) allocate(elevation(0:soillayer,nnode))
+			        !n1=nnode*i
+			        do j=1,ng
+                        n2=noutputorder(j)
+                        if(node(n2).havesoildata==2) cycle
+				        !node(n1+n2).z=load1(j)
+                        if(.not.allocated(node(n2).elevation)) then
+                            allocate(node(n2).elevation(0:soillayer))                    
+                        endif
+                        node(n2).elevation(i)=load1(j)
+				        !elevation(i,noutputorder(j))=load1(j)  !!!
+			        end do
+		        end do
+		
+		        !		
+		        DEALLOCATE(noutputorder,bw1,tm1,tm1b,load1,stat=err)
+		
+                deallocate(IPERM,stat=err)
+            else
+                do i=1,nnode
+                    if(node(i).havesoildata<2) then
+                        pt1(1)=node(i).x;pt1(2)=node(i).y
+                        node(i).at=bgmesh.getattrib(pt1)
+                        if(.not.allocated(node(i).elevation)) then
+                            allocate(node(i).elevation(0:soillayer))                    
+                        endif
+                        node(i).elevation=node(i).at(1:soillayer+1)
                     endif
-                    node(n2).elevation(i)=load1(j)
-				    !elevation(i,noutputorder(j))=load1(j)  !!!
-			    end do
-		    end do
-		
-		    !		
-		    DEALLOCATE(noutputorder,bw1,tm1,tm1b,load1,stat=err)
-		
-            deallocate(IPERM,stat=err)
+                enddo
+                
+            endif
             
             ismeminpdone=.true.
             node(1:nnode).havesoildata=2

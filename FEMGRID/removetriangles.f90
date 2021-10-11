@@ -12,7 +12,7 @@
 	 !do i=1,cln
 	 !   if((csl(i).hole==1).and.(csl(i).flag==1)) 	call executeRemoveT(csl(i),callbybuilding)
 	 !end do
-     call SETUP_SEARCH_ZONE_2D((Xmax-Xmin)/xyscale,0.d0,(Ymax-Ymin)/xyscale,0.d0,elt(1:nelt))
+     call SETUP_SEARCH_ZONE_2D(SEARCHZONE,NSZONE,(Xmax-Xmin)/xyscale,0.d0,(Ymax-Ymin)/xyscale,0.d0,NODE(1:NNODE),elt(1:nelt))
      edge1=0
 	 do i=0,cln
 	    if(i==0.or.((csl(i).hole==1).and.(csl(i).flag==1))) 	then
