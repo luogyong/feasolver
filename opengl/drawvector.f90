@@ -355,7 +355,7 @@ subroutine drawVectorLegend2(Vtmax,Vtmin,Scale,ACTIVE_VECTOR_PAIR,VTITLE,NVG)
     CALL glMatrixMode(GL_PROJECTION);
     CALL glPushMatrix()
     CALL glLoadIdentity();
-    CALL glOrtho(0., real(viewport1(3),gldouble), 0., real(viewport1(4),gldouble), -1._GLDOUBLE, 1._GLDOUBLE);
+    CALL glOrtho(0._GLDOUBLE, REAL(viewport1(3),gldouble), 0._GLDOUBLE, REAL(viewport1(4),gldouble), -1._GLDOUBLE, 1._GLDOUBLE);
     CALL glMatrixMode(GL_MODELVIEW);
     CALL glPushMatrix()
    
@@ -442,7 +442,7 @@ real(glfloat),dimension(3)::axesOrigin=[0.0,0.0,0.0];
 	call glMatrixMode(GL_PROJECTION);
     call glpushmatrix()
 	call glLoadIdentity();
-	call glOrtho(-0.5,0.5,-0.5,0.5,-1.0,1.0);
+	call glOrtho(-0.5D0,0.5D0,-0.5D0,0.5D0,-1.0D0,1.0D0);
 
 	!// Strip translation
     call glMatrixMode(GL_MODELVIEW);
@@ -471,13 +471,13 @@ real(glfloat),dimension(3)::axesOrigin=[0.0,0.0,0.0];
 
     
 	call glBegin(GL_LINES);
-    call glColor3d(1.,0.,0.);
+    call glColor3d(1._GLDOUBLE,0._GLDOUBLE,0._GLDOUBLE);
 	call glVertex3fv(axesOrigin);
 	call glVertex3f(axesOrigin(1) + len1,axesOrigin(2),axesOrigin(3));
-    call glColor3d(0.,1.0,0.);
+    call glColor3d(0._GLDOUBLE,1.0_GLDOUBLE,0._GLDOUBLE);
 	call glVertex3fv(axesOrigin);    
 	call glVertex3f(axesOrigin(1),axesOrigin(2) + len1,axesOrigin(3));
-    call glColor3d(0.,0.,1.);
+    call glColor3d(0._GLDOUBLE,0._GLDOUBLE,1._GLDOUBLE);
 	call glVertex3fv(axesOrigin);
 	call glVertex3f(axesOrigin(1),axesOrigin(2),axesOrigin(3) + len1);
 	call glEnd();
@@ -551,7 +551,7 @@ if(isarrow) then
     height=length/4.0
     radius=height*tan(30/180.*PI)
 
-    call r8vec_cross_3d ( [0.,0.,1.0],v1,rot )
+    call r8vec_cross_3d ( [0.D0,0.D0,1.0D0],v1,rot )
     angle=asin(norm2(rot)/length)/PI*180.
     CALL glPolygonMode(gl_front_and_back, gl_fill)
     !call glColor4d(1.,0.,0.,0.8);

@@ -4,7 +4,7 @@ module triangle_io
         & write_help,readline,property,pro_num,Err_msg,path_name,title, &
         & point_tydef,element_tydef,Edge_tydef,adjlist_tydef,addadjlist,v2edge,&
         & constrained_edge_tydef,soillayer,strtoint,SETUP_SEARCH_ZONE_2D,POINTlOC_2D,&
-        & xmin,xmax,ymin,ymax,xyscale,SEARCHZONE_TYDEF
+        & xmin,xmax,ymin,ymax,xyscale,SEARCHZONE_TYDEF,isnorefined
     implicit none
     private
     public::libtriangle,bgmesh
@@ -115,7 +115,7 @@ module triangle_io
         CHARACTER(len=:),allocatable::ext1(:)
 	    integer(4)::length,msg
         logical::isexist
-        integer::unit1,i,j,hasread
+        integer::unit1,i,j,hasread,offset1=0
 
         integer::na1=0,ismarker1=0,n1=0,n2,nelt1,nmax
         integer::nread,nneed,nnode1,n3
@@ -156,14 +156,17 @@ module triangle_io
                     ismarker1=int(linedata(4))
                     allocate(this.node(this.nnode))
                     !if(na1>0) allocate(node_tg.at(na1))
+                    offset1=0
+                    if(index(trim(this.cmd),'u')/=0) offset1=1
                     do j=1,this.nnode
                         read(unit1,*) n2,ar1(1:n1)            
                         this.node(n2).x=ar1(1);this.node(n2).y=ar1(2);
                         if(na1>0) this.node(n2).at=ar1(3:2+na1)
+                        
                         if(soillayer>0) then
                             allocate(this.node(n2).elevation(0:soillayer))
-                            this.node(n2).elevation=ar1(3:3+soillayer)
-                            this.node(n2).havesoildata=int(ar1(4+soillayer))
+                            this.node(n2).elevation=ar1(offset1+3:3+soillayer+offset1)
+                            this.node(n2).havesoildata=int(ar1(4+soillayer+offset1))
                         endif
                         this.node(n2).nat=na1
                         this.node(n2).number=n2
@@ -222,7 +225,7 @@ module triangle_io
                         this.cedge(n1).edge=j
                         this.edge(j).iscedge=n1
                         !marker==-1 model outer bonndaries.
-                        if(this.edge(j).marker==-1) this.cedge(n1).cl=0                        
+                        !if(this.edge(j).marker==-1) this.cedge(n1).cl=0                        
                     enddo
                     
                         
@@ -279,7 +282,7 @@ module triangle_io
         implicit none
         class(triangle_tydef)::this
         integer,intent(in)::unit
-        integer::oldcolor,i
+        integer::oldcolor,i,n1
         logical::isexist
         
         print *,'Reading mesh_by_triangle data...'
@@ -312,8 +315,12 @@ module triangle_io
         !为保持与本程序的数据结构兼容,参数'en'为必输参数         
         if(index(trim(this.cmd),'e')==0) this.cmd=trim(this.cmd)//'e'
         if(index(trim(this.cmd),'n')==0) this.cmd=trim(this.cmd)//'n'
-        if(index(trim(this.cmd),'I')==0) this.cmd=trim(this.cmd)//'I'
-        !if(index(trim(this.cmd),'A')==0) this.cmd=trim(this.cmd)//'A'
+        if(index(trim(this.cmd),'I')==0) this.cmd=trim(this.cmd)//'I'     
+        n1=index(trim(this.cmd),'u')
+        if(n1==0.and.isnorefined/=1) this.cmd=trim(this.cmd)//'u'
+        if(n1/=0.and.isnorefined==1) then
+            this.cmd=this.cmd(1:n1-1)//this.cmd(n1+1:len_trim(this.cmd))
+        endif
     endsubroutine
     
     subroutine execute_triangle_cmd(this,filepath)
@@ -385,7 +392,7 @@ module triangle_io
         class(triangle_tydef)::this
         integer,optional,intent(in)::isbgmesh
         !character(len=*),intent(in)::path_name
-        integer::len1,UNIT,I,N1,N2,N3,J,isbgmesh1=0,nnode1,nseg1,n4
+        integer::len1,UNIT,I,N1,N2,N3,J,isbgmesh1=0,nnode1,nseg1,n4,offset1=0
         REAL(8)::PT(2)
         character(1024)::outfile
         
@@ -420,24 +427,43 @@ module triangle_io
         OPEN(UNIT=UNIT,FILE=outfile,STATUS='REPLACE')
         len1=len_trim(POLY2D_FILE_FORMAT)
 	    WRITE(UNIT,10) trim(POLY2D_FILE_FORMAT)
+        
         N1=SOILLAYER
         IF(N1>0) THEN
             N1=N1+1
         ENDIF
+        offset1=0
+        if(index(trim(this.cmd),'u')/=0.and.isbgmesh1==0) offset1=1 !size info in the first attributes
         
-        WRITE(UNIT,20) nnode1,N1+1
-        DO I=1,INPN
-            if(isbgmesh1/=0) then
-                if(ARR_T(I).havesoildata/=2) cycle
-                WRITE(UNIT,30) ARR_T(I).bgnum,ARR_T(I).X,ARR_T(I).Y,ARR_T(I).SOILDATA,ARR_T(I).havesoildata,0
-            else
-                if(ARR_T(I).havesoildata>0) THEN
-                    WRITE(UNIT,30) I,ARR_T(I).X,ARR_T(I).Y,ARR_T(I).SOILDATA,ARR_T(I).havesoildata,0
-                ELSE
-                    WRITE(UNIT,31) I,ARR_T(I).X,ARR_T(I).Y,ARR_T(I).havesoildata,0
-                ENDIF
-            endif
-        ENDDO
+        WRITE(UNIT,20) nnode1,N1+1+offset1
+        if(offset1==0) then
+            DO I=1,INPN            
+                if(isbgmesh1/=0) then
+                    if(ARR_T(I).havesoildata/=2) cycle
+                    WRITE(UNIT,30) ARR_T(I).bgnum,ARR_T(I).X,ARR_T(I).Y,ARR_T(I).SOILDATA,ARR_T(I).havesoildata,0
+                else
+                    if(ARR_T(I).havesoildata>0) THEN
+                        WRITE(UNIT,30) I,ARR_T(I).X,ARR_T(I).Y,ARR_T(I).SOILDATA,ARR_T(I).havesoildata,0
+                    ELSE
+                        WRITE(UNIT,31) I,ARR_T(I).X,ARR_T(I).Y,ARR_T(I).havesoildata,0
+                    ENDIF
+                endif
+            ENDDO
+        else
+            DO I=1,INPN            
+                if(isbgmesh1/=0) then
+                    if(ARR_T(I).havesoildata/=2) cycle
+                    WRITE(UNIT,30) ARR_T(I).bgnum,ARR_T(I).X,ARR_T(I).Y,ARR_T(I).SOILDATA,ARR_T(I).havesoildata,0 !bgmesh no need to refine.
+                else
+                    if(ARR_T(I).havesoildata>0) THEN
+                        WRITE(UNIT,32) I,ARR_T(I).X,ARR_T(I).Y,ARR_T(I).S,ARR_T(I).SOILDATA,ARR_T(I).havesoildata,0
+                    ELSE
+                        WRITE(UNIT,33) I,ARR_T(I).X,ARR_T(I).Y,ARR_T(I).S,ARR_T(I).havesoildata,0
+                    ENDIF
+                endif
+            ENDDO            
+        endif
+        
         
         WRITE(UNIT,40) NSEG1
         
@@ -496,7 +522,9 @@ module triangle_io
 10      FORMAT(A<len1>)  
 20      FORMAT(I7,1X,'2',1X,I3,1X,'1')
 30      FORMAT(I7,1X,<2+N1>(F15.7,1X),2(I3,1X))
-31      FORMAT(I7,1X,<2>(F15.7,1X),<N1>('-999.0',1X),2(I3,1X))        
+31      FORMAT(I7,1X,<2>(F15.7,1X),<N1>('-999.0',1X),2(I3,1X)) 
+32      FORMAT(I7,1X,<2+N1+1>(F15.7,1X),2(I3,1X))
+33      FORMAT(I7,1X,<3>(F15.7,1X),<N1>('-999.0',1X),2(I3,1X))         
 40      FORMAT(I7,1X,'1')  
 41      FORMAT(4(I7,1X)) 
 50      FORMAT(I7,2(F15.7,1X))

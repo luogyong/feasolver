@@ -11,6 +11,7 @@ subroutine write_readme_feasolver()
     !print *, "The help file is in d:\README_FEASOLVER.TXT."
 	open(20,file=HELPFILE,STATUS='REPLACE')
 	
+    
 	I=0
 	README(IPP(I)) ="//THE KEYWORD STRUCTURE USED IN THE INPUT FILE SINP IS EXPLAINED HEREIN"
 	README(IPP(I)) ="//THE [] MEANS OPTIONAL."

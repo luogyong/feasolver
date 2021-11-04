@@ -319,7 +319,7 @@ enddo
 		   print *,'Reading POINT data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
 		   write(*,'(A1024)') '\n Point的输入格式为:\n &
-           &    0) Point[,soillayer=#,inpmethod=0|1|2,zorder=0|1,isnorefined=0|1|-1|-a] \n  &
+           &    0) Point[,soillayer=#,inpmethod=0|1|2,zorder=0|1,isnorefined=0|1|-1|-a],poly3d=0|1|2 \n  &
            &    1) 点数(inpn);\n &
            &    2) 序号(num),坐标(x),坐标(y),[elevation(1:soillayer+1)][,meshsize]. 共inpn行.\n &
            &    Notes: \n &
@@ -331,7 +331,7 @@ enddo
            &        f)soillayer=模型的土层数(默认0) \n &
            &        g)elevation=该点的各土层面高程(soillayer>0时输入) \n &
            &        h) 当soillayer>0时，最外圈模型边界点要求输入各地层高程，因为外插不可控。\n &
-           &        i) 当采用第三方程序Triangle进行网格划分且要进行地层插值时，所有节点都必须输入确定的地层信息。\n &
+           &        i) poly3d=0,不输出tetgen的poly文件;=1,输出facet没有merge的poly文件;=2,输出facet merge后的poly文件。\n &
            &'C
 		   oldcolor = SETTEXTCOLOR(INT2(15))
             do i=1, pro_num
@@ -347,6 +347,8 @@ enddo
                     inpmethod=int(property(i).value)
                 case('zorder')
                     Zorder=int(property(i).value)
+                case('poly3d')
+                    poly3d=int(property(i).value)
                 case default
 	                call Err_msg(property(i).name)
                 end select

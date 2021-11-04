@@ -63,9 +63,9 @@
 		if(nsm>0) call structuremesh()
 		!call group()
         CALL tri_elt_group2d()
-        do i=1,ncow
-            call cowall(i).gen_element()
-        enddo        
+        !do i=1,ncow
+        !    call cowall(i).gen_element()
+        !enddo        
 		call elementgroup()
 		call limitanalysisgrid()
 		call time(char_time)	 
@@ -88,6 +88,7 @@
     USE geomodel,ONLY:CHECK_ORIENT
 	IMPLICIT NONE
 	INTEGER::I,N1=0
+    REAL(8)::VEC1(2,2)
 	N1=0
 	do i=1,nedge
 		if(edge(i).v(1)*edge(i).v(2)==0) cycle
@@ -98,7 +99,10 @@
 	do i=1,NELT
 		if(ELT(i).ISDEL) cycle
 		N1=N1+1
-		ELT(I).NUMBER=N1        
+		ELT(I).NUMBER=N1
+        VEC1(1,:)=NODE(ELT(I).NODE([2,3])).X-NODE(ELT(I).NODE(1)).X
+        VEC1(2,:)=NODE(ELT(I).NODE([2,3])).Y-NODE(ELT(I).NODE(1)).Y
+        ELT(I).PROPERTY(1)=0.5*ABS(VEC1(1,1)*VEC1(2,2)-VEC1(1,2)*VEC1(2,1)) !AREA
 	end do
 	ENUMBER=N1
     

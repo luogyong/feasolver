@@ -2453,8 +2453,8 @@ subroutine solvercommand(term,unit)
 							outvar(Vz).name='Vz'
 							outvar(Vz).value=Vz
                         else
-                            outvar(snet).name='VSF'
-						    outvar(snet).value=snet
+          !                  outvar(snet).name='VSF'
+						    !outvar(snet).value=snet
 						ENDIF						
 					case('dis')
 					  outvar(disx).name='disx'  

@@ -691,7 +691,7 @@ SUBROUTINE STEP_UPDATE(STEPINFO)
 	DO I=1,POSDATA.NEL
 		IF(POSDATA.ESET(POSDATA.ELEMENT(I).ISET).STEPSTATUS(STEPINFO.ISTEP)==1) THEN			
 			MFACE(POSDATA.ELEMENT(I).FACE(1:POSDATA.ELEMENT(I).NFACE)).ISDEAD=0
-			MEDGE(POSDATA.ELEMENT(I).EDGE(1:POSDATA.ELEMENT(I).NEDGE)).ISDEAD=0			
+			MEDGE(ABS(POSDATA.ELEMENT(I).EDGE(1:POSDATA.ELEMENT(I).NEDGE))).ISDEAD=0			
 		ENDIF	
 	ENDDO
 	
@@ -2027,7 +2027,7 @@ implicit none
         !// position the light
     real(GLfloat):: lightPos(4);
     
-    lightPos(:)= [0., r*3., r*2., 1.] 
+    lightPos(:)= [0.d0, r*3.d0, r*2.d0, 1.d0] 
     call glLightfv(GL_LIGHT0, GL_AMBIENT, lightKa);
     call glLightfv(GL_LIGHT0, GL_DIFFUSE, lightKd);
     call glLightfv(GL_LIGHT0, GL_SPECULAR, lightKs);

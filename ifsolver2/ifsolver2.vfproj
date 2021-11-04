@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioProject ProjectCreator="Intel Fortran" Keyword="QuickWin" Version="11.0" ProjectIdGuid="{1C3A282F-3C61-4026-B34B-F0CC45272D3F}">
+	<Platforms>
+		<Platform Name="Win32"/>
+		<Platform Name="x64"/></Platforms>
+	<Configurations>
+		<Configuration Name="Debug|Win32">
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" AdditionalIncludeDirectories="..\lib\f90gl-1.2.12\lib-Intel64\" FPS4Filenames="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtQuickWinDebug"/>
+				<Tool Name="VFLinkerTool" AdditionalOptions="/NODEFAULTLIB:LIBCMT " LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemWindows"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" RuntimeLibrary="rtQuickWin"/>
+				<Tool Name="VFLinkerTool" SuppressStartupBanner="true" SubSystem="subSystemWindows"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug|x64">
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" HeapArrays="0" AdditionalIncludeDirectories="..\lib\f90gl-1.2.12\lib-Intel64\" FPS4Filenames="true" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtQuickWinDebug" UseMkl="mklParallel"/>
+				<Tool Name="VFLinkerTool" AdditionalOptions="/NODEFAULTLIB:LIBCMT " LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemWindows"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|x64">
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc" SuppressStartupBanner="true" HeapArrays="0" AdditionalIncludeDirectories="..\lib\f90gl-1.2.12\lib-Intel64\" FPS4Filenames="true" RealKIND="realKIND8" RuntimeLibrary="rtQuickWin" UseMkl="mklParallel"/>
+				<Tool Name="VFLinkerTool" AdditionalOptions="/NODEFAULTLIB:LIBCMT;MSVCRTD.lib " LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" SubSystem="subSystemWindows"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
+	<Files>
+		<Filter Name="Header Files" Filter="fi;fd;h;inc">
+		<File RelativePath="..\constant.h"/>
+		<File RelativePath="..\Double.h"/></Filter>
+		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
+		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<Filter Name="evaluate">
+		<File RelativePath="..\evaluate\evalmod.f90"/>
+		<File RelativePath="..\evaluate\precmod.f90"/>
+		<File RelativePath="..\evaluate\stringmod.f90"/></Filter>
+		<Filter Name="linearProgramming">
+		<File RelativePath="..\HSL_LA04.FOR"/>
+		<File RelativePath="..\linearprogram_LPSOLVER.f90"/></Filter>
+		<Filter Name="material">
+		<File RelativePath="..\mc.f90"/>
+		<File RelativePath="..\mcdp_v103_clausen.for"/>
+		<File RelativePath="..\seepage.f90"/>
+		<File RelativePath="..\Tresca_clausen.for"/></Filter>
+		<Filter Name="Maths">
+		<File RelativePath="..\Maths\fastgl.f90"/>
+		<File RelativePath="..\Module\FindLocalEx.f90"/>
+		<File RelativePath="..\Maths\MathFuns.f90"/>
+		<File RelativePath="..\Maths\ODE_MODULE.f90"/>
+		<File RelativePath="..\Maths\odeint.for"/>
+		<File RelativePath="..\Module\quicksort.f90"/>
+		<File RelativePath="..\Maths\rk4.for"/>
+		<File RelativePath="..\Maths\rkck.for"/>
+		<File RelativePath="..\Maths\rkqs.for"/></Filter>
+		<Filter Name="meshgeometry">
+		<File RelativePath="..\opengl\MeshAdjacency.f90"/>
+		<File RelativePath="..\meshgeo.f90"/>
+		<File RelativePath="..\gmsh2solver\modulus_hashtable.f90"/></Filter>
+		<Filter Name="OPENGL">
+		<Filter Name="lib">
+		<File RelativePath="..\lib\f90gl-1.2.12\lib-Intel64\f90GL.lib"/>
+		<File RelativePath="..\lib\f90gl-1.2.12\lib-Intel64\f90GLU.lib"/>
+		<File RelativePath="..\lib\f90gl-1.2.12\lib-Intel64\f90GLUT.lib"/>
+		<File RelativePath="..\lib\f90gl-1.2.12\lib-Intel64\glut32.lib"/></Filter>
+		<File RelativePath="..\opengl\COLORMAP.F90"/>
+		<File RelativePath="..\opengl\contour.f90"/>
+		<File RelativePath="..\opengl\definedColor.f90"/>
+		<File RelativePath="..\opengl\drawModel.f90"/>
+		<File RelativePath="..\opengl\DrawNodalValue.f90"/>
+		<File RelativePath="..\opengl\DRAWSLICE.f90"/>
+		<File RelativePath="..\opengl\drawvector.f90"/>
+		<File RelativePath="..\opengl\femmeshshow.f90"/>
+		<File RelativePath="..\opengl\outputfont.f90"/>
+		<File RelativePath="..\opengl\ShowProbeValue.f90"/>
+		<File RelativePath="..\opengl\someutilities.f90"/>
+		<File RelativePath="..\opengl\streamline.f90"/>
+		<File RelativePath="..\opengl\tecplot_read.f90"/>
+		<File RelativePath="..\opengl\trackball.f90"/>
+		<File RelativePath="..\opengl\ViewModifier.f90"/></Filter>
+		<Filter Name="optims">
+		<File RelativePath="..\stochoptim\forlab.f90"/>
+		<File RelativePath="..\stochoptim\pikaia_module.f90"/>
+		<File RelativePath="..\PSO_SLOPE.f90"/>
+		<File RelativePath="..\SimAnn.f90"/>
+		<File RelativePath="..\stochoptim\stochoptim.f90"/></Filter>
+		<Filter Name="SCIPLOT">
+		<File RelativePath="..\scigraph\SCIGRAPH.F90"/>
+		<File RelativePath="..\SCIPLOT.f90"/>
+		<File RelativePath="..\scigraph\SGADMIN.F90"/>
+		<File RelativePath="..\scigraph\SGDATA.F90"/>
+		<File RelativePath="..\scigraph\SGDRAW.F90"/>
+		<File RelativePath="..\scigraph\SGLOWLVL.F90"/>
+		<File RelativePath="..\scigraph\SGPLOT.F90"/></Filter>
+		<Filter Name="solve">
+		<File RelativePath="..\plastic.f90"/>
+		<File RelativePath="..\SOLIDYIELD.F90"/>
+		<File RelativePath="..\solve.f90"/></Filter>
+		<File RelativePath="..\BTDB.F90"/>
+		<File RelativePath="..\FLAT_SHELL.FOR"/>
+		<File RelativePath="..\HELPREADME.f90"/>
+		<File RelativePath="..\hydraulicjump.f90"/>
+		<File RelativePath="..\main.f90"/>
+		<File RelativePath="..\PlaneExcav.f90"/>
+		<File RelativePath="..\postprocedure.f90"/>
+		<File RelativePath="..\readin.f90"/>
+		<File RelativePath="..\SettlementInducedbyDownWater.f90"/>
+		<File RelativePath="..\slopestability.f90"/>
+		<File RelativePath="..\solveds.f90"/>
+		<File RelativePath="..\SolverInitialization.f90"/>
+		<File RelativePath="..\SPR_STRESS_RECOVERY.f90"/>
+		<File RelativePath="..\StreamFunctionCal.f90"/>
+		<File RelativePath="..\stress_strain_cal.f90"/>
+		<File RelativePath="..\String2Value.f90"/></Filter></Files>
+	<Globals/></VisualStudioProject>

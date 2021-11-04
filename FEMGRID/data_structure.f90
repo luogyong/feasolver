@@ -11,7 +11,8 @@ module meshDS
 					maxntetelt=10000,&
                     modeldimension=3,&
                     INPMethod=1,& !=1,linear, =0, membrance
-                    Zorder=0 !=0土层高程从下往上输入,=1,反之。
+                    Zorder=0,& !=0土层高程从下往上输入,=1,反之。
+                    poly3d=2
     integer,parameter:: ET_PRM=63,&
                     ET_TET=43,Linear=1,Membrance=0
     logical::ismeminpdone=.false.
@@ -65,7 +66,7 @@ module meshDS
                                 !-1,不连续单元或防渗墙单元
 	   integer::zn=0,number,ZN2=-1,mat=-1
 	   integer::edge(4)=0,ORIENT(4)=1 !the edge number in edge set.
-	   real(8)::property(5)=0    !单元属性值
+	   real(8)::property(5)=0    !单元属性值, (1)=AREA
 	   integer::kcd=0,Maxedge=0  !单元的可分度,
 	   integer::adj(4)=-1 !if =-1,no adjacent element
        INTEGER::MOTHER=0,iLAYER=0,ISMODEL=1
@@ -122,11 +123,12 @@ module meshDS
 	end type
     type ar2d_tydef
         integer::nnum=0
+        REAL(8)::INSIDEPT(3)
         integer,allocatable::node(:)
     endtype
     TYPE ZONE_LAYGER_VOLUME_TYDEF
-        INTEGER::NVOL=0
-        type(ar2d_tydef),allocatable::bface(:)
+        INTEGER::NVOL=0        
+        type(ar2d_tydef),allocatable::bface(:)        
     ENDTYPE
 	type zone_tydef
 	   integer::num,k,OutGmshType=1,iElevation=1 !OutGmshType=1 Physical Volume only; =2 Physical Surface only; =3, both;if OutGmshType=2/3, iElevation指定输出哪个高程的面。       
@@ -216,7 +218,7 @@ module meshDS
 	integer::nedge=0
 
 	type adjlist_tydef
-		integer::count=0 !the number of adjacent node 
+		integer::count=0,ipt1=0 !the number of adjacent node 
 		integer,pointer::node(:)=>null() !adjacent node
 		integer,pointer::edge(:)=>null() !adjacent edge
  	end type

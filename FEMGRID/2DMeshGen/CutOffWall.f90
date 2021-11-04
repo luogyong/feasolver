@@ -1,6 +1,6 @@
 module CutoffWall
 USE meshDS,ONLY:strtoint,seg,segindex,edge,nedge,node,elt,nnode,nelt,ENLARGE_AR, &
-    adjlist,soillayer,zone,Removeadjlist,addadjlist
+    adjlist,soillayer,zone,Removeadjlist,addadjlist,ar2d_tydef
 use ds_t,only:arr_t
 
 implicit none
@@ -9,13 +9,14 @@ real ( kind = 8 ), parameter :: Pi = 3.141592653589793D+00
 public::cowall,ncow,xzone,nxzone
 
 type cutoffwall_type
-    integer::NCP=0,mat=1 !icl为防渗墙所在的控制线编号    
+    integer::NCP=0,mat=1     
     real(8)::thick=0 !墙厚
     integer,allocatable::cp(:) !控制点在输入数组中编号
     real(8),allocatable::be(:),te(:) !底高程,顶高程
-    integer,allocatable::node(:),element(:) !node=分离前防渗墙线上的节点（注意不是防渗墙单元的节点）,element=生成的防渗墙防渗墙单元
-        
-        
+    integer,allocatable::node(:),edge(:),element(:) !node=分离前防渗墙线上的母节点（注意不是防渗墙单元的节点）,element=生成的防渗墙防渗墙单元
+    !edge=防渗墙的母线段    
+    !integer,allocatable::wbedge(:)
+    type(ar2d_tydef)::face(4)   !face(1),all faces stretched by wall lines;face(2)=faces on the real walls;FACE(3)=BOUNDARY EDGE OF FACE(1);FACE(4)=BOUNDARY EDGE OF FACE(2)
     character(512):: helpstring= &
     'CUTOFFWALL的输入格式为: \n &
         & 1)NCOW(防渗墙个数); \n & 
@@ -33,6 +34,7 @@ type cutoffwall_type
         PROCEDURE::READIN=>COW_read
         PROCEDURE::GEN_ELEMENT=>GEN_COW_ELEMENT
         PROCEDURE::wall_elevation=>update_wall_elevation
+        procedure::setboundary=>set_cow_boundary_node_edge
         !PROCEDURE::OUTPUT=>COW_write            
 endtype
 type(cutoffwall_type),allocatable::cowall(:)
@@ -133,32 +135,26 @@ subroutine  COW_read(this,unit)
     THIS.MAT=int(ar(2))
     THIS.THICK=ar(3)
     
-    ALLOCATE(THIS.CP(THIS.NCP),THIS.BE(THIS.NCP))
+    !ALLOCATE(THIS.CP(THIS.NCP),THIS.BE(THIS.NCP))
     call strtoint(unit,ar,dnmax,dn,dnmax)
-    THIS.CP=INT(AR(1:SIZE(THIS.CP,DIM=1)))
+    THIS.CP=INT(AR(1:THIS.NCP))
     call strtoint(unit,ar,dnmax,dn,dnmax)
-    THIS.BE=AR(1:SIZE(THIS.BE,DIM=1))
+    THIS.BE=AR(1:THIS.NCP)
     call strtoint(unit,ar,dnmax,dn,dnmax)
-    THIS.TE=AR(1:SIZE(THIS.BE,DIM=1))    
+    THIS.TE=AR(1:THIS.NCP)    
 	!end do
 
 endsubroutine
 
-
-subroutine GEN_COW_ELEMENT(this)
+subroutine set_cow_boundary_node_edge(this)
     implicit none
     class(cutoffwall_type)::this
-    integer::i,j,k,K1,n1,n2,n3,N4,iseg1,nnum1,nedge1,ielt1,ielt2,iflag,ED1,ED2,v1(2),ALLOC_ERR,nnum2
-    integer,allocatable::node1(:),node2(:),edge1(:),elt1(:),edge2(:),elt2(:),edge3(:),edge4(:)
+    integer::i,iseg1,nnum1,nnum2,n1
+    integer,allocatable::node1(:),node2(:),edge1(:),edge2(:)
     logical::isclose
-    real(8)::val1(2)
     
-    !gen new nodes
-    n1=0;n2=0
-    node.subbw=0 !借用
-    node.layer=0
-    isclose=this.cp(1)==this.cp(this.ncp)
     if(allocated(edge2)) deallocate(edge2)
+    
     do i=1,this.ncp-1
         iseg1=segindex(this.cp(i),this.cp(i+1))
         !n1=n1+seg(iseg1).nnum-1
@@ -179,11 +175,57 @@ subroutine GEN_COW_ELEMENT(this)
         !    print *, size(node2),size(edge2)
         !endif
       
-    enddo
-      
+    enddo 
+    
+    this.node=node2
+    this.edge=edge2
+end subroutine
+
+subroutine GEN_COW_ELEMENT(this)
+    implicit none
+    class(cutoffwall_type)::this
+    integer::i,j,k,K1,n1,n2,n3,N4,iseg1,nnum1,nedge1,ielt1,ielt2,iflag,ED1,ED2,v1(2),ALLOC_ERR,nnum2
+    integer,allocatable::node2(:),edge1(:),elt1(:),edge2(:),elt2(:),edge3(:),edge4(:)
+    logical::isclose
+    real(8)::val1(2)
+    
+    !gen new nodes
+    n1=0;n2=0
+    node.subbw=0 !借用
+    node.layer=0
+    isclose=this.cp(1)==this.cp(this.ncp)
+    !if(allocated(edge2)) deallocate(edge2)
+    if(.not.allocated(this.node)) then
+    !do i=1,this.ncp-1
+    !    iseg1=segindex(this.cp(i),this.cp(i+1))
+    !    !n1=n1+seg(iseg1).nnum-1
+    !    !call seg(iseg1).getparas(nnum=nnum1,nedge=nedge1)
+    !
+    !    node1=seg(iseg1).get_node([arr_t(this.cp(i)).x,arr_t(this.cp(i)).y])
+    !    nnum1=size(node1)
+    !    edge1=seg(iseg1).get_edge([arr_t(this.cp(i)).x,arr_t(this.cp(i)).y])
+    !    nnum2=size(edge1)
+    !    n1=nnum1-1
+    !    if(.not.isclose.and.i==this.ncp-1) then !not close. add the last one
+    !        n1=nnum1
+    !    endif        
+    !    node2=[node2,node1(1:n1)]
+    !    
+    !    edge2=[edge2,edge1]
+    !    !if(size(node2)/=size(edge2)) then
+    !    !    print *, size(node2),size(edge2)
+    !    !endif
+    !  
+    !enddo
+        call this.setboundary()
+    endif
+    
+    node2=this.node
+    edge2=this.edge      
     n1=size(node2)
     n2=size(edge2)
-    this.node=node2
+
+    
     if(size(node)<nnode+n1) call enlarge_ar(node,n1)
     do j=1,n1
         nnode=nnode+1        
@@ -344,7 +386,7 @@ subroutine GEN_COW_ELEMENT(this)
     enddo
     
     
-    deallocate(node1,node2,edge1,elt1,edge2,elt2,edge3,edge4,STAT = ALLOC_ERR)
+    deallocate(node2,edge1,elt1,edge2,elt2,edge3,edge4,STAT = ALLOC_ERR)
  
     node.subbw=0
     node.layer=0
@@ -379,8 +421,8 @@ subroutine update_wall_elevation(this)
         
         do j=1,n1
             if(.not.allocated(node(node1(j)).we)) allocate(node(node1(j)).we(2))
-            node(node1(j)).we(1)=linearint([arr_t(this.cp(i)).x],this.te(i),[arr_t(this.cp(i+1)).x],this.te(i+1),[node(node1(j)).x])
-            node(node1(j)).we(2)=linearint([arr_t(this.cp(i)).x],this.be(i),[arr_t(this.cp(i+1)).x],this.be(i+1),[node(node1(j)).x])
+            node(node1(j)).we(1)=linearint([arr_t(this.cp(i)).x,arr_t(this.cp(i)).y],this.te(i),[arr_t(this.cp(i+1)).x,arr_t(this.cp(i+1)).y],this.te(i+1),[node(node1(j)).x,node(node1(j)).y])
+            node(node1(j)).we(2)=linearint([arr_t(this.cp(i)).x,arr_t(this.cp(i)).y],this.be(i),[arr_t(this.cp(i+1)).x,arr_t(this.cp(i+1)).y],this.be(i+1),[node(node1(j)).x,node(node1(j)).y])
         enddo        
     enddo
 end subroutine

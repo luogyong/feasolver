@@ -236,7 +236,7 @@ CONTAINS
       SUBROUTINE SciDrawErrorBars(x,y,yeLow,yeHigh, &
                                      errorbarType,errorbarColor)
 
-          REAL                      x,y,yeLow,yeHigh
+          REAL(8)                      x,y,yeLow,yeHigh
           INTEGER(2)                errorbarType,errorbarColor
 
           INTEGER*4                retv
@@ -265,14 +265,14 @@ CONTAINS
                      barType,barColor, &
                      titleColor,title,boxColor)
 
-          REAL         xwpr,ywpr
+          REAL(8)         xwpr,ywpr
           INTEGER      setNum,numSets
           INTEGER(2)   lineType,lineColor,markerType,markerColor
           INTEGER(2)   barType,barColor,titleColor,boxColor
           CHARACTER*20 title
 
           INTEGER      retv
-          REAL         xp,yp,xb,yb,xw,yw
+          REAL(8)         xp,yp,xb,yb,xw,yw
           INTEGER      numRows,numCols,currRow,currCol
           INTEGER      exw,eyw
           RECORD /wxycoord/ lp
@@ -304,13 +304,13 @@ CONTAINS
               retv=SETCOLOR(lineColor)
               CALL SciLine_w(lineType,DBLE(xp),           &
                      DBLE(yp),DBLE(xp+240),DBLE(yp))
-              CALL SciDrawMarker(REAL(xp+240.0/2),        &
-                     REAL(yp),markerType,markerColor)
+              CALL SciDrawMarker(DBLE(xp+240.0/2),        &
+                     DBLE(yp),markerType,markerColor)
               xp=xp+272
           ELSE
               ! draw a little hash pattern
               CALL SciDrawBar(xp,yp-0.25*eyw,             &
-                     160.0,160.0,barType,barColor)
+                     160.0d0,160.0d0,barType,barColor)
               xp=xp+272
           END IF
 
