@@ -10,7 +10,7 @@ end module
 MODULE SLOPE_PSO
     USE stochoptim,ONLY: Evolutionary,rng
     use pikaia_module, only: pikaia_class
-    USE solverds,ONLY:INPUTFILE
+    USE solverds,ONLY:INPUTFILE,lowcase
     USE INPUT_PARSER
     IMPLICIT NONE
     

@@ -234,6 +234,15 @@ enddo
 	 term=trim(term)
 	
 	 select case(term)
+        case('vseg_pg')
+            print *,'Reading vseg_pg Zone data...'
+            call skipcomment(unit)
+            read(unit,*) nvseg_pg
+            allocate(vseg_pg(nvseg_pg))
+            if(nvseg_pg>0) call vseg_pg(1).help(vseg_pg(1).helpstring)
+            do i=1,nvseg_pg
+                call vseg_pg(i).readin(unit)
+            enddo  
          
         case('mesh_by_triangle','triangle')
             call libtriangle.readin(unit)       
@@ -385,7 +394,7 @@ enddo
                             ar1=pack(arr_t(k).soildata,abs(arr_t(k).soildata+999.0)>=1.d-6)
                             if(size(ar1)>1) then
                                 if(any(ar1(2:)-ar1(1:size(ar1)-1)<0.d0)) then
-                                    print *, 'Elevation conflits in POint i=',k  
+                                    print *, 'Elevation conflicts in POint i=',k  
                                     iserror1=.true.
                                 endif
                             endif
@@ -576,6 +585,7 @@ enddo
 
 				 allocate(zone(i).point(2,zone(i).num))
                  call strtoint(unit,ar,dnmax,dn,zone(i).num)
+
                  
                 
                  if(dn==zone(i).num) then

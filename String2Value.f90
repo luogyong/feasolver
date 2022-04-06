@@ -338,6 +338,8 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 			value=cax_spg
 		case('pipe2')
 			value=pipe2
+		case('poreflow')
+			value=poreflow			
 		case('wellbore')
 			value=wellbore
 		case('wellbore_spgface')
@@ -411,24 +413,4 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 
 end subroutine
 
-!translate all the characters in term into lowcase character string
-subroutine lowcase(term)
-	use dflib
-	implicit none
-	integer i,in,nA,nZ,nc,nd
-	character(1)::ch
-	character(*)::term
-	
-	term=adjustl(trim(term))
-	nA=ichar('A')
-	nZ=ichar('Z')
-	nd=ichar('A')-ichar('a')
-	in=len_trim(term)
-	do i=1,in
-		ch=term(i:i)
-		nc=ichar(ch)
-		if(nc>=nA.and.nc<=nZ) then
-			term(i:i)=char(nc-nd)
-		end if
-	end do
-end subroutine
+

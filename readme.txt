@@ -79,11 +79,7 @@
 !	property(8)=hz !梁截面z'(局部坐标)的高度，为后处理转化为六面体单元时所用
 !   (9)=MinN,(10)=MaxN,(11)=minMx,(12)=maxMx,(13)=minMy,(14)=maxMy,(15)=minMz,(16)=maxMz，(17)=C,(18)=PHI,(19)=yc  !对于弹理想塑性梁，相对于局部坐标的限值,暂不考虑剪力的限值。
 !	当为单元SSP2D指定材料，输入参数(A,Iz,minN,maxN,minMz,maxMz)均为单根钢板桩的参数，,C和PHI分别为库仑接触摩擦定律的两个参数。.
-!case(pipe2,ppipe2)
-!	property(1)=r !管半径
-!	property(2)=lamda !管壁摩阻系数
-!	property(3)=epslon !管壁的绝对粗糙度
-!	property(4)=v  !运动粘滞系数
+
 !3 element.type
 !	1,=conduct1d
 !	-23,=ubtri2dl
@@ -120,3 +116,4 @@
 !	10)soilspring: (1 to 6)=ko,ka,kp,ks,单元所涉及的长度,Pw。
 !	11)spring： (2:5): minVal,maxVal,ks,以及单元所涉及的长度。
 !	12)zt4_spg,ZT6_SPG: (1):AREA
+!   13).property(1)=throat size

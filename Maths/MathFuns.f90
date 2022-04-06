@@ -371,6 +371,24 @@ ENDSUBROUTINE
             angle2d=-PI/2.
         ENDIF
     ENDIF
+    end function
+    
+        !xyz(1:4,:) 四面体四个节点的空间坐标,第一维为节点。
+real(8) function TetVOL(xyz)  
+	implicit none
+	real(8),intent(in)::xyz(4,3)
+	integer::i,j
+	real(8)::a1(3,3)
+		
+	do i=2,4
+		do j=1,3
+			a1(i-1,j)=xyz(i,j)-xyz(1,j)
+		end do
+	end do
+	TetVOL=a1(1,1)*(a1(2,2)*a1(3,3)-a1(3,2)*a1(2,3))- &
+			 a1(1,2)*(a1(2,1)*a1(3,3)-a1(3,1)*a1(2,3))+ &
+			 a1(1,3)*(a1(2,1)*a1(3,2)-a1(3,1)*a1(2,2))
+	TetVOL=1./6.*ABS(TetVOL)
 end function
 
 end module

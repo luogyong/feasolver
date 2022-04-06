@@ -155,7 +155,7 @@
          call getwindowcoord(ixpos-15, iypos-15,wxy)
 		
 		 if(ievent==MOUSE$MOVE) then
-		    write(msg,*) 'Put C to close window and continue meshgen. Put Q to terminate program.'
+		    write(msg,'("(x,y)=",f15.7,",",f15.7)') wxy.wx*xyscale+xmin,wxy.wy*xyscale+ymin           
             CALL SETMESSAGEQQ (msg, QWIN$MSG_INPUTPEND)
 		    return
 	     end if

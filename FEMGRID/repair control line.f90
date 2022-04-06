@@ -58,9 +58,15 @@ subroutine RCL_4TH(iflag)
             
 			if(n3/=-1) then
 				!quick judge
-				if(edge(n3).v(1)==n1.and.edge(n3).v(2)==n2) cycle
-				if(edge(n3).v(2)==n1.and.edge(n3).v(1)==n2) cycle
-			end if
+				if((edge(n3).v(1)==n1.and.edge(n3).v(2)==n2).or. &
+				(edge(n3).v(2)==n1.and.edge(n3).v(1)==n2))  then
+                    
+                    cycle
+                else
+                    EDGE(n3).ISCEDGE=0;cedge(i).edge=-1;
+                endif
+            end if            
+            
 			if(.not.any(adjlist(n1).node(1:adjlist(n1).count)==n2)) then
 				xa=node(n1).x
 				ya=node(n1).y

@@ -33,7 +33,7 @@
 	print *, 'Begin to read in data...'
 	call readin()
 	
-	!统计每个物理组单元的个数及单元数组下标。
+	!ͳ��ÿ�������鵥Ԫ�ĸ�������Ԫ�����±ꡣ
 	do i=1,maxphgp
 		if(physicalgroup(i).nel>0) allocate(physicalgroup(i).element(physicalgroup(i).nel))
 	end do
@@ -106,8 +106,8 @@ end program
 
 subroutine clear_model()
 
-!标识多余节点，不输出。
-!初始化node.element,即共享节点的单元表。
+!��ʶ����ڵ㣬�������
+!��ʼ��node.element,�������ڵ�ĵ�Ԫ����
     use DS_Gmsh2Solver
     implicit none
 	integer::k,k1,iel,ipg1,i,n1
@@ -120,7 +120,7 @@ subroutine clear_model()
     gnnode=0
 	do k=1,nphgp
 		ipg1=phgpnum(k)			
-		if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD的单元组不输出
+		if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD�ĵ�Ԫ�鲻���
         IF(physicalgroup(ipg1).nel==0) CYCLE
         IF(.NOT.PHYSICALGROUP(IPG1).ISMASTER) CYCLE 
         do k1=1,physicalgroup(ipg1).nel				
@@ -146,7 +146,7 @@ subroutine clear_model()
     
     do k=1,nphgp
 		ipg1=phgpnum(k)			
-		if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD的单元组不输出
+		if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD�ĵ�Ԫ�鲻���
         IF(physicalgroup(ipg1).nel==0) CYCLE
         IF(.NOT.PHYSICALGROUP(IPG1).ISMASTER) CYCLE 
         do k1=1,physicalgroup(ipg1).nel				
@@ -329,7 +329,7 @@ SUBROUTINE SETUP_FACE_TBL()
                     IF(FACE(VAL1.IITEM).V(K)==ELEMENT(I).NODE(ELTTYPE(ELEMENT(I).ET).FACE(1,J))) THEN
                         IF(FACE(VAL1.IITEM).V(MOD(K,FACE(VAL1.IITEM).SHAPE)+1)/= &
                             ELEMENT(I).NODE(ELTTYPE(ELEMENT(I).ET).FACE(2,J))) THEN
-                            FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=-I !I单元此面的方向与face的方向反向,为-1
+                            FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=-I !I��Ԫ����ķ�����face�ķ�����,Ϊ-1
                         ELSE
                             FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=I
                         ENDIF                  
@@ -337,7 +337,7 @@ SUBROUTINE SETUP_FACE_TBL()
                     ENDIF
                 ENDDO
             ELSE
-                FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=I !同向 =1
+                FACE(VAL1.IITEM).ELEMENT(FACE(VAL1.IITEM).NEL)=I !ͬ�� =1
             ENDIF
             
                 
@@ -642,7 +642,7 @@ SUBROUTINE GEN_LAYERED_ELEMENT()
     DEALLOCATE(ELEVATION)
     
 	!update physical group
-	!统计每个物理组单元的个数及单元数组下标。
+	!ͳ��ÿ�������鵥Ԫ�ĸ�������Ԫ�����±ꡣ
 	N3=0
 	do i=1,nphgp
 		IGP1=phgpnum(i)
@@ -713,7 +713,7 @@ SUBROUTINE GEN_ZEROTHICKNESS_ELEMENT()
             N1=physicalgroup(IPGROUP1).NEL
 			IF(MOD(N1,2)/=0) STOP "ELEMENT NUMBER ERROR.ERRORS IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
             
-            !按形心是否重合，找重叠单元对
+            !�������Ƿ��غϣ����ص���Ԫ��
             IF(ALLOCATED(IA1)) DEALLOCATE(IA1)
             ALLOCATE(IA1(N1))
             IA1=0
@@ -721,7 +721,7 @@ SUBROUTINE GEN_ZEROTHICKNESS_ELEMENT()
                 IF(IA1(J)/=0) CYCLE
                 IEL1=physicalgroup(IPGROUP1).ELEMENT(J)
                 
-                DO K2=N1/2+J,N1+N1/2+J-1 !按gmsh输出crack单元的顺序，1:N1/2的单元与N1/2+1:N1的单元一一对应。这里考虑更一般的情况，进行了循环一周的匹配寻找。
+                DO K2=N1/2+J,N1+N1/2+J-1 !��gmsh���crack��Ԫ��˳��1:N1/2�ĵ�Ԫ��N1/2+1:N1�ĵ�Ԫһһ��Ӧ�����￼�Ǹ�һ��������������ѭ��һ�ܵ�ƥ��Ѱ�ҡ�
                     K=MOD(K2-1,N1)+1
                     
                     IF(IA1(K)/=0) CYCLE
@@ -788,7 +788,7 @@ SUBROUTINE GEN_ZEROTHICKNESS_ELEMENT()
 				ENDDO
             ENDIF
             
-            !如防渗墙的材料沿高程变化，则重新为每个单元指定材料号
+            !�����ǽ�Ĳ����ظ̱߳仯��������Ϊÿ����Ԫָ�����Ϻ�
             IA1=0
             if(ncowmat>0) then
                 if(any(cowmat.id==ipgroup1)) then
@@ -836,7 +836,7 @@ subroutine elt_bc_load_translate()
 	integer,allocatable::nodalload1(:),node1(:)
 	real(8),allocatable::load1(:)
 	
-	! 荷载具可叠加，边界条件不具有可加性。分布力转化为节点力时要积分，但分布位移转化为节点位移时不需积分，节点位移等于分布位移。
+	! ���ؾ߿ɵ��ӣ��߽����������пɼ��ԡ��ֲ���ת��Ϊ�ڵ���ʱҪ���֣����ֲ�λ��ת��Ϊ�ڵ�λ��ʱ������֣��ڵ�λ�Ƶ��ڷֲ�λ�ơ�
 	if(nelt_load>0) allocate(nodalLoad(maxnnodalLoad))
 	if(nelt_bc>0) allocate(nodalBC(maxnnodalBC))
 	if(nelt_spgface>0) allocate(spgface(maxnspgface))
@@ -845,14 +845,14 @@ subroutine elt_bc_load_translate()
 	if(nelt_load>0) allocate(load1(nnode))
 	do i=1, nelt_load
 		select case(elt_load(i).ndim)
-			case(0) !ndim=0,是点荷载，各个单元中的同一节点，不具可加性，均指同一值。
+			case(0) !ndim=0,�ǵ���أ�������Ԫ�е�ͬһ�ڵ㣬���߿ɼ��ԣ���ָͬһֵ��
 				nodalload1=0
 				do j=1,physicalgroup(elt_load(i).group).nel
 					n1=physicalgroup(elt_load(i).group).element(j)
 					do k=1,element(n1).nnode
 						n2=element(n1).node(k)
                         if(node(n2).inode<1) then
-                            print *, "Warning. 单元模型中没有包含力边界节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                            print *, "Warning. ��Ԫģ����û�а������߽�ڵ�N,��ȷ��GROUPPARAMETER�Ƿ�����.N=",n2
                             cycle
                         endif                        
 						if(nodalload1(n2)==0) then
@@ -884,13 +884,13 @@ subroutine elt_bc_load_translate()
 					LAV1=LAV1*t1
 					do k=1,element(n1).nnode
 						n2=element(n1).node(k)
-						load1(n2)=load1(n2)+Elttype(element(n1).et).weight(k,1)*LAV1 !均布荷载								 				
+						load1(n2)=load1(n2)+Elttype(element(n1).et).weight(k,1)*LAV1 !��������								 				
 					end do
 					
 				end do				
 				do j=1,nnode
                     if(node(j).inode<1) then
-                        print *, "Warning. 单元模型中没有包含力边界节点N,请确认GROUPPARAMETER是否有误.N=",j
+                        print *, "Warning. ��Ԫģ����û�а������߽�ڵ�N,��ȷ��GROUPPARAMETER�Ƿ�����.N=",j
                         cycle
                     endif 
 					if(abs(load1(j))>1e-10) then
@@ -908,7 +908,7 @@ subroutine elt_bc_load_translate()
 	end do
 	
 	do i=1, nelt_bc
-		!**********目前认为边界条件都没有可加性,NDIM=1,2,3的情况与NDIM=0的情况一样**********。
+		!**********Ŀǰ��Ϊ�߽�������û�пɼ���,NDIM=1,2,3�������NDIM=0�����һ��**********��
         nodalload1=0
         IF(ELT_BC(I).ISWELLCONDITION<1) THEN
 		    
@@ -917,7 +917,7 @@ subroutine elt_bc_load_translate()
 			    do k=1,element(n1).nnode
 				    n2=element(n1).node(k)
                     if(node(n2).inode<1) then
-                        print *, "Warning. 单元模型中没有包含边界条件节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                        print *, "Warning. ��Ԫģ����û�а����߽������ڵ�N,��ȷ��GROUPPARAMETER�Ƿ�����.N=",n2
                         cycle
                     endif
 				    if(nodalload1(n2)==0) then
@@ -928,7 +928,7 @@ subroutine elt_bc_load_translate()
 					    nodalBC(nnodalBC).sf=elt_bc(i).sf
                         nodalBC(nnodalBC).spg_isdual=elt_bc(i).spg_isdual
 					    nodalBC(nnodalBC).value=elt_bc(i).GETVALUE(node(n2).xy(1),node(n2).xy(2),node(n2).xy(3))
-					    nodalload1(n2)=1 !多次出现时以第一次出现的值为准。
+					    nodalload1(n2)=1 !��γ���ʱ�Ե�һ�γ��ֵ�ֵΪ׼��
 				    end if
 			    end do			
 		    end do
@@ -938,7 +938,7 @@ subroutine elt_bc_load_translate()
 			    do k=1,element(n1).nnode
 				    n2=element(n1).node(k)
                     if(node(n2).inode<1) then
-                        print *, "Warning. 单元模型中没有包含井边界条件节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                        print *, "Warning. ��Ԫģ����û�а������߽������ڵ�N,��ȷ��GROUPPARAMETER�Ƿ�����.N=",n2
                         cycle
                     endif                    
 				    if(nodalload1(n2)==0) then
@@ -949,7 +949,7 @@ subroutine elt_bc_load_translate()
 					    WELLHEAD(NWELLHEAD).sf=elt_bc(i).sf
                         WELLHEAD(NWELLHEAD).spg_isdual=elt_bc(i).spg_isdual
 					    WELLHEAD(NWELLHEAD).value=elt_bc(i).GETVALUE(node(n2).xy(1),node(n2).xy(2),node(n2).xy(3))
-					    nodalload1(n2)=1 !多次出现时以第一次出现的值为准。
+					    nodalload1(n2)=1 !��γ���ʱ�Ե�һ�γ��ֵ�ֵΪ׼��
 				    end if
 			    end do			
 		    end do            
@@ -957,18 +957,18 @@ subroutine elt_bc_load_translate()
 	end do 
 	
 	do i=1, nelt_spgface
-		!**********目前认为边界条件都没有可加性**********。
+		!**********Ŀǰ��Ϊ�߽�������û�пɼ���**********��
 		nodalload1=0
 
 		elt_spgface(i).n1=nspgface+1
 		do j=1,physicalgroup(elt_spgface(i).group).nel
 			n1=physicalgroup(elt_spgface(i).group).element(j)
             n3=element(n1).nnode
-            if(elt_spgface(i).iswellcondition>0) n3=element(n1).nnode/2 !井流出溢面单元与井流单元节点结构一样，都是4个节点，只有1-2节点是井壁节点。
+            if(elt_spgface(i).iswellcondition>0) n3=element(n1).nnode/2 !���������浥Ԫ�뾮����Ԫ�ڵ�ṹһ��������4���ڵ㣬ֻ��1-2�ڵ��Ǿ��ڽڵ㡣
 			do k=1,n3
 				n2=element(n1).node(k)
                 if(node(n2).inode<1) then
-                    print *, "Warning. 单元模型中没有包含出溢面节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                    print *, "Warning. ��Ԫģ����û�а���������ڵ�N,��ȷ��GROUPPARAMETER�Ƿ�����.N=",n2
                     cycle
                 endif
 				if(nodalload1(n2)==0) then
@@ -978,7 +978,7 @@ subroutine elt_bc_load_translate()
 					spgface(nspgface).dof=elt_spgface(i).dof
 					spgface(nspgface).sf=elt_spgface(i).sf
 					spgface(nspgface).value=elt_spgface(i).value
-					nodalload1(n2)=1 !多次出现时以第一次出现的值为准。
+					nodalload1(n2)=1 !��γ���ʱ�Ե�һ�γ��ֵ�ֵΪ׼��
 				end if
 			end do			
 		end do
@@ -994,7 +994,7 @@ subroutine elt_bc_load_translate()
             do k=1,element(n1).nnode
                 n2=element(n1).node(k)
                 if(node(n2).inode<1) then
-                    print *, "Warning. 单元模型中没有包含水面线边界节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                    print *, "Warning. ��Ԫģ����û�а���ˮ���߽߱�ڵ�N,��ȷ��GROUPPARAMETER�Ƿ�����.N=",n2
                     cycle
                 endif                 
                 if(nodalload1(n2)==0)then
@@ -1012,7 +1012,7 @@ subroutine elt_bc_load_translate()
         !do j=1,wsp(i).nnode
         !    
         !    do k=j+1,wsp(i).nnode
-        !        !从小到大
+        !        !��С����
         !        if(node(node1(k)).xy(1)<node(node1(j)).xy(1)) then
         !            n1=node1(k)
         !            node1(k)=node1(j)
@@ -1059,7 +1059,7 @@ subroutine elt_bc_load_translate()
             do k=1,element(n1).nnode
                 n2=element(n1).node(k)
                 if(node(n2).inode<1) then
-                    print *, "Warning. 单元模型中没有包含数据线节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                    print *, "Warning. ��Ԫģ����û�а��������߽ڵ�N,��ȷ��GROUPPARAMETER�Ƿ�����.N=",n2
                     cycle
                 endif                 
                 if(nodalload1(n2)==0)then
@@ -1159,7 +1159,7 @@ subroutine SortByPath(igroup,ispgroup,Local_Node,NLNDE)
 
 end subroutine
 
-subroutine Element_LAV_Cal(ienum,LAV) !计算单元的长度、面积或体积
+subroutine Element_LAV_Cal(ienum,LAV) !���㵥Ԫ�ĳ��ȡ���������
 	use DS_Gmsh2Solver
 	implicit none	
 	integer,intent(in)::ienum
@@ -1173,13 +1173,13 @@ subroutine Element_LAV_Cal(ienum,LAV) !计算单元的长度、面积或体积
 			LAV=((node(element(ienum).node(1)).xy(1)-node(element(ienum).node(2)).xy(1))**2+ &
 			(node(element(ienum).node(1)).xy(2)-node(element(ienum).node(2)).xy(2))**2+ &
 			(node(element(ienum).node(1)).xy(3)-node(element(ienum).node(2)).xy(3))**2)**0.5
-		case(2,9,23) !三角形面积
+		case(2,9,23) !���������
 						
 			do i=1,3
 				a1(i,:)=node(element(ienum).node(i)).xy
 			end do
 			LAV=TRIAREA(A1(1:3,1:3))
-		case(3,16) !四边形面积
+		case(3,16) !�ı������
 			do i=1,4
 				a1(i,:)=node(element(ienum).node(i)).xy
 			end do
@@ -1188,7 +1188,7 @@ subroutine Element_LAV_Cal(ienum,LAV) !计算单元的长度、面积或体积
 			A1(2,:)=A1(1,:)
 			LAV=LAV+TRIAREA(A1(2:4,1:3))
 			
-		case(4,11) !四面体体积	
+		case(4,11) !���������	
 			do i=1,4
 				a1(i,:)=node(element(ienum).node(i)).xy
 			end do
@@ -1205,7 +1205,7 @@ subroutine Element_LAV_Cal(ienum,LAV) !计算单元的长度、面积或体积
 
 end subroutine
 
-!xyz(1:3,:) 三角形三个节点的空间坐标,第一维为节点。
+!xyz(1:3,:) �����������ڵ�Ŀռ�����,��һάΪ�ڵ㡣
 real(8) function TriArea(xyz)  
 	implicit none
 	real(8),intent(in)::xyz(3,3)
@@ -1225,7 +1225,7 @@ real(8) function TriArea(xyz)
 
 end function
 
-!xyz(1:4,:) 四面体四个节点的空间坐标,第一维为节点。
+!xyz(1:4,:) �������ĸ��ڵ�Ŀռ�����,��һάΪ�ڵ㡣
 real(8) function TetVOL(xyz)  
 	implicit none
 	real(8),intent(in)::xyz(4,3)
@@ -1467,7 +1467,7 @@ ENDSUBROUTINE
 
 
 
-   !n1为node()数组中全域节点总数
+   !n1Ϊnode()������ȫ��ڵ�����
    subroutine reorder_nodal_number(IPERM,nnum,adjL,maxadj)
 
 	  implicit none
@@ -1488,7 +1488,7 @@ ENDSUBROUTINE
 	  allocate(IW(3*nnum+2))
 
  	  
-	  !统计adjL()中非零元素的个数。
+	  !ͳ��adjL()�з���Ԫ�صĸ�����
 	  NNZ=count(adjL>0)
 	  allocate(IRN(2*NNZ))
 	  allocate(JCN(NNZ))
@@ -1546,8 +1546,8 @@ ENDSUBROUTINE
    end subroutine
    
    
-   	!对于每个节点，存储和其相邻(定义为总刚中，这两个节点对应的元素不为零。)且编号小于该节点自身编号的节点编号
-	!这里假定一个节点最多有maxadj个与之相邻且编号小于该节点自身编号的节点。
+   	!����ÿ���ڵ㣬�洢��������(����Ϊ�ܸ��У��������ڵ��Ӧ��Ԫ�ز�Ϊ�㡣)�ұ��С�ڸýڵ�������ŵĽڵ���
+	!����ٶ�һ���ڵ������maxadj����֮�����ұ��С�ڸýڵ�������ŵĽڵ㡣
 	
    subroutine setup_adjList()
 		use DS_Gmsh2Solver
@@ -1558,14 +1558,14 @@ ENDSUBROUTINE
 		adjL=0        
 	    do k=1,nphgp
 		    ipg1=phgpnum(k)			
-		    if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD的单元组不输出
+		    if(.NOT.physicalgroup(ipg1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD�ĵ�Ԫ�鲻���
             IF(physicalgroup(ipg1).nel==0) CYCLE
             do k1=1,physicalgroup(ipg1).nel				
 			    iel=physicalgroup(ipg1).element(k1)	
 		    	
                 n1=element(iel).nnode
 	  		    ar(1:n1)=node(element(iel).node).inode
-	  		    !从大到小
+	  		    !�Ӵ�С
   			    do i=1,n1
 			      do j=i+1,n1
 				     if(ar(i)<ar(j)) then
@@ -1585,7 +1585,7 @@ ENDSUBROUTINE
 		end do
    end subroutine
 
-   !如果iar(:)中没有n1,则把n1加入到iar(:)中。
+   !���iar(:)��û��n1,���n1���뵽iar(:)�С�
    subroutine addtoadjL(n1,iar,maxadj)
 	  implicit none
 	  integer,intent(in)::n1,maxadj
@@ -1602,7 +1602,7 @@ ENDSUBROUTINE
 			end if
 		 end do
 	  else
-		 print *, '与节点相邻且编号小于该节点自身编号的节点数在>maxadj,adjL的原定空间不足.'
+		 print *, '��ڵ������ұ��С�ڸýڵ�������ŵĽڵ�����>maxadj,adjL��ԭ���ռ䲻��.'
 		 stop
 	  end if
 

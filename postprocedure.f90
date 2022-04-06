@@ -1,6 +1,7 @@
 
 subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)	
 	use solverds
+    use voropp,only:voropp_handle
 	implicit none
 	integer::iincs,iiter,isubts,file_unit,ieset,file_diagram
 	logical::iscon,isfirstcall,isbarfamily,anybarfamily,isset1
@@ -139,7 +140,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 		    isbarfamily=eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam.or.eset(iset1).et==beam2d.or.eset(iset1).et==ssp2d
 		
 		    if(isbarfamily) then
-			    if(solver_control.datapaking)then
+			    if(solver_control.datapacking)then
 				    call pointout_barfamily(file_unit,iset1)
 				    !call pointout_barfamily_diagram(file_diagram,i,iincs,isubts)
 			    else
@@ -148,10 +149,10 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 			    end if				
 		    else
 			    if(.not.isset1) then
-				    if(solver_control.datapaking)then
+				    if(solver_control.datapacking)then
 					    call pointout(file_unit,IINCS,ISUBTS,IITER)					  
 				    else
-					    call blockout(file_unit)
+					    call blockout(file_unit,IINCS,ISUBTS,IITER)
 				    end if
 				    isset1=.true.
 			    end if
@@ -270,7 +271,8 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
     ENDDO
 		
 	close(file_unit)
-
+    
+    if(isporeflow>0) call voropp_handle(volfile=volfile)
 
 	999 format(<nc>E15.7)
 	9999 format(<nc>I7)
@@ -510,6 +512,9 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 			case(head)
 				idof=4
 				where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
+			case(poresize)
+				idof=4
+				where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=node.Poresize                
             CASE(SNET)
                 IF(NDIMENSION<3) THEN
                     NodalQ(:,i,NnodalQ)=STREAMFUNCTIONCAL(ISTEP,ISUBTS)
@@ -707,13 +712,109 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 		
 		i=i+outvar(vo(i)).nval
 		
-	end do
-	
-	do i=1,nnum
-		write(file_unit,999) (NodalQ(i,j,nnodalq),j=1,nvo)
     end do
+	
+    if(solver_control.datapacking) then
+	    do i=1,nnum
+		    write(file_unit,999) (NodalQ(i,j,nnodalq),j=1,nvo)
+        end do
+    endif
+    call out_datapoint(ISTEP,ISUBTS,ITER,IDISQ1)
     
+	!IF(NDATAPOINT>0) THEN
+	!	IF(ISTEP==1.AND.ISUBTS==1) THEN
+	!		IF(SOLVER_CONTROL.ISPARASYS<=1) THEN
+ !               OPEN(DATAPOINT_UNIT,FILE=resultfile,STATUS='REPLACE')
+ !               WRITE(DATAPOINT_UNIT,100) (OUTVAR(VO(I)).NAME(1:15),I=1,NVO)
+ !           ELSE
+ !               OPEN(DATAPOINT_UNIT,FILE=resultfile,STATUS='UNKNOWN',ACCESS='APPEND')
+ !           ENDIF
+	!		
+ !       END IF
+	!    HASOUT1=.FALSE.        
+	!	DO I=1,NDATAPOINT		
+	!		IF (DATAPOINT(I).ISSUMQ==0) THEN
+	!			DO J=1,DATAPOINT(I).NNODE
+	!				write(DATAPOINT_UNIT,110) SOLVER_CONTROL.ISPARASYS,SOLVER_CONTROL.CaseID,I,ISTEP,ISUBTS,ITER,J,(NodalQ(DATAPOINT(I).NODE(J),K,nnodalq),K=1,nvo)
+	!			END DO
+	!		ELSE
+	!			SUMQ1=0.0				
+	!			DO J=1,DATAPOINT(I).NNODE					
+	!				SUMQ1=SUMQ1+NodalQ(DATAPOINT(I).NODE(J),IDISQ1,nnodalq)
+	!			END DO
+	!			NVO1=1
+	!			WRITE(DATAPOINT_UNIT,120) SOLVER_CONTROL.ISPARASYS,SOLVER_CONTROL.CaseID,I,ISTEP,ISUBTS,ITER,J,SUMQ1,'SUMQ'
+	!			
+ !           ENDIF
+ !           IF(DATAPOINT(I).ISSTAT>0) THEN
+ !               IF(.NOT.ALLOCATED(DATAPOINT(I).STAT)) ALLOCATE(DATAPOINT(I).STAT(9+6,NVO))
+ !               !stat([sum,[max,X,Y,Z],[min,X,Y,Z],mean,median,mad,std,kurtosis,skewness],[nval])
+ !               IF(.NOT.HASOUT1) THEN
+ !                   write(DATAPOINT_UNIT,130) 'VAR','SUM','MAX','X','Y','Z','MIN','X','Y','Z','MEAN','MEDIAN','MAD','STD','KURTOSIS','SKEWNESS'  
+ !                   HASOUT1=.TRUE.
+ !               ENDIF
+ !               DO J=1,NVO
+ !                   AVAL1=NodalQ(DATAPOINT(I).NODE,J,nnodalq)
+ !                   !SUM
+ !                   DATAPOINT(I).STAT(1,J)= SUM(AVAL1)                    
+ !                   !MAX
+ !                   N1=MAXLOC(AVAL1,DIM=1)
+ !                   DATAPOINT(I).STAT(2,J)= AVAL1(N1)
+ !                   DATAPOINT(I).STAT(3:5,J)= Node(DATAPOINT(I).NODE(N1)).COORD
+ !                   !MIN
+ !                   N1=MINLOC(AVAL1,DIM=1)
+ !                   DATAPOINT(I).STAT(6,J)= AVAL1(N1)
+ !                   DATAPOINT(I).STAT(7:9,J)= Node(DATAPOINT(I).NODE(N1)).COORD
+ !                   !MEAN
+ !                   DATAPOINT(I).STAT(10,J)= MEAN(AVAL1)
+ !                   !MEDIAN
+ !                   DATAPOINT(I).STAT(11,J)= MEDIAN(AVAL1)
+ !                   !MAD
+ !                   DATAPOINT(I).STAT(12,J)= MAD(AVAL1)
+ !                   !STD
+ !                   DATAPOINT(I).STAT(13,J)= STD(AVAL1)
+ !                   !kurtosis
+ !                   DATAPOINT(I).STAT(14,J)= kurtosis(AVAL1)
+ !                   !skewness
+ !                   DATAPOINT(I).STAT(15,J)= skewness(AVAL1)
+ !                   
+ !                   write(DATAPOINT_UNIT,131) SOLVER_CONTROL.ISPARASYS,SOLVER_CONTROL.CaseID,I,ISTEP,ISUBTS,ITER,OUTVAR(VO(J)).NAME(1:14),DATAPOINT(I).STAT(:,J)
+ !               ENDDO
+ !               
+ !               
+ !           ENDIF            
+	!	
+ !       END DO
+ !       
+ !
+	!	
+ !       !ISFIRSTCALL1=.FALSE.
+	!END IF
+	
 
+	
+	
+999 format(<nvo>(E24.15,1X))
+100	FORMAT("IPARASYS",7X,"CaseID",9X,"DATASET",8X,"ISTEP",10X,"ISUBTS",9X,"ITER",11X,"NO",13X,<NVO>A15)
+110 FORMAT(7(I14,X),<nvo>(E14.7,X))
+120 FORMAT(7(I14,X),<NVO1>(E14.7,X),"//",<NVO1>A15)
+130 FORMAT("IPARASYS",7X,"CaseID",9X,"DATASET",8X,"ISTEP",10X,"ISUBTS",9X,"ITER",11X,<16>(A14,X))
+131 FORMAT(6(I14,X),A14,X,15(E14.7,X))   
+                                           
+
+	!if(allocated(NodalQ)) deallocate(NodalQ)
+	
+    end subroutine
+    
+subroutine out_datapoint(ISTEP,ISUBTS,ITER,IDISQ1)
+    use solverds
+    USE forlab,ONLY:MEAN,MEDIAN,MAD,STD,kurtosis,SKEWNESS
+	implicit none
+	INTEGER,INTENT(IN)::ISTEP,ISUBTS,ITER,IDISQ1
+	LOGICAL,SAVE::ISFIRSTCALL1,HASOUT1	
+	integer::i,j,k,idof,NVO1=0,NQ1=0,N1	
+	REAL(8)::SUMQ1=0
+    REAL(8),ALLOCATABLE::AVAL1(:)
     
 	IF(NDATAPOINT>0) THEN
 		IF(ISTEP==1.AND.ISUBTS==1) THEN
@@ -794,10 +895,7 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 120 FORMAT(7(I14,X),<NVO1>(E14.7,X),"//",<NVO1>A15)
 130 FORMAT("IPARASYS",7X,"CaseID",9X,"DATASET",8X,"ISTEP",10X,"ISUBTS",9X,"ITER",11X,<16>(A14,X))
 131 FORMAT(6(I14,X),A14,X,15(E14.7,X))   
-                                           
 
-	!if(allocated(NodalQ)) deallocate(NodalQ)
-	
 end subroutine
 
 subroutine pointout_barfamily(file_unit,ieset)
@@ -994,10 +1092,10 @@ end subroutine
 !when the datapacking format BlOCK is activated.the quantivities output are
 !located at element nodes. 
 !This subroutine is used to output these nodal quantivites.
-subroutine BlOCKout(file_unit)
+subroutine BlOCKout(file_unit,ISTEP,ISUBTS,ITER)
 	use solverds
 	implicit none
-	integer::i,j,k,file_unit,idof
+	integer::i,j,k,file_unit,idof,ISTEP,ISUBTS,ITER
 	real(kind=DPN),allocatable::dis(:)
 	
 	allocate(dis(nnum))
@@ -1038,6 +1136,9 @@ subroutine BlOCKout(file_unit)
 			case(head)
 				idof=4
 				write(file_unit,999)  tdisp(node.dof(idof))
+			case(PoreSize)
+				
+				write(file_unit,999)  node.Poresize                
 			case(Phead)
 				idof=4
 				if(ndimension==2) write(file_unit,999) tdisp(node.dof(idof))-node.coord(2)
@@ -1067,41 +1168,41 @@ subroutine BlOCKout(file_unit)
 					write(file_unit,999)  tdisp(node.dof(idof))
 				end if				
 			case(sxx)
-			  write(file_unit,999)  (node(j).stress(1),j=1,20)
+			  write(file_unit,999)  node.stress(1)
 			case(syy)
-			  write(file_unit,999)  (node(j).stress(2),j=1,20)
+			  write(file_unit,999)  node.stress(2)
 			case(szz)
-			  write(file_unit,999)  (node(j).stress(3),j=1,20)
+			  write(file_unit,999)  node.stress(3)
 			case(sxy)
-				write(file_unit,999)  (node(j).stress(4),j=1,20)	
+				write(file_unit,999)  node.stress(4)	
 			case(syz)
-				write(file_unit,999)  (node(j).stress(5),j=1,20)
+				write(file_unit,999)  node.stress(5)
 			case(szx)
-				write(file_unit,999)  (node(j).stress(6),j=1,20)
+				write(file_unit,999)  node.stress(6)
 			case(exx)
-				write(file_unit,999)  (node(j).strain(1),j=1,20)
+				write(file_unit,999)  node.strain(1)
 			case(eyy)
-				write(file_unit,999)  (node(j).strain(2),j=1,20)
+				write(file_unit,999)  node.strain(2)
 			case(ezz)
-				write(file_unit,999)  (node(j).strain(3),j=1,20)
+				write(file_unit,999)  node.strain(3)
 			case(exy)
-				write(file_unit,999)  (node(j).strain(4),j=1,20)
+				write(file_unit,999)  node.strain(4)
 			case(eyz)
-				write(file_unit,999)  (node(j).strain(5),j=1,20)
+				write(file_unit,999)  node.strain(5)
 			case(ezx)
-				write(file_unit,999)  (node(j).strain(6),j=1,20)
+				write(file_unit,999)  node.strain(6)
 			case(pexx)
-				write(file_unit,999)  (node(j).pstrain(1),j=1,20)
+				write(file_unit,999)  node.pstrain(1)
 			case(peyy)
-				write(file_unit,999)  (node(j).pstrain(2),j=1,20)
+				write(file_unit,999)  node.pstrain(2)
 			case(pezz)
-				write(file_unit,999)  (node(j).pstrain(3),j=1,20)
+				write(file_unit,999)  node.pstrain(3)
 			case(pexy)
-				write(file_unit,999)  (node(j).pstrain(4),j=1,20)
+				write(file_unit,999)  node.pstrain(4)
 			case(peyz)
-				write(file_unit,999)  (node(j).pstrain(5),j=1,20)
+				write(file_unit,999)  node.pstrain(5)
 			case(pezx)
-				write(file_unit,999)  (node(j).pstrain(6),j=1,20)
+				write(file_unit,999)  node.pstrain(6)
 			case(sigma_mises)
 				write(file_unit,999)  node.mises
 			case(eeq)
@@ -1115,17 +1216,17 @@ subroutine BlOCKout(file_unit)
 			case(zf_out)
 				write(file_unit,999) node.coord(3)+tdisp(node.dof(3))*solver_control.disf_scale	
 			case(gradx)
-				write(file_unit,999) (node(j).igrad(1),j=1,20)		
+				write(file_unit,999) node.igrad(1)		
 			case(grady)
-				write(file_unit,999) (node(j).igrad(2),j=1,20)	
+				write(file_unit,999) node.igrad(2)	
 			case(gradz)
-				write(file_unit,999) (node(j).igrad(3),j=1,20)
+				write(file_unit,999) node.igrad(3)
 			case(vx)
-				write(file_unit,999) (node(j).velocity(1),j=1,20)
+				write(file_unit,999) node.velocity(1)
 			case(vy)
-				write(file_unit,999) (node(j).velocity(2),j=1,20)
+				write(file_unit,999) node.velocity(2)
 			case(vz)
-				write(file_unit,999) (node(j).velocity(3),j=1,20)
+				write(file_unit,999) node.velocity(3)
 			case(discharge)
 				write(file_unit,999) node.q
 			case(kr_spg)
@@ -1143,11 +1244,24 @@ subroutine BlOCKout(file_unit)
 			case(NF)
 				do j=1,NDIMENSION
 					write(file_unit,999) NI_NodalForce(NODE.DOF(J))
-				enddo
+                enddo
+            case(throatsize)
+                write(file_unit,999)  element.property(2)
+            case(throatRe)
+                write(file_unit,999)  element.property(3)
+            case(throatQ)
+                write(file_unit,999)  abs(element.flux(1))
+            case(throatFriction)
+                write(file_unit,999)  1.0/element.km(1,1)
+            
+                
 		end select		
 		i=i+outvar(vo(i)).nval
-	end do
-
+    end do
+    
+    call pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
+    !call out_datapoint(ISTEP,ISUBTS,ITER)
+    
 999 format(20E15.7)
 		
 end subroutine
@@ -1159,8 +1273,8 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
     real(kind=dpn)::t1=0.d0
 	logical::isfirstcall,isbarfamily,isset1=.false.
 	character(1024)::cstring='',cstring2='',cstring3=''
-	character(48)::cword1='',cword2='',cword3='',cword4='',cword5='',cword6=''
-	character(48)::cword7='',cword8='',cword9=''
+	character(512)::cword1='',cword2='',cword3='',cword4='',cword5='',cword6=''
+	character(512)::cword7='',cword8='',cword9=''
 	
 	isset1=.false.
 	do i=1,neset
@@ -1207,18 +1321,20 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 				n1=eset(iset1).enume-eset(iset1).enums+1
 		end select
 		write(cword3,*) n1
-		if(solver_control.datapaking) then
+		if(solver_control.datapacking) then
 			write(cword4,*) 'point'
 		else
 			n1=0
 			do j=1,nvo
 				if(outvar(vo(j)).iscentre)then
 				n1=n1+1	
-				write(cword6,*) vo(j)
-				cword5=trim(adjustL(cword5))//','//trim(adjustL(cword6))
+				write(cword6,*) j
+                
+				cword5=trim(adjustL(cword5))//trim(adjustL(cword6))//','
 				end if
-			end do
+            end do            
 			if(n1>0) then
+                cword5=cword5(:len_trim(cword5)-1)
 				write(cword4,*) 'block,varlocation=(['//trim(adjustL(cword5))//']=cellcentered)'
 			else
 				write(cword4,*) 'block'

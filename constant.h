@@ -99,7 +99,7 @@
 	integer, parameter::sphflow = 403 !spherical flow element
 	integer, parameter::semi_sphflow = 404 !semi_spherical flow element
 	integer,parameter::wellbore_spgface=405 !wellbore seeapge face element
-
+	integer,parameter::poreflow=406
 	!Coupled element
 	integer,parameter::CPE3_CPL=202  !Continuum, plane strain, triangle element with 3 nodes, nodal number order is anticlockwise (1,2,3) 
 	integer,parameter::CPE6_CPL=203  !Continuum Plane strain, triangle element with 6 nodes, nodal number order is anticlockwise (1,4,2,5,3,6) 
@@ -253,7 +253,7 @@
 	INTEGER, PARAMETER::RZ_BC = 97
 
 	INTEGER,PARAMETER::PSIGMA=101,PSIGMA1=101,PSIGMA2=102,PSIGMA3=103,APSIGMA1=104 !SIGMA1 作用面平行方向
-
+	INTEGER, PARAMETER::PoreSize = 130, ThroatSize = 131, ThroatFriction = 132, ThroatRe = 133, ThroatQ = 134, ParticalSize = 135
 	
 	
 

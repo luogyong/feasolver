@@ -5,10 +5,10 @@ module geomodel
 						path_name,ENUMBER,xyscale,xmin,ymin,write_help,strtoint,&
                         ENLARGE_AR,adjlist_tydef,addadjlist,removeadjlist,ar2d_tydef
     use ds_t
-    use CutoffWall,only:xzone,nxzone,cowall,ncow
+    use CutoffWall,only:xzone,nxzone,cowall,ncow,vseg_pg,nvseg_pg
     implicit none
     private
-    public out_volume_to_gmsh,BLO,NBLO,CHECK_ORIENT,Gen_SubElement,out_volume_to_gmsh2,NGNODE
+    public BLO,NBLO,CHECK_ORIENT,Gen_SubElement,out_volume_to_gmsh2,NGNODE
     real(8),parameter::Pi=3.141592653589793
     INTERFACE INCOUNT
         MODULE PROCEDURE INCOUNT,INCOUNT2
@@ -20,7 +20,7 @@ module geomodel
     
     INTEGER::ngnode=0
     
-    INTEGER,ALLOCATABLE::BEDGE(:),ZBEDGE(:,:) !区边界inode对应的每个节点生成的edge的整体编号, ZBEGGE(ISOILLAYER,INODE)=1表示边区边界inode对应的第isoillayer的厚度（竖向线段长度）为0;
+    INTEGER,ALLOCATABLE::BEDGE(:),ZBEDGE(:,:) !区边界inode对应的每个节点生成的edge的整体编号, ZBEDGE(ISOILLAYER,INODE)=1表示边区边界inode对应的第isoillayer的厚度（竖向线段长度）为0;
     TYPE OFF_MODEL_TYDEF
         INTEGER::NNODE=0,NFACE=0
         REAL(8),ALLOCATABLE::NODE(:,:)
@@ -62,7 +62,8 @@ module geomodel
     
     type subelt_tydef
         logical::isdel=.true.
-        integer::et=63,nnum=6,ilayer,zn,nface,isze=0,isb=0 !et=83 6面体单元;isze，是否为0厚度的土层单元
+        integer::et=63,nnum=6,ilayer,zn,nface,isze=0,isb=0,IGMSHVOL=0 !et=83 6面体单元;isze，是否为0厚度的土层单元
+        !IGMSHVOL=单元所在的几何体编号
         integer::cutface=0,subelt(2)=0
         real(8)::vol
         integer,allocatable::node(:)
@@ -71,7 +72,7 @@ module geomodel
         procedure::calvol=>cal_selt_volume
     endtype
     type(subelt_tydef),allocatable::selt(:)
-    INTEGER::NSELT=0
+    INTEGER::NSELT=0,NGMSHVOL=0 !NGMSHVOL !模型几何体的数量
     
     type face_tydef
         logical::isdel=.true.
@@ -119,6 +120,38 @@ module geomodel
     type(adjlist_tydef),allocatable::gadjlist(:)
     
     contains
+    
+    subroutine vseg_pg_handle()
+    !把竖向线物理的控制点插入模型，并找出其所包含的线段
+        implicit none
+        integer::i,j,k,n1,n2
+        integer,allocatable::vedge1(:)
+        
+        do i=1,nvseg_pg
+            call vseg_pg(i).getnode()            
+            do j=1,vseg_pg(i).nnode
+                vedge1=node2vgedge(vseg_pg(i).ip)
+                do k=1,size(vedge1)
+                    call cut_edge_by_z(vedge1(k),vseg_pg(i).z(j),vseg_pg(i).node(j))
+                    if(vseg_pg(i).node(j)>0) exit
+                enddo
+            enddo
+            vedge1=node2vgedge(vseg_pg(i).ip)
+            n1=0;n2=0
+            do k=1,size(vedge1)
+                if(gedge(vedge1(k)).v(1)==vseg_pg(i).node(1)) n1=k
+                if(gedge(vedge1(k)).v(2)==vseg_pg(i).node(vseg_pg(i).nnode)) n2=k
+                if(n1*n2/=0) then
+                    vseg_pg(i).edge=vedge1(n1:n2)
+                    allocate(vseg_pg(i).igmshvol(n2-n1+1))
+                    vseg_pg(i).igmshvol=0
+                    exit
+                endif
+            enddo
+            
+        enddo
+        if(allocated(vedge1)) deallocate(vedge1)
+    endsubroutine
     
     function cal_selt_volume(this) result(vol)
         implicit none
@@ -322,7 +355,7 @@ module geomodel
         !element的顺序，按elt的顺序由下往上，上下单元号相差1
         !face的顺序，先水平层，后按edge的顺序生成竖向面,相邻的竖向面相差1.
         !node的顺序，按层生成，上下相邻节点号相差nnode
-        !edge的顺序，按层生成，上下相邻节点号相差nedge        
+        !edge的顺序，按层生成，上下相邻横线段号相差nedge        
         !gen gedge
         ngedge=nedge*(soillayer+1)+nnode*soillayer
         allocate(gedge(ngedge))
@@ -675,6 +708,8 @@ module geomodel
         
         call set_cow_face_edge()
         
+        call vseg_pg_handle()
+        
         !find faces/edges on boundary
         face.isdel=.true.
         face.isb=0;gedge.isb=0;node.isb=0
@@ -742,6 +777,9 @@ module geomodel
             endif
         end do
         
+       
+        
+        
         !call mergeface()
         
         DO I=1,ZNUM
@@ -749,7 +787,28 @@ module geomodel
                 CALL VOLUME_NUMBER_INSIDE_ZONE(I,J)
             ENDDO
         ENDDO
-        
+
+        !vertical lines
+        do i=1,nvseg_pg            
+            do j=1,size(vseg_pg(i).edge)
+                if(gedge(vseg_pg(i).edge(j)).isb==0)then
+                    gedge(vseg_pg(i).edge(j)).isb=6
+                    node(gedge(vseg_pg(i).edge(j)).v).isb=6
+                    !find containing volume
+                    iw1=gedge2selt(vseg_pg(i).edge(j))
+                    if(size(iw1)>0) then
+                        if(all(selt(iw1).igmshvol-selt(iw1(1)).igmshvol==0)) then
+                            vseg_pg(i).igmshvol(J)=selt(iw1(1)).igmshvol
+                        else
+                            print *, 'Unexpected error. All elts should be in the same volume. loc=nvseg_pg.'
+                        endif
+                        
+                    endif                   
+                else
+                    vseg_pg(i).igmshvol(J)=-1 !no need to embed in a volume.
+                endif
+            enddo
+        enddo        
 
         
     contains
@@ -1095,6 +1154,25 @@ module geomodel
                 
     ENDSUBROUTINE
     
+    function gedge2selt(iedge) result(seltf)
+        implicit none
+        integer,intent(in)::iedge
+        integer,allocatable::seltf(:)
+        integer::i,j,elt2(2),elt1(100),n1
+        
+        n1=0
+        do i=1,gedge(iedge).nface
+            elt2=face(gedge(iedge).face(i)).e
+            do j=1,2
+                if(elt2(j)>0.and.all(elt1(:n1)-elt2(j)/=0)) then
+                    n1=n1+1
+                    elt1(n1)=elt2(j)
+                endif
+            enddo            
+        enddo        
+        seltf=elt1(1:n1)
+        
+    endfunction
     
     subroutine edge_adjlist_add_face(iface)
         implicit none
@@ -1279,7 +1357,7 @@ module geomodel
     subroutine xzone_cut_selt()
     
         implicit none
-        integer::i,j,k,k1,k2,j1,n1,n2,n3,n4,n5,v1(2),nc1,nvf1
+        integer::i,j,k,k1,k2,j1,n1,n2,n3,n4,n5,v1(2),nc1,nvf1,mbw1(2)
         integer::ia2(8),staterr
         real(8)::t1,t2,tol1=1.d-6,xi1(3)
         integer,allocatable::viz1(:),eiz1(:)
@@ -1354,12 +1432,23 @@ module geomodel
             
             viz1=pack([1:nselt],selt(1:nselt).isb>0)             
             do j=1,size(viz1)
-                !mark zone node                
-                node(selt(viz1(j)).node(:selt(viz1(j)).nnum)).bw=1
+                !mark zone node 
+                n1=viz1(j)
+                do j1=1,selt(n1).nnum
+                    n2=selt(n1).node(j1)
+                    t2=node(n2).z-t1
+                    if(abs(t2)<tol1) then
+                        node(n2).bw=2 !on cut face
+                    elseif(t2>0.d0) then
+                        node(n2).bw=1 !over cut face
+                    else
+                        node(n2).bw=-1 !below cut face
+                    endif                        
+                enddo
             enddo
             
-            eiz1=pack([1:ngnode],node.bw>0)
-            where(abs(node(eiz1).z-t1)<tol1.and.node(eiz1).iptr==eiz1) node(eiz1).bw=2 !bw=2 node on the cut face
+            !eiz1=pack([1:ngnode],node.bw>0)
+            !where(abs(node(eiz1).z-t1)<tol1.and.node(eiz1).iptr==eiz1) node(eiz1).bw=2 !bw=2 node on the cut face
             
             do j1=1,size(viz1)
                 !mark zone edge 
@@ -1370,7 +1459,7 @@ module geomodel
                     if(face(n1).isb/=0) cycle
                     face(n1).isb=-1 !no need to check again
                     n2=face(n1).nnum
-                    n4=0
+                    n4=0;mbw1=0
                     do k1=1,n2
                         n3=abs(face(n1).edge(k1))
                         if(gedge(n3).isb/=0) then
@@ -1380,11 +1469,16 @@ module geomodel
                                 n4=n4+1
                             endif
                         else
-                            if(all(node(gedge(n3).v).bw==2))then
+                            v1=node(gedge(n3).v).bw                            
+                            if(all(v1==2))then
                                 gedge(n3).isb=2 !on the cut face
                                 n4=n4+1
                             else
-                                if((node(gedge(n3).v(1)).z-t1)*(node(gedge(n3).v(2)).z-t1)<0)then
+                                
+                                if(mbw1(1)==0.and.any(v1==1)) mbw1(1)=1 !cut plane just through the nodes, not cutting the edge.
+                                if(mbw1(2)==0.and.any(v1==-1)) mbw1(2)=-1
+                                
+                                if((v1(1)*v1(2))<0)then
                                     gedge(n3).isb=1 !cross the cut face
                                     face(n1).isb=1 !cross the cut face
                                 else
@@ -1394,6 +1488,11 @@ module geomodel
                         endif
                     enddo
                     if(n4==n2) face(n1).isb=2 !on the cut face
+                    
+                    !the cut plane is just through the nodes, not cutting any edge.
+                    if(face(n1).isb==-1.and.mbw1(1)*mbw1(2)<0) then
+                         face(n1).isb=1 !cross the cut face
+                    endif
                     
                     !if(n4==n2) then
                     !    face(n1).isb=2 !on the cut face
@@ -2046,8 +2145,8 @@ module geomodel
                 CH5=TRIM(ADJUSTL(CH3))//'_VFACE'
                 NV1=N1
                 DO K=1,ZONE(I).VBFACE(J).NVOL
-                    IF(ZONE(I).VBFACE(J).BFACE(K).NNUM<4) CYCLE
-                    IF(COUNT((SELT.ISDEL==.FALSE.).AND.(SELT.ZN==I).AND.(SELT.ILAYER==J))==0) CYCLE
+                    !IF(ZONE(I).VBFACE(J).BFACE(K).NNUM<4) CYCLE
+                    !IF(COUNT((SELT.ISDEL==.FALSE.).AND.(SELT.ZN==I).AND.(SELT.ILAYER==J))==0) CYCLE
 				    N1=N1+1
 				    INC=INCOUNT(N1)
   
@@ -2229,9 +2328,28 @@ module geomodel
                 
         ENDDO
             
-                
-            
-
+        DO I=1,NVSEG_PG
+            if(SIZE(VSEG_PG(I).EDGE)<1) cycle
+            STR1=""
+            DO J=1,SIZE(VSEG_PG(I).EDGE)
+                INC2=INCOUNT(VSEG_PG(I).EDGE(J))
+                WRITE(CH1,90) VSEG_PG(I).EDGE(J)
+                STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
+                IF(VSEG_PG(I).IGMSHVOL(J)>0) THEN                    
+                    INC=INCOUNT(VSEG_PG(I).IGMSHVOL(J))
+                    WRITE(50,110) VSEG_PG(I).EDGE(J),VSEG_PG(I).IGMSHVOL(J)
+                ENDIF
+            ENDDO            
+            INC2=INCOUNT(I)
+            WRITE(CH1,91) I
+            CH5='VSEG_PG_'//TRIM(ADJUSTL(CH1))            
+            LEN1=LEN_TRIM(CH5)
+            INC2=LEN_TRIM(STR1)                    
+            IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
+			IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','            
+            WRITE(50,101) CH5,STR1
+        ENDDO
+        
         DO I=1,NBLO
             CALL BLO(i).write(50)
         ENDDO
@@ -2240,7 +2358,7 @@ module geomodel
         
         DEALLOCATE(MINDIS1,IA1,stat=allostat)
 
-	10  FORMAT('SetFactory("OpenCASCADE");Geometry.OCCAutoFix = 0;', /, 'meshscale=1;')
+	10  FORMAT('SetFactory("OpenCASCADE");Geometry.OCCAutoFix = 0;Mesh.AngleToleranceFacetOverlap=1.e-6;Mesh.MshFileVersion=2.2;', /, 'meshscale=1;')
 	20	FORMAT("Point(",I<INC>,")={",3(E24.15,","),E24.15,"*meshscale};")
 	30	FORMAT("Line(",I<INC>,")={",I7,",",I7,"};")
 	40  FORMAT("Line Loop(",I<INC>,")={",<NV1>(I7,","),I7,"};")
@@ -2254,7 +2372,9 @@ module geomodel
     90  FORMAT(I<INC2>,",")
     91 	FORMAT(I<INC2>)
 	100 FORMAT('Physical Surface("',A<LEN1>,'"',")={",A<INC2>"};")
-	101 FORMAT('Physical Line("',A<LEN1>,'"',")={",A<INC2>"};")   
+    101 FORMAT('Physical Line("',A<LEN1>,'"',")={",A<INC2>"};")
+    102 FORMAT('Physical Line("',A<LEN1>,'"',")={",I<INC2>"};") 
+    110 FORMAT('Curve {',I<INC2>,'} In Volume {',I<INC>,'};')   
     ENDSUBROUTINE	    
     
     SUBROUTINE WRITE_3DPOLY_FILE(FILE_L)
@@ -2632,421 +2752,7 @@ module geomodel
      
     endsubroutine
 
-   
-    
-    subroutine out_volume_to_gmsh()
-		character*256 term
-		integer(4)::msg
-		character(512)::outfile,OUTFILE2
-		
-        call st_membrance()
-        call find_zone_boudary()
-        call node_on_boundary()        
-        CALL CHECK_ORIENT()
-		outfile=trim(path_name)//'_geomodel.geo'
-        call WRITE2GMSH_GEOFILEi(outfile)
-        
-        OUTFILE2=trim(path_name)//'_offmodel.off'
-		CALL OUT_OFF_MATHER_MODEL(OUTFILE2)
-        
-		term="THE VOLUME GEO FILE HAS BEEN OUTPUT! Click Yes to Exit,No to Continue."
-	 	term=trim(term)
-     	msg = MESSAGEBOXQQ(trim(term),'COMPLETED'C,MB$ICONINFORMATION.OR.MB$YESNO.OR.MB$DEFBUTTON1)
-     	if(msg==MB$IDYES) msg=clickmenuqq(loc(WINEXIT))		
-		
-    endsubroutine
-    
-	subroutine node_on_boundary()
-		integer::i
-		do i=1,nedge
-            IF(edge(i).v(1)*edge(i).v(2)==0) cycle
-            if(edge(i).iszonebc<0) cycle            
-			node(edge(I).v).onbdy=1		
-		enddo
-        
-		nbnode=count(node.onbdy==1)
-		allocate(bnode(nbnode),BEDGE(NNODE),ZBEDGE(SOILLAYER,NNODE))
-        ZBEDGE=0
-		bnode=pack(node(1:nnode).number,node(1:nnode).onbdy==1)
-	end subroutine
-	
-    subroutine find_zone_boudary()
-		integer::izone
-        integer::i,j,k,ielt,iedge,n1
-		integer::bedge1(5000),nbe=0
-		
-        do izone=1,znum
-        
-            if(zone(izone).outgmshtype==2) cycle
-            
-		    nbe=0
-            n1=zone(izone).ntrie3n
-		    do i=1,zone(izone).ntrie3n
-			    ielt=zone(izone).trie3n(i)			
-			    do j=1,3
-				    iedge=elt(ielt).edge(j)
-				    if(edge(iedge).e(1)+1==0.or.edge(iedge).e(2)+1==0) then
-					    nbe=nbe+1
-					    bedge1(nbe)=iedge
-				    else
-					    if(elt(edge(iedge).e(1)).zn/=elt(edge(iedge).e(2)).zn) then
-						    nbe=nbe+1
-						    bedge1(nbe)=iedge
-					    endif
-				    endif
-			    enddo
-		    enddo
-		    if(nbe>0) then
-                IF(ALLOCATED(zone(izone).bedge)) DEALLOCATE(zone(izone).bedge)
-			    allocate(zone(izone).bedge,source=bedge1(1:nbe))
-                EDGE(bedge1(1:nbe)).ISZONEBC=IZONE
-                ZONE(IZONE).NBE=NBE
-                !DO J=1,NBE
-                !    IF(EDGE(bedge1(J)).ISCEDGE==0) THEN                        
-                !        PRINT *, 'SOME WRONG.'
-                !    ENDIF
-                !ENDDO
 
-		    endif
-	    enddo
-    endsubroutine
-    
-    SUBROUTINE OUT_OFF_MATHER_MODEL(FILE_L)
-        IMPLICIT NONE
-        
-        CHARACTER(LEN=*),INTENT(IN)::FILE_L
-        INTEGER::I
-        
-        CALL GEN_OFF_MATHER_MODEL()
-        
-		OPEN(UNIT=50,FILE=FILE_L,STATUS='REPLACE')
-		WRITE(50,'(A3)') 'OFF'
-        WRITE(50,'(3I7)') OFF_MATHER_MODEL.NNODE,OFF_MATHER_MODEL.NFACE,0
-        DO I=1,OFF_MATHER_MODEL.NNODE
-            WRITE(50,'(3(E15.7,1X))') OFF_MATHER_MODEL.NODE(:,I)
-        ENDDO
-        DO I=1,OFF_MATHER_MODEL.NFACE
-            WRITE(50,'(4(I7,1X))') 3,OFF_MATHER_MODEL.FACE(:,I)-1
-        ENDDO
-        CLOSE(50)
-        
-    ENDSUBROUTINE
-    
-    SUBROUTINE GEN_OFF_MATHER_MODEL()
-        IMPLICIT NONE
-        
-        INTEGER::I,J,N1,N2,N3
-        
-         
-        !NNODE
-        OFF_MATHER_MODEL.NNODE=NNODE*(SOILLAYER+1)
-        ALLOCATE(OFF_MATHER_MODEL.NODE(3,OFF_MATHER_MODEL.NNODE))
-        
-		DO J=0,SOILLAYER
-			N1=NNODE*J
-			DO I=1,NNODE
-				N2=N1+I
-				OFF_MATHER_MODEL.NODE(:,N2)=[NODE(N2).X*XYSCALE+XMIN,NODE(N2).Y*XYSCALE+YMIN,NODE(N2).Z]
-			ENDDO
-		ENDDO
-        !NFACE
-        N1=COUNT(EDGE.ISZONEBC>0)
-        OFF_MATHER_MODEL.NFACE=ENUMBER*(SOILLAYER+1)+N1*SOILLAYER*2
-        ALLOCATE(OFF_MATHER_MODEL.FACE(3,OFF_MATHER_MODEL.NFACE))
-        		!honrizontal triangle
-		N1=0
-		DO J=0,SOILLAYER
-			N2=NNODE*J;
-			DO I=1,NELT
-				IF (ELT(I).ISDEL) CYCLE
-				N1=N1+1			
-                OFF_MATHER_MODEL.FACE(:,N1)=ELT(I).NODE(1:3)+N2
-			ENDDO		
-		ENDDO
-		!vertial boundary rectangle
-		DO J=1,SOILLAYER
-			N2=NNODE*(J-1);N3=NNODE*J
-			DO I=1,NEDGE
-                IF(edge(i).v(1)*edge(i).v(2)==0) cycle
-                IF(EDGE(I).ISZONEBC<0) CYCLE
-				N1=N1+1			
-				OFF_MATHER_MODEL.FACE(:,N1)=[EDGE(I).V+N2,EDGE(I).V(2)+N3]
-                N1=N1+1			
-				OFF_MATHER_MODEL.FACE(:,N1)=[EDGE(I).V(2:1:-1)+N3,EDGE(I).V(1)+N2]
-			ENDDO		
-		ENDDO	
-    
-	END SUBROUTINE
-    
-	SUBROUTINE WRITE2GMSH_GEOFILEi(FILE_L)
-		
-		IMPLICIT NONE
-
-		CHARACTER(LEN=*),INTENT(IN)::FILE_L
-		
-		INTEGER::I,J,K,K1,N1,N2,N3,N4,NV1,INC,LEN1,INC2,AN1(4),INC3=0
-		INTEGER::NEDGE1=0,NBCEDGE1=0
-		REAL(8)::T1,AT1(3)
-		REAL(8),ALLOCATABLE::MINDIS1(:)
-		INTEGER,ALLOCATABLE::IA1(:),IA2(:) 
-		CHARACTER(512)::GEOFILE1
-		CHARACTER(32)::CH1,CH2,CH3		
-		CHARACTER(8192*3)::STR1
-        
-		
-
-		
-		OPEN(UNIT=50,FILE=FILE_L,STATUS='REPLACE')
-		WRITE(50,10)
-        
-        do i=1,nnode
-            if(node(i).havesoildata==0) cycle
-            do j=soillayer,1,-1
-                if(node(i).elevation(j)-node(i).elevation(j-1)<0.01) node(i).elevation(j-1)=node(i).elevation(j)-0.01          
-            enddo
-        enddo
-		!MINIMAL DISTANCE BETWEEN NODES
-		ALLOCATE(MINDIS1(NNODE))
-		MINDIS1=1.D20
-		DO I=1,NNODE			
-			DO J=I+1,NNODE				
-				AT1=[(NODE(I).X-NODE(J).X)*XYSCALE,(NODE(I).Y-NODE(J).Y)*XYSCALE,0.d0]
-				T1=MIN(XYSCALE/20,MAX(NORM2(AT1),5.0)) !SET MINDIS>0.1
-				IF (MINDIS1(I)>T1) MINDIS1(I)=T1
-				IF (MINDIS1(J)>T1) MINDIS1(J)=T1
-			ENDDO
-		ENDDO
-		
-		DO J=0,SOILLAYER
-			N1=NNODE*J
-			DO I=1,NNODE
-				N2=N1+I
-                IF(NODE(N2).IPTR/=N2) CYCLE !重节点不输出
-				INC=INCOUNT(N2)
-				WRITE(50,20) N2,NODE(i).X*XYSCALE+XMIN,NODE(i).Y*XYSCALE+YMIN,NODE(i).elevation(j),MINDIS1(I)
-			ENDDO
-		ENDDO
-		
-		N1=0;NEDGE1=0
-        NBCEDGE1=COUNT(EDGE.ISZONEBC>0)
-		DO J=0,SOILLAYER
-			N2=NNODE*J
-			DO I=1,NEDGE
-				IF(edge(i).v(1)*edge(i).v(2)==0) cycle
-				IF(J==0) THEN
-					NEDGE1=NEDGE1+1					
-                ENDIF
-				N1=N1+1
-                !XY坐标重合的边也不输出，无厚度防渗墙不输出。
-                IF(EDGE(I).ISXYOVERLAP==0) THEN
-				    INC=INCOUNT(N1)
-				    WRITE(50,30), N1,EDGE(I).V+N2
-                ENDIF
-			ENDDO			
-		ENDDO
-		!VERTICAL BOUNDARY EDGE 
-		DO J=1,SOILLAYER
-			N3=NNODE*(J-1);N4=NNODE*J
-			DO I=1,NBNODE
-				N1=N1+1
-				IF(J==1) BEDGE(BNODE(I))=N1
-                !0长度的边不输出
-				IF((NODE(BNODE(I)+N3).IPTR==NODE(BNODE(I)+N4).IPTR)) THEN
-                    ZBEDGE(J,BNODE(I))=1
-                ELSE
-                    INC=INCOUNT(N1)
-				    WRITE(50,30), N1,BNODE(I)+N3,BNODE(I)+N4
-                ENDIF
-			ENDDO
-		ENDDO
-		
-		!honrizontal triangle
-		N1=0
-        ALLOCATE(IA1(NELT*(SOILLAYER+1)+NBCEDGE1*SOILLAYER))
-        IA1=0
-		DO J=0,SOILLAYER
-			N2=NEDGE1*J;
-			DO I=1,NELT
-				IF (ELT(I).ISDEL) CYCLE 
-				N1=N1+1
-                IF (ELT(I).ET==-1) CYCLE !无厚度防渗墙单元也不输出
-				INC=INCOUNT(N1)
-				NV1=2
-				WRITE(50,40) N1,(EDGE(ELT(I).EDGE(1:ELT(I).NNUM)).NUM+N2)*ELT(I).ORIENT(1:ELT(I).NNUM)
-				WRITE(50,50) N1,N1
-                IA1(N1)=1
-			ENDDO		
-		ENDDO
-		!vertial boundary rectangle
-		DO J=1,SOILLAYER
-			N2=NEDGE1*(J-1);N3=NBNODE*(J-1)
-			DO I=1,NEDGE
-                IF(edge(i).v(1)*edge(i).v(2)==0) cycle
-                IF(EDGE(I).ISZONEBC<0) CYCLE                                
-				N1=N1+1
-                IF(J==1) EDGE(I).BRECT=N1
-				
-                AN1(1)=EDGE(I).NUM+N2
-                
-                IF(ZBEDGE(J,EDGE(I).V(2))==0) THEN
-                    AN1(2)=BEDGE(EDGE(I).V(2))+N3
-                    AN1(3)=-(EDGE(I).NUM+N2+NEDGE1)
-                    N4=3
-                ELSE
-                    AN1(2)=-(EDGE(I).NUM+N2+NEDGE1)
-                    N4=2
-                ENDIF
-                IF(ZBEDGE(J,EDGE(I).V(1))==0) THEN
-                    N4=N4+1
-                    AN1(N4)=-(BEDGE(EDGE(I).V(1))+N3)
-                ENDIF
-                IF(N4>2) THEN
-                    NV1=N4-1
-                    INC=INCOUNT(N1) 
-				    WRITE(50,40) N1,AN1(1:N4)
-				    WRITE(50,50) N1,N1
-                    IA1(N1)=1 !MARK OUTPUT FACES
-                ENDIF
-				
-			ENDDO		
-		ENDDO		
-		
-		!VOLUME 
-		N1=0;
-		DO I=1,ZNUM
-            IF(ZONE(I).OUTGMSHTYPE==2) CYCLE
-			DO J=0,SOILLAYER-1
-				N1=N1+1
-				INC=INCOUNT(N1)
-				WRITE(CH1,'(I4)') I
-				WRITE(CH2,'(I4)') J+1
-				CH3='Z'//TRIM(ADJUSTL(CH1))//'_L'//TRIM(ADJUSTL(CH2))
-				LEN1=LEN(TRIM(ADJUSTL(CH3)))	
-			    !n4=ZONE(I).NTRIE3N
-                INC3=0
-                STR1=""
-				DO K=1,ZONE(I).NTRIE3N
-                    
-					N3=ELT(ZONE(I).TRIE3N(K)).NUMBER
-					DO K1=1,2
-						IF(K1==1) THEN
-							N2=ENUMBER*J+N3; !ENUMBER INCLUDING THE ZERO-THICKNESS ELEMENT.
-						ELSE
-							N2=ENUMBER*(J+1)+N3;
-                        ENDIF
-                        
-                        IF(IA1(N2)==0) CYCLE !SKIP THE FACE NOT OUTPUT
-                        
-						INC2=INCOUNT(N2)
-						CH1=""
-						WRITE(CH1,90) N2                                            
-						STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
-                        INC3=INC3+1    
-                        IF(MOD(INC3,100)==0) THEN
-                            STR1=TRIM(ADJUSTL(STR1))//NEW_LINE('A')
-                        ENDIF
-					ENDDO
-				ENDDO
-				DO K=1,ZONE(I).NBE
-					N2=NBCEDGE1*(J)+EDGE(ZONE(I).BEDGE(K)).BRECT
-                    
-                    IF(IA1(N2)==0) CYCLE
-                    
-					INC2=INCOUNT(N2)
-					CH1=""
-					WRITE(CH1,90) N2
-					STR1=TRIM(STR1)//TRIM(ADJUSTL(CH1))
-                    INC3=INC3+1    
-                    IF(MOD(INC3,100)==0) THEN
-                        STR1=TRIM(ADJUSTL(STR1))//NEW_LINE('A')
-                    ENDIF
-                ENDDO			
-				!WRITE(50,60) I,SIGN(FACEID1(ABS(PHYSICALGROUP(IPG1).TRISURFACE)),PHYSICALGROUP(IPG1).TRISURFACE), &
-				!               SIGN(FACEID1(ABS(PHYSICALGROUP(IPG1).QUASURFACE)),PHYSICALGROUP(IPG1).QUASURFACE)
-                INC2=LEN_TRIM(STR1)
-                IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
-				IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','
-				IF(ZONE(I).NBE>0) THEN
-					WRITE(50,61) N1,STR1(1:INC2)
-					WRITE(50,70) N1,N1
-					WRITE(50,80) TRIM(CH3),N1,N1
-				ENDIF
-			
-			ENDDO
-		ENDDO
-		
-		N1=0;INC3=0
-		DO I=1,ZNUM
-            IF(ZONE(I).OUTGMSHTYPE<2) CYCLE
-			J=ZONE(I).IELEVATION
-			N1=N1+1
-			INC=INCOUNT(N1)
-			WRITE(CH1,'(I4)') I
-			WRITE(CH2,'(I4)') J
-			CH3='Z'//TRIM(ADJUSTL(CH1))//'_E'//TRIM(ADJUSTL(CH2))
-			LEN1=LEN(TRIM(ADJUSTL(CH3)))	
-			!n4=ZONE(I).NTRIE3N
-            STR1=""
-			DO K=1,ZONE(I).NTRIE3N                    
-				N3=ELT(ZONE(I).TRIE3N(K)).NUMBER
-				N2=ENUMBER*(J-1)+N3;
-                
-                IF(IA1(N2)==0) CYCLE
-                
-				INC2=INCOUNT(N2)
-				CH1=""
-				WRITE(CH1,90) N2
-				STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
-                INC3=INC3+1    
-                IF(MOD(INC3,100)==0) THEN
-                    STR1=TRIM(ADJUSTL(STR1))//NEW_LINE('A')
-                ENDIF                
-            ENDDO
-            INC2=LEN_TRIM(STR1)
-            IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
-			IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','		
-			WRITE(50,100) TRIM(CH3),N1,STR1(1:INC2)				
-        ENDDO        
-        
-        DO I=1,NBLO
-            CALL BLO(i).write(50)
-        ENDDO
-        
-		CLOSE(50)
-        
-        DEALLOCATE(MINDIS1)
-
-	10  FORMAT('SetFactory("OpenCASCADE");', /, 'meshscale=1;')
-	20	FORMAT("Point(",I<INC>,")={",3(E24.15,","),E24.15,"*meshscale};")
-	30	FORMAT("Line(",I<INC>,")={",I7,",",I7,"};")
-	40  FORMAT("Line Loop(",I<INC>,")={",<NV1>(I7,","),I7,"};")
-	50	FORMAT("Plane Surface(",I<INC>,")={",I<INC>,"};")
-	60	FORMAT("Surface Loop(",I<INC>,")={",<J>(I7,","),I7,"};")
-	61	FORMAT("Surface Loop(",I<INC>,")={",A<INC2>"};")
-	70	FORMAT("Volume(",I<INC>,")={",I<INC>,"};")
-	80	FORMAT('Physical Volume("',A<LEN1>,'",',I<INC>,")={",I<INC>,"};")
-	90 	FORMAT(I<INC2>,",")
-	100 FORMAT('Physical Surface("',A<LEN1>,'",',I<INC>,")={",A<INC2>"};")
-    
-    CONTAINS
-        !FUNCTION ORIENT_EDGE()
-        FUNCTION EDGE_NODE(IEDGE,ILAYER) RESULT(V)
-            INTEGER,INTENT(IN)::IEDGE,ILAYER !O<=ILAYER<=SOILLAYER
-            INTEGER::V(2)           
-            
-            V=EDGE(IEDGE).V+NNODE*(ILAYER)
-        
-    
-        ENDFUNCTION
-        FUNCTION VEDGE_NODE(INODE,ISOIL) RESULT(V)
-            INTEGER,INTENT(IN)::INODE,ISOIL !ISOIL>=1
-            INTEGER::V(2)           
-            
-            V=[INODE+NNODE*(ISOIL-1),INODE+NNODE*(ISOIL)]
-        
-    
-        ENDFUNCTION
-	ENDSUBROUTINE	 
     
     INTEGER FUNCTION INCOUNT(N)
     IMPLICIT NONE
@@ -3192,6 +2898,7 @@ module geomodel
             N2=1
             EDGE2=0;EDGE1=0
             NVBF1=NVBF1+1
+            NGMSHVOL=NGMSHVOL+1
             IF(NVBF1>SIZE(ZONE(IZONE).VBFACE(ILAYER).BFACE)) CALL ENLARGE_AR(ZONE(IZONE).VBFACE(ILAYER).BFACE,5)
             !该体内的一点，取该体内一单元的形心
             ZONE(IZONE).VBFACE(ILAYER).BFACE(NVBF1).INSIDEPT(1)=SUM(NODE(SELT(STACK1(1)).NODE(:SELT(STACK1(1)).NNUM)).X)/SELT(STACK1(1)).NNUM
@@ -3202,6 +2909,7 @@ module geomodel
                 N2=N2-1
                 IF(ISCHK1(IELT1)==1) CYCLE
                 ISCHK1(IELT1)=1
+                SELT(IELT1).IGMSHVOL=NGMSHVOL
                 DO J=1,SELT(IELT1).NFACE
                     N1=SELT(IELT1).FACE(J)
                     EDGE2(N1)=EDGE2(N1)+1
@@ -3220,7 +2928,7 @@ module geomodel
             
             ZONE(IZONE).VBFACE(ILAYER).BFACE(NVBF1).NODE=PACK([1:NFACE],EDGE2==1)
             ZONE(IZONE).VBFACE(ILAYER).BFACE(NVBF1).NNUM=SIZE(ZONE(IZONE).VBFACE(ILAYER).BFACE(NVBF1).NODE)
-            
+            ZONE(IZONE).VBFACE(ILAYER).BFACE(NVBF1).IVOL=NGMSHVOL
         ENDDO
         ZONE(IZONE).VBFACE(ILAYER).NVOL=NVBF1
    
@@ -3568,7 +3276,424 @@ function triangle_orientation_2d ( t )
 
   return
 end
+
+
+   
+ !   
+ !   subroutine out_volume_to_gmsh()
+	!	character*256 term
+	!	integer(4)::msg
+	!	character(512)::outfile,OUTFILE2
+	!	
+ !       call st_membrance()
+ !       call find_zone_boudary()
+ !       call node_on_boundary()        
+ !       CALL CHECK_ORIENT()
+	!	outfile=trim(path_name)//'_geomodel.geo'
+ !       call WRITE2GMSH_GEOFILEi(outfile)
+ !       
+ !       OUTFILE2=trim(path_name)//'_offmodel.off'
+	!	CALL OUT_OFF_MATHER_MODEL(OUTFILE2)
+ !       
+	!	term="THE VOLUME GEO FILE HAS BEEN OUTPUT! Click Yes to Exit,No to Continue."
+	! 	term=trim(term)
+ !    	msg = MESSAGEBOXQQ(trim(term),'COMPLETED'C,MB$ICONINFORMATION.OR.MB$YESNO.OR.MB$DEFBUTTON1)
+ !    	if(msg==MB$IDYES) msg=clickmenuqq(loc(WINEXIT))		
+	!	
+ !   endsubroutine
+ !   
+	!subroutine node_on_boundary()
+	!	integer::i
+	!	do i=1,nedge
+ !           IF(edge(i).v(1)*edge(i).v(2)==0) cycle
+ !           if(edge(i).iszonebc<0) cycle            
+	!		node(edge(I).v).onbdy=1		
+	!	enddo
+ !       
+	!	nbnode=count(node.onbdy==1)
+	!	allocate(bnode(nbnode),BEDGE(NNODE),ZBEDGE(SOILLAYER,NNODE))
+ !       ZBEDGE=0
+	!	bnode=pack(node(1:nnode).number,node(1:nnode).onbdy==1)
+	!end subroutine
+	!
+ !   subroutine find_zone_boudary()
+	!	integer::izone
+ !       integer::i,j,k,ielt,iedge,n1
+	!	integer::bedge1(5000),nbe=0
+	!	
+ !       do izone=1,znum
+ !       
+ !           if(zone(izone).outgmshtype==2) cycle
+ !           
+	!	    nbe=0
+ !           n1=zone(izone).ntrie3n
+	!	    do i=1,zone(izone).ntrie3n
+	!		    ielt=zone(izone).trie3n(i)			
+	!		    do j=1,3
+	!			    iedge=elt(ielt).edge(j)
+	!			    if(edge(iedge).e(1)+1==0.or.edge(iedge).e(2)+1==0) then
+	!				    nbe=nbe+1
+	!				    bedge1(nbe)=iedge
+	!			    else
+	!				    if(elt(edge(iedge).e(1)).zn/=elt(edge(iedge).e(2)).zn) then
+	!					    nbe=nbe+1
+	!					    bedge1(nbe)=iedge
+	!				    endif
+	!			    endif
+	!		    enddo
+	!	    enddo
+	!	    if(nbe>0) then
+ !               IF(ALLOCATED(zone(izone).bedge)) DEALLOCATE(zone(izone).bedge)
+	!		    allocate(zone(izone).bedge,source=bedge1(1:nbe))
+ !               EDGE(bedge1(1:nbe)).ISZONEBC=IZONE
+ !               ZONE(IZONE).NBE=NBE
+ !               !DO J=1,NBE
+ !               !    IF(EDGE(bedge1(J)).ISCEDGE==0) THEN                        
+ !               !        PRINT *, 'SOME WRONG.'
+ !               !    ENDIF
+ !               !ENDDO
+ !
+	!	    endif
+	!    enddo
+ !   endsubroutine
+ !   
+ !   SUBROUTINE OUT_OFF_MATHER_MODEL(FILE_L)
+ !       IMPLICIT NONE
+ !       
+ !       CHARACTER(LEN=*),INTENT(IN)::FILE_L
+ !       INTEGER::I
+ !       
+ !       CALL GEN_OFF_MATHER_MODEL()
+ !       
+	!	OPEN(UNIT=50,FILE=FILE_L,STATUS='REPLACE')
+	!	WRITE(50,'(A3)') 'OFF'
+ !       WRITE(50,'(3I7)') OFF_MATHER_MODEL.NNODE,OFF_MATHER_MODEL.NFACE,0
+ !       DO I=1,OFF_MATHER_MODEL.NNODE
+ !           WRITE(50,'(3(E15.7,1X))') OFF_MATHER_MODEL.NODE(:,I)
+ !       ENDDO
+ !       DO I=1,OFF_MATHER_MODEL.NFACE
+ !           WRITE(50,'(4(I7,1X))') 3,OFF_MATHER_MODEL.FACE(:,I)-1
+ !       ENDDO
+ !       CLOSE(50)
+ !       
+ !   ENDSUBROUTINE
+ !   
+ !   SUBROUTINE GEN_OFF_MATHER_MODEL()
+ !       IMPLICIT NONE
+ !       
+ !       INTEGER::I,J,N1,N2,N3
+ !       
+ !        
+ !       !NNODE
+ !       OFF_MATHER_MODEL.NNODE=NNODE*(SOILLAYER+1)
+ !       ALLOCATE(OFF_MATHER_MODEL.NODE(3,OFF_MATHER_MODEL.NNODE))
+ !       
+	!	DO J=0,SOILLAYER
+	!		N1=NNODE*J
+	!		DO I=1,NNODE
+	!			N2=N1+I
+	!			OFF_MATHER_MODEL.NODE(:,N2)=[NODE(N2).X*XYSCALE+XMIN,NODE(N2).Y*XYSCALE+YMIN,NODE(N2).Z]
+	!		ENDDO
+	!	ENDDO
+ !       !NFACE
+ !       N1=COUNT(EDGE.ISZONEBC>0)
+ !       OFF_MATHER_MODEL.NFACE=ENUMBER*(SOILLAYER+1)+N1*SOILLAYER*2
+ !       ALLOCATE(OFF_MATHER_MODEL.FACE(3,OFF_MATHER_MODEL.NFACE))
+ !       		!honrizontal triangle
+	!	N1=0
+	!	DO J=0,SOILLAYER
+	!		N2=NNODE*J;
+	!		DO I=1,NELT
+	!			IF (ELT(I).ISDEL) CYCLE
+	!			N1=N1+1			
+ !               OFF_MATHER_MODEL.FACE(:,N1)=ELT(I).NODE(1:3)+N2
+	!		ENDDO		
+	!	ENDDO
+	!	!vertial boundary rectangle
+	!	DO J=1,SOILLAYER
+	!		N2=NNODE*(J-1);N3=NNODE*J
+	!		DO I=1,NEDGE
+ !               IF(edge(i).v(1)*edge(i).v(2)==0) cycle
+ !               IF(EDGE(I).ISZONEBC<0) CYCLE
+	!			N1=N1+1			
+	!			OFF_MATHER_MODEL.FACE(:,N1)=[EDGE(I).V+N2,EDGE(I).V(2)+N3]
+ !               N1=N1+1			
+	!			OFF_MATHER_MODEL.FACE(:,N1)=[EDGE(I).V(2:1:-1)+N3,EDGE(I).V(1)+N2]
+	!		ENDDO		
+	!	ENDDO	
+ !   
+	!END SUBROUTINE
     
+	!SUBROUTINE WRITE2GMSH_GEOFILEi(FILE_L)
+	!	
+	!	IMPLICIT NONE
+ !
+	!	CHARACTER(LEN=*),INTENT(IN)::FILE_L
+	!	
+	!	INTEGER::I,J,K,K1,N1,N2,N3,N4,NV1,INC,LEN1,INC2,AN1(4),INC3=0
+	!	INTEGER::NEDGE1=0,NBCEDGE1=0
+	!	REAL(8)::T1,AT1(3)
+	!	REAL(8),ALLOCATABLE::MINDIS1(:)
+	!	INTEGER,ALLOCATABLE::IA1(:),IA2(:) 
+	!	CHARACTER(512)::GEOFILE1
+	!	CHARACTER(32)::CH1,CH2,CH3		
+	!	CHARACTER(8192*3)::STR1
+ !       
+	!	
+ !
+	!	
+	!	OPEN(UNIT=50,FILE=FILE_L,STATUS='REPLACE')
+	!	WRITE(50,10)
+ !       
+ !       do i=1,nnode
+ !           if(node(i).havesoildata==0) cycle
+ !           do j=soillayer,1,-1
+ !               if(node(i).elevation(j)-node(i).elevation(j-1)<0.01) node(i).elevation(j-1)=node(i).elevation(j)-0.01          
+ !           enddo
+ !       enddo
+	!	!MINIMAL DISTANCE BETWEEN NODES
+	!	ALLOCATE(MINDIS1(NNODE))
+	!	MINDIS1=1.D20
+	!	DO I=1,NNODE			
+	!		DO J=I+1,NNODE				
+	!			AT1=[(NODE(I).X-NODE(J).X)*XYSCALE,(NODE(I).Y-NODE(J).Y)*XYSCALE,0.d0]
+	!			T1=MIN(XYSCALE/20,MAX(NORM2(AT1),5.0)) !SET MINDIS>0.1
+	!			IF (MINDIS1(I)>T1) MINDIS1(I)=T1
+	!			IF (MINDIS1(J)>T1) MINDIS1(J)=T1
+	!		ENDDO
+	!	ENDDO
+	!	
+	!	DO J=0,SOILLAYER
+	!		N1=NNODE*J
+	!		DO I=1,NNODE
+	!			N2=N1+I
+ !               IF(NODE(N2).IPTR/=N2) CYCLE !重节点不输出
+	!			INC=INCOUNT(N2)
+	!			WRITE(50,20) N2,NODE(i).X*XYSCALE+XMIN,NODE(i).Y*XYSCALE+YMIN,NODE(i).elevation(j),MINDIS1(I)
+	!		ENDDO
+	!	ENDDO
+	!	
+	!	N1=0;NEDGE1=0
+ !       NBCEDGE1=COUNT(EDGE.ISZONEBC>0)
+	!	DO J=0,SOILLAYER
+	!		N2=NNODE*J
+	!		DO I=1,NEDGE
+	!			IF(edge(i).v(1)*edge(i).v(2)==0) cycle
+	!			IF(J==0) THEN
+	!				NEDGE1=NEDGE1+1					
+ !               ENDIF
+	!			N1=N1+1
+ !               !XY坐标重合的边也不输出，无厚度防渗墙不输出。
+ !               IF(EDGE(I).ISXYOVERLAP==0) THEN
+	!			    INC=INCOUNT(N1)
+	!			    WRITE(50,30), N1,EDGE(I).V+N2
+ !               ENDIF
+	!		ENDDO			
+	!	ENDDO
+	!	!VERTICAL BOUNDARY EDGE 
+	!	DO J=1,SOILLAYER
+	!		N3=NNODE*(J-1);N4=NNODE*J
+	!		DO I=1,NBNODE
+	!			N1=N1+1
+	!			IF(J==1) BEDGE(BNODE(I))=N1
+ !               !0长度的边不输出
+	!			IF((NODE(BNODE(I)+N3).IPTR==NODE(BNODE(I)+N4).IPTR)) THEN
+ !                   ZBEDGE(J,BNODE(I))=1
+ !               ELSE
+ !                   INC=INCOUNT(N1)
+	!			    WRITE(50,30), N1,BNODE(I)+N3,BNODE(I)+N4
+ !               ENDIF
+	!		ENDDO
+	!	ENDDO
+	!	
+	!	!honrizontal triangle
+	!	N1=0
+ !       ALLOCATE(IA1(NELT*(SOILLAYER+1)+NBCEDGE1*SOILLAYER))
+ !       IA1=0
+	!	DO J=0,SOILLAYER
+	!		N2=NEDGE1*J;
+	!		DO I=1,NELT
+	!			IF (ELT(I).ISDEL) CYCLE 
+	!			N1=N1+1
+ !               IF (ELT(I).ET==-1) CYCLE !无厚度防渗墙单元也不输出
+	!			INC=INCOUNT(N1)
+	!			NV1=2
+	!			WRITE(50,40) N1,(EDGE(ELT(I).EDGE(1:ELT(I).NNUM)).NUM+N2)*ELT(I).ORIENT(1:ELT(I).NNUM)
+	!			WRITE(50,50) N1,N1
+ !               IA1(N1)=1
+	!		ENDDO		
+	!	ENDDO
+	!	!vertial boundary rectangle
+	!	DO J=1,SOILLAYER
+	!		N2=NEDGE1*(J-1);N3=NBNODE*(J-1)
+	!		DO I=1,NEDGE
+ !               IF(edge(i).v(1)*edge(i).v(2)==0) cycle
+ !               IF(EDGE(I).ISZONEBC<0) CYCLE                                
+	!			N1=N1+1
+ !               IF(J==1) EDGE(I).BRECT=N1
+	!			
+ !               AN1(1)=EDGE(I).NUM+N2
+ !               
+ !               IF(ZBEDGE(J,EDGE(I).V(2))==0) THEN
+ !                   AN1(2)=BEDGE(EDGE(I).V(2))+N3
+ !                   AN1(3)=-(EDGE(I).NUM+N2+NEDGE1)
+ !                   N4=3
+ !               ELSE
+ !                   AN1(2)=-(EDGE(I).NUM+N2+NEDGE1)
+ !                   N4=2
+ !               ENDIF
+ !               IF(ZBEDGE(J,EDGE(I).V(1))==0) THEN
+ !                   N4=N4+1
+ !                   AN1(N4)=-(BEDGE(EDGE(I).V(1))+N3)
+ !               ENDIF
+ !               IF(N4>2) THEN
+ !                   NV1=N4-1
+ !                   INC=INCOUNT(N1) 
+	!			    WRITE(50,40) N1,AN1(1:N4)
+	!			    WRITE(50,50) N1,N1
+ !                   IA1(N1)=1 !MARK OUTPUT FACES
+ !               ENDIF
+	!			
+	!		ENDDO		
+	!	ENDDO		
+	!	
+	!	!VOLUME 
+	!	N1=0;
+	!	DO I=1,ZNUM
+ !           IF(ZONE(I).OUTGMSHTYPE==2) CYCLE
+	!		DO J=0,SOILLAYER-1
+	!			N1=N1+1
+	!			INC=INCOUNT(N1)
+	!			WRITE(CH1,'(I4)') I
+	!			WRITE(CH2,'(I4)') J+1
+	!			CH3='Z'//TRIM(ADJUSTL(CH1))//'_L'//TRIM(ADJUSTL(CH2))
+	!			LEN1=LEN(TRIM(ADJUSTL(CH3)))	
+	!		    !n4=ZONE(I).NTRIE3N
+ !               INC3=0
+ !               STR1=""
+	!			DO K=1,ZONE(I).NTRIE3N
+ !                   
+	!				N3=ELT(ZONE(I).TRIE3N(K)).NUMBER
+	!				DO K1=1,2
+	!					IF(K1==1) THEN
+	!						N2=ENUMBER*J+N3; !ENUMBER INCLUDING THE ZERO-THICKNESS ELEMENT.
+	!					ELSE
+	!						N2=ENUMBER*(J+1)+N3;
+ !                       ENDIF
+ !                       
+ !                       IF(IA1(N2)==0) CYCLE !SKIP THE FACE NOT OUTPUT
+ !                       
+	!					INC2=INCOUNT(N2)
+	!					CH1=""
+	!					WRITE(CH1,90) N2                                            
+	!					STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
+ !                       INC3=INC3+1    
+ !                       IF(MOD(INC3,100)==0) THEN
+ !                           STR1=TRIM(ADJUSTL(STR1))//NEW_LINE('A')
+ !                       ENDIF
+	!				ENDDO
+	!			ENDDO
+	!			DO K=1,ZONE(I).NBE
+	!				N2=NBCEDGE1*(J)+EDGE(ZONE(I).BEDGE(K)).BRECT
+ !                   
+ !                   IF(IA1(N2)==0) CYCLE
+ !                   
+	!				INC2=INCOUNT(N2)
+	!				CH1=""
+	!				WRITE(CH1,90) N2
+	!				STR1=TRIM(STR1)//TRIM(ADJUSTL(CH1))
+ !                   INC3=INC3+1    
+ !                   IF(MOD(INC3,100)==0) THEN
+ !                       STR1=TRIM(ADJUSTL(STR1))//NEW_LINE('A')
+ !                   ENDIF
+ !               ENDDO			
+	!			!WRITE(50,60) I,SIGN(FACEID1(ABS(PHYSICALGROUP(IPG1).TRISURFACE)),PHYSICALGROUP(IPG1).TRISURFACE), &
+	!			!               SIGN(FACEID1(ABS(PHYSICALGROUP(IPG1).QUASURFACE)),PHYSICALGROUP(IPG1).QUASURFACE)
+ !               INC2=LEN_TRIM(STR1)
+ !               IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
+	!			IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','
+	!			IF(ZONE(I).NBE>0) THEN
+	!				WRITE(50,61) N1,STR1(1:INC2)
+	!				WRITE(50,70) N1,N1
+	!				WRITE(50,80) TRIM(CH3),N1,N1
+	!			ENDIF
+	!		
+	!		ENDDO
+	!	ENDDO
+	!	
+	!	N1=0;INC3=0
+	!	DO I=1,ZNUM
+ !           IF(ZONE(I).OUTGMSHTYPE<2) CYCLE
+	!		J=ZONE(I).IELEVATION
+	!		N1=N1+1
+	!		INC=INCOUNT(N1)
+	!		WRITE(CH1,'(I4)') I
+	!		WRITE(CH2,'(I4)') J
+	!		CH3='Z'//TRIM(ADJUSTL(CH1))//'_E'//TRIM(ADJUSTL(CH2))
+	!		LEN1=LEN(TRIM(ADJUSTL(CH3)))	
+	!		!n4=ZONE(I).NTRIE3N
+ !           STR1=""
+	!		DO K=1,ZONE(I).NTRIE3N                    
+	!			N3=ELT(ZONE(I).TRIE3N(K)).NUMBER
+	!			N2=ENUMBER*(J-1)+N3;
+ !               
+ !               IF(IA1(N2)==0) CYCLE
+ !               
+	!			INC2=INCOUNT(N2)
+	!			CH1=""
+	!			WRITE(CH1,90) N2
+	!			STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
+ !               INC3=INC3+1    
+ !               IF(MOD(INC3,100)==0) THEN
+ !                   STR1=TRIM(ADJUSTL(STR1))//NEW_LINE('A')
+ !               ENDIF                
+ !           ENDDO
+ !           INC2=LEN_TRIM(STR1)
+ !           IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
+	!		IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','		
+	!		WRITE(50,100) TRIM(CH3),N1,STR1(1:INC2)				
+ !       ENDDO        
+ !       
+ !       DO I=1,NBLO
+ !           CALL BLO(i).write(50)
+ !       ENDDO
+ !       
+	!	CLOSE(50)
+ !       
+ !       DEALLOCATE(MINDIS1)
+ !
+	!10  FORMAT('SetFactory("OpenCASCADE");', /, 'meshscale=1;')
+	!20	FORMAT("Point(",I<INC>,")={",3(E24.15,","),E24.15,"*meshscale};")
+	!30	FORMAT("Line(",I<INC>,")={",I7,",",I7,"};")
+	!40  FORMAT("Line Loop(",I<INC>,")={",<NV1>(I7,","),I7,"};")
+	!50	FORMAT("Plane Surface(",I<INC>,")={",I<INC>,"};")
+	!60	FORMAT("Surface Loop(",I<INC>,")={",<J>(I7,","),I7,"};")
+	!61	FORMAT("Surface Loop(",I<INC>,")={",A<INC2>"};")
+	!70	FORMAT("Volume(",I<INC>,")={",I<INC>,"};")
+	!80	FORMAT('Physical Volume("',A<LEN1>,'",',I<INC>,")={",I<INC>,"};")
+	!90 	FORMAT(I<INC2>,",")
+	!100 FORMAT('Physical Surface("',A<LEN1>,'",',I<INC>,")={",A<INC2>"};")
+ !   
+ !   CONTAINS
+ !       !FUNCTION ORIENT_EDGE()
+ !       FUNCTION EDGE_NODE(IEDGE,ILAYER) RESULT(V)
+ !           INTEGER,INTENT(IN)::IEDGE,ILAYER !O<=ILAYER<=SOILLAYER
+ !           INTEGER::V(2)           
+ !           
+ !           V=EDGE(IEDGE).V+NNODE*(ILAYER)
+ !       
+ !   
+ !       ENDFUNCTION
+ !       FUNCTION VEDGE_NODE(INODE,ISOIL) RESULT(V)
+ !           INTEGER,INTENT(IN)::INODE,ISOIL !ISOIL>=1
+ !           INTEGER::V(2)           
+ !           
+ !           V=[INODE+NNODE*(ISOIL-1),INODE+NNODE*(ISOIL)]
+ !       
+ !   
+ !       ENDFUNCTION
+	!ENDSUBROUTINE	 
+
 
 end module geomodel
 

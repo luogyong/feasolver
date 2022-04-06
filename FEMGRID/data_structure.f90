@@ -122,7 +122,7 @@ module meshDS
 	    real(8)::x,y,a,d !坐标，等差的第一项，等差
 	end type
     type ar2d_tydef
-        integer::nnum=0
+        integer::nnum=0,IVOL=0  !IVOL=GMSH几何体编号
         REAL(8)::INSIDEPT(3)
         integer,allocatable::node(:)
     endtype
@@ -221,6 +221,7 @@ module meshDS
 		integer::count=0,ipt1=0 !the number of adjacent node 
 		integer,pointer::node(:)=>null() !adjacent node
 		integer,pointer::edge(:)=>null() !adjacent edge
+        !integer,pointer::elt(:)=>null() !adjacent element
  	end type
 	type(adjlist_tydef),allocatable::adjlist(:) !adjacent table for nodes
 
@@ -965,7 +966,22 @@ ENDSUBROUTINE
 	    end do
     end subroutine   
     
-    
+    function v2elts(inode) result(elts)
+    !return all the 2D element sharing the node inode.
+        implicit none
+        integer,intent(in)::inode
+        integer,allocatable,dimension(:)::elts
+        integer::i,elt1(2)
+        !借用
+        elt(1:nelt).kcd=0
+        
+        do i=1,adjlist(inode).count
+            elt1=edge(adjlist(inode).edge(i)).e
+            where(elt1>0) elt(elt1).kcd=-1            
+        enddo
+        elts=pack([1:nelt],elt(1:nelt).kcd==-1)
+        
+    endfunction
     
 
     SUBROUTINE SETUP_SEARCH_ZONE_2D(SZ,NSZ,MAXX,MINX,MAXY,MINY,NODE1,TET1)

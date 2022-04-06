@@ -98,6 +98,7 @@ END MODULE
     
 MODULE POS_IO
     USE INPUT_PARSER
+    use solverds,only:lowcase
     IMPLICIT NONE
 !假定：
 !1)同一时间步，各zone之间的节点数据共享(通过varsharelist)或一样。

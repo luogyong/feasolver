@@ -21,7 +21,7 @@ subroutine stree_failure_ratio_cal(ienum,ISTEP)
     ENDIF
 	do i=1,element(ienum).ngp
 		ss1=element(ienum).stress(:,i)
-		!ç§¯åˆ†ç‚¹çš„ä½ç§»
+		!»ı·ÖµãµÄÎ»ÒÆ
 		!disg1(1:ndim1)=matmul(dis1(1:ndim1,1:nsh1),ecp(et1).Lshape(:,i))		
 
 		call stress_in_failure_surface(element(ienum).sfr(:,i),ss1,ecp(element(ienum).et).ndim,c1,Phi1,solver_control.slidedirection,&
@@ -73,7 +73,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
             
                 B=-tan(phi1)
                 A=(C1+sigmaC1*B)/R1
-                !æœ€å¤§ç ´åé¢ä¸ä¸»åº”åŠ›é¢çš„å¤¹è§’çš„2å€
+                !–@1?7´óÆÆ»µÃæÓëÖ÷Ó¦Á¦ÃæµÄ¼Ğ½ÇµÄ1?7?1?7
                 !if(r1<=C1*cos(phi1)-sigmaC1*sin(phi1)) then
                 if(abs(A)>=abs(B)) then
                     sita1=asin((1.d0-(B/A)**2)**0.5)
@@ -83,7 +83,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
                 sfr(1)=min(abs(sin(sita1)/(A+B*cos(sita1))),20.d0) !sfr for stress failure ratio,max is less than 20
                 
             ELSE
-                !if slope_isTensionCrack==0, ä¸è¿›è¡Œè¿™ä¸ªæ£€æŸ¥sfr(1)ä¼šäº§ç”Ÿå¤§æ•°(åŸå› æ—¶è«å°”åœ†åœ†å¿ƒä¸ç ´åçº¿ä¸xè½´çš„äº¤ç‚¹éå¸¸è¿‘)
+                !if slope_isTensionCrack==0, ²»½øĞĞÕâ¸ö¼ì²ésfr(1)»á²úÉú´ó”–1?7Ô­ÒòÊ±Äª¶ûÔ²Ô²ĞÄÓëÆÆ»µÏßÓëxÖáµÄ½»µã·Ç³£Æù1?7
                 !IF(YF1<0.D0.OR.pss1(1)>=MIN(TensileS,C1/T1)) THEN 
                 !    !tension
                 !    sfr(1)=-1.            
@@ -113,7 +113,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     !if((pss1(1)+pss1(2))<0.d0) then 
     !
 	   ! !if(phi1>0.d0) then
-		  ! ! t1=(-(pss1(1)+pss1(2))/2.0+c1/dtan(phi1))*dsin(phi1) !å—æ‹‰ä¸ºæ­£			
+		  ! ! t1=(-(pss1(1)+pss1(2))/2.0+c1/dtan(phi1))*dsin(phi1) !ÊÜÀ­ÎªÕı			
 	   ! !else
 		  ! ! t1=C1
 	   ! !endif
@@ -125,13 +125,13 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
     !  
     !    
     !    
-    !else !>0.æ‹‰å
-    !    sfr(1)=-1. !è¡¨æ‹‰å
+    !else !>0.À­»µ
+    !    sfr(1)=-1. !±íÀ­ˆ`1?7
     !endif
     !
     t1=slidedirection
-    !ä¸€èˆ¬åœ¨å¡é¡¶å’Œå¡è„šï¼Œä¼šå‡ºç°sxx<syy(æ°´å¹³æ–¹å‘çš„å‹åŠ›å¤§äºç«–å‘)çš„æƒ…å†µï¼ŒæŒ‰ä¸‹é¢çš„æ–¹æ³•è®¡ç®—ï¼Œå…¶ç ´åé¢çš„å¤¹è§’ä¸xè½´çš„å¤¹è§’å¤§äº0
-    !è¿™æ—¶ï¼Œå½“slidedirection=rightæ—¶ï¼Œå¡é¡¶ä¼šå‡ºç°ä¸ç›¸å®¹çš„ç ´åé¢æ–¹å‘(sfr(2)>0),è¿™æ—¶ä»¤å…¶å–å¦ä¸€ä¸ªæ–¹å‘ã€‚
+    !A1?7°ãÔÚÆÂ¶¥ºÍÆÂ½Å£¬»á³öÏÖsxx<syy(Ë®Æ½·½ÏòµÄÑ¹Á¦´óÓÚÊú¸÷1?7µÄÇé¿ö£¬°´ÏÂÃæµÄ·½·¨¼ÆËã£¬ÆäÆÆ»µÃæµÄ¼Ğ½ÇÓëxÖáµÄ¼Ğ½Ç´óÓÚ0
+    !ÕâÊ±£¬µ±slidedirection=rightÊ±£¬ÆÂ¶¥»á³öÏÖ²»ÏàÈİµÄÆÆ»µÃæ·½Ïò(sfr(2)>0),ÕâÊ±ÁîÆäÈ¡ÁíA1?7¸ö·½Ïò?1?7?1?7
     IF(slidedirection==1.and.SLOPEPARAMETER.ISYDWZ.AND.Y(NDIM)>SLOPEPARAMETER.YDOWNWARDZONE.AND.stress(2)>stress(1)) THEN
         T1=-T1
     ENDIF
@@ -141,7 +141,7 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
             sfr(2)=pss1(4)+(sita1)/2.0*T1
         else
             sfr(2)=pss1(4)-(PI1-sita1)/2.0*T1 !active zone
-            !è°ƒæ•´å¡è„šä¸»åŠ¨åŒºçš„å±€éƒ¨æœ€å¤§æ»‘åŠ¨é¢æ–¹å‘
+            !µ÷ÕûÆÂ½ÅÖ÷¶¯ÇøµÄŒÂ1?7²¿×î´ó»¬¶¯Ãæ·½Ïò
             IF(ABS(SLOPEPARAMETER.TOEZONE(2))/=0.D0) THEN
                 T3=-(SLOPEPARAMETER.TOEZONE(1)*Y(1)+SLOPEPARAMETER.TOEZONE(3))/SLOPEPARAMETER.TOEZONE(2)
                 T3=Y(2)-T3
@@ -158,9 +158,9 @@ subroutine stress_in_failure_surface(sfr,stress,ndim,cohesion,PhiD,slidedirectio
         !sfr(4)=-t2*sin(PI1/2-phi1)*t1 
         sfr(3)=(pss1(1)+pss1(3))/2+t2*cos(sita1)
         sfr(4)=-t2*sin(sita1)*t1 
-        sfr(5)=sign(sfr(1),-sfr(4))*dcos(sfr(2)) !è¾“å‡ºå½’ä¸€åŒ–çš„å‰ªåº”åŠ›
+        sfr(5)=sign(sfr(1),-sfr(4))*dcos(sfr(2)) !Êä³ö¹éÒ»»¯µÄ¼ôÓ¦„1?7
         sfr(6)=sign(sfr(1),-sfr(4))*dsin(sfr(2))
-        !sfr(5)=abs(sfr(1))*dcos(sfr(2)) !è¾“å‡ºå½’ä¸€åŒ–çš„å‰ªåº”åŠ›
+        !sfr(5)=abs(sfr(1))*dcos(sfr(2)) !Êä³ö¹éÒ»»¯µÄ¼ôÓ¦„1?7
         !sfr(6)=abs(sfr(1))*dsin(sfr(2))
     ELSE
         !TENSION FAILURE,THE FAILURE SURFACE IS PLANE THE MAJOR PRINCIPLE STRESS.
@@ -197,10 +197,10 @@ subroutine principal_stress_cal(pstress,stress,ndim)
 		pstress(1)=t1+(t2**2+stress(4)**2)**0.5		
 		pstress(3)=t1-(t2**2+stress(4)**2)**0.5
 		Pstress(2)=stress(3)
-		!é»˜è®¤zæ–¹å‘ä¸ºåº”åŠ›ä¸ºä¸­åº”åŠ›ã€‚
+		!Ä¬ÈÏz·½ÏòÎªÓ¦Á¦ÎªÖĞÓ¦Á¦?1?7?1?7
         IF(ABS(stress(1)-stress(2))>1E-14) THEN 
 		    sita=0.5*atan(2*stress(4)/(stress(1)-stress(2)))
-            !sitaä¸ºè«å°”åœ†ä¸»åº”åŠ›å¹³é¢ä¸xè½´çš„å¤¹è§’
+            !sitaÎªÄª¶ûÔ²Ö÷Ó¦Á¦Æ½ÃæÓëxÖáµÄ¼Ğ½Ç
 		    Pstress(4)=sita
             !if(stress(1)>stress(2)) Pstress(4)=sita+Pi/2.0
         ELSE
@@ -383,7 +383,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 								ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				END DO				
 			END DO
-        CASE(WELLBORE,WELLBORE_SPGFACE,PIPE2,SPHFLOW,SEMI_SPHFLOW,ZT4_SPG,ZT6_SPG)
+        CASE(WELLBORE,WELLBORE_SPGFACE,PIPE2,SPHFLOW,SEMI_SPHFLOW,ZT4_SPG,ZT6_SPG,poreflow)
         
 		CASE DEFAULT
 			PRINT *, 'NO SUCH AN ELEMENT TYPE. SUB extrapolation_stress_strain_cal'
@@ -399,7 +399,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 	
 end subroutine
 
-SUBROUTINE I2N_TRI15(VIN,VIGP,ET) !ç›´æ¥å¹³ç§»
+SUBROUTINE I2N_TRI15(VIN,VIGP,ET) !Ö±½ÓÆ½ÒÆ
 	USE SOLVERLIB
 	IMPLICIT NONE
 	INTEGER,INTENT(IN)::ET
@@ -596,7 +596,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 	integer::i,j,k,n1,n2,ISTEP,isubts
 	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3),T2,ts1,SFR_MAX1=-1.D20,SIGMA1(6),MU1,SFR1(6)
 
-    if(isubts==1) call NodalWeight(ISTEP) !åŒä¸€æ­¥ä¸­å•å…ƒçš„ç”Ÿæ­»ä¸å‘ç”Ÿæ”¹å˜
+    if(isubts==1) call NodalWeight(ISTEP) !Í¬Ò»²½ÖĞµ¥ÔªµÄÉúËÀ²»·¢Éú¸Ä±ä
     
 	!clear zero
 	do i=1,nnum
@@ -670,7 +670,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 				do j=1,element(i).nnum
                     node(element(i).node(j)).q=node(element(i).node(j)).q+element(i).flux(j)
                     
-                    IF(ELEMENT(I).ET==PIPE2) CYCLE
+                    IF(ELEMENT(I).ET==PIPE2.OR.ELEMENT(I).ET==POREFLOW) CYCLE
                     !recover the head value at the nodes along the wellbore
                     IF(ELEMENT(I).ET==WELLBORE.OR.ELEMENT(I).ET==WELLBORE_SPGFACE) THEN
                         TDISP(NODE(ELEMENT(I).NODE(4)).DOF(4))=TDISP(NODE(ELEMENT(I).NODE(1)).DOF(4))
@@ -732,7 +732,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 			node(i).mises=node(i).mises**0.5
             
             IF(OUTVAR(SFR).VALUE>0) THEN
-			    !èŠ‚ç‚¹çš„ææ–™å‡å®šä¸ºç ´åæ¯”æœ€å¤§çš„å•å…ƒææ–™ï¼Œä»¥æ¨¡æ‹Ÿæˆå±‚åœŸä¸­çš„è½¯å¼±å¤¹å±‚
+			    !½ÚµãµÄ²ÄÁÏ¼Ù¶¨ÎªÆÆ»µ±È×î´óµÄµ¥Ôª²ÄÁÏ£¬ÒÔÄ£Äâ³É²ãÍÁÖĞµÄÈíÈõ¼ĞŒÂ1?7
                 MU1=material(node(i).sfr(2)).GET(2,ISTEP)
 			    C1=material(node(i).sfr(2)).GET(3,ISTEP)
 			    Phi1=material(node(i).sfr(2)).GET(4,ISTEP)
@@ -743,7 +743,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
                 !dis1(1:ndimension)=Tdisp(node(i).dof(1:ndimension))
 			    NODE(I).SFR(9)=C1;NODE(I).SFR(10)=PHI1;
 			    call stress_in_failure_surface(node(i).sfr,node(i).stress,2,C1,Phi1,solver_control.slidedirection,node(i).coord(1:ndimension),TS1)
-                !å‡å®škoåº”åŠ›ï¼Œko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
+                !¼Ù¶¨koÓ¦Á¦£¬ko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
                 SIGMA1(2)=node(i).stress(2)
                 SIGMA1(1)=mu1/(1-mu1)*SIGMA1(2);SIGMA1(3)=SIGMA1(1);SIGMA1(4:6)=0
 	            call stress_in_failure_surface(sfr1,SIGMA1,2,C1,Phi1,solver_control.slidedirection,node(i).coord(1:ndimension),TS1)
@@ -854,7 +854,7 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 							ecp(element(ienum).et).expolating_Lshape(1:element(ienum).ngp,I))
 				enddo			
 			END DO
-        CASE(WELLBORE,WELLBORE_SPGFACE,PIPE2,SPHFLOW,SEMI_SPHFLOW,ZT4_SPG,ZT6_SPG)
+        CASE(WELLBORE,WELLBORE_SPGFACE,PIPE2,SPHFLOW,SEMI_SPHFLOW,ZT4_SPG,ZT6_SPG,POREFLOW)
         
 		CASE DEFAULT
 			PRINT *, 'NO SUCH A ELEMENT TYPE. SUB extrapolation_stress_strain_cal'
@@ -890,7 +890,7 @@ subroutine NodalWeight(ISTEP)
         
         if(element(i).isactive==0) cycle
         !line element,such as wellbore and pipe2 are excluded.
-        if(element(i).et==wellbore.or.element(i).et==pipe2.OR.element(i).et==WELLBORE_SPGFACE) cycle
+        if(element(i).et==wellbore.or.element(i).et==pipe2.OR.element(i).et==WELLBORE_SPGFACE.OR.element(i).et==POREFLOW) cycle
         if(element(i).et==SPHFLOW.or.element(i).et==SEMI_SPHFLOW) cycle
         
 		ISSPG1=ELEMENT(I).EC==SPG.OR.ELEMENT(I).EC==SPG2D.OR.ELEMENT(I).EC==CAX_SPG

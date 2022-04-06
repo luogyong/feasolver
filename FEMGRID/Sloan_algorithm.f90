@@ -223,6 +223,7 @@ end subroutine
 			!update edge(:)
 			edge(Redge(1)).v(1)=p
 			edge(Redge(1)).v(2)=v3
+            edge(Redge(1)).iscedge=0!!!!
 			elt(R).edge(1)=Redge(1)
 			elt(R).edge(2)=Redge(3)
 			elt(R).edge(3)=elt(L).edge(3)

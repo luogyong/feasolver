@@ -1,12 +1,12 @@
 module CutoffWall
 USE meshDS,ONLY:strtoint,seg,segindex,edge,nedge,node,elt,nnode,nelt,ENLARGE_AR, &
-    adjlist,soillayer,zone,Removeadjlist,addadjlist,ar2d_tydef
+    adjlist,soillayer,zone,Removeadjlist,addadjlist,ar2d_tydef,geology,quick_sort
 use ds_t,only:arr_t
 
 implicit none
 private
 real ( kind = 8 ), parameter :: Pi = 3.141592653589793D+00
-public::cowall,ncow,xzone,nxzone
+public::cowall,ncow,xzone,nxzone,vseg_pg,nvseg_pg
 
 type cutoffwall_type
     integer::NCP=0,mat=1     
@@ -59,8 +59,46 @@ endtype
 type(xzone_tydef),allocatable::xzone(:)
 integer::nxzone=0
 
-    contains   
-    
+type vseg_pg_tydef
+    integer::ip=0,nnode=0
+    integer,allocatable::node(:),edge(:),igmshvol(:)
+    real(8),allocatable::z(:)
+    character(1024)::helpstring= &
+        &"vseg_pg的作用是输出指定竖向线物理组，用于定义井线等。如果该竖直线处于体的内部，则进行相应的嵌入处理。\n &
+        & \n vseg_pg的输入格式为:\n &
+        & 1)nvseg_pg //竖直线物理组数  \n &	
+        & 2)ipt,z(1:nnode) //点号,该竖向线各控制点的高程(由小到大的顺序输入)。共nvseg_pg行。\n &
+        & "C          
+contains
+    procedure,nopass::help=>write_help
+    procedure::readin=>vseg_pg_readin
+    procedure::getnode=>vseg_pg_getnode
+end type
+type(vseg_pg_tydef),allocatable::vseg_pg(:)
+integer::nvseg_pg=0
+
+    contains
+    subroutine vseg_pg_getnode(this)
+        class(vseg_pg_tydef)::this
+        
+        this.ip=geology(this.ip).node
+        
+    endsubroutine
+    subroutine vseg_pg_readin(this,unit)
+        class(vseg_pg_tydef)::this
+        integer,intent(in)::unit
+        INTEGER::I,J,N1,DN=0,NINC1
+        INTEGER,PARAMETER::DNMAX=1000
+        REAL(8)::AR(DNMAX) 
+        
+ 	    call strtoint(unit,ar,dnmax,dn,dnmax)
+	    !n1=I
+        THIS.ip=int(ar(1)) 
+        THIS.z=ar(2:dn)
+        call quick_sort(this.z)
+        this.nnode=dn-1
+        allocate(this.node(this.nnode))
+    endsubroutine     
     subroutine xzone_readin(this,unit)
         class(xzone_tydef)::this
         integer,intent(in)::unit
@@ -105,7 +143,8 @@ integer::nxzone=0
     !subroutine xzone_cut_gedge()
     !    class(xzone_tydef)::this
     !endsubroutine
-    
+   
+ 
 subroutine write_help(helpstring,unit)
     USE IFQWIN
     implicit none

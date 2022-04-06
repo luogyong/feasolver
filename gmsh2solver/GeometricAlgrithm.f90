@@ -823,6 +823,7 @@ subroutine rayintcyl(raybase,raycos,base,axis,radius,isint,in,out,botplane,toppl
       real ( kind = 8 ) v1(SIZE(V,DIM=1))
       real ( kind = 8 ) v2(SIZE(V,DIM=1))
       real ( kind = 8 ) normal(SIZE(V,DIM=1))
+      real(8)::t1
       logical::isunify1=.true.
       
       if(.not.present(isunify)) then
@@ -836,7 +837,16 @@ subroutine rayintcyl(raybase,raycos,base,axis,radius,isint,in,out,botplane,toppl
       normal(1) = v1(2) * v2(3) - v1(3) * v2(2)
       normal(2) = v1(3) * v2(1) - v1(1) * v2(3)
       normal(3) = v1(1) * v2(2) - v1(2) * v2(1)
-      if(isunify1) normal=normal/norm2(normal)
+      if(isunify1) then
+          t1=norm2(normal)
+          if(abs(t1)>1.d-10)  then
+              normal=normal/t1
+          else
+              print *, '3p are colinear.'
+          endif
+          
+      endif
+      
       return
   
     end function     

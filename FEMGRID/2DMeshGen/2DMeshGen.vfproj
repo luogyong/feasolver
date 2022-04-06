@@ -63,14 +63,14 @@
 		<File RelativePath="..\checkdata.f90"/>
 		<File RelativePath="..\graph.f90"/></Filter>
 		<Filter Name="IO">
+		<File RelativePath="..\data_structure.f90"/>
+		<File RelativePath="..\ds2.f90"/>
 		<File RelativePath="..\meshinp.f90"/>
 		<File RelativePath="..\output.f90"/>
 		<File RelativePath="..\outtocheckdata.f90"/></Filter>
 		<Filter Name="mesh">
 		<File RelativePath="..\BoundPointMesh.f90"/>
-		<File RelativePath="..\data_structure.f90"/>
 		<File RelativePath="..\divideline.f90"/>
-		<File RelativePath="..\ds2.f90"/>
 		<File RelativePath="..\EKCD.F90"/>
 		<File RelativePath="..\InsertPoints.f90"/>
 		<File RelativePath="..\keypointmesh.f90"/>

@@ -18,7 +18,7 @@ module solverds
 		real(kind=DPN),allocatable::igrad(:),velocity(:)	!for spg element, gradients,velocities.
 		real(kind=DPN)::angle=0.0D0 !the angle around the vertex.
 		real(kind=DPN)::MISES=0.0D0,EEQ=0.0D0,PEEQ=0.0D0
-		real(kind=DPN)::Q=0.0D0,Kr=0.0D0,Mw=0.0D0  !nodal flux,relative permeability,slope of volumetric water content.		
+		real(kind=DPN)::Q=0.0D0,Kr=0.0D0,Mw=0.0D0,PORESIZE=0.D0  !nodal flux,relative permeability,slope of volumetric water content.		
 		integer::nelist=0,NELIST_SPG=0,ISACTIVE=0
 		!integer,allocatable::elist(:),ELIST_SPG(:) !elements sharing the node.
 !		integer::Property=0 !for SPG, Property=1 suggesting that the node is on the seepage surface.
@@ -34,7 +34,7 @@ module solverds
 		integer,allocatable::node(:),EDGE(:),FACE(:),TET(:),ADJELT(:) !单元的节点,TET为单元的细分单元组的下标。
         integer,allocatable::node2(:),NSPLOC(:) !为方便Bar和Beam单元的后处理，为单元集内的节点编号，将其转换成实体六面体单元后输出,当单元为zt4_spg,或zt6_spg时，node2指向gnode。
         !当et=wellbore时，node2存储以wellbore单元第3，4节点为边的3维单元,NSPLOC为井周采样点所在的单元位置 
-        !当ISTOPO==1时，由高次单元生成的一次对wellbore类单元，但其他面元或体元为高次单元时，因wellbore类单元目前只有2节点的一次单元，所以对高次线单元进行了分解，
+        !当ISTOPO==1时，由高次单元生成的一次的wellbore类单元，但其他面元或体元为高次单元时，因wellbore类单元目前只有2节点的一次单元，所以对高次线单元进行了分解，
         !node(nnum+1:nnum+2)记录当前单元对应的高次单元的端节点，以便进行后面的拓扑邻接分析。        
 		integer::et  !单元类型
 		integer::mat,mattype  !material id and material type.the paramters is got from material(mat)
@@ -67,6 +67,7 @@ module solverds
 		real(kind=DPN)::property(6)=0.0D0  !for spg problem and iniflux is used, property(3)=low lamda,property(2)=up lamda
         !for wellbore element, property(1), element frictional resistance,(2) and (3) are geometrical resistance; (4) acceralated resistantce; (5)=WELL SKIN RESISTANCE , property(6) surround angle.
         !fore sphflow and semi_sphflow property(1)= geometrical resistance.
+        !for pipe2/poreflow  element,property(1), element frictional resistance,(2) throat diameter(for poreflow),(3) Re
 		real(kind=DPN),allocatable::angle(:)!internal angle for every nodes
         !当et=wellbore时,angle存储node2单元对应的二面角。
 		integer,allocatable::g(:) !单元的定位向量
@@ -111,7 +112,7 @@ module solverds
 		real(kind=DPN),allocatable::X2(:)
         
         REAL(8)::BBOX(2,3)=0.D0 !MIN,MAX OF X,Y AND Z
-        REAL(8)::fqw=1.0d0 !井周单元渗透系数调节因子，
+        REAL(8)::fqw=1.0d0,FD=0.D0 !井周单元渗透系数调节因子.FD=FRICTIONAL TERM FOR PIPE2/poreflow
 	end type
 	integer::enum=0 !节点数
 	type(element_tydef),allocatable::element(:)
@@ -243,7 +244,7 @@ module solverds
 			!SHT=1,spr=2,AVG=3,EXP=4
 		logical::issym=.true.
 !		logical::issteady=.true. 
-		logical::datapaking=.true. !.t.=point,.f.=block
+		logical::datapacking=.true. !.t.=point,.f.=block
 		logical::ismg=.false. !just for limit analysis, if ismg=.true. minimize soil specific gravity, it demands that no nonzero boundary are applied.
 		logical::islaverify=.false. !.true. to verify a soluction is whether a feasible one.
 		logical::ispg=.false.  ! whether the job is just to read in result file and out put to tecplot.
@@ -281,6 +282,12 @@ module solverds
         integer::nspwell=12 !wellmethod=2时,每层(2*Pi)采样点数。如果井周角非2PI,范围之外的点将丢弃。
         integer::wellaniso=0 !水平各向异性，=0，directional K method； =1, Charles R. Fitts method.(转化为各向同性材料进行)；=2，王建荣方法，根据其公式进行计算 
         real(kind=DPN)::disf_scale=1.0d0
+        integer::len_unit=0 !0,m;3,mm;2,cm;1,dm;4,km;
+        integer::time_unit=0 !0,day;1,sec;2,min;3,hour;
+        
+    contains
+        procedure::unit_factor=>unit_scaling_factor
+        procedure::get_g=>get_gravity
 	end type
 	type(solver_tydef)::solver_control
 	INTEGER::MAX_NODE_ADJ=50,MAX_FACE_ADJ=100
@@ -430,7 +437,7 @@ module solverds
 
 	
 	character(1024)::title,resultfile,resultfile1,resultfile2,resultfile3,resultfile21,resultfile22,EXCAMSGFILE,EXCAB_BEAMRES_FILE,&
-					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE,SLOPE_FILE,helpfile,well_file,flownet_file
+					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE,SLOPE_FILE,helpfile,well_file,flownet_file,volfile
 	INTEGER::DATAPOINT_UNIT=29
 	integer::datapacking=1	!=1,point format:{x1,y1,z1},{x2,y2,z2},..., . (Default Format)
 						 != 2, block format, {x1,x2,...},{y1,y2,...},{z1,z2,...}
@@ -492,7 +499,7 @@ module solverds
 	INTEGER::NDOFHEAD=0,NDOFMEC=0 !!每步的渗流自由度数及利息自由度数，
 	INTEGER,ALLOCATABLE::DOFHEAD(:),DOFMEC(:),CalStep(:) !head dofs in the model.
 	real(kind=DPN),allocatable::NodalQ(:,:,:),RTime(:) !NODALQ(INODE,IVO,NNODALQ) !NNODALQ=SUM(TEIMSTEP.nsubts)
-	INTEGER::NNODALQ=0
+	INTEGER::NNODALQ=0,isporeflow=0
 	integer,allocatable::bfgm_step(:)
     integer::mpi_rank = 0, mpi_size = 1, mpi_ierr
     LOGICAL::ISINISEDGE=.FALSE.,ISOUT_WELL_FILE=.FALSE.
@@ -569,6 +576,107 @@ module solverds
    
     
     contains
+    real(8) function get_gravity(this)
+    !calculte the g value based on the model unit
+        class(solver_tydef)::this
+        real(8)::t1,t2
+ 
+       
+        select case(this.len_unit)
+        case(0) !m
+            t1=1.0
+        case(1) !dm
+            t1=10
+        case(2) !cm
+            t1=100
+        case(3) !mm
+            t1=1000
+        case(4) !km
+            t1=1.0/1000
+        case default
+            error stop 'no such length unit.'            
+        end select
+        
+        
+        select case(this.time_unit)
+        case(0) !day
+            t2=(24*3600)
+        case(1) !sec
+            t2=1.0
+        case(2) !min
+            t2=60
+        case(3) !hour
+            t2=3600
+        case default
+            error stop 'no such time unit.'            
+        end select        
+        t2=t2**2
+        
+        get_gravity=9.8*t1*t2
+        
+    end function
+    real(8) function unit_scaling_factor(this,unit)
+    !calculate the scale factor scaling the current model unit to the input unit.
+        class(solver_tydef)::this
+        character(len=*)::unit
+        real(8)::t1,t2
+        !to m
+        t1=1.0
+        select case(this.len_unit)
+        case(0) !m
+            t1=1.0
+        case(1) !dm
+            t1=0.1
+        case(2) !cm
+            t1=0.01
+        case(3) !mm
+            t1=0.001
+        case(4) !km
+            t1=1000
+        case default
+            error stop 'no such length unit.'
+            
+        end select
+        
+        !to day
+        select case(this.time_unit)
+        case(0) !day
+            t2=1.0
+        case(1) !sec
+            t2=1.0/(24*3600)
+        case(2) !min
+            t2=1./(24*60)
+        case(3) !hour
+            t2=1./(24)
+        case default
+            error stop 'no such time unit.'            
+        end select        
+        
+        select case(trim(adjustl(unit)))
+        case('m')
+            unit_scaling_factor=t1
+        case('mm')
+            unit_scaling_factor=t1*1000
+        case('cm')
+            unit_scaling_factor=t1*100
+        case('dm')
+            unit_scaling_factor=t1*10
+        case('km')
+            unit_scaling_factor=t1/1000
+        case('day')
+            unit_scaling_factor=t2
+        case('hour','h')
+            unit_scaling_factor=t2*24
+        case('sec','s')
+            unit_scaling_factor=t2*24*3600
+        case('min')
+            unit_scaling_factor=t2*24*60
+        case default
+            print *, 'no such unit=',unit
+            error stop
+        end select
+        
+    endfunction
 
     SUBROUTINE DOFADJL_ADD_ITEM(SELF,ITEM) 
         
@@ -797,10 +905,11 @@ REAL(8) FUNCTION fD_PF(RE,KR,MODEL,REW,POROSITY) !darcy-friction for pipe flow
     REAL(8)::LAMDA1,REW1,FC1,A,B,C,PO1,FO1,KR1
     INTEGER::MODEL1
     
-    IF(ABS(RE)<1.D-7) THEN
-        LAMDA1=1E7
-        RETURN
-    ENDIF
+    !IF(ABS(RE)<1.D-7) THEN
+    !    LAMDA1=1E7
+    !    fD_PF=LAMDA1
+    !    RETURN
+    !ENDIF
     
     MODEL1=0
     IF(PRESENT(MODEL)) MODEL1=MODEL
@@ -814,7 +923,7 @@ REAL(8) FUNCTION fD_PF(RE,KR,MODEL,REW,POROSITY) !darcy-friction for pipe flow
     ENDIF
     
     IF(RE<2260) THEN
-        LAMDA1=64./RE    
+        LAMDA1=64./MAX(RE,1.0D-10)    
     ELSEIF(RE<3400) THEN
         A=-2.*log10(12/Re+KR1/3.7)
         B=-2*log10(2.51*A/Re+KR1/3.7)
@@ -902,21 +1011,191 @@ REAL(8) FUNCTION Re_W(V,D,T)
 IMPLICIT NONE
 REAL(8),INTENT(IN)::V,D !unit,v,m/s, D,m
 REAL(8),INTENT(IN),OPTIONAL::T !unit= 摄氏度
-REAL(8)::T1
+REAL(8)::T1,cf1,cf2
 
 IF(.NOT.PRESENT(T)) THEN
     T1=25
 ELSE
     T1=T
+    IF(T1<1.0D-6) T1=25
 ENDIF
+!to sec
+cf1=solver_control.unit_factor('s')
+!convert to m
+cf2=solver_control.unit_factor('m')
 
 
-Re_W=V*D/Vk(T1)
+
+Re_W=ABS(V*cf2/cf1*D*cf2/Vk(T1))
 
     
 ENDFUNCTION
 
+   !把字符串中相当的数字字符(包括浮点型)转化为对应的数字
+   !如 '123'转为123,'14-10'转为14,13,12,11,10
+   !string中转化后的数字以数组ar(n1)返回，其中,n1为字符串中数字的个数:(注　1-3转化后为3个数字：1,2,3)
+   !nmax为数组ar的大小,string默认字符长度为1024。
+   !num_read为要读入数据的个数。
+   !unit为文件号
+   !每次只读入一个有效行（不以'/'开头的行）
+   !每行后面以'/'开始的后面的字符是无效的。
+   subroutine  strtoint(unit,ar,nmax,n1,num_read,set,maxset,nset,ef1)
+	  implicit none
+      INTEGER,INTENT(IN)::unit,nmax,num_read,maxset
+      INTEGER,INTENT(INOUT)::N1,NSET
+      INTEGER,OPTIONAL::EF1
+      REAL(8),INTENT(INOUT)::ar(nmax)
+      character(*)::set(maxset)
+	  logical::tof1,tof2
+	  integer::i,j,k,strl,ns,ne,n2,n3,n4,step,& 
+			ef,n5,nsubs
+	  real(8)::t1	  
+	  character(20000)::string
+	  character(512)::substring(1000)
+	  character(16)::legalC,SC
 
+		LegalC='0123456789.-+eE*'
+		sc=',;() '//char(9)
+		n1=0
+		nset=0
+		ar=0
+		!set(1:maxset)=''
+	  do while(.true.)
+		 read(unit,'(a)',iostat=ef) string
+         
+		 if(ef<0) then
+            if(present(ef1))  then
+                ef1=ef
+            else
+			    print *, 'file ended unexpected. sub strtoint()'
+			    stop
+            endif
+		 end if
+
+		 string=adjustL(string)
+		 strL=len_trim(string)
+		 
+		do i=1,strL !remove 'Tab'
+			if(string(i:i)/=char(9)) exit
+		end do
+		string=string(i:strL)
+		string=adjustl(string)
+		strL=len_trim(string)
+		if(strL==0) cycle
+
+		 if(string(1:2)/='//'.and.string(1:1)/='#') then
+			
+			!每行后面以'/'开始的后面的字符是无效的。
+			if(index(string,'//')/=0) then
+				strL=index(string,'//')-1
+				string=string(1:strL)
+				strL=len_trim(string)
+			end if
+
+			nsubs=0
+			n5=1
+			do i=2,strL+1
+				if(index(sc,string(i:i))/=0.and.index(sc,string(i-1:i-1))==0) then
+					nsubs=nsubs+1					
+					substring(nsubs)=string(n5:i-1)					
+				end if
+				if(index(sc,string(i:i))/=0) n5=i+1
+			end do
+			
+			do i=1, nsubs
+				substring(i)=adjustl(substring(i))				
+				n2=len_trim(substring(i))
+				!the first character should not be a number if the substring is a set.
+				if(index('0123456789-+.', substring(i)(1:1))==0) then
+					!set
+					nset=nset+1
+					set(nset)=substring(i)
+					cycle
+				end if
+				n3=index(substring(i),'-')
+				n4=index(substring(i),'*')
+				tof1=.false.
+				if(n3>1) then
+				    tof1=(substring(i)(n3-1:n3-1)/='e'.and.substring(i)(n3-1:n3-1)/='E')
+				end if
+				if(tof1) then !处理类似于'1-5'这样的形式的读入数据
+					read(substring(i)(1:n3-1),'(i8)') ns
+					read(substring(i)(n3+1:n2),'(i8)') ne
+					if(ns>ne) then
+						step=-1
+					else
+						step=1
+					end if
+					do k=ns,ne,step
+						n1=n1+1
+						ar(n1)=k
+					end do				     	
+				else
+				     tof2=.false.
+				     if(n4>1) then
+				             tof2=(substring(i)(n4-1:n4-1)/='e'.and.substring(i)(n4-1:n4-1)/='E')
+				     end if
+					if(tof2) then !处理类似于'1*5'(表示5个1)这样的形式的读入数据
+						read(substring(i)(1:n4-1),*) t1
+						read(substring(i)(n4+1:n2),'(i8)') ne
+						ar((n1+1):(n1+ne))=t1
+						n1=n1+ne
+					else
+						n1=n1+1
+						read(substring(i),*) ar(n1)
+					end if	
+				end if			
+			end do
+		 else
+			cycle
+		 end if
+		
+		 if(n1<=num_read) then
+		    exit
+		 else
+		    if(n1>num_read)  print *, 'error!nt2>num_read. i=',n1
+		 end if
+	
+	  end do	
+
+   end subroutine 
+
+    INTEGER FUNCTION INCOUNT(N)
+        IMPLICIT NONE
+        INTEGER,INTENT(IN)::N
+        REAL(8)::T1
+        INTEGER::I
+
+        T1=ABS(N)
+        INCOUNT=INT(LOG10(T1))+1
+	    IF(N<0) INCOUNT=INCOUNT+1
+    
+
+    END FUNCTION   
+
+    !translate all the characters in term into lowcase character string
+    subroutine lowcase(term)
+	    use dflib
+	    implicit none
+	    integer i,in,nA,nZ,nc,nd
+	    character(1)::ch
+	    character(*)::term
+	
+	    term=adjustl(trim(term))
+	    nA=ichar('A')
+	    nZ=ichar('Z')
+	    nd=ichar('A')-ichar('a')
+	    in=len_trim(term)
+	    do i=1,in
+		    ch=term(i:i)
+		    nc=ichar(ch)
+		    if(nc>=nA.and.nc<=nZ) then
+			    term(i:i)=char(nc-nd)
+		    end if
+	    end do
+    end subroutine
+    
+    
 end module
 
 INCLUDE 'mkl_dss.f90' 

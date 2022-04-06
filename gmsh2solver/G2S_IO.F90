@@ -851,7 +851,7 @@ subroutine skipcomment(unit)
 	do while(.true.)
 		read(unit,'(a512)',iostat=ef) string
 		if(ef<0) then
-			print *, 'file ended unexpected. sub strtoint()'
+			print *, 'file ended unexpected. sub skipcomment()'
 			stop
 		end if
 

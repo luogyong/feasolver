@@ -877,6 +877,7 @@ ENDSUBROUTINE
 
 subroutine slope_handler(selection)
     USE SolverMath
+    use solverds,only:strtoint
     USE SLOPE_PSO, ONLY:SLOPE_OPTIM,POLYLINE_FOS_CAL
     implicit none
     integer(kind=glcint), intent(in out) :: selection
@@ -1068,7 +1069,7 @@ subroutine slope_handler(selection)
 end subroutine
 
 subroutine probe_handler(selection)
-    
+    use solverds,only:strtoint
     USE SolverMath
     USE IFPORT
     implicit none

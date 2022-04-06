@@ -12,7 +12,8 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
 	integer::i,j,k,i1,ienum,et,ec,ngp,nshape,ndim,nnode,ielb,jelb,kelb,idjacm,ERR
 	real(8)::ELB(ielb,jelb,kelb),Djacm(idjacm)
 	real(8),allocatable::GSDeriv(:,:),Jacm(:,:),xy(:,:)
-	real(8)::r1
+	real(8)::r1,t1,v1(3),t2,v2(3)
+    integer::ia1(4,4),n1
 	!real(8),external::determinant
     
 	et=element(ienum).et
@@ -31,8 +32,40 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
 	do i=1,nnode
 		xy(1:ndim,i)=node(element(ienum).node(i)).coord(1:ndim)
 		IF(ELEMENT(IENUM).ET==ZT4_SPG2.OR.ELEMENT(IENUM).ET==ZT6_SPG2.OR. &
-            ELEMENT(IENUM).ET==ZT4_SPG.OR.ELEMENT(IENUM).ET==ZT6_SPG) xy(1:ndim,i)=GNODE(1:NDIM,ELEMENT(IENUM).NODE2(I))
-	end do
+            ELEMENT(IENUM).ET==ZT4_SPG.OR.ELEMENT(IENUM).ET==ZT6_SPG) xy(1:ndim,i)=GNODE(1:NDIM,ELEMENT(IENUM).NODE2(I))        
+    end do
+    
+    if(element(ienum).et==tet4_spg.or.element(ienum).et==tet10_spg) then
+        element(ienum).property(1)=TetVOL(transpose(xy(:,1:4))) 
+        !if vol==0, then make it nonzero thin tet            
+        if(element(ienum).property(1)<1.d-7) then
+            ia1=reshape([1,2,3,4,2,1,4,3,3,2,4,1,1,3,4,2],([4,4]))
+            t2=-1
+            !find the largest tri as the base
+            do i=1,4
+                v1=NORMAL_TRIFACE(transpose(xy(:,ia1(1:3,i))))
+                t1=norm2(v1)
+                if(t1>t2) then
+                    t2=t1;n1=i;v2=v1
+                endif
+            enddo
+            if(abs(t2)>1.d-6) then
+                !lift the fourth point normal to the base by 0.001 unit.
+                xy(:,ia1(4,n1))=xy(:,ia1(4,n1))+1.d-3*v2/t2
+                element(ienum).property(1)=t2*1.0d-3/6.0
+            else
+                !4µã¹²µã
+                xy=0.d0
+                xy(1,2)=1.0d-3
+                xy(2,3)=1.0d-3
+                xy(3,4)=1.0d-3
+                element(ienum).property(1)=1.0d-9/6
+            endif
+        endif
+            
+     endif
+    
+
 	
 	do i=1,kelb
 		!Yield the Jacobian Matrix

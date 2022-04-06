@@ -19,7 +19,7 @@ subroutine Initialization()
 	implicit none
 	integer::i,j,k,nj,p,j1,j2,iset1
 	integer::n1,n2,n3,n4
-	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord1(3,4)=0,trans1(12,12)=0,c1(3,3)=0,b2(3),c2(3),R1,R2,R3,R4,G1
+	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord1(3,4)=0,trans1(12,12)=0,c1(3,3)=0,b2(3),c2(3),R1,R2,R3,R4,G1,t2
 	real(kind=DPN)::km1(6,6)=0.d0
 	integer::dof1(MNDOF)
 	character(64)::ermsg=''
@@ -711,22 +711,51 @@ subroutine Initialization()
 				element(i).g2l(1,:)=element(i).g2l(1,:)/t1 
                 
                 CALL BARFAMILY_EXTREMEVALUE(I)
-			case(shell3_kjb)
-			
+            case(shell3_kjb)
+            case(poreflow)
+				node(element(i).node(1:element(i).nnum)).dof(4)=0
+				allocate(element(i).km(element(i).nnum,element(i).nnum))
+				element(i).km=0.0D0
+                !目前假定其阻力由文件输入
+                IF(ABS(ELEMENT(I).PROPERTY(1))<1.D-10) THEN
+                    !PRINT *,'THE FRICTIONAL RESISTANCE SEEMS TO BE TOO SMALL FOR POREFLOW ELEMENT(I).I=',I   
+                    !ERROR STOP
+                    t1=vk(material(element(i).mat).property(2))/9.8 !unit=m.sec
+                    t2=solver_control.unit_factor('m')*solver_control.unit_factor('s')
+                    t1=t1/t2 !to model unit
+                    t2=material(element(i).mat).property(1)
+                    if(isporeflow>0) t2=element(i).property(2)/2.0
+                    element(i).property(1)=(2*t2)**2/t1/32
+                    T1=RPI*t2**2/ &
+                        NORM2(NODE(ELEMENT(I).NODE(1)).COORD-NODE(ELEMENT(I).NODE(2)).COORD)
+                               
+                    ELEMENT(I).PROPERTY(1)=1./(T1*ELEMENT(I).PROPERTY(1))
+                    ELEMENT(I).FD=ELEMENT(I).PROPERTY(1)                    
+                ENDIF
+                ELEMENT(I).KM=1.D0
+                ELEMENT(I).KM(1,2)=-1.D0;ELEMENT(I).KM(2,1)=-1.D0
+                ELEMENT(I).KM=ELEMENT(I).KM/ELEMENT(I).PROPERTY(1) 
+                ELEMENT(I).KR=[1.0D0]
+                
 			case(pipe2,wellbore,WELLBORE_SPGFACE)
 				node(element(i).node(1:element(i).nnum)).dof(4)=0
 				allocate(element(i).km(element(i).nnum,element(i).nnum))
 				element(i).km=0.0D0
                 IF(element(i).et/=WELLBORE_SPGFACE) THEN
-                    t1=vk(material(element(i).mat).property(2))/9.8
-                    if(abs(material(element(i).mat).property(4)-1.d0)>1.d-7) then
-                        t1=t1/24./3600. !UNIT,M.DAY
-                    endif
-                    element(i).property(1)=(2*material(element(i).mat).property(1))**2/t1/32
-                    T1=RPI*material(element(i).mat).property(1)**2/ &
+                    t1=vk(material(element(i).mat).property(2))/9.8 !unit=m.sec
+                    !if(abs(material(element(i).mat).property(4)-1.d0)>1.d-7) then
+                    !    t1=t1/24./3600. !UNIT,M.DAY
+                    !endif
+                    t2=solver_control.unit_factor('m')*solver_control.unit_factor('s')
+                    t1=t1/t2 !to model unit
+                    t2=material(element(i).mat).property(1)
+                    if(isporeflow>0) t2=element(i).property(2)/2.0
+                    element(i).property(1)=(2*t2)**2/t1/32
+                    T1=RPI*t2**2/ &
                         NORM2(NODE(ELEMENT(I).NODE(1)).COORD-NODE(ELEMENT(I).NODE(2)).COORD)
                                
                     ELEMENT(I).PROPERTY(1)=1./(T1*ELEMENT(I).PROPERTY(1))
+                    ELEMENT(I).FD=ELEMENT(I).PROPERTY(1)
                 ELSE
                     ELEMENT(I).PROPERTY(1)=1.D10 !模拟不透水,大阻力
                 ENDIF
@@ -785,6 +814,9 @@ subroutine Initialization()
 				call xygp(i)				
 				!n1=element(i).ngp+element(i).nnum				
 				n1=element(i).ngp
+                !if(i==40481) then
+                !    print *, 'nan value found in element(i).km, i=',i                    
+                !endif
 				call JACOB2(i,element(i).b,element(i).nd,element(i).ndof,n1, &
 									element(i).detjac,element(i).ngp)
 				call BTDB(element(i).b,element(i).nd,element(i).ndof,element(i).ngp, &
@@ -792,7 +824,11 @@ subroutine Initialization()
 								element(i).km,element(i).ndof,element(i).ndof, &
 								ecp(element(i).et).weight,ecp(element(i).et).ngp, &
 								element(i).detjac,element(i).ngp,i)
-                !if(isnan(element(i).km))
+                if(any(isnan(element(i).km))) then
+                    print *, 'nan value found in element(i).km, i=',i
+                    error stop 'error stop in sub Initialization'
+                endif
+                
 				
 !				write(99,*) 'element,', i
 !				write(99,999) ((element(i).km(j,k),k=1,element(i).ndof),j=1,element(i).ndof)
@@ -998,7 +1034,7 @@ subroutine Initialization()
 				call fepv(i,dof1)
 				call dofbw(i)
 				
-			case(pipe2,wellbore,WELLBORE_SPGFACE,SEMI_SPHFLOW,SPHFLOW,ZT4_SPG,ZT6_SPG)
+			case(pipe2,wellbore,WELLBORE_SPGFACE,SEMI_SPHFLOW,SPHFLOW,ZT4_SPG,ZT6_SPG,poreflow)
 				dof1=0
 				dof1(4)=4
 				call fepv(i,dof1)

@@ -24,10 +24,11 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD ELT_BC IS USED TO DEFINE THE BOUNDARY CONDITION APPLIED ON THE ELEMENT GROUP."//'"'
 	README(IPP(I))="//NOTE THAT THE FINAL BC VALUE OF A NODE IS WHAT INPUT BY THE FIRST ELEMENT SHARING THE NODE."
 	README(IPP(I))= "//{NELT_BC} "
-	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE,[A,B,C,D]}  // NDIM=0,1,2,3 分别表示点、线、面、体的约束. 因为边界条件（如位移，水头等）不具叠加性，所以NDIM取值对边界条件无影响."
+	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE,[A,B,C,D],['SPG_DUAL']}  // NDIM=0,1,2,3 分别表示点、线、面、体的约束. 因为边界条件（如位移，水头等）不具叠加性，所以NDIM取值对边界条件无影响."
     README(IPP(I)) = "//DOF=4(水头)，且VALUE=-999,表示节点的水头边界值为节点高程值。(模拟暴雨工况。)"
 	README(IPP(I))=  "//                                                      // DOF(I)=1,2,...,7,分别表示约束X,Y,Z,H,MX,MY,MZ "
     README(IPP(I))=  "//[A,B,C,D] IS FOR LINEAR FIELD FUNCTION CALCULATION. IF THEY ARE PRESENT THEN VALUE=A*X+B*Y+C*Z+D. "
+    README(IPP(I))=  "//当输入字符串'SPG_DUAL'时,表明当边界水头低于位置水头时，当出溢边界中也包含此边界时，此边界就会转化为出溢边界。当水头边界与出溢边界可能出现相互转化时，可使用此功能。 "    
     README(IPP(I))=  "//NOTE: FOR THE LAYERED MODEL, THE GROUP IDS OF EACH EXTRUDED LAYERED IS REFERED AS GROUP_BASEMESH*100+ILAYER.AS SHOWN BELOW." 
 	README(IPP(I))=  "//   -----------------								"
 	README(IPP(I))=  "//   |               |                                "
@@ -55,7 +56,7 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I))=  "//"//'"'//"THE KEYWORD ELT_LOAD IS USED TO DEFINE THE LOAD APPLIED ON THE ELEMENT GROUP."//'"'
 	README(IPP(I))="//NOTE THAT, IF THE NDIM=1,2 OR 3, THE FINAL BC VALUE OF A NODE IS THE SUM OF ALL THE ELEMENT SHARING THE NODE."
 	README(IPP(I)) = "//{NELT_LOAD} "
-	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE,[A,B,C,D],['SPG_DUAL']}  // NDIM=0,1,2,3 分别表示点、线、面、体的荷载."
+	README(IPP(I)) = "//{NO,GROUPID,NDIM,DOF,STEPFUNC,VALUE,[A,B,C,D]}  // NDIM=0,1,2,3 分别表示点、线、面、体的荷载."
 	README(IPP(I)) =  "//{......}   //共NELT_LOAD行. "
 	README(IPP(I)) ="//目前可处理:NDIM=0(点荷载); "
 	README(IPP(I)) ="//			 NDIM=1的情况目前可处理作用在2节点、3节点以及5节点的单元边，且仅限于均布线荷载;"
@@ -159,7 +160,7 @@ subroutine write_readme_gmsh2sinp()
 	README(IPP(I)) = "//$DATAPOINT"
 	README(IPP(I))=  "//"//'"'//"THE DataPoint IS USED TO OUTPUT THE DATA POINTS ALONG A POLYLINE YOU WANT TO LIST THE COMPUTATED RESULT."//'"'
 	README(IPP(I)) = "//{NDataPoint)}"  
-	README(IPP(I)) = "//{GROUPID [,ORDER=0,STARTPOINTGROUP,ISSUMQ]}*{NDataPoint(I)}  // 每行3个，共NDataPoint行.STARTPOINTGROUP为输出起点(这个GROUP只含一个点)，根据起点按顺序输出线上各点。ISSUM/=0,仅输出各点的流量和"
+	README(IPP(I)) = "//{GROUPID [,ORDER=0,STARTPOINTGROUP,ISSUMQ,ISSTAT]}*{NDataPoint(I)}  // 每行3个，共NDataPoint行.STARTPOINTGROUP为输出起点(这个GROUP只含一个点)，根据起点按顺序输出线上各点。ISSUM/=0,仅输出各点的流量和"
 	README(IPP(I)) = "//ORDER=0,表示输出散点的形式（不排序）.=1，表示以STARTPOINTGROUP为起点按点的顺序输出。"
     README(IPP(I)) = "//ISSTAT>0,输出此数据集内各变量的统计量，包括[sum,[max,x,y,z],[min,x,y,z],mean,median,mad,std,kurtosis,skewness]"    
 	README(IPP(I)) = "//$ENDDATAPOINT"		

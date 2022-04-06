@@ -83,6 +83,7 @@
         Slope_file=trim(drive)//trim(dir)//trim(name)//'_slope_res.dat'
         well_file=trim(drive)//trim(dir)//trim(name)//'_well_res.dat'
         flownet_file=trim(drive)//trim(dir)//trim(name)//'_flownet_tec.plot'
+        volfile=trim(drive)//trim(dir)//trim(name)//'.vol'
 	end if
     
 	open(99,file=resultfile3,status='replace')
@@ -385,7 +386,7 @@ subroutine read_execute(unit,itype,keyword,COMMAND_PARSER)
 !Programer: LUO Guanyong
 !Last update: 2008.03.16
 !**************************************************************************************************************
-	!use solverds
+	use solverds,only:lowcase
 	implicit none
     INTEGER,INTENT(IN)::UNIT,ITYPE    
 	integer::ef,iterm,i,strL,N1
@@ -565,6 +566,7 @@ subroutine solvercommand(term,unit)
         
 		case('node')
 			print *, 'Reading NODE data...'
+            n1=0
 			do i=1, pro_num
 				select case(property(i).name)
 					case('num')
@@ -573,6 +575,8 @@ subroutine solvercommand(term,unit)
 						datapacking=int(property(i).value)
 					case('dimension','d')
 						ndimension=int(property(i).value)
+                    case('isporeflow')
+                        isporeflow=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -580,7 +584,12 @@ subroutine solvercommand(term,unit)
 			allocate(node(nnum))
 			if (datapacking==1) then
 				call skipcomment(unit)
-				read(unit,*) ((node(i).coord(j),j=1,ndimension),i=1,nnum)
+				if(isporeflow==0) then
+                    read(unit,*) ((node(i).coord(j),j=1,ndimension),i=1,nnum)
+                else
+                    read(unit,*) ((node(i).coord(j),j=1,ndimension),node(i).poresize,i=1,nnum)
+                endif
+                
 			else
 				call skipcomment(unit)
 				read(unit,*) ((node(i).coord(j),i=1,nnum),j=1,ndimension)
@@ -936,6 +945,17 @@ subroutine solvercommand(term,unit)
                         else
                             matid1=matid2
                         endif
+                    case(pipe2,poreflow)
+                        call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+                        element1(i).nnum=nnum1
+                        allocate(element1(i).node(nnum1))
+                        element1(i).node=int(ar(1:nnum1))
+                        if(n1>nnum1) then                            
+                            element1(i).property(2)=ar(nnum1+1)  !throat diameter							
+                        endif
+						if(n1>nnum1+1) then
+							element1(i).property(1)=ar(nnum1+2)  !frictional resistance
+						endif
 					case default
                     	element1(i).nnum=nnum1
                         if(n3<1) then
@@ -1532,8 +1552,8 @@ subroutine solvercommand(term,unit)
 						solver_control.output=int(property(i).value)
 					case('symmetric','sys')
 						if(int(property(i).value)==0) solver_control.issym=.false.
-					case('datapaking')
-						if(int(property(i).value)==BLOCK) solver_control.datapaking=.false.
+					case('datapacking')
+						if(int(property(i).value)==BLOCK) solver_control.datapacking=.false.
 					case('ismg')
 						if(int(property(i).value)==YES) solver_control.ismg=.true.
 					case('islaverify')
@@ -1624,7 +1644,11 @@ subroutine solvercommand(term,unit)
 					case('wellaniso')
 						solver_control.wellaniso=int(property(i).value)   
                     case('disf_scale')
-                        solver_control.disf_scale=property(i).value  
+                        solver_control.disf_scale=property(i).value
+                    case('time_unit','tunit')
+                        solver_control.time_unit=int(property(i).value)
+                    case('len_unit','lunit')
+                        solver_control.len_unit=int(property(i).value)                        
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -2382,6 +2406,9 @@ subroutine solvercommand(term,unit)
 					case('head','h')
 						outvar(head).name='H'
 						outvar(head).value=head
+                    case('poresize','ps')
+						outvar(PoreSize).name='PoreSize'
+						outvar(PoreSize).value=PoreSize                        
 					case('q','discharge')
 						outvar(discharge).name='Q'
 						outvar(discharge).value=discharge
@@ -2446,6 +2473,10 @@ subroutine solvercommand(term,unit)
 						outvar(kr_spg).value=kr_spg
 						outvar(mw_spg).name='mw'
 						outvar(mw_spg).value=mw_spg
+          !              if(isporeflow>0) then
+          !                 	outvar(PoreSize).name='PoreSize'
+						    !outvar(PoreSize).value=PoreSize 
+          !              endif
 						
 						IF(NDIMENSION>2) THEN
 							outvar(Gradz).name='Iz'
@@ -2467,7 +2498,34 @@ subroutine solvercommand(term,unit)
 						outvar(disz).name='disz'  
 						outvar(disz).value=disz
 						outvar(disz).system=property(i).value
-					  ENDIF
+                      ENDIF
+                    case('poreflow')
+                        outvar(PoreSize).name='PoreD'
+						outvar(PoreSize).value=PoreSize 
+						outvar(head).value=head
+                        outvar(head).name='H'	
+						outvar(discharge).name='Q'
+						outvar(discharge).value=discharge
+						outvar(phead).name='PH'
+						outvar(phead).value=Phead
+						outvar(ThroatSize).name='ThroatD'
+						outvar(ThroatSize).value=ThroatSize
+                        outvar(ThroatSize).iscentre=.true.
+						!outvar(ParticalSize).name='PtlD'
+						!outvar(ParticalSize).value=ParticalSize
+      !                  outvar(ParticalSize).iscentre=.true.
+						outvar(throatfriction).name='ThroatFriction'
+						outvar(throatfriction).value=throatfriction
+                        outvar(throatfriction).iscentre=.true.   
+						outvar(throatRe).name='throatRe'
+						outvar(throatRe).value=throatRe
+                        outvar(throatRe).iscentre=.true.
+						outvar(throatQ).name='throatQ'
+						outvar(throatQ).value=throatQ
+                        outvar(throatQ).iscentre=.true.
+                        !disable h_bc out 
+                        outvar(h_bc).value=0
+                        
 					case('disf')
 					  outvar(xf_out).name='xf'  
 					  outvar(xf_out).value=xf_out
@@ -2596,128 +2654,7 @@ end subroutine
 
 
 
-   !把字符串中相当的数字字符(包括浮点型)转化为对应的数字
-   !如 '123'转为123,'14-10'转为14,13,12,11,10
-   !string中转化后的数字以数组ar(n1)返回，其中,n1为字符串中数字的个数:(注　1-3转化后为3个数字：1,2,3)
-   !nmax为数组ar的大小,string默认字符长度为1024。
-   !num_read为要读入数据的个数。
-   !unit为文件号
-   !每次只读入一个有效行（不以'/'开头的行）
-   !每行后面以'/'开始的后面的字符是无效的。
-   subroutine  strtoint(unit,ar,nmax,n1,num_read,set,maxset,nset)
-	  implicit none
-      INTEGER,INTENT(IN)::unit,nmax,num_read,maxset
-      INTEGER,INTENT(INOUT)::N1,NSET
-      REAL(8),INTENT(INOUT)::ar(nmax)
-      character(*)::set(maxset)
-	  logical::tof1,tof2
-	  integer::i,j,k,strl,ns,ne,n2,n3,n4,step,& 
-			ef,n5,nsubs
-	  real(8)::t1	  
-	  character(1024)::string
-	  character(32)::substring(100)
-	  character(16)::legalC,SC
 
-		LegalC='0123456789.-+eE*'
-		sc=',; '//char(9)
-		n1=0
-		nset=0
-		ar=0
-		!set(1:maxset)=''
-	  do while(.true.)
-		 read(unit,'(a1024)',iostat=ef) string
-		 if(ef<0) then
-			print *, 'file ended unexpected. sub strtoint()'
-			stop
-		 end if
-
-		 string=adjustL(string)
-		 strL=len_trim(string)
-		 
-		do i=1,strL !remove 'Tab'
-			if(string(i:i)/=char(9)) exit
-		end do
-		string=string(i:strL)
-		string=adjustl(string)
-		strL=len_trim(string)
-		if(strL==0) cycle
-
-		 if(string(1:2)/='//'.and.string(1:1)/='#') then
-			
-			!每行后面以'/'开始的后面的字符是无效的。
-			if(index(string,'//')/=0) then
-				strL=index(string,'//')-1
-				string=string(1:strL)
-				strL=len_trim(string)
-			end if
-
-			nsubs=0
-			n5=1
-			do i=2,strL+1
-				if(index(sc,string(i:i))/=0.and.index(sc,string(i-1:i-1))==0) then
-					nsubs=nsubs+1					
-					substring(nsubs)=string(n5:i-1)					
-				end if
-				if(index(sc,string(i:i))/=0) n5=i+1
-			end do
-			
-			do i=1, nsubs
-				substring(i)=adjustl(substring(i))				
-				n2=len_trim(substring(i))
-				!the first character should not be a number if the substring is a set.
-				if(index('0123456789-+.', substring(i)(1:1))==0) then
-					!set
-					nset=nset+1
-					set(nset)=substring(i)
-					cycle
-				end if
-				n3=index(substring(i),'-')
-				n4=index(substring(i),'*')
-				tof1=.false.
-				if(n3>1) then
-				    tof1=(substring(i)(n3-1:n3-1)/='e'.and.substring(i)(n3-1:n3-1)/='E')
-				end if
-				if(tof1) then !处理类似于'1-5'这样的形式的读入数据
-					read(substring(i)(1:n3-1),'(i8)') ns
-					read(substring(i)(n3+1:n2),'(i8)') ne
-					if(ns>ne) then
-						step=-1
-					else
-						step=1
-					end if
-					do k=ns,ne,step
-						n1=n1+1
-						ar(n1)=k
-					end do				     	
-				else
-				     tof2=.false.
-				     if(n4>1) then
-				             tof2=(substring(i)(n4-1:n4-1)/='e'.and.substring(i)(n4-1:n4-1)/='E')
-				     end if
-					if(tof2) then !处理类似于'1*5'(表示5个1)这样的形式的读入数据
-						read(substring(i)(1:n4-1),*) t1
-						read(substring(i)(n4+1:n2),'(i8)') ne
-						ar((n1+1):(n1+ne))=t1
-						n1=n1+ne
-					else
-						n1=n1+1
-						read(substring(i),*) ar(n1)
-					end if	
-				end if			
-			end do
-		 else
-			cycle
-		 end if
-		
-		 if(n1<=num_read) then
-		    exit
-		 else
-		    if(n1>num_read)  print *, 'error!nt2>num_read. i=',n1
-		 end if
-	
-	  end do	
-
-   end subroutine
 
 subroutine translatetoproperty(term)
 
@@ -3261,7 +3198,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1,eshape1)
 			STYPE='FEQUADRILATERAL'
 			EC1=SPG
             eshape1=204
-		case(PIPE2,sphflow,semi_sphflow)
+		case(PIPE2,sphflow,semi_sphflow,poreflow)
 			NNUM1=2
 			NDOF1=2
 			ND1=2

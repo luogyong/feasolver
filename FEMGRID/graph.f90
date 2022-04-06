@@ -185,8 +185,8 @@ subroutine graph
         call getwindowcoord(ixpos-15, iypos-15,wxy)
 		
 		if(ievent==MOUSE$MOVE) then
-		   write(msg,'("x=",f10.3,"y=",f10.3)') wxy.wx,wxy.wy
-           CALL SETMESSAGEQQ (msg, QWIN$MSG_MOUSEINPUTPEND)
+		   write(msg,'("(x,y)=",f15.7,",",f15.7)') wxy.wx*xyscale+xmin,wxy.wy*xyscale+ymin
+           CALL SETMESSAGEQQ (trim(msg), QWIN$MSG_MOUSEINPUTPEND)
 		   return
 		end if
 		

@@ -260,7 +260,7 @@ subroutine linearsoilinterpolate_tri(ielt,inode)
     shafun=trishafun(tri,node(inode).x,node(inode).y)
     
     if(node(inode).havesoildata==0) then
-        allocate(node(inode).elevation(0:soillayer))
+        if(.not.allocated(node(inode).elevation)) allocate(node(inode).elevation(0:soillayer))
         node(inode).havesoildata=minval(node(elt(ielt).node(1:3)).havesoildata)
         node(inode).elevation=shafun(1)*node(elt(ielt).node(1)).elevation+shafun(2)*node(elt(ielt).node(2)).elevation +shafun(3)*node(elt(ielt).node(3)).elevation
         if(node(inode).havesoildata==1) then
