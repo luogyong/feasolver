@@ -249,8 +249,16 @@ module DS_Gmsh2Solver
             ELSE
                 Z1=0.D0
             ENDIF       
-            
-            LINEARFILEDCAL=BCG.LFC(1)*X1+BCG.LFC(2)*Y1+BCG.LFC(3)*Z1+BCG.LFC(4)
+            SELECT CASE(BCG.ISFIELD)
+            CASE(2)
+                LINEARFILEDCAL=-(BCG.LFC(2)*Y1+BCG.LFC(3)*Z1+BCG.LFC(4))/BCG.LFC(1)   
+            CASE(3)
+                LINEARFILEDCAL=-(BCG.LFC(1)*X1+BCG.LFC(3)*Z1+BCG.LFC(4))/BCG.LFC(2)    
+            CASE(4)
+                LINEARFILEDCAL=-(BCG.LFC(2)*Y1+BCG.LFC(1)*X1+BCG.LFC(4))/BCG.LFC(3)
+            CASE DEFAULT
+                LINEARFILEDCAL=BCG.LFC(1)*X1+BCG.LFC(2)*Y1+BCG.LFC(3)*Z1+BCG.LFC(4)
+            END SELECT 
         ENDIF
     ENDFUNCTION
     
@@ -899,18 +907,224 @@ module DS_Gmsh2Solver
 
     end subroutine 
     
+    
     INTEGER FUNCTION INCOUNT(N)
         IMPLICIT NONE
         INTEGER,INTENT(IN)::N
         REAL(8)::T1
-        INTEGER::I
+        INTEGER::I,N1
 
+
+        IF(N==0) THEN
+            INCOUNT=1
+            RETURN
+        ENDIF
         T1=ABS(N)
+    
         INCOUNT=INT(LOG10(T1))+1
 	    IF(N<0) INCOUNT=INCOUNT+1
     
 
     END FUNCTION    
     
-    
+subroutine plane_exp2imp_3d ( p1, p2, p3, a, b, c, d )
+
+!*****************************************************************************80
+!
+!! PLANE_EXP2IMP_3D converts an explicit plane to implicit form in 3D.
+!
+!  Discussion:
+!
+!    The explicit form of a plane in 3D is
+!
+!      the plane through P1, P2 and P3.
+!
+!    The implicit form of a plane in 3D is
+!
+!      A * X + B * Y + C * Z + D = 0
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    11 February 2005
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Reference:
+!
+!    Adrian Bowyer, John Woodwark,
+!    A Programmer's Geometry,
+!    Butterworths, 1983,
+!    ISBN: 0408012420.
+!
+!  Parameters:
+!
+!    Input, real ( kind = 8 ) P1(3), P2(3), P3(3), three points on the plane.
+!
+!    Output, real ( kind = 8 ) A, B, C, D, coefficients which describe 
+!    the plane.
+!
+  implicit none
+
+  integer ( kind = 4 ), parameter :: dim_num = 3
+
+  real ( kind = 8 ) a
+  real ( kind = 8 ) b
+  real ( kind = 8 ) c
+  real ( kind = 8 ) d
+  real ( kind = 8 ) p1(dim_num)
+  real ( kind = 8 ) p2(dim_num)
+  real ( kind = 8 ) p3(dim_num)
+
+  a = ( p2(2) - p1(2) ) * ( p3(3) - p1(3) ) &
+    - ( p2(3) - p1(3) ) * ( p3(2) - p1(2) )
+
+  b = ( p2(3) - p1(3) ) * ( p3(1) - p1(1) ) &
+    - ( p2(1) - p1(1) ) * ( p3(3) - p1(3) )
+
+  c = ( p2(1) - p1(1) ) * ( p3(2) - p1(2) ) &
+    - ( p2(2) - p1(2) ) * ( p3(1) - p1(1) )
+
+  d = - p2(1) * a - p2(2) * b - p2(3) * c
+
+  return
+end   
+!function line_exp_is_degenerate_nd ( dim_num, p1, p2 )
+!
+!!*****************************************************************************80
+!!
+!!! LINE_EXP_IS_DEGENERATE_ND finds if an explicit line is degenerate in ND.
+!!
+!!  Discussion:
+!!
+!!    The explicit form of a line in ND is:
+!!
+!!      the line through the points P1 and P2.
+!!
+!!    An explicit line is degenerate if the two defining points are equal.
+!!
+!!  Licensing:
+!!
+!!    This code is distributed under the GNU LGPL license. 
+!!
+!!  Modified:
+!!
+!!    06 May 2005
+!!
+!!  Author:
+!!
+!!    John Burkardt
+!!
+!!  Parameters:
+!!
+!!    Input, integer ( kind = 4 ) DIM_NUM, the spatial dimension.
+!!
+!!    Input, real ( kind = 8 ) P1(DIM_NUM), P2(DIM_NUM), two points on the line.
+!!
+!!    Output, logical ( kind = 4 ) LINE_EXP_IS_DEGENERATE_ND, is TRUE if the line
+!!    is degenerate.
+!!
+!  implicit none
+!
+!  integer ( kind = 4 ) dim_num
+!
+!  logical ( kind = 4 ) line_exp_is_degenerate_nd
+!  real ( kind = 8 ) p1(dim_num)
+!  real ( kind = 8 ) p2(dim_num)
+!
+!  line_exp_is_degenerate_nd = ( all ( p1(1:dim_num) == p2(1:dim_num) ) )
+!
+!  return
+!end
+!subroutine line_exp2par_3d ( p1, p2, f, g, h, x0, y0, z0 )
+!
+!!*****************************************************************************80
+!!
+!!! LINE_EXP2PAR_3D converts a line from explicit to parametric form in 3D.
+!!
+!!  Discussion:
+!!
+!!    The explicit form of a line in 3D is:
+!!
+!!      the line through the points P1 and P2.
+!!
+!!    The parametric form of a line in 3D is:
+!!
+!!      X = X0 + F * T
+!!      Y = Y0 + G * T
+!!      Z = Z0 + H * T
+!!
+!!    We normalize by always choosing F^2 + G^2 + H^2 = 1, and F nonnegative.
+!!
+!!  Licensing:
+!!
+!!    This code is distributed under the GNU LGPL license. 
+!!
+!!  Modified:
+!!
+!!    06 May 2005
+!!
+!!  Author:
+!!
+!!    John Burkardt
+!!
+!!  Parameters:
+!!
+!!    Input, real ( kind = 8 ) P1(3), P2(3), two points on the line.
+!!
+!!    Output, real ( kind = 8 ) F, G, H, X0, Y0, Z0, the parametric parameters
+!!    of the line.
+!!
+!  implicit none
+!
+!  integer ( kind = 4 ), parameter :: dim_num = 3
+!
+!  real ( kind = 8 ) f
+!  real ( kind = 8 ) g
+!  real ( kind = 8 ) h
+!  logical ( kind = 4 ) line_exp_is_degenerate_nd
+!  real ( kind = 8 ) norm
+!  real ( kind = 8 ) p1(dim_num)
+!  real ( kind = 8 ) p2(dim_num)
+!  real ( kind = 8 ) x0
+!  real ( kind = 8 ) y0
+!  real ( kind = 8 ) z0
+!
+!  if ( line_exp_is_degenerate_nd ( dim_num, p1, p2 ) ) then
+!    write ( *, '(a)' ) ' '
+!    write ( *, '(a)' ) 'LINE_EXP2PAR_3D - Warning!'
+!    write ( *, '(a)' ) '  The line is degenerate.'
+!  end if
+!
+!  x0 = p1(1)
+!  y0 = p1(2)
+!  z0 = p1(3)
+!
+!  f = p2(1) - p1(1)
+!  g = p2(2) - p1(2)
+!  h = p2(3) - p1(3)
+!
+!  norm = sqrt ( f * f + g * g + h * h )
+!
+!  if ( norm /= 0.0D+00 ) then
+!    f = f / norm
+!    g = g / norm
+!    h = h / norm
+!  end if
+!
+!  if ( f < 0.0D+00 ) then
+!    f = -f
+!    g = -g
+!    h = -h
+!  end if
+!
+!  return
+!end
+
+
 end module

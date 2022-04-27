@@ -12,7 +12,9 @@ module meshDS
                     modeldimension=3,&
                     INPMethod=1,& !=1,linear, =0, membrance
                     Zorder=0,& !=0土层高程从下往上输入,=1,反之。
-                    poly3d=2
+                    poly3d=1,&
+                    ismerged=1,&
+                    iscompounded=0
     integer,parameter:: ET_PRM=63,&
                     ET_TET=43,Linear=1,Membrance=0
     logical::ismeminpdone=.false.
@@ -22,7 +24,7 @@ module meshDS
     
     INTERFACE ENLARGE_AR
         MODULE PROCEDURE I_ENLARGE_AR,R_ENLARGE_AR,NODE_ENLARGE_AR,ELEMENT_ENLARGE_AR,&
-                         edge_enlarge_ar,ADJLIST_ENLARGE_AR,AR2D_ENLARGE_AR
+                         edge_enlarge_ar,ADJLIST_ENLARGE_AR,AR2D_ENLARGE_AR,AR2D_ENLARGE_AR2
     END INTERFACE 
 
 	type point_tydef
@@ -126,6 +128,10 @@ module meshDS
         REAL(8)::INSIDEPT(3)
         integer,allocatable::node(:)
     endtype
+    type ar2d_tydef2
+        integer::nnum=0
+        integer,allocatable::node(:),edge(:)
+    endtype    
     TYPE ZONE_LAYGER_VOLUME_TYDEF
         INTEGER::NVOL=0        
         type(ar2d_tydef),allocatable::bface(:)        
@@ -144,7 +150,7 @@ module meshDS
        integer,allocatable::NPrm(:),NTet(:),PRM(:,:),TET(:,:),ISMODEL(:)
        !区内每层土的棱柱单元和四面体单元的个数,PRM,每层棱柱单元在PRM_ELT中的下标,TET类似。
        !ISmodel=1,yes output in element form. 
-       type(ar2d_tydef),allocatable::bface(:)
+       type(ar2d_tydef),allocatable::bface(:),hface(:),vface(:) !分别为每区每层的所有边界面，外露的水平面和竖直面。
        type(ZONE_LAYGER_VOLUME_TYDEF),allocatable::vbface(:) !faces for each volume in each layer of each zone
        character(32),allocatable::solver_et(:),NAME(:)
     end type
@@ -359,7 +365,7 @@ module meshDS
 	integer,allocatable::nlayer(:,:) !elevation data of each node. the value of 
 	! elevation(i,node) is the elevation of nlayer(i,node) 
 	integer::nelevation !number of elevation data for each node	
-	real(8)::xmin,ymin,xmax,ymax !the extreme value of mesh zone
+	real(8)::xmin,ymin,xmax,ymax,zmin=1.d20,zmax=-1.d20 !the extreme value of mesh zone
 	integer,allocatable::bnode(:) 
 	integer::nbnode=0
     
@@ -648,7 +654,18 @@ ENDSUBROUTINE
         AVAL=[AVAL,VAL1]
         DEALLOCATE(VAL1)
     END SUBROUTINE     
-    
+    SUBROUTINE AR2D_ENLARGE_AR2(AVAL,DSTEP)
+        TYPE(ar2d_tydef2),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+        INTEGER,INTENT(IN)::DSTEP
+        TYPE(ar2d_tydef2),ALLOCATABLE::VAL1(:)
+        INTEGER::LB1=0,UB1=0
+        
+        
+        !LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+        ALLOCATE(VAL1(dstep))
+        AVAL=[AVAL,VAL1]
+        DEALLOCATE(VAL1)
+    END SUBROUTINE    
     
     SUBROUTINE ADJLIST_ENLARGE_AR(AVAL,DSTEP)
         TYPE(ADJLIST_tydef),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
@@ -884,6 +901,37 @@ ENDSUBROUTINE
                 exit
             endif
         enddo
+    endfunction
+    
+    function iar2str(ia) result(str)
+        implicit none
+        integer,intent(in)::ia(:)
+        character(len=:),allocatable::str        
+        character(32)::ch1
+        integer::I,n1
+        
+        n1=size(ia)        
+        allocate(character(len=n1*17)::str)
+        str=""
+        if(n1==0) return
+        do i=1,n1
+            write(ch1,"(I,',')") ia(i)
+            str=trim(adjustl(str))//trim(adjustl(ch1))
+            if(mod(i,100)==0) str=trim(adjustl(str))//new_line('A')
+        enddo
+        
+        N1=LEN_TRIM(STR)                    
+        IF(STR(N1:N1)==NEW_LINE('A')) THEN
+            STR(N1:N1)=""
+            N1=N1-1
+        ENDIF
+		IF(STR(N1:N1)==',') THEN
+            STR(N1:N1)=""
+            N1=N1-1 !-1,get rid off ','
+        ENDIF
+            
+        
+        
     endfunction
     
      !update the adjlist(i).node and adjlist(i).edge,where i=p and v.
@@ -1399,5 +1447,206 @@ subroutine triangle_contains_point_2d_3 ( t, p, inside )
 
   return
 end
-    
+
+subroutine plane_imp_line_par_int_3d ( a, b, c, d, x0, y0, z0, f, g, h, &
+  intersect, p ,t)
+
+!*****************************************************************************80
+!
+!! PLANE_IMP_LINE_PAR_INT_3D: intersection ( impl plane, param line ) in 3D.
+!
+!  Discussion:
+!
+!    The implicit form of a plane in 3D is:
+!
+!      A * X + B * Y + C * Z + D = 0
+!
+!    The parametric form of a line in 3D is:
+!
+!      X = X0 + F * T
+!      Y = Y0 + G * T
+!      Z = Z0 + H * T
+!
+!    We normalize by always choosing F*F + G*G + H*H = 1, 
+!    and F nonnegative.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    03 January 2005
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Reference:
+!
+!    Adrian Bowyer, John Woodwark,
+!    A Programmer's Geometry,
+!    Butterworths, 1983,
+!    ISBN: 0408012420,
+!    page 111.
+!
+!  Parameters:
+!
+!    Input, real ( kind = 8 ) A, B, C, D, the implicit plane parameters.
+!
+!    Input, real ( kind = 8 ) X0, Y0, Z0, F, G, H, parameters that define the
+!    parametric line.
+!
+!    Output, integer ( kind = 4 ) INTERSECT, the kind of intersection;
+!    0, the line and plane seem to be parallel and separate;
+!    1, the line and plane intersect at a single point;
+!    2, the line and plane seem to be parallel and joined.
+!
+!    Output, real ( kind = 8 ) P(3), is a point of intersection of the line
+!    and the plane, if INTERSECT is TRUE.
+!     Output ,real t,intersection location, 0<=t<=1.0 the  intersect poin inside the edge.(add and modified by lgy )
+!
+  implicit none
+
+  integer ( kind = 4 ), parameter :: dim_num = 3
+
+  real ( kind = 8 ) a
+  real ( kind = 8 ) b
+  real ( kind = 8 ) c
+  real ( kind = 8 ) d
+  real ( kind = 8 ) denom
+  real ( kind = 8 ) f
+  real ( kind = 8 ) g
+  real ( kind = 8 ) h
+  integer ( kind = 4 ) intersect
+  real ( kind = 8 ) norm1
+  real ( kind = 8 ) norm2
+  real ( kind = 8 ) p(dim_num)
+  real ( kind = 8 ) t
+  real ( kind = 8 ), parameter :: tol = 0.00001D+00
+  real ( kind = 8 ) x0
+  real ( kind = 8 ) y0
+  real ( kind = 8 ) z0
+  
+!
+!  Check.
+!
+  norm1 = sqrt ( a * a + b * b + c * c )
+
+  if ( norm1 == 0.0D+00 ) then
+    write ( *, '(a)' ) ' '
+    write ( *, '(a)' ) 'PLANE_IMP_LINE_PAR_INT_3D - Fatal error!'
+    write ( *, '(a)' ) '  The plane normal vector is null.'
+    stop 1
+  end if
+
+  norm2 = sqrt ( f * f + g * g + h * h )
+
+  if ( norm2 == 0.0D+00 ) then
+    write ( *, '(a)' ) ' '
+    write ( *, '(a)' ) 'PLANE_IMP_LINE_PAR_INT_3D - Fatal error!'
+    write ( *, '(a)' ) '  The line direction vector is null.'
+    stop 1
+  end if
+
+  denom = a * f + b * g + c * h
+!
+!  The line and the plane may be parallel.
+!
+!  if ( abs ( denom ) < tol * norm1 * norm2 ) then
+  if ( abs ( denom ) < 1.d-8 ) then !modified by lgy 
+    if ( a * x0 + b * y0 + c * z0 + d == 0.0D+00 ) then
+      intersect = 2
+      p(1) = x0
+      p(2) = y0
+      p(3) = z0
+      t=0.d0
+    else
+      intersect = 0
+      p(1:dim_num) = 0.0D+00
+    end if
+!
+!  If they are not parallel, they must intersect.
+!
+  else
+
+    intersect = 1
+    t = - ( a * x0 + b * y0 + c * z0 + d ) / denom
+    p(1) = x0 + t * f
+    p(2) = y0 + t * g
+    p(3) = z0 + t * h
+
+  end if
+
+  return
+  end
+
+subroutine plane_exp2imp_3d ( p1, p2, p3, a, b, c, d )
+
+!*****************************************************************************80
+!
+!! PLANE_EXP2IMP_3D converts an explicit plane to implicit form in 3D.
+!
+!  Discussion:
+!
+!    The explicit form of a plane in 3D is
+!
+!      the plane through P1, P2 and P3.
+!
+!    The implicit form of a plane in 3D is
+!
+!      A * X + B * Y + C * Z + D = 0
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    11 February 2005
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Reference:
+!
+!    Adrian Bowyer, John Woodwark,
+!    A Programmer's Geometry,
+!    Butterworths, 1983,
+!    ISBN: 0408012420.
+!
+!  Parameters:
+!
+!    Input, real ( kind = 8 ) P1(3), P2(3), P3(3), three points on the plane.
+!
+!    Output, real ( kind = 8 ) A, B, C, D, coefficients which describe 
+!    the plane.
+!
+  implicit none
+
+  integer ( kind = 4 ), parameter :: dim_num = 3
+
+  real ( kind = 8 ) a
+  real ( kind = 8 ) b
+  real ( kind = 8 ) c
+  real ( kind = 8 ) d
+  real ( kind = 8 ) p1(dim_num)
+  real ( kind = 8 ) p2(dim_num)
+  real ( kind = 8 ) p3(dim_num)
+
+  a = ( p2(2) - p1(2) ) * ( p3(3) - p1(3) ) &
+    - ( p2(3) - p1(3) ) * ( p3(2) - p1(2) )
+
+  b = ( p2(3) - p1(3) ) * ( p3(1) - p1(1) ) &
+    - ( p2(1) - p1(1) ) * ( p3(3) - p1(3) )
+
+  c = ( p2(1) - p1(1) ) * ( p3(2) - p1(2) ) &
+    - ( p2(2) - p1(2) ) * ( p3(1) - p1(1) )
+
+  d = - p2(1) * a - p2(2) * b - p2(3) * c
+
+  return
+end  
+  
 end module

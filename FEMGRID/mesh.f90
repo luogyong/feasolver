@@ -207,6 +207,7 @@ ENDSUBROUTINE
                 if(zone(i).nbe==0) then
                     do j=1,zone(i).num
                         iseg1=segindex(zone(i).cp(j),zone(i).cp(mod(j,zone(i).num)+1))
+                        if(iseg1<1) cycle
                         zone(i).bedge=[zone(i).bedge,seg(iseg1).get_edge(zone(i).point(:,j))]
                         if(.not.allocated(zone(i).bnode)) then
                             zone(i).bnode=[zone(i).bnode,seg(iseg1).get_node(zone(i).point(:,j))]

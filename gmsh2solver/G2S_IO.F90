@@ -419,7 +419,7 @@ subroutine kwcommand(term,unit)
 					allocate(element(n1).tag(element(n1).ntag))
 					element(n1).tag(1:element(n1).ntag)=int(ar(3+1:3+element(n1).ntag))
 					physicalgroup(element(n1).tag(1)).nel=physicalgroup(element(n1).tag(1)).nel+1
-					physicalgroup(element(n1).tag(1)).ET_GMSH=ELEMENT(N1).ET !假定同一GROUP的单元类型相同
+					physicalgroup(element(n1).tag(1)).ET_GMSH=ELEMENT(N1).ET !????????????GROUP??????????????????????????????
                     
                     if(nacw/=element(n1).tag(2)) then                        
                         ischeckacw=.true.
@@ -486,7 +486,7 @@ subroutine kwcommand(term,unit)
 						    en1(15)=element(n1).node(13)
 						    element(n1).node(4:15)=en1(4:15)                            
                         end if    
-                    case(11) !tet10最后两个节点的的顺序互换，以便和FEASOLVER一致。
+                    case(11) !tet10???????????????????????????????????????ò????????????????±??????FEASOLVER??????????
                         !Tetrahedron10:
                         !
                         !           2
@@ -556,9 +556,19 @@ subroutine kwcommand(term,unit)
                 if(nread>6) then
                     IF(NREAD==10) THEN
                         ELT_BC(N1).LFC(1:4)=AR(7:10)
+						ELT_BC(N1).ISFIELD=1
+                        IF(ABS(ar(6)+99991.D0)<1.D-6)ELT_BC(N1).ISFIELD=2
+						IF(ABS(ar(6)+99992.D0)<1.D-6)ELT_BC(N1).ISFIELD=3
+						IF(ABS(ar(6)+99993.D0)<1.D-6)ELT_BC(N1).ISFIELD=4
+                    ELSEIF(NREAD==15) THEN
+                        call plane_exp2imp_3d(ar(7:9),ar(10:12),ar(13:15),ELT_BC(N1).LFC(1),ELT_BC(N1).LFC(2),ELT_BC(N1).LFC(3),ELT_BC(N1).LFC(4))
+                        ! ELT_BC(N1).LFC(1:4)=AR(7:10)
                         ELT_BC(N1).ISFIELD=1
+                        IF(ABS(ar(6)+99991.D0)<1.D-6)ELT_BC(N1).ISFIELD=2
+						IF(ABS(ar(6)+99992.D0)<1.D-6)ELT_BC(N1).ISFIELD=3
+						IF(ABS(ar(6)+99993.D0)<1.D-6)ELT_BC(N1).ISFIELD=4
                     ELSE
-                        PRINT *, "INPUT NUMBERS IS NOT AS EXPECTED(6 OR 10). ELT_BC(I),I=",N1
+                        PRINT *, "INPUT NUMBERS IS NOT AS EXPECTED(6 OR 10 OR 15). ELT_BC(I),I=",N1
                         STOP
                     ENDIF
                 endif
@@ -599,8 +609,18 @@ subroutine kwcommand(term,unit)
                     IF(NREAD==10) THEN
                         ELT_LOAD(N1).LFC(1:4)=AR(7:10)
                         ELT_LOAD(N1).ISFIELD=1
-                    ELSE
-                        PRINT *, "INPUT NUMBERS IS NOT AS EXPECTED(6 OR 10). ELT_BC(I),I=",N1
+						IF(ABS(ar(6)+99991.D0)<1.D-6)elt_load(N1).ISFIELD=2
+						IF(ABS(ar(6)+99992.D0)<1.D-6)elt_load(N1).ISFIELD=3
+						IF(ABS(ar(6)+99993.D0)<1.D-6)elt_load(N1).ISFIELD=4
+						ELSEIF(NREAD==15) THEN
+							call plane_exp2imp_3d(ar(7:9),ar(10:12),ar(13:15),ELT_LOAD(N1).LFC(1),ELT_LOAD(N1).LFC(2),ELT_LOAD(N1).LFC(3),ELT_LOAD(N1).LFC(4))
+							! elt_load(N1).LFC(1:4)=AR(7:10)
+							ELT_LOAD(N1).ISFIELD=1
+							IF(ABS(ar(6)+99991.D0)<1.D-6)elt_load(N1).ISFIELD=2
+							IF(ABS(ar(6)+99992.D0)<1.D-6)elt_load(N1).ISFIELD=3
+							IF(ABS(ar(6)+99993.D0)<1.D-6)elt_load(N1).ISFIELD=4
+						ELSE
+                        PRINT *, "INPUT NUMBERS IS NOT AS EXPECTED(6 OR 10 OR 15). ELT_LOAD(I),I=",N1
                         STOP
                     ENDIF
                 endif                
@@ -1062,8 +1082,8 @@ end subroutine
 subroutine Tosolver()
 	use DS_Gmsh2Solver
 	implicit none
-	integer::unit,item,n1,N2,i,j,K,width,ITEM1,nset
-	CHARACTER(32)::CH1,CH2
+	integer::unit,item,n1,N2,i,j,K,width,ITEM1,nset,INC
+	CHARACTER(64)::CH1,CH2
 	
 	unit=20
 	open(unit,file=resultfile,status='replace')
@@ -1081,10 +1101,12 @@ subroutine Tosolver()
 	end do
     nset=0
 	do i=1,nphgp
-		N1=phgpnum(i)		
-		CH1=physicalgroup(N1).NAME
+		N1=phgpnum(i)
+        INC=INCOUNT(physicalgroup(N1).mat(1))
+        write(ch2,180) physicalgroup(N1).mat(1)
+		CH1=TRIM(adjustl(physicalgroup(N1).NAME))//TRIM(adjustl(CH2))
 		call lowcase(physicalgroup(N1).et,len(physicalgroup(N1).et))
-		if(.NOT.physicalgroup(N1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD的单元组不输出
+		if(.NOT.physicalgroup(N1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD?????????????é???????????
 		item=len_trim(adjustL(physicalgroup(N1).et))
 		ITEM1=len_trim(adjustL(CH1))
         IF(physicalgroup(N1).nel==0) CYCLE
@@ -1228,6 +1250,8 @@ subroutine Tosolver()
 170 FORMAT(/"DATAPOINT,NUM=",I7)
 171	FORMAT(/3I7)
 172 FORMAT(10(I7,1X))
+
+180 FORMAT('_MAT',I<INC>)    
 
 end subroutine
 

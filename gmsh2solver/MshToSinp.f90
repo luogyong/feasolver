@@ -852,7 +852,7 @@ subroutine elt_bc_load_translate()
 					do k=1,element(n1).nnode
 						n2=element(n1).node(k)
                         if(node(n2).inode<1) then
-                            print *, "Warning. 单元模型中没有包含力边界节点N,请确认GROUPPARAMETER是否有误.N=",n2
+                            print *, "Warning. 单元模型中没有包含力边界节点N,请确认GROUPPARAMETER是否有误.N=,group=",n2,elt_load(i).group
                             cycle
                         endif                        
 						if(nodalload1(n2)==0) then
@@ -890,7 +890,7 @@ subroutine elt_bc_load_translate()
 				end do				
 				do j=1,nnode
                     if(node(j).inode<1) then
-                        print *, "Warning. 单元模型中没有包含力边界节点N,请确认GROUPPARAMETER是否有误.N=",j
+                        print *, "Warning. 单元模型中没有包含力边界节点N,请确认GROUPPARAMETER是否有误.N=,Group=",j
                         cycle
                     endif 
 					if(abs(load1(j))>1e-10) then

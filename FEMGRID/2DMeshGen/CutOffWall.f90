@@ -1,12 +1,13 @@
 module CutoffWall
 USE meshDS,ONLY:strtoint,seg,segindex,edge,nedge,node,elt,nnode,nelt,ENLARGE_AR, &
-    adjlist,soillayer,zone,Removeadjlist,addadjlist,ar2d_tydef,geology,quick_sort
+    adjlist,soillayer,zone,Removeadjlist,addadjlist,ar2d_tydef,geology,quick_sort, &
+    plane_imp_line_par_int_3d,plane_exp2imp_3d,xmin,ymin,zmin,xyscale
 use ds_t,only:arr_t
 
 implicit none
 private
 real ( kind = 8 ), parameter :: Pi = 3.141592653589793D+00
-public::cowall,ncow,xzone,nxzone,vseg_pg,nvseg_pg
+public::cowall,ncow,xzone,nxzone,vseg_pg,nvseg_pg,vface_pg,nvface_pg
 
 type cutoffwall_type
     integer::NCP=0,mat=1     
@@ -41,20 +42,21 @@ type(cutoffwall_type),allocatable::cowall(:)
 integer::ncow=0
 
 type xzone_tydef
-    integer::izone,isx=1,ncutf=0
-    real(8)::te
+    integer::izone,isx=1,ncutf=0,iplane=0 !iplane：截平面类型，=0，水平面；=1，斜截面
+    real(8)::te,PE(4) !PE为截平面方程的系数A/B/C/D（AX+BY+CZ+D=0）
     integer,allocatable::cutface(:) !if isx==1,facets on the cut face,isx==2,cutedge around the cut face.
     character(1024)::helpstring= &
         &"xzone的作用是实现切割和开挖。如isx==1(默认),则将处于izone内部的高于te的土体挖掉，==0仅仅进行切割；==2仅对zone的边界线进行切割\n &
         & \n xZone的输入格式为:\n &
         & 1)nxzone //结构体数  \n &	
-        & 2) izone,elevation,isx //分别为区域号及其底高程。\n &
+        & 2) izone,elevation [,isx,iplane,P1(3),P2(3),P3(3)] //分别为区域号及其底高程,切割类型和切割平面内不在同一直线上的三个点的坐标。\n &
         & "C        
 contains
     procedure,nopass::help=>write_help
     procedure::readin=>xzone_readin
     procedure::set=>xzone_set_elevation
-    !procedure::cut=>xzone_cut_gedge
+    procedure::getz=>xzone_xy2z !给定x,y,返回截面的z高程
+    procedure::edgeXface=>xzone_edge_intersect_plane
 endtype
 type(xzone_tydef),allocatable::xzone(:)
 integer::nxzone=0
@@ -77,13 +79,40 @@ end type
 type(vseg_pg_tydef),allocatable::vseg_pg(:)
 integer::nvseg_pg=0
 
+type vface_pg_tydef
+    integer::ncp=0,nface,node(2)
+    integer,allocatable::bvedge(:),face(:),CP(:)    
+    character(1024)::helpstring= &
+        &"vface_pg的作用是输出由部分模型外围控制线（KP命令）拉伸而成的竖向面物理组，用于定义边界等。\n &
+        & \n vface_pg的输入格式为:\n &
+        & 1)nvface_pg //竖直面线物理组数  \n &	
+        & 2)CPT(1:NPT) //该局部的外围控制线的点号。共nvface_pg行。\n &
+        & "C          
+contains
+    procedure,nopass::help=>write_help
+    procedure::readin=>vface_pg_readin
+    procedure::getnode=>vface_pg_getnode
+end type
+type(vface_pg_tydef),allocatable::vface_pg(:)
+integer::nvface_pg=0
+
     contains
+    
     subroutine vseg_pg_getnode(this)
         class(vseg_pg_tydef)::this
         
         this.ip=geology(this.ip).node
         
     endsubroutine
+ 
+    subroutine vface_pg_getnode(this)
+        class(vface_pg_tydef)::this
+        
+        this.node(1)=geology(this.cp(1)).node
+        this.node(2)=geology(this.cp(this.ncp)).node
+    endsubroutine
+
+    
     subroutine vseg_pg_readin(this,unit)
         class(vseg_pg_tydef)::this
         integer,intent(in)::unit
@@ -94,11 +123,25 @@ integer::nvseg_pg=0
  	    call strtoint(unit,ar,dnmax,dn,dnmax)
 	    !n1=I
         THIS.ip=int(ar(1)) 
-        THIS.z=ar(2:dn)
+        THIS.z=(ar(2:dn)-zmin)/xyscale
         call quick_sort(this.z)
         this.nnode=dn-1
         allocate(this.node(this.nnode))
-    endsubroutine     
+    endsubroutine  
+    subroutine vface_pg_readin(this,unit)
+        class(vface_pg_tydef)::this
+        integer,intent(in)::unit
+        INTEGER::I,J,N1,DN=0,NINC1
+        INTEGER,PARAMETER::DNMAX=1000
+        REAL(8)::AR(DNMAX) 
+        
+ 	    call strtoint(unit,ar,dnmax,dn,dnmax)
+	    !n1=I
+        !THIS.nnode=int(ar(1)) 
+        THIS.cp=ar(1:DN)
+        THIS.ncp=DN
+    endsubroutine 
+    
     subroutine xzone_readin(this,unit)
         class(xzone_tydef)::this
         integer,intent(in)::unit
@@ -110,11 +153,58 @@ integer::nvseg_pg=0
 	    !n1=I
         THIS.izone=int(ar(1)) 
         !THIS.ndim=int(ar(2))
-        THIS.te=ar(2)
+        THIS.te=(ar(2)-zmin)/xyscale
         if(dn>2) THIS.isx=int(ar(3))
-     
+        if(dn>3) THIS.iplane=int(ar(4))
+        iF(THIS.iplane==1) then
+            if(dn>=13) then
+                ar([5,8,11])=(ar([5,8,11])-xmin)/xyscale
+                ar([6,9,12])=(ar([6,9,12])-ymin)/xyscale
+                ar([7,10,13])=(ar([7,10,13])-zmin)/xyscale
+                call plane_exp2imp_3d(ar(5:7),ar(8:10),ar(11:13),this.pe(1),this.pe(2),this.pe(3),this.pe(4))
+            else
+                print *, 'input numbers should be >= 13 .but it is ',dn
+                error stop 'xzone_readin '
+            endif
+            
+        endif
     endsubroutine    
+    function xzone_xy2z(this,xy) result(z)
+        class(xzone_tydef)::this
+        real(8),intent(in)::xy(2)
+        real(8)::z
+        
+        if(this.iplane==0) then
+            z=this.te
+        elseif(this.iplane==1) then
+            if(abs(this.pe(3))>1.d-8) then
+                z=-(this.pe(4)+this.pe(1)*xy(1)+this.pe(2)*xy(2))/this.pe(3)
+            else
+                print *, 'Plane parameter C should not equel 0.'
+                error stop
+            endif
+        else
+            print *, 'No such cut plane type=,',this.iplane
+            error stop
+        endif
+    endfunction 
+    
+    subroutine xzone_edge_intersect_plane(this,p1,p2,istate,ip,t)
+    !假定所输入的线段p1-p2处于截平面的竖直投影区内，且截平面不是竖直面
+        class(xzone_tydef)::this
+        real(8),intent(in)::p1(3),p2(3)
+        integer::istate
+        real(8)::ip(3),v1(3),t,tol1=1.0d-8
+        
+        v1=p2-p1
+        call plane_imp_line_par_int_3d ( this.pe(1), this.pe(2), this.pe(3), this.pe(4), &
+            p1(1), p1(2), p1(3), v1(1), v1(2), v1(3), &
+            istate, ip ,t)
+        if(t>1.0d0+tol1.or.t<-tol1) istate=0
 
+        
+        
+    endsubroutine
     subroutine xzone_set_elevation(this)
         class(xzone_tydef)::this
         INTEGER::I,J,k,N1,ielt1
@@ -178,9 +268,9 @@ subroutine  COW_read(this,unit)
     call strtoint(unit,ar,dnmax,dn,dnmax)
     THIS.CP=INT(AR(1:THIS.NCP))
     call strtoint(unit,ar,dnmax,dn,dnmax)
-    THIS.BE=AR(1:THIS.NCP)
+    THIS.BE=(AR(1:THIS.NCP)-zmin)/xyscale
     call strtoint(unit,ar,dnmax,dn,dnmax)
-    THIS.TE=AR(1:THIS.NCP)    
+    THIS.TE=(AR(1:THIS.NCP)-zmin)/xyscale    
 	!end do
 
 endsubroutine

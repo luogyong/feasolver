@@ -3,13 +3,13 @@
      use meshDS
 	 use dflib
 	 implicit none
-	 integer::i,j,i_t,iflag=0
+	 integer::i,j,i_t,iflag=0,n1,allstate
 	 logical::tof1
 	 character*7::msg
 	 real(8)::ccw,ar(2,3),coor(2),r	 !counterclockwise,reference to incircle().
 	 type(element_tydef),pointer::ept_t
 	 type(BP_tydef),pointer::cpp1	
-
+	 integer,allocatable::node1(:)
 	 !keypn=nnode
 	 nelt=nelt+1
 	 enumber=enumber+1
@@ -34,12 +34,17 @@
 	 end do
 	! nnode=nnode+3
      !keypn=5
+	 !把有土层信息的点先插入
+	 node1=pack([1:nnode],node(1:nnode).havesoildata==2)
+	 node1=[node1,pack([1:nnode],node(1:nnode).havesoildata==1)]
+	 node1=[node1,pack([1:nnode],node(1:nnode).havesoildata==0)]
 	 !初始化iept
 	 iept=1
 
 	 do i=1,nnode
-		call TRILOC(node(i).x,node(i).y)
-		call GNM_Sloan(i)
+		n1=node1(i)
+		call TRILOC(node(n1).x,node(n1).y)
+		call GNM_Sloan(n1)
 !		write(msg,'(i7)') i
 !		call SETMESSAGEQQ(msg,QWIN$MSG_RUNNING) 
 	 end do
@@ -71,6 +76,7 @@
 		end do
 	 end do
 	
+	 deallocate(node1,stat=allstate)
 !	 cpp1=>cpphead(0)
 !	 open(10,file='bnode.dat',status='replace')
 !	 do while(.true.)
@@ -260,7 +266,11 @@ subroutine linearsoilinterpolate_tri(ielt,inode)
     shafun=trishafun(tri,node(inode).x,node(inode).y)
     
     if(node(inode).havesoildata==0) then
-        if(.not.allocated(node(inode).elevation)) allocate(node(inode).elevation(0:soillayer))
+        if(.not.allocated(node(inode).elevation)) then
+            allocate(node(inode).elevation(0:soillayer))
+            node(inode).elevation=-999.d0
+        endif
+        
         node(inode).havesoildata=minval(node(elt(ielt).node(1:3)).havesoildata)
         node(inode).elevation=shafun(1)*node(elt(ielt).node(1)).elevation+shafun(2)*node(elt(ielt).node(2)).elevation +shafun(3)*node(elt(ielt).node(3)).elevation
         if(node(inode).havesoildata==1) then

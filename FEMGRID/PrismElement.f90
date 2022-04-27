@@ -355,9 +355,17 @@ Subroutine Generate_3D_MODEL()
 				        if(abs(geology(j).elevation(i)+999.d0)<1e-6) cycle
                         if(node(geology(j).node).subbw/=0) cycle
 				        tm1b(bw1(node(geology(j).node).number))=um
-				        load1(node(geology(j).node).number)=geology(j).elevation(i)*um	  
+                        load1(node(geology(j).node).number)=geology(j).elevation(i)*um                        
                     end do
-			
+                    !有些节点在前网格划分中也通过三角插值得了高程数据，也作为边界加入
+			        do j=1,nnode
+                        if(node(j).subbw/=0) cycle
+                        if(.not.allocated(node(j).elevation)) cycle
+                        if(abs(node(j).elevation(i)+999.d0)<1.d-6) cycle                        
+				        tm1b(bw1(node(j).number))=um
+                        load1(node(j).number)=node(j).elevation(i)*um                        
+                    end do		
+                    
 			        call chodec(tm1b,bw1,ng)
 			        call chosol(tm1b,bw1,load1,ng,maxbw1)
 			
@@ -369,7 +377,8 @@ Subroutine Generate_3D_MODEL()
                         if(node(n2).havesoildata==2) cycle
 				        !node(n1+n2).z=load1(j)
                         if(.not.allocated(node(n2).elevation)) then
-                            allocate(node(n2).elevation(0:soillayer))                    
+                            allocate(node(n2).elevation(0:soillayer))
+                            node(n2).elevation=-999.d0
                         endif
                         node(n2).elevation(i)=load1(j)
 				        !elevation(i,noutputorder(j))=load1(j)  !!!
@@ -386,7 +395,8 @@ Subroutine Generate_3D_MODEL()
                         pt1(1)=node(i).x;pt1(2)=node(i).y
                         node(i).at=bgmesh.getattrib(pt1)
                         if(.not.allocated(node(i).elevation)) then
-                            allocate(node(i).elevation(0:soillayer))                    
+                            allocate(node(i).elevation(0:soillayer))
+                            node(i).elevation=-999.d0
                         endif
                         node(i).elevation=node(i).at(1:soillayer+1)
                     endif

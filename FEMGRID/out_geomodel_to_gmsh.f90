@@ -1,15 +1,17 @@
 module geomodel
 	USE IFQWIN 
     use meshDS, only : node,nnode,elt,nelt,edge,nedge,adjlist,zone,znum, &
-						bnode,nbnode,soillayer,poly3d,&
+						bnode,nbnode,soillayer,poly3d,ismerged,iscompounded,&
 						path_name,ENUMBER,xyscale,xmin,ymin,write_help,strtoint,&
-                        ENLARGE_AR,adjlist_tydef,addadjlist,removeadjlist,ar2d_tydef
+                        ENLARGE_AR,adjlist_tydef,addadjlist,removeadjlist,ar2d_tydef2,&
+                        iar2str,segindex,seg,zmin
     use ds_t
-    use CutoffWall,only:xzone,nxzone,cowall,ncow,vseg_pg,nvseg_pg
+    use CutoffWall,only:xzone,nxzone,cowall,ncow,vseg_pg,nvseg_pg,vface_pg,nvface_pg
     implicit none
     private
     public BLO,NBLO,CHECK_ORIENT,Gen_SubElement,out_volume_to_gmsh2,NGNODE
     real(8),parameter::Pi=3.141592653589793
+    
     INTERFACE INCOUNT
         MODULE PROCEDURE INCOUNT,INCOUNT2
     END INTERFACE
@@ -79,7 +81,7 @@ module geomodel
         integer::nnum=3,e(2)=-1,isb=0,isv=0,iptr,MARKER=0 
         !isb=1,zone boundary face;=2,model boundary face;=0,zone inside face;=3,same zone but differen soillayer;=4,on the cut face;=5,on the cowall; =-1,be merged.
         !isv=1,vertical face;=0,horizontal face.
-        integer::ilayer
+        integer::ilayer,ismerged=0
         integer,allocatable::node(:)
         integer,allocatable::edge(:)
         integer::cutedge=0,subface(2)=0 
@@ -101,18 +103,16 @@ module geomodel
     endtype
     type(gedge_tydef),allocatable::gedge(:)
     integer::ngedge=0
-    !type ar2d_tydef
-    !    integer::nnum=0
-    !    integer,allocatable::node(:)
-    !endtype
+
     type general_poly_face_tydef
         integer::id=0
-        integer::nedge=0,npoly=0,nhole=0,oneface=0,nfp !face(oneface) is one face be merged into this facets.
+        integer::nedge=0,npoly=0,nhole=0,oneface=0,nfp !face(oneface) is one of faces be merged into this facets.
         integer,allocatable::edge(:),floatp(:)
         real(8),allocatable::hole(:,:)
-        type(ar2d_tydef),allocatable::poly(:) !all edges of the poly facets, the edges is not in order
+        type(ar2d_tydef2),allocatable::poly(:) !all edges of the poly facets, the edges is not in order
     contains
         procedure::set_facet=>poly_set_facet
+        procedure::facet2gmsh=>tetgen_facet2gmsh
     endtype
     type(general_poly_face_tydef),allocatable::GPFACET(:)
     integer::NGPF=0
@@ -120,6 +120,90 @@ module geomodel
     type(adjlist_tydef),allocatable::gadjlist(:)
     
     contains
+    
+    subroutine tetgen_facet2gmsh(this,facebase,unit)
+        implicit none
+        class(general_poly_face_tydef)::this
+        integer,intent(in)::facebase,unit
+        integer::i,j,len1,n1,inc,lloop1,nseg1,edge1(100),W1
+        character(len=:),allocatable::str
+        !line loop
+        write(unit,30)
+        lloop1=0;nseg1=0
+        do i=1,this.npoly
+            if(this.poly(i).nnum<3) then
+                nseg1=nseg1+1
+                edge1(nseg1)=this.poly(i).edge(1)
+                !if(gedge(abs(edge1(nseg1))).isb<1) gedge(abs(edge1(nseg1))).isb=7 !!!不知为什么
+            else            
+                str=iar2str(this.poly(i).edge(1:this.poly(i).nnum))
+                inc=incount(lloop1)
+                len1=len_trim(str)
+                write(unit,40) lloop1,trim(str) 
+                lloop1=lloop1+1
+            endif
+        enddo
+        n1=THIS.ID+facebase
+        W1=INCOUNT(n1)
+        if(lloop1>1) then
+            inc=incount(lloop1-1)            
+            write(unit,50) n1,lloop1-1 
+        elseif(lloop1==1) then
+            write(unit,51) n1
+        endif
+        if(nseg1>0) then
+            str=iar2str(edge1(1:nseg1))
+            len1=len_trim(str)
+            write(unit,60) trim(str),n1
+        endif
+        if(THIS.NFP>0) then
+            str=iar2str(THIS.FLOATP)
+            len1=len_trim(str)
+            write(unit,70) trim(str),n1
+        endif        
+        
+    30  FORMAT("lloop1=newll;")    
+	40  FORMAT("Line Loop(lloop1+",I<INC>,")={",A<len1>,"};")
+	50	FORMAT("Plane Surface(",I<W1>,")={lloop1:(lloop1+",I<INC>,")};")        
+    51  FORMAT("Plane Surface(",I<W1>,")={lloop1};")
+    60  FORMAT("Line {",A<len1>,"} In Surface {",I<W1>"};")  
+    70  FORMAT("Point {",A<len1>,"} In Surface {",I<W1>"};")    
+    endsubroutine
+    
+    subroutine vface_pg_handle()
+        implicit none
+
+        integer::iseg1,nnum1,i,j,k,err_info
+        integer,allocatable::edge1(:),face1(:)
+       
+        do k=1,nvface_pg
+        
+            do i=1,vface_pg(k).ncp-1
+                iseg1=segindex(vface_pg(k).cp(i),vface_pg(k).cp(i+1))
+                   
+                edge1=seg(iseg1).get_edge([arr_t(vface_pg(k).cp(i)).x,arr_t(vface_pg(k).cp(i)).y])
+                do j=1,size(edge1)
+                    face1=edge2vface(edge1(j))
+                    vface_pg(k).face=[vface_pg(k).face,face1]
+                enddo
+            
+            enddo
+            vface_pg(k).nface=size(vface_pg(k).face)
+            
+            call vface_pg(k).getnode()
+            
+            do i=1,2
+                vface_pg(k).bvedge=[vface_pg(k).bvedge,node2vgedge(vface_pg(k).node(i))]
+            enddo
+            
+            gedge(vface_pg(k).bvedge).iscedge=-10 !mark it cannot be merged
+        
+        enddo
+        
+        deallocate(edge1,face1,STAT=err_info)
+        
+            
+    end subroutine
     
     subroutine vseg_pg_handle()
     !把竖向线物理的控制点插入模型，并找出其所包含的线段
@@ -311,7 +395,7 @@ module geomodel
         integer,allocatable::vface(:)        
         integer::i,n1,n2=0,nvface1=0        
        
-        n1=nelt*(soillayer+1)+(iedge-1)*soillayer+1
+        n1=nelt*(soillayer+1)+(abs(iedge)-1)*soillayer+1
         n2=0
         do i=n1,n1+soillayer-1            
             call face(i).getface(i,vface,nvface1)                
@@ -430,9 +514,9 @@ module geomodel
                 if(elt(j).et==-1) face(n1).isdel=.true. !不输出无厚度单元的上下面
                 call edge_adjlist_add_face(n1)
                 !cal the normal of the prototype face.scale back.
-                ver1(1,1:3)=node(face(n1).node(1:3)).x*xyscale+xmin
-                ver1(2,1:3)=node(face(n1).node(1:3)).y*xyscale+ymin
-                ver1(3,1:3)=node(face(n1).node(1:3)).z
+                ver1(1,1:3)=node(face(n1).node(1:3)).x
+                ver1(2,1:3)=node(face(n1).node(1:3)).y
+                ver1(3,1:3)=node(face(n1).node(1:3)).z 
                 face(n1).normal=NORMAL_TRIFACE(ver1,.true.)
             enddo
         enddo
@@ -710,6 +794,8 @@ module geomodel
         
         call vseg_pg_handle()
         
+        call vface_pg_handle()
+        
         !find faces/edges on boundary
         face.isdel=.true.
         face.isb=0;gedge.isb=0;node.isb=0
@@ -783,8 +869,22 @@ module geomodel
         !call mergeface()
         
         DO I=1,ZNUM
+            IF(.NOT.ALLOCATED(ZONE(I).HFACE)) ALLOCATE(ZONE(I).HFACE(SOILLAYER))
+            IF(.NOT.ALLOCATED(ZONE(I).VFACE)) ALLOCATE(ZONE(I).VFACE(SOILLAYER))
             DO J=1,SOILLAYER
                 CALL VOLUME_NUMBER_INSIDE_ZONE(I,J)
+                
+                !outer HORIZONTAL faces
+                N3=ZONE(I).BFACE(J).NNUM
+                ZONE(I).HFACE(J).NODE=PACK(ZONE(I).BFACE(J).NODE(:N3),FACE(ZONE(I).BFACE(J).NODE(:N3)).ISB==1 &
+                        .AND.FACE(ZONE(I).BFACE(J).NODE(:N3)).ISV==0 &
+                        .AND.FACE(ZONE(I).BFACE(J).NODE(:N3)).ILAYER/=0)
+                ZONE(I).HFACE(J).NNUM=SIZE(ZONE(I).HFACE(J).NODE)
+                
+                !outer vertical faces
+                ZONE(I).VFACE(J).NODE=PACK(ZONE(I).BFACE(J).NODE(:N3),FACE(ZONE(I).BFACE(J).NODE(:N3)).ISB==1 &
+                        .AND.FACE(ZONE(I).BFACE(J).NODE(:N3)).ISV==1)
+                ZONE(I).VFACE(J).NNUM=SIZE(ZONE(I).VFACE(J).NODE)
             ENDDO
         ENDDO
 
@@ -809,7 +909,8 @@ module geomodel
                 endif
             enddo
         enddo        
-
+        
+        
         
     contains
     
@@ -874,7 +975,7 @@ module geomodel
             IF(NGPF>SIZE(GPFACET)) CALL GPFACET_ENLARGE_AR(GPFACET,10)  
             i=minloc([1:ngedge],mask=gedge.isb==-1,dim=1)
             stack1(1:2)=gedge(i).mface
-            gedge(i).isb=-2
+            gedge(i).isb=-2 !is handled,no need to check again.
             nst1=2
             GPFACET(NGPF).ONEFACE=stack1(1)
             !if(allocated(edge1)) deallocate(edge1)
@@ -889,10 +990,10 @@ module geomodel
                     iw1(face(if1).node(j))=ngpf !mark facet node
                     
                     n1=abs(face(if1).edge(j))
-                    if(gedge(n1).isb==-2) cycle
+                    if(gedge(n1).isb==-2) cycle !is handled
                     if(gedge(n1).isb==-1) then
                         !face(gedge(n1).mface).isb=-NGPF
-                        gedge(n1).isb=-2
+                        gedge(n1).isb=-2 !marked
                         nst1=nst1+1
                         if(gedge(n1).mface(1)==if1) then                            
                             stack1(nst1)=gedge(n1).mface(2)
@@ -917,7 +1018,7 @@ module geomodel
             GPFACET(NGPF).FLOATP=pack([1:ngnode],iw1==ngpf.and.node(1:ngnode).isb>0) 
             GPFACET(NGPF).NFP=SIZE(GPFACET(NGPF).FLOATP)
             IW1(GPFACET(NGPF).FLOATP)=0
-            WHERE(IW1==NGPF) NODE.ISB=-1 !MERGED POINTS
+            WHERE(IW1==NGPF) NODE(1:ngnode).ISB=-1 !MERGED POINTS
             
             !NODE(GEDGE(EDGE1(:nedge1)).V(1)).ISB=GEDGE(EDGE1(:nedge1)).ISB !RECOVER
             !NODE(GEDGE(EDGE1(:nedge1)).V(2)).ISB=GEDGE(EDGE1(:nedge1)).ISB
@@ -1043,6 +1144,7 @@ module geomodel
             IF(THIS.NPOLY>SIZE(THIS.POLY)) CALL ENLARGE_AR(THIS.POLY,2)
             THIS.POLY(THIS.NPOLY).NNUM=J-1
             THIS.POLY(THIS.NPOLY).NODE=NODE1(1:J-1)
+            THIS.POLY(THIS.NPOLY).EDGE=EDGE1(1:J-1)
             IF(NLOOP1>1) THEN
                 THIS.NHOLE=THIS.NHOLE+1
                 IF(THIS.POLY(THIS.NPOLY).NNUM<5) THEN
@@ -1134,6 +1236,7 @@ module geomodel
         INTEGER::I,J,IW1(NGEDGE)
         
         IW1=0
+        !当某线段为不可合并的非环线段(不成为某个闭环的线段)时，其编号将在this.edge中会重复出现2次
         IW1(THIS.EDGE)=IW1(THIS.EDGE)+1
         
         DO I=1,THIS.NEDGE
@@ -1143,7 +1246,8 @@ module geomodel
                 THIS.NPOLY=THIS.NPOLY+1
                 IF(THIS.NPOLY>SIZE(THIS.POLY)) CALL ENLARGE_AR(THIS.POLY,2)
                 THIS.POLY(THIS.NPOLY).NNUM=2
-                THIS.POLY(THIS.NPOLY).NODE=GEDGE(THIS.EDGE(I)).V                
+                THIS.POLY(THIS.NPOLY).NODE=GEDGE(THIS.EDGE(I)).V
+                THIS.POLY(THIS.NPOLY).EDGE=[THIS.EDGE(I)]
                 IW1(THIS.EDGE(I))=-2
             ENDIF 
             
@@ -1358,8 +1462,8 @@ module geomodel
     
         implicit none
         integer::i,j,k,k1,k2,j1,n1,n2,n3,n4,n5,v1(2),nc1,nvf1,mbw1(2)
-        integer::ia2(8),staterr
-        real(8)::t1,t2,tol1=1.d-6,xi1(3)
+        integer::ia2(8),staterr,instate
+        real(8)::t1,t2,tol1=1.d-8,xi1(3),p1(3),p2(3),p3(3)
         integer,allocatable::viz1(:),eiz1(:)
         
         call cut_face_by_cow()
@@ -1368,7 +1472,7 @@ module geomodel
         do i=1,nxzone
             !InsPt1=0 !InsPt1(i)=0,need to check;-1,no intercecting point;>0,intercepting, the intersecting point is node(gedge(i).cutpoint)
             !cutedge1=0  !InsPt1(i)=0,need to check;any is -1,no intercecting point;any >0,intercepting, the intersecting point is node(gedge(i)).cutpoint              
-            t1=xzone(i).te
+            !t1=xzone(i).te
             !if(allocated(iw1)) deallocate(iw1)
             !allocate(iw1(ngnode))
             !借用bw
@@ -1376,11 +1480,18 @@ module geomodel
             gedge.isb=0
             face.isb=0
             selt.isb=0
+            
+            !借用s
+            do j=1,ngnode
+                node(j).s=node(j).z-xzone(i).getz([node(j).x,node(j).y])
+            enddo
+            
             !only  insert zone boundary line into the gmodel
             if(xzone(i).isx==2) then
                 do j=1,zone(xzone(i).izone).nbn
-                    eiz1=node2vgedge(zone(xzone(i).izone).bnode(j))
-                    
+                    n1=zone(xzone(i).izone).bnode(j)
+                    eiz1=node2vgedge(n1)
+                    t1=xzone(i).getz([node(n1).x,node(n1).y])
                     do k=1,size(eiz1)
                         !if(gedge(k).isdel) cycle
                         call cut_edge_by_z(eiz1(k),t1)
@@ -1392,8 +1503,7 @@ module geomodel
                     eiz1=edge2hgedge(zone(xzone(i).izone).bedge(j))
                     
                     do k=1,size(eiz1)
-                        !if(gedge(k).isdel) cycle
-                        call cut_edge_by_z(eiz1(k),t1)
+                        call edge_Intersect_cutface(i,eiz1(k))                        
                     enddo
                 
                 enddo                
@@ -1415,13 +1525,17 @@ module geomodel
                 cycle
             endif
             
+            
+
+            
+            
             do j=1,nselt
                 if(selt(j).isdel) cycle
                 !if(j>old_nselt1) cycle
                 if(selt(j).isdel.or.selt(j).zn/=xzone(i).izone) cycle
                 n1=selt(j).nnum
-                if(maxval(node(selt(j).node(1:n1)).z)<=t1-tol1) cycle                
-                if(xzone(i).isx==1.and.minval(node(selt(j).node(1:n1)).z)>=t1-tol1) then
+                if(maxval(node(selt(j).node(1:n1)).s)<=-tol1) cycle                
+                if(xzone(i).isx==1.and.minval(node(selt(j).node(1:n1)).s)>-tol1) then
                     selt(j).isdel=.true.
                     call remove_selt(j)
                     cycle
@@ -1436,7 +1550,7 @@ module geomodel
                 n1=viz1(j)
                 do j1=1,selt(n1).nnum
                     n2=selt(n1).node(j1)
-                    t2=node(n2).z-t1
+                    t2=node(n2).s
                     if(abs(t2)<tol1) then
                         node(n2).bw=2 !on cut face
                     elseif(t2>0.d0) then
@@ -1447,8 +1561,6 @@ module geomodel
                 enddo
             enddo
             
-            !eiz1=pack([1:ngnode],node.bw>0)
-            !where(abs(node(eiz1).z-t1)<tol1.and.node(eiz1).iptr==eiz1) node(eiz1).bw=2 !bw=2 node on the cut face
             
             do j1=1,size(viz1)
                 !mark zone edge 
@@ -1494,15 +1606,7 @@ module geomodel
                          face(n1).isb=1 !cross the cut face
                     endif
                     
-                    !if(n4==n2) then
-                    !    face(n1).isb=2 !on the cut face
-                    !else   
-                    !    !if((maxval(node(face(n1).node(:n2)).z)-t1)*(minval(node(face(n1).node(:n2)).z)-t1)<0) then
-                    !    !    face(n1).isb=1
-                    !    !else
-                    !    !    face(n1).isb=-1 !no need to check again
-                    !    !endif
-                    !endif
+
                 enddo
             enddo
             
@@ -1512,7 +1616,8 @@ module geomodel
             !cut edge
             do j=1,size(viz1)
                 n1=viz1(j)
-                call cut_edge_by_z(n1,t1)
+                !call cut_edge_by_z(n1,t1)
+                call edge_Intersect_cutface(i,n1)
             enddo
             !cut face
             viz1=pack([1:nface],face(1:nface).isb==1) 
@@ -1526,7 +1631,7 @@ module geomodel
             viz1=pack([1:nselt],selt(1:nselt).isb>0) 
              do j=1,size(viz1)
                 n1=viz1(j)
-                call cut_selt2(N1,t1,xzone(i).isx)
+                call cut_selt2(N1,xzone(i).isx)
              enddo
              
              !face on the cut face
@@ -1545,6 +1650,54 @@ module geomodel
     
     endsubroutine    
     
+    subroutine edge_Intersect_cutface(ixz,iedge)
+        implicit none
+        integer,intent(in)::ixz,iedge
+        integer::n1,n2,instate
+        real(8)::p1(3),p2(3),p3(3),t1
+        
+        if(gedge(iedge).isdel) return
+        
+        if(xzone(ixz).iplane==0) then
+            t1=xzone(ixz).getz([0.d0,0.0d0])
+            call cut_edge_by_z(iedge,t1)
+            
+        elseif(xzone(ixz).iplane==1) then    
+            n2=gedge(iedge).v(1)
+            p1=[node(n2).x,node(n2).y,node(n2).z]
+            n2=gedge(iedge).v(2)
+            p2=[node(n2).x,node(n2).y,node(n2).z]                            
+            call xzone(ixz).edgexface(p1,p2,instate,p3,t1)
+            if(instate==1) then
+                
+                !call cut_edge_by_z(iedge,p3(3))
+                 if(abs(t1)<1.d-8) then
+                    node(gedge(iedge).v(1)).bw=2
+                    node(gedge(iedge).v(1)).z=p3(3)
+                elseif(abs(1.0d0-t1)<1.d-8) then
+                    node(gedge(iedge).v(2)).bw=2
+                    node(gedge(iedge).v(2)).z=p3(3)
+                else
+                    ngnode=ngnode+1
+                    if(size(node)<ngnode) call enlarge_ar(node,100)
+                    node(ngnode).x=p3(1);node(ngnode).y=p3(2);node(ngnode).z=p3(3);
+                    node(ngnode).bw=2 !mark
+                    node(ngnode).s=0.d0
+                    node(ngnode).iptr=ngnode
+                    gedge(iedge).cutpoint=ngnode
+                    call cut_edge(iedge,ngnode) 
+                endif                
+            elseif(instate==2) then                
+                node(gedge(iedge).v).bw=2
+                node(gedge(iedge).v).z=p3(3) 
+                gedge(iedge).isb=2
+            endif
+        else
+            print *, 'No such cut plane  type=', xzone(ixz).iplane
+            error stop
+        endif
+    end subroutine
+    
     
     subroutine cut_edge_by_z(iedge,z,inode)
        
@@ -1552,8 +1705,8 @@ module geomodel
         integer,intent(in)::iedge
         integer,intent(out),optional::inode
         real(8),intent(in)::z
-        real(8)::v1(2),t2,xi1(3)
-        integer::inode1
+        real(8)::t2,xi1(3)
+        integer::v1(2),inode1
         
         inode1=0
         if(present(inode)) inode=inode1
@@ -1561,10 +1714,12 @@ module geomodel
         v1=gedge(iedge).v
         
         !平行xy平面的edge
-        if(abs(node(v1(1)).z-node(v1(2)).z)<1.d-6) then
-            if(abs(node(v1(1)).z-z)<1.d-6) then
+        !下面平行判断只使用xy平面
+        if(abs(node(v1(1)).z-node(v1(2)).z)<1.d-8) then
+            if(abs(node(v1(1)).z-z)<1.d-8) then
                 node(v1).bw=2
                 inode1=v1(1)
+                node(v1).z=z
                 !if(gedge(iedge).cutpoint>0) node(gedge(iedge).cutpoint).bw=2
             endif
             if(present(inode)) inode=inode1
@@ -1573,40 +1728,27 @@ module geomodel
         
         t2=(z-node(v1(1)).z)/(node(v1(2)).z-node(v1(1)).z)
         
-        if(t2<0.d0.or.t2>1.d0) return !no cross
         
-        !if(gedge(iedge).cutpoint>0) then
-        !               
-        !    t2=(z-node(v1(1)).z)/(node(gedge(iedge).cutpoint).z-node(v1(1)).z)
-        !    if(t2>1) then
-        !        iedge1=gedge(iedge).subedge(2)
-        !    else
-        !        iedge1=gedge(iedge).subedge(1)
-        !    endif
-        !    v1=gedge(iedge1).v 
-        !    t2=(z-node(v1(1)).z)/(node(v1(2)).z-node(v1(1)).z)
-        !    
-        !else
-        !    iedge1=iedge
-        !endif
-            
-        
-        
-        
-        
+       
         !if(t2<0.d0.or.t2>1.d0) return !no cross
         !cross at end nodes
-        if(t2<1.d-6) then
+        if(abs(t2)<1.d-8) then
             node(v1(1)).bw=2
+            node(v1(1)).z=z
             inode1=v1(1)
             if(present(inode)) inode=inode1
             return
-        elseif(1.0d0-t2<1.d-6) then
+        elseif(abs(1.0d0-t2)<1.d-8) then
             node(v1(2)).bw=2
+            node(v1(2)).z=z
             inode1=v1(2)
             if(present(inode)) inode=inode1            
             return
+        else
+            if(t2<0.d0.or.t2>1.d0) return !no cross
         endif
+        
+        
         
         xi1(1)=node(v1(1)).x+t2*(node(v1(2)).x-node(v1(1)).x)
         xi1(2)=node(v1(1)).y+t2*(node(v1(2)).y-node(v1(1)).y)
@@ -1616,6 +1758,7 @@ module geomodel
         if(size(node)<ngnode) call enlarge_ar(node,100)
         node(ngnode).x=xi1(1);node(ngnode).y=xi1(2);node(ngnode).z=xi1(3);
         node(ngnode).bw=2 !mark
+        node(ngnode).s=0.d0
         node(ngnode).iptr=ngnode
         gedge(iedge).cutpoint=ngnode
         call cut_edge(iedge,ngnode)
@@ -1663,6 +1806,7 @@ module geomodel
             if(size(node)<ngnode) call enlarge_ar(node,100)
             node(ngnode).x=v2(1);node(ngnode).y=v2(2);node(ngnode).z=v2(3);
             node(ngnode).bw=2 !mark
+            node(ngnode).s=0.d0
             node(ngnode).iptr=ngnode
             gedge(iedge).cutpoint=ngnode
             call cut_edge(iedge,ngnode)
@@ -1674,10 +1818,10 @@ module geomodel
     end subroutine
     
         
-        subroutine cut_selt2(ielt,be,isx)
+        subroutine cut_selt2(ielt,isx)
             implicit none
             integer,intent(in)::ielt,isx
-            real(8),intent(in)::be
+            real(8)::ver1(3,3)
             integer::edge1(10),nf1,i,j,node1(11),n1,ischeck1(10),if1,cf1,cf2,n2
             integer,allocatable::iw1(:),iw2(:),eface1(:)
             
@@ -1737,7 +1881,13 @@ module geomodel
                 face(nface).isdel=.false.
                 face(nface).nnum=n1
                 face(nface).isb=2 !on the cut face
-                face(nface).normal=[0.d0,0.d0,1.d0] !assume the cut face is horizontal
+                
+                !face(nface).normal=[0.d0,0.d0,1.d0] !assume the cut face is horizontal
+                ver1(1,1:3)=node(node1(1:3)).x
+                ver1(2,1:3)=node(node1(1:3)).y
+                ver1(3,1:3)=node(node1(1:3)).z               
+                face(nface).normal=NORMAL_TRIFACE(ver1,.true.)  
+                
                 if(size(face(nface).node)<face(nface).nnum) then
                     call enlarge_ar(face(nface).node,10)
                     call enlarge_ar(face(nface).edge,10)
@@ -1760,7 +1910,7 @@ module geomodel
                 do i=1,nf1
                     if1=selt(ielt).face(i)
 
-                    if(any(node(face(if1).node(:face(if1).nnum)).z<be-1.d-6)) then
+                    if(any(node(face(if1).node(:face(if1).nnum)).s<-1.d-8)) then
                         cf2=cf2+1
                         if(size(selt(nselt+2).face)<cf2+1) then
                             call enlarge_ar(selt(nselt+2).face,5)
@@ -1798,12 +1948,12 @@ module geomodel
                 selt(nselt+2).adj(cf2+1)=nselt+1
                 
                 !子单元的节点顺序及单元类型在此还处于凌乱状态。
-                iw1=pack(selt(ielt).node(:selt(ielt).nnum),node(selt(ielt).node(:selt(ielt).nnum)).z>be+1.d-6)
+                iw1=pack(selt(ielt).node(:selt(ielt).nnum),node(selt(ielt).node(:selt(ielt).nnum)).s>1.d-8)
                 selt(nselt+1).nnum=size(iw1)+face(nface).nnum
                 if(size(selt(nselt+1).node)<selt(nselt+1).nnum) call enlarge_ar(selt(nselt+1).node,10)
                 selt(nselt+1).node(:selt(nselt+1).nnum)=[iw1,face(nface).node(:face(nface).nnum)]
                 selt(nselt+1).et=631
-                iw1=pack(selt(ielt).node(:selt(ielt).nnum),node(selt(ielt).node(:selt(ielt).nnum)).z<be-1.d-6)
+                iw1=pack(selt(ielt).node(:selt(ielt).nnum),node(selt(ielt).node(:selt(ielt).nnum)).s<-1.d-8)
                 selt(nselt+2).nnum=size(iw1)+face(nface).nnum
                 if(size(selt(nselt+2).node)<selt(nselt+2).nnum) call enlarge_ar(selt(nselt+2).node,10)
                 selt(nselt+2).node(:selt(nselt+2).nnum)=[iw1,face(nface).node(:face(nface).nnum)]
@@ -2066,7 +2216,7 @@ module geomodel
 		character(512)::outfile,OUTFILE2
 		
         call st_membrance()
-       
+        if(ismerged==1) CALL merge_face()
 		outfile=trim(path_name)//'_geomodel.geo'
         call WRITE2GMSH_GEOFILEi2(outfile)
         outfile=trim(path_name)//'_geomodel.poly'
@@ -2090,28 +2240,44 @@ module geomodel
 		
 		INTEGER::I,J,K,K1,N1,N2,N3,N4,NV1,INC,LEN1,INC2,AN1(4),INC3=0
 		INTEGER::V1(2),allostat,METHOD1
-		REAL(8)::T1,AT1(3)
-		REAL(8),ALLOCATABLE::MINDIS1(:)
+		REAL(8)::T1,AT1(3)		
 		INTEGER,ALLOCATABLE::IA1(:),IA2(:) 
 		CHARACTER(512)::GEOFILE1
 		CHARACTER(32)::CH1,CH2,CH3,CH4,CH5,CH6		
-		CHARACTER(8192*3)::STR1
+		CHARACTER(LEN=:),ALLOCATABLE::STR1
         
-	
+	    !IA1=[59239,59241,59275,59279,61407,69880,69906,69984,70965]
+     !   
+     !   DO I=1,SIZE(IA1)
+     !       N1=IA1(I)
+     !       IF(N1<=NFACE) THEN
+     !           FACE(N1).ISB=9999
+     !           N2=FACE(N1).NNUM
+     !           GEDGE(ABS(FACE(N1).EDGE(:N2))).ISB=9999
+     !           NODE(FACE(N1).NODE(:N2)).ISB=9999
+     !       ELSE
+     !           GEDGE(ABS(GPFACET(N1-NFACE).EDGE(:GPFACET(N1-NFACE).NEDGE))).ISB=9999
+     !           NODE(GEDGE(ABS(GPFACET(N1-NFACE).EDGE(:GPFACET(N1-NFACE).NEDGE))).V(1)).ISB=9999
+     !           NODE(GEDGE(ABS(GPFACET(N1-NFACE).EDGE(:GPFACET(N1-NFACE).NEDGE))).V(2)).ISB=9999
+     !           NODE(GPFACET(N1-NFACE).FLOATP(:GPFACET(N1-NFACE).NFP)).ISB=9999
+     !       ENDIF   
+     !   ENDDO
         
 		OPEN(UNIT=50,FILE=FILE_L,STATUS='REPLACE')
 		WRITE(50,10)
         
         T1=XYSCALE/20
-		DO I=1,NGNODE			
-            IF(NODE(I).IPTR/=I.OR.NODE(I).ISB==0) CYCLE !重节点和内节点不输出
+		DO I=1,NGNODE
+            !IF(NODE(I).ISB/=9999) CYCLE
+            IF(NODE(I).IPTR/=I.OR.NODE(I).ISB<1) CYCLE !重节点和内节点不输出            
 			INC=INCOUNT(I)
-			WRITE(50,20) I,NODE(i).X*XYSCALE+XMIN,NODE(i).Y*XYSCALE+YMIN,NODE(i).Z,T1
+			WRITE(50,20) I,NODE(i).X*XYSCALE+XMIN,NODE(i).Y*XYSCALE+YMIN,NODE(i).Z*XYSCALE+ZMIN,T1
 		ENDDO
 		
 		
 		DO I=1,NGEDGE
-			IF(Gedge(i).v(1)*Gedge(i).v(2)==0.OR.GEDGE(I).ISOVERLAP==1.OR.GEDGE(I).ISB==0.OR.GEDGE(I).ISDEL) cycle
+            !IF(GEDGE(I).ISB/=9999) CYCLE
+			IF(Gedge(i).v(1)*Gedge(i).v(2)==0.OR.GEDGE(I).ISOVERLAP==1.OR.GEDGE(I).ISB<1.OR.GEDGE(I).ISDEL) cycle
 			INC=INCOUNT(I)
             V1=GEDGE(I).V
             !DO J=1,2
@@ -2122,14 +2288,21 @@ module geomodel
 		
 
 		DO I=1,NFACE
-			IF (FACE(I).ISDEL.OR.FACE(I).ISB==0) CYCLE 
+            !IF(FACE(I).ISB/=9999) CYCLE
+			IF (FACE(I).ISDEL.OR.FACE(I).ISB<1) CYCLE 
             N1=FACE(I).NNUM
 			INC=INCOUNT(I)            
 			NV1=N1-1
 			WRITE(50,40) I,FACE(I).EDGE(1:N1)
 			WRITE(50,50) I,I
-        ENDDO	
+        ENDDO
         
+        !merged faces
+        DO I=1,NGPF
+            !IF(.NOT.ANY(IA1==NFACE+I)) CYCLE
+            CALL GPFACET(I).facet2gmsh(nface,50)            
+        ENDDO
+        IF(NGPF>0) ALLOCATE(IA2(NGPF))
 
 		!VOLUME 
 		N1=0;
@@ -2149,37 +2322,20 @@ module geomodel
                     !IF(COUNT((SELT.ISDEL==.FALSE.).AND.(SELT.ZN==I).AND.(SELT.ILAYER==J))==0) CYCLE
 				    N1=N1+1
 				    INC=INCOUNT(N1)
-  
-                    !WRITE(CH6,'(I4)') K
-                    !CH6=TRIM(ADJUSTL(CH3))//'_V'//TRIM(ADJUSTL(CH6))
-                    
-				    	
-			        !n4=ZONE(I).NTRIE3N
-                    INC3=0
-                    STR1=""
-				    DO K1=1,ZONE(I).VBFACE(J).BFACE(K).NNUM
-                        N2=ZONE(I).VBFACE(J).BFACE(K).NODE(K1)
-					    INC2=INCOUNT(N2)
-					    CH1=""
-					    WRITE(CH1,90) N2                                            
-					    STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
-                        INC3=INC3+1    
-                        IF(MOD(INC3,100)==0) THEN
-                            STR1=TRIM(ADJUSTL(STR1))//NEW_LINE('A')
-                        ENDIF
-				    ENDDO
-			
-				    !WRITE(50,60) I,SIGN(FACEID1(ABS(PHYSICALGROUP(IPG1).TRISURFACE)),PHYSICALGROUP(IPG1).TRISURFACE), &
-				    !               SIGN(FACEID1(ABS(PHYSICALGROUP(IPG1).QUASURFACE)),PHYSICALGROUP(IPG1).QUASURFACE)
-                    INC2=LEN_TRIM(STR1)
-                    IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
-				    IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','
-				    IF(ZONE(I).VBFACE(J).BFACE(K).NNUM>0) THEN
-					    WRITE(50,61) N1,STR1(1:INC2)
-					    WRITE(50,70) N1,N1
+                    !IF(N1/=19) CYCLE
+                    !UPDATE TEH BFACES AFTER MERGE
+                    IF(NGPF>0) THEN
+                        CALL UPDATE_FACES_AFTER_MERGED(ZONE(I).VBFACE(J).BFACE(K).NODE,&
+                                ZONE(I).VBFACE(J).BFACE(K).NNUM)                        
                     ENDIF
-                    
+                    STR1=IAR2STR(ZONE(I).VBFACE(J).BFACE(K).NODE)
+                    INC2=LEN_TRIM(STR1)
+                    WRITE(50,61) N1,STR1(1:INC2)
+					WRITE(50,70) N1,N1
+			        
                 ENDDO
+                
+                !CYCLE
                 
                 IF(N1-NV1==0) CYCLE
                 
@@ -2191,90 +2347,63 @@ module geomodel
                     WRITE(50,81) TRIM(CH3),NV1+1,N1
                 ENDIF
                 
-                !volume outer horizontal faces
-                N3=ZONE(I).BFACE(J).NNUM
-                IA1=PACK(ZONE(I).BFACE(J).NODE(:N3),FACE(ZONE(I).BFACE(J).NODE(:N3)).ISB==1 &
-                        .AND.FACE(ZONE(I).BFACE(J).NODE(:N3)).ISV==0 &
-                        .AND.FACE(ZONE(I).BFACE(J).NODE(:N3)).ILAYER/=0)
-                INC3=0
-                STR1=""
-                IF(SIZE(IA1)>0) THEN
-				    DO K=1,SIZE(IA1)
-                        N2=IA1(K)
-					    INC2=INCOUNT(N2)
-					    CH1=""
-					    WRITE(CH1,90) N2                                            
-					    STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
-                        INC3=INC3+1    
-                        IF(MOD(INC3,100)==0) THEN
-                            STR1=TRIM(ADJUSTL(STR1))//NEW_LINE('A')
-                        ENDIF
-                    ENDDO
-                    INC2=LEN_TRIM(STR1)
-                    IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
-				    IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','
-                    LEN1=LEN(TRIM(ADJUSTL(CH4)))
-				    IF(SIZE(IA1)>0) THEN
-					    WRITE(50,100) TRIM(CH4),STR1(1:INC2)
+                 
+                
+                IF(NGPF>0) THEN
+                    !UPDATE outer horizontal faces AFTER MERGE
+                    IA2=0
+                    N2=ZONE(I).HFACE(J).NNUM
+                    IF(N2>0) THEN
+                        CALL UPDATE_FACES_AFTER_MERGED(ZONE(I).HFACE(J).NODE,&
+                                ZONE(I).HFACE(J).NNUM)                        
+                    ENDIF
+                    !UPDATE outer VERTICAL faces AFTER MERGE
+                    IA2=0
+                    N2=ZONE(I).VFACE(J).NNUM
+                    IF(N2>0) THEN
+                        CALL UPDATE_FACES_AFTER_MERGED(ZONE(I).VFACE(J).NODE,&
+                                ZONE(I).VFACE(J).NNUM)                        
                     ENDIF
                 ENDIF
-                
-                !volume outer vertical faces
-                IA1=PACK(ZONE(I).BFACE(J).NODE(:N3),FACE(ZONE(I).BFACE(J).NODE(:N3)).ISB==1 &
-                        .AND.FACE(ZONE(I).BFACE(J).NODE(:N3)).ISV==1)
-                INC3=0
-                STR1=""
-                IF(SIZE(IA1)>0) THEN
-				    DO K=1,SIZE(IA1)
-                        N2=IA1(K)
-					    INC2=INCOUNT(N2)
-					    CH1=""
-					    WRITE(CH1,90) N2                                            
-					    STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
-                        INC3=INC3+1    
-                        IF(MOD(INC3,100)==0) THEN
-                            STR1=TRIM(ADJUSTL(STR1))//NEW_LINE('A')
-                        ENDIF
-                    ENDDO
-                    INC2=LEN_TRIM(STR1)                    
-                    IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
-				    IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','
+                IF(ZONE(I).HFACE(J).NNUM>0) THEN
+                    STR1=IAR2STR(ZONE(I).HFACE(J).NODE)
+                    LEN1=LEN(TRIM(ADJUSTL(CH4)))
+                    INC2=LEN_TRIM(STR1)
+                    WRITE(50,100) TRIM(CH4),STR1(1:INC2)
+                    !COMPOUND SURFACE
+                    IF(J==SOILLAYER.and.iscompounded==1) WRITE(50,120) STR1(1:INC2)
+                        
+                ENDIF
+                IF(ZONE(I).VFACE(J).NNUM>0) THEN
+                    STR1=IAR2STR(ZONE(I).VFACE(J).NODE)
                     LEN1=LEN(TRIM(ADJUSTL(CH5)))
-				    IF(SIZE(IA1)>0) THEN
-					    WRITE(50,100) TRIM(CH5),STR1(1:INC2)
-                    ENDIF
-                ENDIF                
+                    INC2=LEN_TRIM(STR1)
+                    WRITE(50,100) TRIM(CH5),STR1(1:INC2)
+                ENDIF   
 			    
             ENDDO
                 
         ENDDO        
-            
+        
+        !RETURN
+        
         DO I=1,NXZONE
-            IF(XZONE(I).NCUTF<1) CYCLE
-            INC3=0
-            STR1=""
-            DO K=1,XZONE(I).NCUTF
-                N2=XZONE(I).CUTFACE(K)
-				INC2=INCOUNT(N2)
-				CH1=""
-				WRITE(CH1,90) N2                                            
-				STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
-                INC3=INC3+1    
-                IF(MOD(INC3,100)==0) THEN
-                    STR1=TRIM(ADJUSTL(STR1))//NEW_LINE('A')
-                ENDIF
-            ENDDO
+            IF(XZONE(I).NCUTF<1) CYCLE    
+            
             INC2=INCOUNT(I)
             CH1=""
 			WRITE(CH1,91) I
             IF(XZONE(I).ISX/=2) THEN
                 CH5='XZONE_'//TRIM(ADJUSTL(CH1))//'_CUTFACE'
+                CALL UPDATE_FACES_AFTER_MERGED(XZONE(I).CUTFACE,XZONE(I).NCUTF)
             ELSE
                 CH5='XZONE_'//TRIM(ADJUSTL(CH1))//'_CUTEDGE'
             ENDIF
+            
+            STR1=IAR2STR(XZONE(I).CUTFACE)
             INC2=LEN_TRIM(STR1)                    
-            IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
-			IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','
+   !         IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
+			!IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','
             LEN1=LEN(TRIM(ADJUSTL(CH5)))
 			IF(XZONE(I).NCUTF>0) THEN
                 IF(XZONE(I).ISX/=2) THEN
@@ -2290,19 +2419,19 @@ module geomodel
         DO I=1,NCOW
             DO J=1,3
                 IF(COWALL(I).FACE(J).NNUM<1) CYCLE
-                STR1=""
-                INC3=0
-                DO K=1,COWALL(I).FACE(J).NNUM
-                    N2=COWALL(I).FACE(J).NODE(K)
-					INC2=INCOUNT(N2)
-					CH1=""
-					WRITE(CH1,90) N2                                            
-					STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
-                    INC3=INC3+1    
-                    IF(MOD(INC3,100)==0) THEN
-                        STR1=TRIM(ADJUSTL(STR1))//NEW_LINE('A')
-                    ENDIF
-                ENDDO
+     !           STR1=""
+     !           INC3=0
+     !           DO K=1,COWALL(I).FACE(J).NNUM
+     !               N2=COWALL(I).FACE(J).NODE(K)
+					!INC2=INCOUNT(N2)
+					!CH1=""
+					!WRITE(CH1,90) N2                                            
+					!STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
+     !               INC3=INC3+1    
+     !               IF(MOD(INC3,100)==0) THEN
+     !                   STR1=TRIM(ADJUSTL(STR1))//NEW_LINE('A')
+     !               ENDIF
+     !           ENDDO
                 INC2=INCOUNT(I)
                 CH1=""
 				WRITE(CH1,91) I
@@ -2313,28 +2442,31 @@ module geomodel
                 ELSE
                     CH5='COW_'//TRIM(ADJUSTL(CH1))//'_CRACKEDGE'
                 ENDIF
+                IF(J<3) CALL UPDATE_FACES_AFTER_MERGED(COWALL(I).FACE(J).NODE, &
+                    COWALL(I).FACE(J).NNUM)
+                STR1=IAR2STR(COWALL(I).FACE(J).NODE)
                 INC2=LEN_TRIM(STR1)                    
-                IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
-				IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','
+    !            IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
+				!IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','
                 LEN1=LEN(TRIM(ADJUSTL(CH5)))
-				IF(COWALL(I).FACE(J).NNUM>0) THEN
-                    IF(J<3) THEN
-                        WRITE(50,100) TRIM(CH5),STR1(1:INC2)  
-                    ELSE
-                        WRITE(50,101) TRIM(CH5),STR1(1:INC2) 
-                    ENDIF
-                ENDIF              
+				!IF(COWALL(I).FACE(J).NNUM>0) THEN
+                IF(J<3) THEN
+                    WRITE(50,100) TRIM(CH5),STR1(1:INC2)  
+                ELSE
+                    WRITE(50,101) TRIM(CH5),STR1(1:INC2) 
+                ENDIF
+                !ENDIF              
             ENDDO
                 
         ENDDO
             
         DO I=1,NVSEG_PG
             if(SIZE(VSEG_PG(I).EDGE)<1) cycle
-            STR1=""
+            !STR1=""
             DO J=1,SIZE(VSEG_PG(I).EDGE)
                 INC2=INCOUNT(VSEG_PG(I).EDGE(J))
-                WRITE(CH1,90) VSEG_PG(I).EDGE(J)
-                STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
+                !WRITE(CH1,90) VSEG_PG(I).EDGE(J)
+                !STR1=TRIM(ADJUSTL(STR1))//TRIM(ADJUSTL(CH1))
                 IF(VSEG_PG(I).IGMSHVOL(J)>0) THEN                    
                     INC=INCOUNT(VSEG_PG(I).IGMSHVOL(J))
                     WRITE(50,110) VSEG_PG(I).EDGE(J),VSEG_PG(I).IGMSHVOL(J)
@@ -2342,13 +2474,35 @@ module geomodel
             ENDDO            
             INC2=INCOUNT(I)
             WRITE(CH1,91) I
-            CH5='VSEG_PG_'//TRIM(ADJUSTL(CH1))            
+            CH5='VSEG_PG_'//TRIM(ADJUSTL(CH1)) 
+            STR1=IAR2STR(VSEG_PG(I).EDGE)
             LEN1=LEN_TRIM(CH5)
             INC2=LEN_TRIM(STR1)                    
-            IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
-			IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','            
+   !         IF(STR1(INC2:INC2)==NEW_LINE('A')) INC2=INC2-1
+			!IF(STR1(INC2:INC2)==',') INC2=INC2-1 !-1,get rid off ','            
             WRITE(50,101) CH5,STR1
         ENDDO
+        
+        DO I=1,NVFACE_PG
+            IF(VFACE_PG(I).NFACE<1) CYCLE    
+            
+            INC2=INCOUNT(I)
+            CH1=""
+            WRITE(CH1,91) I
+            
+            CH5='VFACE_PG_'//TRIM(ADJUSTL(CH1))
+            CALL UPDATE_FACES_AFTER_MERGED(VFACE_PG(I).FACE,VFACE_PG(I).NFACE)
+            
+            
+            STR1=IAR2STR(VFACE_PG(I).FACE)
+            INC2=LEN_TRIM(STR1)                    
+   
+			LEN1=LEN(TRIM(ADJUSTL(CH5)))
+			IF(VFACE_PG(I).NFACE>0) THEN
+				WRITE(50,100) TRIM(CH5),STR1(1:INC2)
+            ENDIF                
+                
+        ENDDO        
         
         DO I=1,NBLO
             CALL BLO(i).write(50)
@@ -2356,9 +2510,9 @@ module geomodel
         
 		CLOSE(50)
         
-        DEALLOCATE(MINDIS1,IA1,stat=allostat)
+        DEALLOCATE(IA1,IA2,stat=allostat)
 
-	10  FORMAT('SetFactory("OpenCASCADE");Geometry.OCCAutoFix = 0;Mesh.AngleToleranceFacetOverlap=1.e-6;Mesh.MshFileVersion=2.2;', /, 'meshscale=1;')
+	10  FORMAT('SetFactory("Built-in");Geometry.OCCAutoFix = 0;Mesh.AngleToleranceFacetOverlap=1.e-6;Mesh.MshFileVersion=2.2;', /, 'meshscale=1;')
 	20	FORMAT("Point(",I<INC>,")={",3(E24.15,","),E24.15,"*meshscale};")
 	30	FORMAT("Line(",I<INC>,")={",I7,",",I7,"};")
 	40  FORMAT("Line Loop(",I<INC>,")={",<NV1>(I7,","),I7,"};")
@@ -2374,8 +2528,28 @@ module geomodel
 	100 FORMAT('Physical Surface("',A<LEN1>,'"',")={",A<INC2>"};")
     101 FORMAT('Physical Line("',A<LEN1>,'"',")={",A<INC2>"};")
     102 FORMAT('Physical Line("',A<LEN1>,'"',")={",I<INC2>"};") 
-    110 FORMAT('Curve {',I<INC2>,'} In Volume {',I<INC>,'};')   
+110     FORMAT('Curve {',I<INC2>,'} In Volume {',I<INC>,'};') 
+120     FORMAT('Compound Surface{',A<INC2>,'};')        
     ENDSUBROUTINE	    
+    
+    SUBROUTINE UPDATE_FACES_AFTER_MERGED(IA,NIA)
+        IMPLICIT NONE
+        INTEGER,DIMENSION(:),ALLOCATABLE::IA,IA1,IA2
+        INTEGER::NIA,ALLOSTAT
+        
+        
+        IF(NIA>0) THEN
+            ALLOCATE(IA2(NGPF))
+            IA2=0
+            IA1=IA(1:NIA)
+            WHERE(FACE(IA1).ISB<0) IA2(-FACE(IA1).ISB)=NFACE-FACE(IA1).ISB
+            IA=[PACK(IA1,FACE(IA1).ISB>0),PACK(IA2,IA2>0)]
+            NIA=SIZE(IA)  
+        ENDIF
+    
+        DEALLOCATE(IA1,IA2,stat=allostat)
+        
+    END SUBROUTINE
     
     SUBROUTINE WRITE_3DPOLY_FILE(FILE_L)
 		
@@ -2393,7 +2567,7 @@ module geomodel
 		CHARACTER(8192*3)::STR1
         
 	    if(poly3d==0) return
-        if(poly3d==2) CALL merge_face()
+        
         
 		OPEN(UNIT=50,FILE=FILE_L,STATUS='REPLACE')
 		N1=0
@@ -2407,7 +2581,7 @@ module geomodel
             IF(NODE(I).IPTR/=I.OR.NODE(I).ISB<1) CYCLE !重节点和内节点不输出
             N1=N1+1
             NODE(I).BW=N1
-			WRITE(50,30) N1,NODE(i).X*XYSCALE+XMIN,NODE(i).Y*XYSCALE+YMIN,NODE(i).Z
+			WRITE(50,30) N1,NODE(i).X*XYSCALE+XMIN,NODE(i).Y*XYSCALE+YMIN,NODE(i).Z*XYSCALE+ZMIN
         ENDDO
         
 		!FACE.MARKER 
@@ -2469,7 +2643,7 @@ module geomodel
 			    WRITE(50,41) N1,NODE(GPFACET(I).FLOATP(J)).BW                
             ENDDO
             DO J=1,GPFACET(I).NHOLE                
-			    WRITE(50,43) J,GPFACET(I).HOLE(1,J)*XYSCALE+XMIN, GPFACET(I).HOLE(2,J)*XYSCALE+YMIN,GPFACET(I).HOLE(3,J)
+			    WRITE(50,43) J,GPFACET(I).HOLE(1,J)*XYSCALE+XMIN, GPFACET(I).HOLE(2,J)*XYSCALE+YMIN,GPFACET(I).HOLE(3,J)*XYSCALE+ZMIN
             ENDDO            
         ENDDO
         
@@ -2505,7 +2679,7 @@ module geomodel
                     IF(ZONE(I).VBFACE(J).BFACE(K).NNUM<4) CYCLE
                     N1=N1+1
                     WRITE(50,'(I3,1X,3(F15.7,1X),I7)') N1,ZONE(I).VBFACE(J).BFACE(K).INSIDEPT(1)*xyscale+xmin,&
-                        ZONE(I).VBFACE(J).BFACE(K).INSIDEPT(2)*xyscale+ymin,ZONE(I).VBFACE(J).BFACE(K).INSIDEPT(3),I*1000+J*10 
+                        ZONE(I).VBFACE(J).BFACE(K).INSIDEPT(2)*xyscale+ymin,ZONE(I).VBFACE(J).BFACE(K).INSIDEPT(3)*XYSCALE+ZMIN,I*1000+J*10 
                 ENDDO
             ENDDO
         ENDDO         
@@ -2567,7 +2741,7 @@ module geomodel
                     ELSE
                         T1=THIS.BLOOP(I).ELEVATION(J)
                     ENDIF
-                    WRITE(UNIT,20)  N2,ARR_T(N1).X*XYSCALE+XMIN,ARR_T(N1).Y*XYSCALE+YMIN,T1,10.0
+                    WRITE(UNIT,20)  N2,ARR_T(N1).X*XYSCALE+XMIN,ARR_T(N1).Y*XYSCALE+YMIN,T1*XYSCALE+ZMIN,10.0
                 ENDDO
                 DO J=1,THIS.BLOOP(i).NNUM-1 
                     N3=N3+1                    
@@ -2623,9 +2797,9 @@ module geomodel
                         N2=N2+1
                         INC=INCOUNT(N2)
                         if(this.itype==1) then
-                            WRITE(UNIT,20)  N2,ARR_T(N1).X*XYSCALE+XMIN,ARR_T(N1).Y*XYSCALE+YMIN,THIS.BLOOP(1).ELEVATION(I),10.0
+                            WRITE(UNIT,20)  N2,ARR_T(N1).X*XYSCALE+XMIN,ARR_T(N1).Y*XYSCALE+YMIN,THIS.BLOOP(1).ELEVATION(I)*XYSCALE+ZMIN,10.0
                         else
-                            WRITE(UNIT,20)  N2,ARR_T(N1).X*XYSCALE+XMIN,ARR_T(N1).Y*XYSCALE+YMIN,THIS.BLOOP(1).ELEVATION((I-1)*THIS.BLOOP(1).NNUM+J),10.0
+                            WRITE(UNIT,20)  N2,ARR_T(N1).X*XYSCALE+XMIN,ARR_T(N1).Y*XYSCALE+YMIN,THIS.BLOOP(1).ELEVATION((I-1)*THIS.BLOOP(1).NNUM+J)*XYSCALE+ZMIN,10.0
                         endif 
                     ENDIF
                 ENDDO
@@ -2742,9 +2916,9 @@ module geomodel
             this.bloop(i).node=int(ar(1:n1))
             call strtoint(unit,ar,dnmax,dn,dnmax)
             if(this.itype/=4) then
-                this.bloop(i).elevation=(ar(1:n1)) 
+                this.bloop(i).elevation=(ar(1:n1)-Zmin)/xyscale 
             else
-                this.bloop(i).elevation=(ar(1:2*n1)) 
+                this.bloop(i).elevation=(ar(1:2*n1)-Zmin)/xyscale 
             endif
             
         enddo

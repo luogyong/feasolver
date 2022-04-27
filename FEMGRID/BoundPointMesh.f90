@@ -282,7 +282,10 @@
     do i=snode,enode
         if(node(i).havesoildata==0) then
             node(i).havesoildata=min(node(n3).havesoildata,node(n4).havesoildata)
-            if(.not.allocated(node(i).elevation)) allocate(node(i).elevation(0:soillayer))
+            if(.not.allocated(node(i).elevation)) then
+                allocate(node(i).elevation(0:soillayer))
+                node(i).elevation=-999.d0
+            endif
             Lix=((xi-node(i).x)**2+(yi-node(i).y)**2)**0.5
             node(i).elevation=node(n3).elevation+(node(n4).elevation-node(n3).elevation)*LIX/LIJ
         endif

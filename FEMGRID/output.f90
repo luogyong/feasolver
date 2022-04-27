@@ -200,7 +200,7 @@
 		do i=1,nnum
 			j=norder(i)
 			IF(modeldimension==3) THEN
-                write(unit,111) node(j).x*xyscale+xmin,node(j).y*xyscale+ymin,node(j).z
+                write(unit,111) node(j).x*xyscale+xmin,node(j).y*xyscale+ymin,node(j).z*XYSCALE+ZMIN
             ELSE
                 write(unit,111) node(j).x*xyscale+xmin,node(j).y*xyscale+ymin
             ENDIF
