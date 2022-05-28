@@ -716,22 +716,34 @@ subroutine Initialization()
 				node(element(i).node(1:element(i).nnum)).dof(4)=0
 				allocate(element(i).km(element(i).nnum,element(i).nnum))
 				element(i).km=0.0D0
+				!the length of throat. 
+				!element(i).property(4)=NORM2(NODE(ELEMENT(I).NODE(1)).COORD-NODE(ELEMENT(I).NODE(2)).COORD)  !-sum(node(element(i).node(1:2)).poresize)/2.0
+				if(element(i).property(4)<0.d0) element(i).property(4)=1.0d-8
                 !目前假定其阻力由文件输入
-                IF(ABS(ELEMENT(I).PROPERTY(1))<1.D-10) THEN
-                    !PRINT *,'THE FRICTIONAL RESISTANCE SEEMS TO BE TOO SMALL FOR POREFLOW ELEMENT(I).I=',I   
-                    !ERROR STOP
-                    t1=vk(material(element(i).mat).property(2))/9.8 !unit=m.sec
-                    t2=solver_control.unit_factor('m')*solver_control.unit_factor('s')
-                    t1=t1/t2 !to model unit
-                    t2=material(element(i).mat).property(1)
-                    if(isporeflow>0) t2=element(i).property(2)/2.0
-                    element(i).property(1)=(2*t2)**2/t1/32
-                    T1=RPI*t2**2/ &
-                        NORM2(NODE(ELEMENT(I).NODE(1)).COORD-NODE(ELEMENT(I).NODE(2)).COORD)
-                               
-                    ELEMENT(I).PROPERTY(1)=1./(T1*ELEMENT(I).PROPERTY(1))
-                    ELEMENT(I).FD=ELEMENT(I).PROPERTY(1)                    
-                ENDIF
+                !IF(ABS(ELEMENT(I).PROPERTY(1))<1.D-14) THEN
+					!Kij=PI*D**4/(128*L*u/rw)
+					!kinematic viscosity/g
+                    ! t1=vk(material(element(i).mat).property(2))/9.8 !unit=m.sec
+                    ! t2=solver_control.unit_factor('m')*solver_control.unit_factor('s')
+                    ! t1=t1/t2 !to model unit
+					! !t1=pi/(128*v/g)=pi/(128*u/rw)
+					! t1=RPI/(128.*t1)
+					! !t2=diameter
+                    ! t2=2*material(element(i).mat).property(1)
+                    ! if(isporeflow>0) t2=element(i).property(2)
+ 					! !Kij=PI*D**4/(128*L*u/rw)=t1*D**4/L
+					! element(i).property(1)=t1*(t2)**4./element(i).property(4)						
+                    ! ELEMENT(I).PROPERTY(1)=1./(ELEMENT(I).PROPERTY(1))
+					! !pores at two ends
+					! do j=1,2
+					! 	t2=node(element(i).node(j)).poresize
+					! 	if(abs(t2)>1.d-8) then
+					! 		ELEMENT(I).PROPERTY(1)=ELEMENT(I).PROPERTY(1)+1/(t1*t2**4/(t2/2.0))
+					! 	endif   
+					! enddo
+					! ELEMENT(I).FD=ELEMENT(I).PROPERTY(1)
+					CALL ELEMENT(I).RIJ()
+                !ENDIF
                 ELEMENT(I).KM=1.D0
                 ELEMENT(I).KM(1,2)=-1.D0;ELEMENT(I).KM(2,1)=-1.D0
                 ELEMENT(I).KM=ELEMENT(I).KM/ELEMENT(I).PROPERTY(1) 

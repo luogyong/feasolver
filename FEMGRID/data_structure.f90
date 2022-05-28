@@ -14,7 +14,8 @@ module meshDS
                     Zorder=0,& !=0土层高程从下往上输入,=1,反之。
                     poly3d=1,&
                     ismerged=1,&
-                    iscompounded=0
+                    iscompounded=0,&
+                    ISMESHSIZE=1
     integer,parameter:: ET_PRM=63,&
                     ET_TET=43,Linear=1,Membrance=0
     logical::ismeminpdone=.false.

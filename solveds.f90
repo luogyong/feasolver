@@ -17,8 +17,8 @@ module solverds
 		real(kind=DPN),allocatable::FQ(:),M(:) !nodal shear forces and nodal bending moments.
 		real(kind=DPN),allocatable::igrad(:),velocity(:)	!for spg element, gradients,velocities.
 		real(kind=DPN)::angle=0.0D0 !the angle around the vertex.
-		real(kind=DPN)::MISES=0.0D0,EEQ=0.0D0,PEEQ=0.0D0
-		real(kind=DPN)::Q=0.0D0,Kr=0.0D0,Mw=0.0D0,PORESIZE=0.D0  !nodal flux,relative permeability,slope of volumetric water content.		
+		real(kind=DPN)::MISES=0.0D0,EEQ=0.0D0,PEEQ=0.0D0 !for poreflow model. Mises=clogging_poresize,eeq=free_cc
+		real(kind=DPN)::Q=0.0D0,Kr=0.0D0,Mw=0.0D0,PORESIZE=0.D0,cc=0.d0  !nodal flux,relative permeability,slope of volumetric water content.		
 		integer::nelist=0,NELIST_SPG=0,ISACTIVE=0
 		!integer,allocatable::elist(:),ELIST_SPG(:) !elements sharing the node.
 !		integer::Property=0 !for SPG, Property=1 suggesting that the node is on the seepage surface.
@@ -52,8 +52,8 @@ module solverds
 		integer::nspr=0 ! the patch number sharing the element
 		integer::layer=1 !element layer, for horizontal seepage analysis; 
 						!for sectional seepage analysis, =1, all nodes are under water table,=-1,all nodes are above water talbe,=0 cross the water table
-		integer::ifreedof=-1 !>0,表铰接点,指向freedof(ifreedof)
-		
+		integer::ifreedof=0 !>0,表铰接点,指向freedof(ifreedof)
+		                    !for poreflow element,particle number clogging in the throat. 
 		!integer::status=1 !=1,fixed(default); =2,slip;=0:free.
 		integer::referencestep=1 !=i,表明此单元变形计算初始参考状态起点为第i步结束的位移场。        
 		integer::system=0 !local coordinate system, =0,global coordinate
@@ -64,10 +64,10 @@ module solverds
 		! x-axis is along the bar and the positive direction is from node 1 to node 2
 		! y and z is defined by user but must be consistent with right hand rule.
 		!and be consistent with Iy and Iz.
-		real(kind=DPN)::property(6)=0.0D0  !for spg problem and iniflux is used, property(3)=low lamda,property(2)=up lamda
+		real(kind=DPN)::property(6)=0.0D0,cc=0.d0  !for spg problem and iniflux is used, property(3)=low lamda,property(2)=up lamda
         !for wellbore element, property(1), element frictional resistance,(2) and (3) are geometrical resistance; (4) acceralated resistantce; (5)=WELL SKIN RESISTANCE , property(6) surround angle.
         !fore sphflow and semi_sphflow property(1)= geometrical resistance.
-        !for pipe2/poreflow  element,property(1), element frictional resistance,(2) throat diameter(for poreflow),(3) Re
+        !for pipe2/poreflow  element,property(1), element frictional resistance,(2)D2, throat diameter(for poreflow),(3) D1,(4)=Length of the throat.(5)=length of clogging volume,(6)K of the clogging volume
 		real(kind=DPN),allocatable::angle(:)!internal angle for every nodes
         !当et=wellbore时,angle存储node2单元对应的二面角。
 		integer,allocatable::g(:) !单元的定位向量
@@ -110,9 +110,13 @@ module solverds
 		!additional variables for upper bound analysis
 		real(kind=DPN),allocatable::A12(:,:)  ! for UBZT4 is A23;WELLBORE,SAMPLE POINTS
 		real(kind=DPN),allocatable::X2(:)
-        
+        REAL(8),allocatable::PFP(:) !(1-5):D1,D2,LR,Vol1,Vol2分别对应节点12出圆台直径及喉的位置,(6,7)Lc1,Lc2分别为淤堵体的长度,(8,9)npc1,npc2淤堵的颗粒数
         REAL(8)::BBOX(2,3)=0.D0 !MIN,MAX OF X,Y AND Z
         REAL(8)::fqw=1.0d0,FD=0.D0 !井周单元渗透系数调节因子.FD=FRICTIONAL TERM FOR PIPE2/poreflow
+		REAL(8)::cdt=1.0d0 !poreflow convective term flow integration time
+		
+	contains
+		procedure::RIJ=>PNW_FLOW_RIJ
 	end type
 	integer::enum=0 !节点数
 	type(element_tydef),allocatable::element(:)
@@ -180,8 +184,8 @@ module solverds
 		integer::isincrement=0 !如果为1，则表明value是增量，而不是全量（默认）
         
 	end type
-	type(bc_tydef),allocatable::bc_disp(:),bc_load(:),bf(:),NSeep(:),IniValue(:),CFN(:)
-	integer::bd_num=0,bl_num=0,bfnum=0,NumNSeep=0,Niniv=0,NCFN=0	
+	type(bc_tydef),allocatable::bc_disp(:),bc_load(:),bf(:),NSeep(:),IniValue(:),CFN(:),ccbc(:)
+	integer::bd_num=0,bl_num=0,bfnum=0,NumNSeep=0,Niniv=0,NCFN=0,nccbc=0	
 	real(kind=DPN),allocatable::iniValueDof(:) 
     
     TYPE QWELLNODE_TYDEF
@@ -284,7 +288,8 @@ module solverds
         real(kind=DPN)::disf_scale=1.0d0
         integer::len_unit=0 !0,m;3,mm;2,cm;1,dm;4,km;
         integer::time_unit=0 !0,day;1,sec;2,min;3,hour;
-        
+        real(kind=DPN)::cdt=1.d0 !concentration integerate time
+		integer::pnw_clogging=0 !if>0
     contains
         procedure::unit_factor=>unit_scaling_factor
         procedure::get_g=>get_gravity
@@ -311,13 +316,14 @@ module solverds
 		integer::et
         integer::eshape=-1 !0,point，101=line,203=triangle,204=quadrilateral,304=tet,308=hex,306=prism
         integer::system=0
-		character(1024)::zonetitle="",zonetitle_sf=""
+		character(1024)::zonetitle="",zonetitle_sf="",zonetitle_pf=''
 		character(64)::grouptitle=""
         integer::coupleset=-1
         integer::isini=0 !>0
         integer::sf=0 !stepfun
 		integer::mesh_share_id=0,out_mesh=.true.!for output tecplot.
 		integer::mesh_share_id_sf=0,out_mesh_sf=.true.
+		integer::mesh_share_id_pf=0,out_mesh_pf=.true.
 		!for bar ane beam element only.
 		real(kind=DPN),allocatable::xyz_section(:,:) !单元集的统一的截面的四个角点的坐标，现假定一个单元集内的所有杆单元或梁单元的局部坐标一样。
 		integer,allocatable::outorder(:) !输出后处理时，同一局部坐标下节点的输出顺序，与element.node2节点号对应。
@@ -386,8 +392,8 @@ module solverds
 								!at the center of the sphere
 		integer::nval=1 !这个变量包含多少个数。
 	end type
-	type(outvar_tydef)::outvar(150)	
-	integer::vo(150)=0,nvo=0
+	type(outvar_tydef)::outvar(200)	
+	integer::vo(200)=0,nvo=0
 	
 	type coordinate_tydef !global to local system transformation matrix 
 		real(kind=DPN)::c(3,3)=0 !c(i,j)=cos(ei,Ej),ei and Ej are base vectors for new and old coordinates.
@@ -437,7 +443,7 @@ module solverds
 
 	
 	character(1024)::title,resultfile,resultfile1,resultfile2,resultfile3,resultfile21,resultfile22,EXCAMSGFILE,EXCAB_BEAMRES_FILE,&
-					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE,SLOPE_FILE,helpfile,well_file,flownet_file,volfile
+					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE,SLOPE_FILE,helpfile,well_file,flownet_file,volfile,poreflowfile
 	INTEGER::DATAPOINT_UNIT=29
 	integer::datapacking=1	!=1,point format:{x1,y1,z1},{x2,y2,z2},..., . (Default Format)
 						 != 2, block format, {x1,x2,...},{y1,y2,...},{z1,z2,...}
@@ -1031,6 +1037,101 @@ Re_W=ABS(V*cf2/cf1*D*cf2/Vk(T1))
     
 ENDFUNCTION
 
+SUBROUTINE PNW_FLOW_RIJ(THIS)
+    !计算孔隙网络单元的渗流阻力,即Rij=1/Kij
+    !Kij=gij/rw,rw为水的重度
+    !gij=Pi*D**4/(128*u*L),u为水的绝对粘滞系数
+    !Kij=Pi*D**4/(128*vk/g*L)
+
+    IMPLICIT NONE
+    CLASS(element_tydef)::THIS
+	!real(8),optional::Lc,Kc !淤堵体的长度及渗透系数 
+    real(8)::t1,t2
+    !Rt,喉半径,Lt喉长度,Ri,Rj分别为两端孔的半径
+    REAL(8)::lc1,kc1,lt,alpha1,d1
+    integer::i,j
+	
+	
+	THIS.property(1)=0.d0
+	do i=1,2
+		t1=this.pfp(3)
+		if(i==2) t1=1-t1
+		lc1=this.property(4)*t1-this.pfp(5+i)
+		if(lc1>0.d0) then
+			alpha1=(this.pfp(i)-this.property(2))/this.property(2)
+			d1=this.property(2)+this.pfp(5+i)*alpha1			
+			this.property(1)=this.property(1)+hagen_poiseuille_friction(this.mat,lc1,d1,this.pfp(i),node(this.node(i)).cc)
+		endif
+	enddo
+
+	this.property(1)=this.property(1)+this.Property(5)+this.Property(6)
+	if(abs(this.property(1))<1.d-10) this.property(1)=1.0d-10
+    THIS.FD=THIS.PROPERTY(1)
+
+ENDSUBROUTINE
+
+REAL(8) FUNCTION KC_K(e,dp,temp)
+	!根据KC公式，计算渗透系数,unit=L/T
+	!input:e=孔隙率,dp=颗粒直径
+	implicit none 
+	REAL(8),intent(in)::e,dp,temp
+	optional::temp
+	real(8)::t1,t2,temp1
+	temp1=20
+	if(present(temp)) temp1=temp
+	!t1=u/rw
+	t1=vk(temp1)/9.8 !unit:(m.sec)
+	t2=solver_control.unit_factor('m')*solver_control.unit_factor('s')
+	t1=t1/t2 !to model unit
+	!t1=rw/u
+	t1=1./t1
+	KC_K=t1*(dp**2)*(e**3)/(150.*(1-e)**2)
+
+ENDFUNCTION
+
+    real(8) function hagen_poiseuille_friction(imat,l,d1,d2,cc)
+        !计算孔隙网络单元的渗流阻力,即Rij=1/Kij
+        !Kij=gij/rw,rw为水的重度
+        !gij=Pi*D**4/(128*u*L),u为水的绝对粘滞系数
+        !Kij=Pi*D**4/(128*vk/g*L)
+        implicit none
+        integer,intent(in)::imat
+        real(8),intent(in)::l
+        real(8),optional::d1,d2,cc
+        real(8)::t1,t2,d12,d22,ccmax1=0.66,cc1
+
+        ![1] Hirabayashi S, Sato T, Mitsuhori K, Yamamoto Y. Microscopic numerical simulations of suspension with particle accumulation in porous media[J]. Powder Technology, 2012, 225: 143-148.
+        !DOI: https://doi.org/10.1016/j.powtec.2012.04.001
+        !consider the effect of suspension particles on the viscosity.
+        cc1=0.d0
+        if(present(cc)) cc1=cc
+        if(cc1>0.d0) then
+            t2=(1-cc1/ccmax1)**(-2.5*ccmax1) 
+        else
+            t2=1.0d0
+        endif
+        
+        d12=material(imat).property(1)*2        
+        if(present(d1)) d12=d1
+        d22=d12
+        if(present(d2)) d22=d2
+
+        t1=vk(material(imat).property(2))/9.8*t2 !unit=m.sec
+        t2=solver_control.unit_factor('m')*solver_control.unit_factor('s')
+        t1=t1/t2 !to model unit 
+        t2=(d12+d22)/2.0   
+        t1=PI()*t2**4/(128.*t1*L)		
+        hagen_poiseuille_friction=1./t1
+	          
+
+    endfunction 
+
+real(8) function vol_cone(h,r1,r2)
+	implicit none 
+	real(8),intent(in)::h,r1,r2 
+	vol_cone=1/3.0*PI()*h*(r1**2+r2**2+r1*r2)
+endfunction
+
    !把字符串中相当的数字字符(包括浮点型)转化为对应的数字
    !如 '123'转为123,'14-10'转为14,13,12,11,10
    !string中转化后的数字以数组ar(n1)返回，其中,n1为字符串中数字的个数:(注　1-3转化后为3个数字：1,2,3)
@@ -1039,20 +1140,21 @@ ENDFUNCTION
    !unit为文件号
    !每次只读入一个有效行（不以'/'开头的行）
    !每行后面以'/'开始的后面的字符是无效的。
-   subroutine  strtoint(unit,ar,nmax,n1,num_read,set,maxset,nset,ef1)
-	  implicit none
-      INTEGER,INTENT(IN)::unit,nmax,num_read,maxset
-      INTEGER,INTENT(INOUT)::N1,NSET
-      INTEGER,OPTIONAL::EF1
-      REAL(8),INTENT(INOUT)::ar(nmax)
-      character(*)::set(maxset)
-	  logical::tof1,tof2
-	  integer::i,j,k,strl,ns,ne,n2,n3,n4,step,& 
-			ef,n5,nsubs
-	  real(8)::t1	  
-	  character(20000)::string
-	  character(512)::substring(1000)
-	  character(16)::legalC,SC
+   subroutine  strtoint(unit,ar,nmax,n1,num_read,set,maxset,nset,ef1,isall)
+		implicit none
+		INTEGER,INTENT(IN)::unit,nmax,num_read,maxset
+		INTEGER,INTENT(INOUT)::N1,NSET
+		INTEGER,OPTIONAL::EF1
+		REAL(8),INTENT(INOUT)::ar(nmax)
+		character(*)::set(maxset)
+		logical::tof1,tof2
+		integer::i,j,k,strl,ns,ne,n2,n3,n4,step,& 
+				ef,n5,nsubs
+		real(8)::t1	  
+		character(20000)::string
+		character(512)::substring(1000)
+		character(16)::legalC,SC
+		logical,optional::isall
 
 		LegalC='0123456789.-+eE*'
 		sc=',;() '//char(9)
@@ -1151,7 +1253,11 @@ ENDFUNCTION
 		 end if
 		
 		 if(n1<=num_read) then
-		    exit
+			if(present(isall)) then
+				if(isall.and.n1==num_read) exit
+			 else
+				exit
+			 end if
 		 else
 		    if(n1>num_read)  print *, 'error!nt2>num_read. i=',n1
 		 end if

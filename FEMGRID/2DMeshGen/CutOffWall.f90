@@ -7,7 +7,7 @@ use ds_t,only:arr_t
 implicit none
 private
 real ( kind = 8 ), parameter :: Pi = 3.141592653589793D+00
-public::cowall,ncow,xzone,nxzone,vseg_pg,nvseg_pg,vface_pg,nvface_pg
+public::cowall,ncow,xzone,nxzone,vseg_pg,nvseg_pg,vface_pg,nvface_pg,node_pg,nnode_pg
 
 type cutoffwall_type
     integer::NCP=0,mat=1     
@@ -23,10 +23,10 @@ type cutoffwall_type
         & 1)NCOW(防渗墙个数); \n & 
         & 2.1) NCP(边界控制点数),MAT(材料号),THICKNESS(墙厚) \n &
         & 2.2) CP(1:NCP)(各控制点号) \n &
-        & 2.3) BE(1:NCP)(各控制点的墙底高程)，输入be(i)=-999表示i处墙底高程为模型地底高程. \n &
-        & 2.4) TE(1:NCP)(各控制点的墙顶高程)，输入te(i)=-999表示i处墙顶高程为模型地表高程. \n &
+        & 2.3) BE(1:NCP)(各控制点的墙底高程),输入be(i)=-999表示i处墙底高程为模型地底高程. \n &
+        & 2.4) TE(1:NCP)(各控制点的墙顶高程),输入te(i)=-999表示i处墙顶高程为模型地表高程. \n &
         & 注意: \n &
-        &     a) 如为闭合的防渗墙，则令首尾节点相同. \n &
+        &     a) 如为闭合的防渗墙,则令首尾节点相同. \n &
         &     b) 各控制点定义的边必须已在控制线(CL)定义. 'C
         
         
@@ -42,11 +42,11 @@ type(cutoffwall_type),allocatable::cowall(:)
 integer::ncow=0
 
 type xzone_tydef
-    integer::izone,isx=1,ncutf=0,iplane=0 !iplane：截平面类型，=0，水平面；=1，斜截面
+    integer::izone,isx=1,ncutf=0,iplane=0 !iplane：截平面类型,=0,水平面；=1,斜截面
     real(8)::te,PE(4) !PE为截平面方程的系数A/B/C/D（AX+BY+CZ+D=0）
     integer,allocatable::cutface(:) !if isx==1,facets on the cut face,isx==2,cutedge around the cut face.
     character(1024)::helpstring= &
-        &"xzone的作用是实现切割和开挖。如isx==1(默认),则将处于izone内部的高于te的土体挖掉，==0仅仅进行切割；==2仅对zone的边界线进行切割\n &
+        &"xzone的作用是实现切割和开挖。如isx==1(默认),则将处于izone内部的高于te的土体挖掉,==0仅仅进行切割；==2仅对zone的边界线进行切割\n &
         & \n xZone的输入格式为:\n &
         & 1)nxzone //结构体数  \n &	
         & 2) izone,elevation [,isx,iplane,P1(3),P2(3),P3(3)] //分别为区域号及其底高程,切割类型和切割平面内不在同一直线上的三个点的坐标。\n &
@@ -66,7 +66,7 @@ type vseg_pg_tydef
     integer,allocatable::node(:),edge(:),igmshvol(:)
     real(8),allocatable::z(:)
     character(1024)::helpstring= &
-        &"vseg_pg的作用是输出指定竖向线物理组，用于定义井线等。如果该竖直线处于体的内部，则进行相应的嵌入处理。\n &
+        &"vseg_pg的作用是输出指定竖向线物理组,用于定义井线等。如果该竖直线处于体的内部,则进行相应的嵌入处理。\n &
         & \n vseg_pg的输入格式为:\n &
         & 1)nvseg_pg //竖直线物理组数  \n &	
         & 2)ipt,z(1:nnode) //点号,该竖向线各控制点的高程(由小到大的顺序输入)。共nvseg_pg行。\n &
@@ -83,7 +83,7 @@ type vface_pg_tydef
     integer::ncp=0,nface,node(2)
     integer,allocatable::bvedge(:),face(:),CP(:)    
     character(1024)::helpstring= &
-        &"vface_pg的作用是输出由部分模型外围控制线（KP命令）拉伸而成的竖向面物理组，用于定义边界等。\n &
+        &"vface_pg的作用是输出由部分模型外围控制线（KP命令）拉伸而成的竖向面物理组,用于定义边界等。\n &
         & \n vface_pg的输入格式为:\n &
         & 1)nvface_pg //竖直面线物理组数  \n &	
         & 2)CPT(1:NPT) //该局部的外围控制线的点号。共nvface_pg行。\n &
@@ -96,23 +96,64 @@ end type
 type(vface_pg_tydef),allocatable::vface_pg(:)
 integer::nvface_pg=0
 
+type node_pg_tydef
+    integer::nnode=0,isplane=0
+    integer,allocatable::node(:) 
+    real(8)::z,pe(4)=0.0d0 !pe=平面方程系数 A B C D  
+    character(1024)::helpstring= &
+        &"node_pg的作用是输出指定节点物理组,用于定义边界等。\n &
+        & \n node_pg的输入格式为:\n &
+        & 1)nnode_pg //特点节点物理组数  \n &	
+        & 2)CPT(1:NPT),z //点号及高程。共nnode_pg行。\n &
+        & 3)P1(3),P2(3),P3(3) //平面控制点坐标,仅当z=-888时输入。\n &
+        & 注意:1)z=-999,表示输出地表点;\n 2)-888时表数组CPT中各点的高程取值与P1,P2,P3定义的平面(假定平面不是竖直面,即pe(3)/=0) \n &
+        & "C          
+contains
+    procedure,nopass::help=>write_help
+    procedure::readin=>node_pg_readin
+    procedure::getnode=>node_pg_getnode
+    procedure::getz=>node_pg_getz
+end type
+type(node_pg_tydef),allocatable::node_pg(:)
+integer::nnode_pg=0
     contains
     
+    real(8) function node_pg_getz(this,inode)
+        implicit none
+        class(node_pg_tydef)::this
+        integer::inode !node的下标
+        if(this.isplane==0) then
+            node_pg_getz=this.Z
+        elseif(abs(this.pe(3))>1.d-10) then
+            node_pg_getz=-(this.pe(1)*node(inode).x+this.pe(2)*node(inode).y+this.pe(4))/this.pe(3)
+        else
+            error stop '平面为竖直面,无法得到高程.sub=node_pg_getz' 
+        endif
+
+
+    endfunction
+
+
     subroutine vseg_pg_getnode(this)
         class(vseg_pg_tydef)::this
-        
+        !假定这些点均为高程点
         this.ip=geology(this.ip).node
         
     endsubroutine
  
     subroutine vface_pg_getnode(this)
         class(vface_pg_tydef)::this
-        
+        !假定这些点均为高程点
         this.node(1)=geology(this.cp(1)).node
         this.node(2)=geology(this.cp(this.ncp)).node
     endsubroutine
 
-    
+    subroutine node_pg_getnode(this)
+        class(node_pg_tydef)::this
+        !假定这些点均为高程点
+        this.node=geology(this.node).node
+        
+    endsubroutine   
     subroutine vseg_pg_readin(this,unit)
         class(vseg_pg_tydef)::this
         integer,intent(in)::unit
@@ -141,7 +182,32 @@ integer::nvface_pg=0
         THIS.cp=ar(1:DN)
         THIS.ncp=DN
     endsubroutine 
-    
+    subroutine node_pg_readin(this,unit)
+        class(node_pg_tydef)::this
+        integer,intent(in)::unit
+        INTEGER::I,J,N1,DN=0,NINC1
+        INTEGER,PARAMETER::DNMAX=1000
+        REAL(8)::AR(DNMAX) 
+        
+        call strtoint(unit,ar,dnmax,dn,dnmax)
+	    !n1=I
+        !THIS.nnode=int(ar(1)) 
+        THIS.node=ar(1:DN-1)
+        THIS.nnode=DN-1
+        this.z=ar(dn)
+        if(abs(this.z+888.d0)<1.d-6) then
+            this.isplane=1
+            call strtoint(unit,ar,dnmax,dn,dnmax)
+            ar([1,4,7])=(ar([1,4,7])-xmin)/xyscale
+            ar([2,5,8])=(ar([2,5,8])-ymin)/xyscale
+            ar([3,6,9])=(ar([3,6,9])-zmin)/xyscale
+            call plane_exp2imp_3d(ar(1:3),ar(4:6),ar(7:9),this.pe(1),this.pe(2),this.pe(3),this.pe(4))            
+        else
+            if((this.z+999.d0)>1.d-6) this.z=(ar(dn)-zmin)/xyscale
+        endif
+        
+    endsubroutine
+
     subroutine xzone_readin(this,unit)
         class(xzone_tydef)::this
         integer,intent(in)::unit
@@ -190,7 +256,7 @@ integer::nvface_pg=0
     endfunction 
     
     subroutine xzone_edge_intersect_plane(this,p1,p2,istate,ip,t)
-    !假定所输入的线段p1-p2处于截平面的竖直投影区内，且截平面不是竖直面
+    !假定所输入的线段p1-p2处于截平面的竖直投影区内,且截平面不是竖直面
         class(xzone_tydef)::this
         real(8),intent(in)::p1(3),p2(3)
         integer::istate
@@ -268,9 +334,11 @@ subroutine  COW_read(this,unit)
     call strtoint(unit,ar,dnmax,dn,dnmax)
     THIS.CP=INT(AR(1:THIS.NCP))
     call strtoint(unit,ar,dnmax,dn,dnmax)
-    THIS.BE=(AR(1:THIS.NCP)-zmin)/xyscale
-    call strtoint(unit,ar,dnmax,dn,dnmax)
-    THIS.TE=(AR(1:THIS.NCP)-zmin)/xyscale    
+    THIS.BE=AR(1:THIS.NCP)
+    where(abs(this.be+999.d0)>1.d-6) THIS.BE=(THIS.BE-zmin)/xyscale
+    call strtoint(unit,ar,dnmax,dn,dnmax)    
+    THIS.TE=AR(1:THIS.NCP) 
+    where(abs(this.te+999.d0)>1.d-6) THIS.TE=(THIS.TE-zmin)/xyscale
 	!end do
 
 endsubroutine
@@ -558,8 +626,8 @@ end subroutine
 
 
 FUNCTION find_ELT_ON_HEADING_LEFT(V,BE1,BE2) RESULT(ELT1)
-!返回以V为顶点，BE1-BE2前进方向左边的所有单元,BE1,BE2是以V公共顶点的边
-!如果没有，返回ELT1(1)=-1
+!返回以V为顶点,BE1-BE2前进方向左边的所有单元,BE1,BE2是以V公共顶点的边
+!如果没有,返回ELT1(1)=-1
 !如果BE1<1,这令BE1为与BE2夹角最大的边(最平行的边)
 !如果BE2<1,这令BE2为与BE1夹角最最小的边(最平行的边)
 IMPLICIT NONE

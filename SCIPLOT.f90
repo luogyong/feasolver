@@ -39,7 +39,7 @@ SUBROUTINE SCIPLOT()
 				DATASET1=nstep
 				ALLOCATE(LEGENDS(DATASET1))
                 LEGENDS=""
-				WTITLE='ï¿½ï¿½'//trim(ch)//'ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¼'		
+				WTITLE='µÚ'//trim(ch)//'¸ùÁºÄÚÁ¦Í¼'	
 				DO J=1,DATASET1
 					WRITE(CH,'(I2)') J
 					ch=adjustL(ch)
@@ -53,7 +53,7 @@ SUBROUTINE SCIPLOT()
                 LEGENDS=""
                 WRITE(CH,'(I2)') I
 				ch=adjustL(ch)
-				WTITLE='ï¿½ï¿½'//trim(ch)//'ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø·Ö²ï¿½Í¼'
+				WTITLE='µÚ'//trim(ch)//'¸ùÁººÉÔØ·Ö²¼Í¼'
 				FORALL (J=1:DATASET1) LEGENDS(J)=TRIM(ADJUSTL(LEGEND1(J)))				
             ENDIF
 			

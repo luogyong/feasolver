@@ -79,18 +79,29 @@ module DS_Gmsh2Solver
 		character(32)::name=''
 		integer::nel=0
 		integer,allocatable::element(:),COWMAT(:)
-		integer::mat(50)=0
+		integer::mat(50)=0,izone,ilayer
 		character(32)::ET="ELT_BC_OR_LOAD"
 		INTEGER::LAYERGROUP(50)=0	
         INTEGER,ALLOCATABLE::TRISURFACE(:),QUASURFACE(:),TRINODEG2L(:),TRINODEL2G(:) !global to local
         INTEGER::NTRISURFACE=0,NQUASURFACE=0,NTRINODEL2G=0
         REAL(8)::PROPERTY(3)=0.D0
+        contains
+        procedure name2ZAL=>pg_name2zone_and_layer
 	end type
 	integer,parameter::maxphgp=10100
 	type(physicalGroup_type)::physicalgroup(maxphgp)
 	integer,allocatable::phgpnum(:)
 	integer::nphgp=0
-	
+
+    type pg_mat_et_type
+        integer::izone,ilayer,mat
+        character(32)::et=''
+        contains
+        procedure set=>pg_mat_et_handle
+    endtype
+    type(pg_mat_et_type),allocatable::pg_mat_et(:)
+	integer::npgme=0
+
 	type et_type
 		integer::nnode=0,nedge=0,nface=0		
 		character(512)::description
@@ -574,7 +585,10 @@ module DS_Gmsh2Solver
             ENDIF
             IF(PHYSICALGROUP(N2).MAT(1)==0.AND.IA1(2)>0) THEN
                 PHYSICALGROUP(N2).MAT=PHYSICALGROUP(IA1(2)).MAT
-            ENDIF  
+            ENDIF
+            IF(PHYSICALGROUP(N2).MAT(1)==0.AND.SELF.MAT>0) THEN
+                PHYSICALGROUP(N2).MAT=SELF.MAT
+            ENDIF              
             IF(PHYSICALGROUP(N2).MAT(1)==0) THEN
                 PRINT *,'PLEASE SIGN A MATID TO PHYSICALGROUP(N2) THROUGH "GROUPPARAMETER". N2=',N2
                 STOP
@@ -584,8 +598,18 @@ module DS_Gmsh2Solver
             DO I=1,PHYSICALGROUP(N2).NEL
                 IEL1=PHYSICALGROUP(N2).ELEMENT(I)
                 ELEMENT(IEL1).NNODE=2
-                IF(NODE(ELEMENT(IEL1).NODE(1)).N1==0) THEN
-                    STOP "GHOST NODE N1 SHOULD BE >0. Error in sub WELLBORE_INITIALIZE."
+                INNODE1=ELEMENT(IEL1).NODE(1)
+                IF(NODE(INNODE1).N1==0) THEN
+                    !STOP "GHOST NODE N1 SHOULD BE >0. Error in sub WELLBORE_INITIALIZE."
+                    
+                    NNODE=NNODE+1
+                    NODE(INNODE1).N1=NNODE
+                    IF(NNODE>UBOUND(NODE,DIM=1)) THEN
+                        CALL ENLARGE_AR(NODE,500)       
+                    ENDIF
+                    NODE(NNODE)=NODE(INNODE1)
+                    NODE(NNODE).N1=INNODE1
+                                        
                 ENDIF
                 NODE1(1:ELEMENT(IEL1).NNODE)=[NODE(ELEMENT(IEL1).NODE).N1,ELEMENT(IEL1).NODE]
                 DEALLOCATE(ELEMENT(IEL1).NODE)
@@ -602,6 +626,9 @@ module DS_Gmsh2Solver
             IF(PHYSICALGROUP(N2).MAT(1)==0.AND.IA1(2)>0) THEN
                 PHYSICALGROUP(N2).MAT=PHYSICALGROUP(IA1(2)).MAT
             ENDIF  
+            IF(PHYSICALGROUP(N2).MAT(1)==0.AND.SELF.MAT>0) THEN
+                PHYSICALGROUP(N2).MAT=SELF.MAT
+            ENDIF             
             IF(PHYSICALGROUP(N2).MAT(1)==0) THEN
                 PRINT *,'PLEASE SIGN A MATID TO PHYSICALGROUP(N2) THROUGH "GROUPPARAMETER". N2=',N2
                 STOP
@@ -612,8 +639,18 @@ module DS_Gmsh2Solver
             DO J=1,PHYSICALGROUP(N2).NEL
                 IEL1=PHYSICALGROUP(N2).ELEMENT(J)
                 ELEMENT(IEL1).NNODE=2
-                IF(NODE(ELEMENT(IEL1).NODE(1)).N1==0) THEN
-                    STOP "GHOST NODE N1 SHOULD BE >0. Error in sub WELLBORE_INITIALIZE."
+                INNODE1=ELEMENT(IEL1).NODE(1)
+                IF(NODE(INNODE1).N1==0) THEN
+                    !STOP "GHOST NODE N1 SHOULD BE >0. Error in sub WELLBORE_INITIALIZE."
+                    
+                    NNODE=NNODE+1
+                    NODE(INNODE1).N1=NNODE
+                    IF(NNODE>UBOUND(NODE,DIM=1)) THEN
+                        CALL ENLARGE_AR(NODE,500)       
+                    ENDIF
+                    NODE(NNODE)=NODE(INNODE1)
+                    NODE(NNODE).N1=INNODE1
+                                        
                 ENDIF
                 NODE1(1:ELEMENT(IEL1).NNODE)=[NODE(ELEMENT(IEL1).NODE).N1,ELEMENT(IEL1).NODE]
                 DEALLOCATE(ELEMENT(IEL1).NODE)
@@ -623,6 +660,26 @@ module DS_Gmsh2Solver
         
         !BC
         N1=SELF.WELLNODE
+        !如果边界物理组与球状流或半球状流物理组相等，则新生成一个边界物理组。方便处理。
+        IF(N1==SELF.SPHERICALFLOW.OR.ANY(SELF.SEMI_SF_IPG==N1)) THEN
+            N1=minloc(PHYSICALGROUP.isini,dim=1,MASK=PHYSICALGROUP.isini==0)
+            NPHGP=NPHGP+1
+            PHGPNUM=[PHGPNUM,N1]
+            PHYSICALGROUP(N1)=PHYSICALGROUP(SELF.WELLNODE)
+            CALL ENLARGE_AR(ELEMENT,PHYSICALGROUP(N1).NEL)
+            ELEMENT(NEL+1:NEL+PHYSICALGROUP(N1).NEL)=ELEMENT(PHYSICALGROUP(SELF.WELLNODE).ELEMENT)
+            ELEMENT(NEL+1:NEL+PHYSICALGROUP(N1).NEL).NNODE=1
+            DO I=1,PHYSICALGROUP(N1).NEL            
+                ELEMENT(NEL+I).NODE=ELEMENT(PHYSICALGROUP(SELF.WELLNODE).ELEMENT(I)).NODE(2)
+            ENDDO            
+            PHYSICALGROUP(N1).ET="ELT_BC_OR_LOAD"
+            PHYSICALGROUP(N1).ET_GMSH=15
+            PHYSICALGROUP(N1).ISMODEL=.FALSE.
+            PHYSICALGROUP(N1).ELEMENT=[NEL+1:NEL+PHYSICALGROUP(N1).NEL]
+            NEL=NEL+PHYSICALGROUP(N1).NEL
+            SELF.WELLNODE=N1
+        ENDIF
+
         SELF.NQNODE=PHYSICALGROUP(N1).NEL
         N2=1
         IF(SELF.NSPG_FACE>0) N2=1+MAXVAL(PHYSICALGROUP(SELF.SPG_FACE(1:SELF.NSPG_FACE)).NEL)
@@ -926,7 +983,66 @@ module DS_Gmsh2Solver
     
 
     END FUNCTION    
-    
+    subroutine pg_name2zone_and_layer(this)
+        implicit None
+        class(physicalGroup_type)::this
+        character(len=:),allocatable::str1
+        integer::i,n1,n2
+
+        if(this.ndim/=modeldimension) return
+        
+        str1=this.name
+        !assume the name has the substring like "...+(Z+num)_+...(L+num)_+..."
+        call lowcase(str1)
+
+        n1=index(str1,'z')
+        n2=len_trim(str1)
+        do i=n1+1,N2
+            if(index('-0123456789',str1(i:i))==0) exit 
+        enddo             
+        if(n1>0.and.scan(str1(n1+1:i-1),'0123456789')>0) read(str1(n1+1:i-1),'(I)') this.izone
+        n1=index(str1,'l')
+        do i=n1+1,N2
+            if(index('-0123456789',str1(i:i))==0) exit 
+        enddo
+        if(n1>0.and.scan(str1(n1+1:i-1),'0123456789')>0) read(str1(n1+1:i-1),'(I)') this.ilayer
+
+        deallocate(str1,stat=n1)
+
+    end subroutine
+
+    subroutine pg_mat_et_handle(this)
+        implicit None
+        class(pg_mat_et_type)::this
+        integer::i,j,n1
+
+        !if(this.izone<0) return
+
+        if(modeldimension==2.and.len_trim(this.et)==0) then
+            this.et='CPE3_SPG'
+        elseif(modeldimension==3.and.len_trim(this.et)==0) then
+            this.et='TET10_SPG'
+        endif
+
+        do i=1,nphgp
+            n1=phgpnum(i)
+            if(physicalgroup(n1).ndim/=modeldimension) cycle
+            if(this.izone==0.or.abs(this.izone)==physicalgroup(n1).izone)then
+                if(this.ilayer==0.or.abs(this.ilayer)==physicalgroup(n1).ilayer) then
+                    physicalgroup(n1).mat(1)=this.mat
+                    physicalgroup(n1).et=trim(adjustl(this.et))
+                    if(this.izone>=0.and.this.ilayer>=0) then
+                        physicalgroup(n1).ismodel=.true.
+                    else
+                        physicalgroup(n1).ismodel=.false.
+                    endif
+                endif
+            endif
+        enddo        
+    ENDSUBROUTINE
+
+ 
+
 subroutine plane_exp2imp_3d ( p1, p2, p3, a, b, c, d )
 
 !*****************************************************************************80

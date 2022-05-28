@@ -253,7 +253,8 @@
 	INTEGER, PARAMETER::RZ_BC = 97
 
 	INTEGER,PARAMETER::PSIGMA=101,PSIGMA1=101,PSIGMA2=102,PSIGMA3=103,APSIGMA1=104 !SIGMA1 作用面平行方向
-	INTEGER, PARAMETER::PoreSize = 130, ThroatSize = 131, ThroatFriction = 132, ThroatRe = 133, ThroatQ = 134, ParticalSize = 135
+	INTEGER, PARAMETER::PoreSize = 130, ThroatSize = 131, ThroatFriction = 132, ThroatRe = 133, ThroatQ = 134, ParticalSize = 135, &
+	PF_CC = 136, PF_len_clogging = 137, PF_PC = 138, throatDiameter = 139, THROATVOL=140,ELT_ID=141
 	
 	
 

@@ -2,11 +2,12 @@
 subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)	
 	use solverds
     use voropp,only:voropp_handle
+    use PoreNetWork
 	implicit none
 	integer::iincs,iiter,isubts,file_unit,ieset,file_diagram
 	logical::iscon,isfirstcall,isbarfamily,anybarfamily,isset1
 	integer::i,j,nc,n1,k,k1,iset1,izt1,nout1,nzone1
-	character(1024)::cstring=''
+	character(1024)::cstring='',tec_vars=''
     character(16)::cword1='',cword2='',cword3=''
 	real(8)::rar(MNDOF),t1
 
@@ -95,6 +96,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 		write(file_unit,'(a1024)') cstring
 		call tecplot_variables(cstring)
 		write(file_unit,'(a1024)') cstring
+        tec_vars=cstring
 		isfirstcall=.false.
 	else
 		open(unit=file_unit,file=resultfile2,status='old',access='append')
@@ -272,8 +274,10 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 		
 	close(file_unit)
     
-    if(isporeflow>0) call voropp_handle(volfile=volfile)
-
+    if(isporeflow>0) then
+        call pnw.out2tec(tec_vars,iincs,iiter,isubts)
+        call voropp_handle(volfile=volfile)
+    endif
 	999 format(<nc>E15.7)
 	9999 format(<nc>I7)
 end subroutine
@@ -514,7 +518,10 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 				where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=tdisp(node.dof(idof))
 			case(poresize)
 				idof=4
-				where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=node.Poresize                
+				where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=node.Poresize
+			! case(PF_CC)
+			! 	idof=4
+			! 	where(node.dof(idof)>0) NodalQ(:,i,NnodalQ)=node.CC				                
             CASE(SNET)
                 IF(NDIMENSION<3) THEN
                     NodalQ(:,i,NnodalQ)=STREAMFUNCTIONCAL(ISTEP,ISUBTS)
@@ -1138,7 +1145,11 @@ subroutine BlOCKout(file_unit,ISTEP,ISUBTS,ITER)
 				write(file_unit,999)  tdisp(node.dof(idof))
 			case(PoreSize)
 				
-				write(file_unit,999)  node.Poresize                
+				write(file_unit,999)  (node.Poresize*6/PI())**(1/3.0)
+            CASE(throatDiameter)
+                write(file_unit,999)  (-1.0,j=1,NNUM) !nodata to output in this format.
+			case(PF_CC)				
+				write(file_unit,999)  node.CC				                
 			case(Phead)
 				idof=4
 				if(ndimension==2) write(file_unit,999) tdisp(node.dof(idof))-node.coord(2)
@@ -1253,8 +1264,14 @@ subroutine BlOCKout(file_unit,ISTEP,ISUBTS,ITER)
                 write(file_unit,999)  abs(element.flux(1))
             case(throatFriction)
                 write(file_unit,999)  1.0/element.km(1,1)
-            
-                
+            case(PF_LEN_CLOGGING)
+                write(file_unit,999)  element.pfp(6)+element.pfp(7)  
+			case(PF_PC)         
+                write(file_unit,100)  int(element.pfp(8)+element.pfp(9))
+			case(THROATVOL)         
+                write(file_unit,999)  element.pfp(4)+element.pfp(5)	
+			case(ELT_ID)         
+                write(file_unit,100)  [1:ENUM]	                
 		end select		
 		i=i+outvar(vo(i)).nval
     end do
@@ -1263,7 +1280,7 @@ subroutine BlOCKout(file_unit,ISTEP,ISUBTS,ITER)
     !call out_datapoint(ISTEP,ISUBTS,ITER)
     
 999 format(20E15.7)
-		
+100 format(20I8)		
 end subroutine
 
 subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
@@ -1325,11 +1342,11 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 			write(cword4,*) 'point'
 		else
 			n1=0
+			cword5=''
 			do j=1,nvo
 				if(outvar(vo(j)).iscentre)then
 				n1=n1+1	
-				write(cword6,*) j
-                
+				write(cword6,*) j                
 				cword5=trim(adjustL(cword5))//trim(adjustL(cword6))//','
 				end if
             end do            

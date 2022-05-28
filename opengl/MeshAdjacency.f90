@@ -557,7 +557,7 @@ SUBROUTINE SETUP_FACE_ADJL_TET(FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NOD
             IF(IFACE1==0) THEN
                 NADJL1(NODE1(N2))=N1+1
                 IF(N1+1>MAXADJL1) THEN                
-                    print *, 'MAX_FACE_ADJ NEEDS TO BE  ENLARGED BY APPENDING "MAX_FACE_ADJ=XXX" TO THE KEYWORD "SolverControl".MAX_FACEE_ADJ=',MAX_FACE_ADJ
+                    print *, 'MAX_FACE_ADJ NEEDS TO BE  ENLARGED BY APPENDING "MAX_FACE_ADJ=XXX" TO THE KEYWORD "SolverControl".MAX_FACE_ADJ=',MAX_FACE_ADJ
                     stop
                 ENDIF
                 ADJL1(1:N2-1,N1+1,NODE1(N2))=NODE1(1:N2-1)

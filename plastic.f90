@@ -1,6 +1,7 @@
 !generation plastic body force using newtonraphson method.
 subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 	use solverds
+    use PoreNetWork
 	implicit none
 	logical::iscon,tof1,tof2
 	integer::i,j,k,n1,iiter,n2=0,istep,ayf=0,ayf1=0,i1,j1,k1,isubts
@@ -25,10 +26,11 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
     QWAN=0.D0
 	if(stepinfo(istep).issteady) then
 		dt1=1.D0
+		if(pnw.isclogging>0.and.pnw.dt>0) dt1=pnw.dt
 	else
 		dt1=timestep(istep).subts(isubts)
 	end if
-	
+	if(pnw.isclogging>0) call pnw.cal_cc(stepdis,istep,isubts,iiter)
 	do i=1,enum
 		if(element(i).isactive==0) cycle
 

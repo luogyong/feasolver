@@ -917,8 +917,8 @@ subroutine elt_bc_load_translate()
 			    do k=1,element(n1).nnode
 				    n2=element(n1).node(k)
                     if(node(n2).inode<1) then
-                        print *, "Warning. 单元模型中没有包含边界条件节点N,请确认GROUPPARAMETER是否有误.N=",n2
-                        cycle
+                        print *, "Warning. 单元模型中没有包含边界条件节点N,请确认GROUPPARAMETER是否有误.N,PGGROUP=",n2,elt_bc(i).group
+                        ERROR STOP
                     endif
 				    if(nodalload1(n2)==0) then
 					    nnodalBC=nnodalBC+1 
@@ -938,8 +938,8 @@ subroutine elt_bc_load_translate()
 			    do k=1,element(n1).nnode
 				    n2=element(n1).node(k)
                     if(node(n2).inode<1) then
-                        print *, "Warning. 单元模型中没有包含井边界条件节点N,请确认GROUPPARAMETER是否有误.N=",n2
-                        cycle
+                        print *, "Warning. 单元模型中没有包含井边界条件节点N,请确认GROUPPARAMETER是否有误.N,PGGROUP,=",n2,elt_bc(i).group
+                        ERROR STOP
                     endif                    
 				    if(nodalload1(n2)==0) then
 					    NWELLHEAD=NWELLHEAD+1 
@@ -969,7 +969,7 @@ subroutine elt_bc_load_translate()
 				n2=element(n1).node(k)
                 if(node(n2).inode<1) then
                     print *, "Warning. 单元模型中没有包含出溢面节点N,请确认GROUPPARAMETER是否有误.N=",n2
-                    cycle
+                    ERROR STOP
                 endif
 				if(nodalload1(n2)==0) then
 					nspgface=nspgface+1 
@@ -995,7 +995,7 @@ subroutine elt_bc_load_translate()
                 n2=element(n1).node(k)
                 if(node(n2).inode<1) then
                     print *, "Warning. 单元模型中没有包含水面线边界节点N,请确认GROUPPARAMETER是否有误.N=",n2
-                    cycle
+                    ERROR STOP
                 endif                 
                 if(nodalload1(n2)==0)then
                     wsp(i).nnode= wsp(i).nnode+1
@@ -1060,7 +1060,7 @@ subroutine elt_bc_load_translate()
                 n2=element(n1).node(k)
                 if(node(n2).inode<1) then
                     print *, "Warning. 单元模型中没有包含数据线节点N,请确认GROUPPARAMETER是否有误.N=",n2
-                    cycle
+                    ERROR STOP
                 endif                 
                 if(nodalload1(n2)==0)then
                     DataPoint(i).nnode= DataPoint(i).nnode+1

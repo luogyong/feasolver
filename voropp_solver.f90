@@ -429,7 +429,7 @@ module voropp
                     !    write(unit1,41)  element.property(2)
                     !case(throatRe)
                     !    write(unit1,41)  element.property(3)
-                    !case(throatQ)
+                    !case(throatQ      )
                     !    write(unit1,41)  abs(element.flux(1))
                     !case(throatFriction)
                     !    write(unit1,41)  1.0/element.km(1,1)

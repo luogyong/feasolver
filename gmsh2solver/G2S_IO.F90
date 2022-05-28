@@ -73,7 +73,11 @@ subroutine readin()
 			PHYSICALGROUP(phgpnum(I)).ISMASTER=.FALSE.
 			PHYSICALGROUP(phgpnum(I)).ELEMENT=PHYSICALGROUP(PHYSICALGROUP(phgpnum(I)).COUPLESET).ELEMENT
 		ENDIF
-	ENDDO
+    ENDDO
+    
+    do i=1,npgme
+		call pg_mat_et(i).set()
+	enddo
 		
 	return
 
@@ -191,6 +195,11 @@ subroutine kwcommand(term,unit)
 	strL1=len_trim(term)
 	
 	select case (term)
+	case('maxadj')
+		print *, 'Reading the MAXADJ ...'
+        call skipcomment(unit)
+        read(unit,*) maxadj
+
     CASE('helpfile')
         print *, 'WRITING A HELPFILE IN THE CURRENT DIR'
         
@@ -202,6 +211,7 @@ subroutine kwcommand(term,unit)
     CASE("endhelpfile")
         strL1=11
         write(*, 20) "ENDHELPFILE" 
+    
         
     CASE('cut_off_wall_material','cow_mat','cowmat')
         print *, 'READING cut_off_wall_material DATA...'
@@ -486,7 +496,7 @@ subroutine kwcommand(term,unit)
 						    en1(15)=element(n1).node(13)
 						    element(n1).node(4:15)=en1(4:15)                            
                         end if    
-                    case(11) !tet10???????????????????????????????????????¨°????????????????¡À??????FEASOLVER??????????
+                    case(11) !tet10?????????????????????????????????????????????????????????????????FEASOLVER??????????
                         !Tetrahedron10:
                         !
                         !           2
@@ -717,6 +727,7 @@ subroutine kwcommand(term,unit)
 				phgpnum(i)=n2
 				physicalgroup(n2).ndim=n1
 				physicalgroup(n2).name=str1
+				call physicalgroup(n2).name2zal()
 			end do
 		
 			
@@ -740,7 +751,23 @@ subroutine kwcommand(term,unit)
 			end do
 		case('endgroupparameter')	
 			strL1=LEN('groupparameter')
-			write(*, 20) "GROUPPARAMETER"		
+			write(*, 20) "GROUPPARAMETER"
+		case('groupparameter2')
+			call skipcomment(unit)
+			read(unit,*) npgme
+			allocate(pg_mat_et(npgme))
+			do i=1,npgme
+				!call skipcomment(unit)
+				!read(unit, *) n1,n2,str1
+				call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)								
+				pg_mat_et(i).izone=int(ar(1))
+				pg_mat_et(i).ilayer=int(ar(2))
+                pg_mat_et(i).mat=int(ar(3))
+				if(nset>0) pg_mat_et(i).et=trim(adjustl(set(1)))			
+			end do
+		case('endgroupparameter2')	
+			strL1=LEN('groupparameter2')
+			write(*, 20) "GROUPPARAMETER2"        
 		CASE('includefile')
 			call skipcomment(unit)
 			read(unit,*) N3
@@ -1106,7 +1133,7 @@ subroutine Tosolver()
         write(ch2,180) physicalgroup(N1).mat(1)
 		CH1=TRIM(adjustl(physicalgroup(N1).NAME))//TRIM(adjustl(CH2))
 		call lowcase(physicalgroup(N1).et,len(physicalgroup(N1).et))
-		if(.NOT.physicalgroup(N1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD?????????????¨¦???????????
+		if(.NOT.physicalgroup(N1).ISMODEL) cycle  !ET=ELT_BC_OR_LOAD??????????????????????????
 		item=len_trim(adjustL(physicalgroup(N1).et))
 		ITEM1=len_trim(adjustL(CH1))
         IF(physicalgroup(N1).nel==0) CYCLE

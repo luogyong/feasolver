@@ -15,6 +15,7 @@ subroutine solve_SLD()
 	use solverds
     use ifqwin
     USE IFCORE
+	use PoreNetWork
 	implicit none
 	integer::i,j,iincs,iiter,istep=1,isubts=0,isref_spgcount=0
 	integer::kref=0,dof1,NC1
@@ -123,6 +124,7 @@ subroutine solve_SLD()
 		end if
 		
 		
+		if(pnw.isclogging>0) call pnw.updateRand()
 		
 		do isubts=1,timestep(iincs).nsubts
 			START_TIME = DCLOCK()
@@ -136,6 +138,7 @@ subroutine solve_SLD()
             
 			stepdis=0.0d0 !the incremental displacement of the current step.
             !if(iincs==4) solver_control.niteration=4
+            
 			do while(iiter<=solver_control.niteration)
 				NYITER=0
 				MYFVAL=-1E3
@@ -369,7 +372,14 @@ subroutine solve_SLD()
 			
 			Tdisp=Tstepdis(:,iincs) !!for outdata
 			if(isexca2d/=0) call Beam_Result_EXCA(iincs)
-			
+			if(pnw.isclogging>0) then
+				node.cc=node.cc+pnw.dc
+				where(element.et==poreflow) 
+                    element.pfp(8)=element.pfp(8)+pnw.nPc(1,:)
+                    element.pfp(9)=element.pfp(9)+pnw.nPc(2,:)
+                end where
+                
+			endif
             
 			call outdata(iincs,iiter,iscon,isfirstcall,isubts)
 		

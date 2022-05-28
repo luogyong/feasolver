@@ -256,6 +256,17 @@ enddo
             do i=1,nvface_pg
                 call vface_pg(i).readin(unit)
             enddo 
+		case('node_pg')
+			print *,'Reading node_pg Zone data...'
+			call skipcomment(unit)
+			read(unit,*) nnode_pg
+			allocate(node_pg(nnode_pg))
+			if(nnode_pg>0) call node_pg(1).help(node_pg(1).helpstring)
+			do i=1,nnode_pg
+				call node_pg(i).readin(unit)
+			enddo 
+
+
         case('model')
 		   print *,'Reading model data...'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
@@ -336,7 +347,7 @@ enddo
 		   print *,'Reading POINT data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
 		   write(*,'(A1024)') '\n Point的输入格式为:\n &
-           &    0) Point[,soillayer=#,inpmethod=0|1|2,zorder=0|1,isnorefined=0|1|-1|-a],poly3d=0|1|,ismerged=0|1,iscompounded=0|1 \n  &
+           &    0) Point[,soillayer=#,inpmethod=0|1|2,zorder=0|1,isnorefined=0|1|-1|-a],poly3d=0|1|,ismerged=0|1,iscompounded=0|1,ismeshsize=0|1 \n  &
            &    1) 点数(inpn);\n &
            &    2) 序号(num),坐标(x),坐标(y),[elevation(1:soillayer+1)][,meshsize]. 共inpn行.\n &
            &    Notes: \n &
@@ -350,7 +361,8 @@ enddo
            &        h) 当soillayer>0时，最外圈模型边界点要求输入各地层高程，因为外插不可控。\n &
            &        i) poly3d=0,不输出tetgen的poly文件;=1,输出facetpoly文件。\n &
            &        j) ismerged=0,不合并小网格;=1,合并小网格\n &
-           &        h) iscompounded,=0,gmsh options.\n &    
+           &        k) iscompounded,=0,gmsh options.\n &   
+		   &        l) ismeshsize,是否输出单元尺度大小到geo文件中,N0Y1,.\n &    
            &'C
 		   oldcolor = SETTEXTCOLOR(INT2(15))
             do i=1, pro_num
@@ -369,6 +381,8 @@ enddo
                 case('poly3d')
                     poly3d=int(property(i).value)
                 case('ismerged')
+                    ismerged=int(property(i).value)
+				case('ismeshsize')
                     ismerged=int(property(i).value)
                 case('iscompounded')
                     iscompounded=int(property(i).value)                     
@@ -653,21 +667,28 @@ enddo
 				  if(dn>1) then
 					 csl(i).flag=int(ar(2))
 					 if(dn>2) csl(i).hole=int(ar(3))
-				  endif
+                  endif
+                  
 				  !read(unit,*) csl(i).num,csl(i).flag,csl(i).hole
 				  !if(csl(i).flag==0) csl(i).hole=0
-				  allocate(csl(i).conpoint(3,csl(i).num),csl(i).point(csl(i).num))
+				  
 				  !if(csl(i).num>100) then
 				 !	write(*,*) '控制线点的数目超过限值（100）！'
 				 !	stop
 				 ! end if
 				  if(allocated(b)) deallocate(b)
 				  allocate(b(csl(i).num))
-				  call strtoint(unit,ar,dnmax,dn,csl(i).num)
+				  call strtoint(unit,ar,dnmax,dn,csl(i).num) 
+                  
 				  b(1:dn)=nint(ar(1:dn))
+                  if(b(1)==b(dn)) then !处理输入闭合控制线时，输入首尾节点相同的情况
+                      dn=dn-1
+                      csl(i).flag=1
+                  endif
+                  csl(i).num=dn    
 				  csl(i).point=b(1:dn)
 				  !read(unit,*)  b
-				 
+				  allocate(csl(i).conpoint(3,csl(i).num))
 				  do j=1,csl(i).num
 					 csl(i).conpoint(1,j)=arr_t(b(j)).x
 					 csl(i).conpoint(2,j)=arr_t(b(j)).y

@@ -84,6 +84,7 @@
         well_file=trim(drive)//trim(dir)//trim(name)//'_well_res.dat'
         flownet_file=trim(drive)//trim(dir)//trim(name)//'_flownet_tec.plot'
         volfile=trim(drive)//trim(dir)//trim(name)//'.vol'
+		poreflowfile=trim(drive)//trim(dir)//trim(name)//'_poreflow.plot'
 	end if
     
 	open(99,file=resultfile3,status='replace')
@@ -478,6 +479,7 @@ subroutine solvercommand(term,unit)
     use ds_hyjump
     USE DS_SlopeStability
     use DownWaternSettlement,only:settlement_head
+    use PoreNetWork,only:pnw
 	implicit none
     
 	integer::unit
@@ -563,7 +565,9 @@ subroutine solvercommand(term,unit)
 				end select
 			end do            
 		    
-        
+        case('pnw_clogging')
+            
+            CALL pnw.readin(unit)
 		case('node')
 			print *, 'Reading NODE data...'
             n1=0
@@ -584,11 +588,13 @@ subroutine solvercommand(term,unit)
 			allocate(node(nnum))
 			if (datapacking==1) then
 				call skipcomment(unit)
-				if(isporeflow==0) then
-                    read(unit,*) ((node(i).coord(j),j=1,ndimension),i=1,nnum)
-                else
-                    read(unit,*) ((node(i).coord(j),j=1,ndimension),node(i).poresize,i=1,nnum)
-                endif
+				! if(isporeflow==0) then
+				do i=1,nnum
+					read(unit,*) (node(i).coord(j),j=1,ndimension)
+				enddo
+                ! else
+                !     read(unit,*) ((node(i).coord(j),j=1,ndimension),node(i).poresize,i=1,nnum)
+                ! endif
                 
 			else
 				call skipcomment(unit)
@@ -955,7 +961,32 @@ subroutine solvercommand(term,unit)
                         endif
 						if(n1>nnum1+1) then
 							element1(i).property(1)=ar(nnum1+2)  !frictional resistance
-						endif
+                        endif
+                        if(isporeflow>0) then
+                            if(.not.allocated(element1(i).pfp)) then
+								allocate(element1(i).pfp(11))
+								element1(i).pfp=0.0d0
+                            endif
+                        endif
+                        
+						do j=1,3
+							if(n1>nnum1+1+j) then
+								!if(.not.allocated(element1(i).pfp)) then
+								!	allocate(element1(i).pfp(11))
+								!	element1(i).pfp=0.0d0
+								!endif
+								element1(i).PFP(j)=ar(nnum1+2+j)  !D1,D2,Lr
+							endif
+                        enddo
+                        
+						if(element1(i).PFP(1)<=0.0d0)	element1(i).PFP(1)=element1(i).property(2)
+						if(element1(i).PFP(2)<=0.0d0)	element1(i).PFP(2)=element1(i).property(2)
+						if(element1(i).PFP(3)<=0.0d0)	element1(i).PFP(3)=0.5d0
+						element1(i).property(4)=norm2(node(element1(i).node(2)).coord-node(element1(i).node(1)).coord)	
+						element1(i).PFP(4)=vol_cone(element1(i).property(4)*element1(i).PFP(3),element1(i).PFP(1)/2.,element1(i).property(2)/2.)
+						element1(i).PFP(5)=vol_cone(element1(i).property(4)*(1.0-element1(i).PFP(3)),element1(i).PFP(2)/2.,element1(i).property(2)/2.)
+                        node(element1(i).node(1:2)).poresize=node(element1(i).node(1:2)).poresize+element1(i).pfp(4:5)
+
 					case default
                     	element1(i).nnum=nnum1
                         if(n3<1) then
@@ -1648,7 +1679,9 @@ subroutine solvercommand(term,unit)
                     case('time_unit','tunit')
                         solver_control.time_unit=int(property(i).value)
                     case('len_unit','lunit')
-                        solver_control.len_unit=int(property(i).value)                        
+                        solver_control.len_unit=int(property(i).value) 
+					!case('pnw_clogging') 
+					!	solver_control.pnw_clogging=int(property(i).value)                      
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -2048,7 +2081,24 @@ subroutine solvercommand(term,unit)
 				inivalue(i).value=ar(3)
 				if(n1==4) inivalue(i).sf=int(ar(4))
 			end do
-		
+		!case('ccbc',)
+		!	print *,'Reading Initial Concentration Value data...'
+		!	do i=1,pro_num
+		!		select case(property(i).name)
+		!			case('num')
+		!				nccbc=int(property(i).value)
+		!			case default
+		!				call Err_msg(property(i).name)
+		!		end select
+		!	end do
+		!	allocate(ccbc(nccbc))
+		!	do i=1,nccbc
+		!		call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
+		!		ccbc(i).node=int(ar(1))
+		!		ccbc(i).dof=int(ar(2))
+		!		ccbc(i).value=ar(3)
+		!		if(n1==4) ccbc(i).sf=int(ar(4))
+		!	end do		
 		case('slave_master_node_pair','smnp')
 			print *, 'Reading SLAVE-MASTER NODE PAIR'
 			do i=1,pro_num
@@ -2517,12 +2567,29 @@ subroutine solvercommand(term,unit)
 						outvar(throatfriction).name='ThroatFriction'
 						outvar(throatfriction).value=throatfriction
                         outvar(throatfriction).iscentre=.true.   
-						outvar(throatRe).name='throatRe'
-						outvar(throatRe).value=throatRe
-                        outvar(throatRe).iscentre=.true.
+						outvar(throatDiameter).name='throatDiameter'
+						outvar(throatDiameter).value=throatDiameter
+                        !outvar(throatDiameter).iscentre=.true.
 						outvar(throatQ).name='throatQ'
 						outvar(throatQ).value=throatQ
-                        outvar(throatQ).iscentre=.true.
+                        outvar(throatQ).iscentre=.true.	
+						outvar(THROATVOL).name='THROATVOL'
+						outvar(THROATVOL).value=THROATVOL
+                        outvar(THROATVOL).iscentre=.true.												
+						if(pnw.isclogging>0) then
+							outvar(PF_CC).name='Concentration'
+							outvar(PF_CC).value=PF_CC
+							!outvar(PF_CC).iscentre=.true.
+							outvar(PF_LEN_CLOGGING).name='CloggingLen'
+							outvar(PF_LEN_CLOGGING).value=PF_LEN_CLOGGING
+							outvar(PF_LEN_CLOGGING).iscentre=.true.	
+							outvar(PF_PC).name='ParticleClogging'
+							outvar(PF_PC).value=PF_PC
+							outvar(PF_PC).iscentre=.true.
+							outvar(ELT_ID).name='EID'
+							outvar(ELT_ID).value=ELT_ID
+							outvar(ELT_ID).iscentre=.true.																				
+						endif
                         !disable h_bc out 
                         outvar(h_bc).value=0
                         

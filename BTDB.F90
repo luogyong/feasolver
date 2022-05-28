@@ -61,6 +61,15 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
                 xy(3,4)=1.0d-3
                 element(ienum).property(1)=1.0d-9/6
             endif
+            if(element(ienum).et==tet10_spg) then
+                xy(1:ndim,5)=(xy(1:ndim,1)+xy(1:ndim,2))/2.0d0
+				xy(1:ndim,6)=(xy(1:ndim,2)+xy(1:ndim,3))/2.0d0
+				xy(1:ndim,7)=(xy(1:ndim,1)+xy(1:ndim,3))/2.0d0
+				xy(1:ndim,8)=(xy(1:ndim,1)+xy(1:ndim,4))/2.0d0
+				xy(1:ndim,9)=(xy(1:ndim,2)+xy(1:ndim,4))/2.0d0
+				xy(1:ndim,10)=(xy(1:ndim,3)+xy(1:ndim,4))/2.0d0
+            endif
+            
         endif
             
      endif
