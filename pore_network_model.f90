@@ -3,7 +3,7 @@ module PoreNetWork
         strtoint,material,kc_k,nstep,solver_control,ndof,poreflowfile,title,esetid,eset,neset,&
         tdisp,sf,vo,nvo,outvar,ndimension,timestep,isIniSEdge,locx,locy,locz,head,phead,discharge,throatFriction,&
         throatQ,throatDiameter,PF_CC,PF_LEN_CLOGGING,PF_PC,ThroatSize,PoreSize,hagen_poiseuille_friction,THROATVOL,ELT_ID,&
-        bc_disp,bd_num
+        bc_disp,bd_num,property,pro_num,get_free_file_unit_number
     USE MESHADJ,ONLY:SNADJL    
     use GeoMetricAlgorithm,only:NORMAL_TRIFACE
     use cubic_root                        
@@ -14,6 +14,7 @@ module PoreNetWork
     logical::isfirstcall=.true.
     integer::nzone_tec=0,varsharezone_tec=0
     integer,parameter::ne_tube=24,nn_tube=39
+    logical::isseeded=.false.
     type tube_element_type
         integer::element(8,ne_tube)=0           
         real(8)::node(3,nn_tube)=0.0
@@ -22,8 +23,8 @@ module PoreNetWork
         character(1024)::helpstring= &
         &"PNW_CLOGGING的作用是实现实现孔隙网络的颗粒淤堵模拟。\n &
         & \n PNW_CLOGGING的输入格式为:\n &
-        & 0) pnw_clogging \n &	
-        & 1) cc,pd,Nbc,NSTEP,[Friction,DT,TT,ISCLOGGING,phi_pc,sfreq] \n &
+        & 0) pnw_clogging,[model=0|1] \n &	
+        & 1) cc,pd,Nbc,NSTEP,[Friction,DT,TT,ISCLOGGING,phi_pc,sfreq,vcr] \n &
         & 1.1) N1,N2,...,Nn  //浓度边界节点号, n=Nbc\n &
         & cc=悬浮液浓度 \n &
         & pd=悬浮颗粒直径 \n &
@@ -33,12 +34,17 @@ module PoreNetWork
         & dt=时间步长,DT<=0,则步长由计算自定(默认) \n &
         & tt=总模拟时间,TT<=0(默认), 计算步达nstep则停止计算;TT>0时,Sum(DT)>TT或达到规定计算步nstep则停止计算 \n &
         & isclogging=计算类型:0,仅计算流场,不进行浓度场及淤堵(默认);1,计算浓度场;2,计算淤堵。\n &
-        & phi_pc=淤积体的孔隙率(默认为0.4) \n &  
-        & sfreq=保存数据的频率.=n,表示每n步存数据结果一次(默认sfreq=1). \n &         
+        & phi_pc=淤积体的孔隙率(默认为0.4) \n &          
+        & sfreq=保存数据的频率.=n,表示每n步存数据结果一次(默认sfreq=1). \n & 
+        & vcr=parameter for Reddi model. a critical velocity beyond which no particle deposition is likely(1mm/s by default.). \n &          
+        & !=0,Li model(默认).=1,Reddi model       \n &
+        & Li model=A Probability-Based Pore Network Model of Particle Jamming in Porous Media. https://doi.org/10.1007/s11242-021-01673-4    \n &
+        & Reddi model=Upscaling polydispersed particle transport in porous media using pore network model. https://doi.org/10.1007/s11440-020-01038-z \n &     
         & "C        
 
         logical::isini=.false. !是否已经初始化
         integer::isclogging=0,nstep=1,save_freq=1 !是否进行淤堵计算，默认Yes.
+        integer::model=0 !=0,Li model(默认).=1,Reddi model
         integer::nbc !浓度边界节点的个数
         real(8)::ParticleDiameter !悬浮颗粒的直径
         real(8)::friction=0.5
@@ -46,6 +52,7 @@ module PoreNetWork
         real(8)::ttime=-1.0 !模拟的总时间
         real(8)::cc !悬浮液浓度
         real(8)::phi_pc=0.4 !细粒淤积体的孔隙率
+        real(8)::vcr=1.0 !细粒不发生淤堵的临界速度,默认为1mm/s
         integer,allocatable::isclogged(:)
         integer,allocatable::bcnode(:) !浓度边界节点号
         real(8),allocatable::nPc(:,:) !accumulated clogging number in each element.
@@ -155,7 +162,7 @@ module PoreNetWork
         class(PoreNetWork_type)::this
         integer,intent(in)::iiter 
         real(8),intent(in)::dt 
-        real(8)::cc1,fn1,sr1,P0,P1,P2,vp1,vpc1,lpc1,kpc1,t1,kc1,npc1
+        real(8)::cc1,fn1,sr1,P0,P1,P2,vp1,vpc1,lpc1,kpc1,t1,kc1,npc1,v1
         integer::i,J,n1,np
 
 
@@ -178,10 +185,17 @@ module PoreNetWork
             npc1=cc1*element(i).flux(n1)*dt/(vp1)
 
             if(iiter==1.and.this.isclogged(i)==0) then
-                sr1=element(i).property(2)/this.ParticleDiameter
-                fn1=this.friction
-                P0=this.Po_clogging(cc1,fn1,sr1,npc1)
-                P1=1-(1-P0)**npc1
+                if(element(i).pfp(n1)<this.ParticleDiameter) then
+                    P0=0.0 !如果悬浮颗粒的粒径大于入口直径,则认为不为发生淤堵,根本进不去
+                    P1=0.0D0
+                else
+                    sr1=element(i).property(2)/this.ParticleDiameter
+                    fn1=this.friction
+                    if(this.model/=0) v1=element(i).flux(n1)/(pi()*element(i).property(2)**2/4)
+                    P0=this.Po_clogging(cc1,fn1,sr1,npc1,v1)
+                    P1=1-(1-P0)**npc1
+                endif
+               
             !call random_number(P2)
                 p2=this.rand(i) !保证每次迭代的淤堵概率一致，避免收敛问题
                 if(p1>p2) this.isclogged(i)=1
@@ -257,22 +271,32 @@ module PoreNetWork
 
 
     ! Probability of jamming
-    real(8) function pnw_Po_clogging(this,CC,fn,Sr,npcl)
+    real(8) function pnw_Po_clogging(this,CC,fn,Sr,npcl,velocity)
         implicit None
         class(PoreNetWork_type)::this 
         !CC Volumetric concentration of particles
         !fn, Coefficient of friction (COF)
         !sr,Effective pore radius/particle size ratio
-        real(8),intent(in)::cc,fn,sr
-        real(8),intent(in)::npcl !颗粒数
+        real(8),intent(in)::cc,fn,sr,npcl
+        real(8),optional::velocity
+        real(8)::v1,t2,s1
         if(sr<=1.0d0) then  
             pnw_Po_clogging=1.0d0
+            return
         elseif(cc<=0.d0.or.fn<=0.d0.or.sr>npcl) then
             pnw_Po_clogging=0.d0
-        else
-            pnw_Po_clogging=0.6*(1-exp(-3.33*fn))*(1-exp(-30*cc))/(1+exp(6*sr-13))
+            return
         endif
 
+        if(this.model==0) then       
+            pnw_Po_clogging=0.6*(1-exp(-3.33*fn))*(1-exp(-30*cc))/(1+exp(6*sr-13))            
+        else
+            t2=solver_control.unit_factor('mm')/solver_control.unit_factor('s')
+            v1=velocity*t2
+            s1=3*exp(v1/this.vcr)
+            t2=s1/sr
+            pnw_Po_clogging=max(4*(t2**2-t2**3)+t2**4,0.d0)
+        endif
     end function
 
     subroutine pnw_tube_out2tecplot(this,tec_vars,iincs,iiter,isubts)
@@ -391,6 +415,10 @@ module PoreNetWork
         implicit none 
         class(PoreNetWork_type)::this 
         if(.not.allocated(this.rand)) allocate(this.rand(enum))
+        if(.not.isseeded) then
+            call random_seed()
+            isseeded=.true.
+        endif
         call random_number(this.rand)
 
     endsubroutine
@@ -399,7 +427,7 @@ module PoreNetWork
         implicit none 
         class(PoreNetWork_type)::this 
         integer,intent(in)::unit
-        integer::nmax,nread,ntoread,maxset,nsetread,ef1
+        integer::i,nmax,nread,ntoread,maxset,nsetread,ef1
         real(8),allocatable::ar(:)
         logical::isall 
         character(64)::name1,set(50)
@@ -408,7 +436,15 @@ module PoreNetWork
         print *, 'Reading PNW_CLOGGING data...'
         
         call this.help(this.helpstring,unit)
-        
+            
+        do i=1, pro_num
+            select case(property(i).name)
+                case('model')
+                    this.model=int(property(i).value)
+                case default
+                    call Err_msg(property(i).name)
+            end select
+        end do
         nmax=100;maxset=50
         if(.not.allocated(ar)) allocate(ar(nmax))
         
@@ -424,6 +460,7 @@ module PoreNetWork
         if(nread>7) this.isclogging=int(ar(8))
         if(nread>8) this.phi_pc=ar(9)
         if(nread>9) this.save_freq=int(ar(10))
+        if(nread>10) this.vcr=ar(11)
         allocate(this.bcnode(this.nbc))
         if(this.nbc>nmax) then
             deallocate(ar)
@@ -562,19 +599,19 @@ module PoreNetWork
   return
 end
 
-    integer function get_free_file_unit_number
-
-        integer, parameter :: first_unit=  10
-        integer, parameter :: last_unit =9999
-        logical test
-
-        do get_free_file_unit_number=first_unit,last_unit
-            inquire(get_free_file_unit_number,opened=test)
-            if (.not.test) return
-        enddo
-        get_free_file_unit_number=-1
-
-    end function
+    !integer function get_free_file_unit_number
+    !
+    !    integer, parameter :: first_unit=  10
+    !    integer, parameter :: last_unit =9999
+    !    logical test
+    !
+    !    do get_free_file_unit_number=first_unit,last_unit
+    !        inquire(get_free_file_unit_number,opened=test)
+    !        if (.not.test) return
+    !    enddo
+    !    get_free_file_unit_number=-1
+    !
+    !end function
 
     subroutine tecplot_zonetitle_pf_poreflow(iincs,iiter,isfirstcall,isubts)
         

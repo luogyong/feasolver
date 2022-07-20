@@ -303,7 +303,9 @@ SUBROUTINE SEARCH_MINIMAL_SF_SLOPE(IS_ONLY_SEARCHTOP)
                 PT1(3)=0.0D0
                 PT1(1:POSDATA.NDIM)=POSDATA.NODE(NODE_LOOP_BC(I)).COORD(1:POSDATA.NDIM)
                 IF(PT1(POSDATA.NDIM)<MAXY1) CYCLE
-                CALL gen_new_streamline(PT1)                
+                !write(*,100) pt1(1:2)
+                CALL gen_new_streamline(PT1)
+                !write(*,110) pt1(1:2)
                 NH1=NH1+1
                 IA1(NH1)=I
                 IA2(NH1)=NSTREAMLINE
@@ -365,7 +367,8 @@ SUBROUTINE SEARCH_MINIMAL_SF_SLOPE(IS_ONLY_SEARCHTOP)
     
     RETURN
     
-
+100 format('To gen_new_streamline at point=',2F8.3)
+110 format('Done in gen_new_streamline at point=',2F8.3)
 ENDSUBROUTINE    
     
 

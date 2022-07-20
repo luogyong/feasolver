@@ -290,6 +290,7 @@ module solverds
         integer::time_unit=0 !0,day;1,sec;2,min;3,hour;
         real(kind=DPN)::cdt=1.d0 !concentration integerate time
 		integer::pnw_clogging=0 !if>0
+		integer::well_bottom_type=0 !=0,平底井(默认);<>0,井底为半球底
     contains
         procedure::unit_factor=>unit_scaling_factor
         procedure::get_g=>get_gravity
@@ -1085,7 +1086,7 @@ REAL(8) FUNCTION KC_K(e,dp,temp)
 	t1=t1/t2 !to model unit
 	!t1=rw/u
 	t1=1./t1
-	KC_K=t1*(dp**2)*(e**3)/(150.*(1-e)**2)
+	KC_K=t1*(dp**2)*(e**3)/(180.*(1-e)**2)
 
 ENDFUNCTION
 
@@ -1300,7 +1301,20 @@ endfunction
 		    end if
 	    end do
     end subroutine
-    
+
+    integer function get_free_file_unit_number
+
+		integer, parameter :: first_unit=  10
+		integer, parameter :: last_unit =9999
+		logical test
+
+		do get_free_file_unit_number=first_unit,last_unit
+			inquire(get_free_file_unit_number,opened=test)
+			if (.not.test) return
+		enddo
+		get_free_file_unit_number=-1
+
+	end function
     
 end module
 

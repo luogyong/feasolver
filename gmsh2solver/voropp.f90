@@ -3,7 +3,18 @@ module voropp
     use tetgen_io,only:read_tetgen_file,element_tg,nelt_tg
     implicit none   
     public::voropp_handle 
-    
+
+! // The Voronoi diagram is the geometric dual of the Delaunay triangulation.   //
+! // The Voronoi vertices are the circumcenters of Delaunay tetrahedra.  Each   //
+! // Voronoi edge connects two Voronoi vertices at two sides of a common Dela-  //
+! // unay face. At a face of convex hull, it becomes a ray (goto the infinity). //
+! // A Voronoi face is the convex hull of all Voronoi vertices around a common  //
+! // Delaunay edge. It is a closed polygon for any internal Delaunay edge. At a //
+! // ridge, it is unbounded.  Each Voronoi cell is the convex hull of all Vor-  //
+! // onoi vertices around a common Delaunay vertex. It is a polytope for any    //
+! // internal Delaunay vertex. It is an unbounded polyhedron for a Delaunay     //
+! // vertex belonging to the convex hull.                                       //
+
     
     private
     
@@ -37,8 +48,10 @@ module voropp
     
     TYPE VEDGE_TYDEF
         INTEGER::V(2)=0
-        INTEGER::NELT=0
-        INTEGER,ALLOCATABLE::ELEMENT(:,:) !element(1:3,i)=[icell,iface,iedge]
+        INTEGER::NCELL=0,NFACE=0,NDF=0
+        INTEGER,ALLOCATABLE::CELL(:),FACE(:),DFACE(:) 
+    contains
+        PROCEDURE::DFACE_SET=>VEDGE_TO_DELAUNAY_FACE()
     ENDTYPE
     TYPE(VEDGE_TYDEF),ALLOCATABLE::VEDGE(:)
     INTEGER::NVE=0
@@ -46,9 +59,9 @@ module voropp
     !邻接表
     type adj_tydef
         integer::nnode=0
-        integer,allocatable::node(:)
+        integer,allocatable::node(:),edge(:)
     end type
-    type(adj_tydef),allocatable::VCADJLIST(:)
+    type(adj_tydef),allocatable::VCADJLIST(:),VNADJLIST(:)
     
     type(voropp_cell_tydef),allocatable::VoroppCell(:)
     integer,allocatable::index_p2c(:) !particle id to corresponding cell id
@@ -67,6 +80,19 @@ module voropp
     
     contains
     
+    SUBROUTINE VEDGE_TO_DELAUNAY_FACE(THIS)
+        IMPLICIT NONE
+        CLASS(VEDGE_TYDEF)::THIS
+        
+        IF(THIS.NCELL==3) THEN
+
+        ELSEIF(THIS.NCELL>3) THEN
+
+        ELSEIF(THIS.NCELL==2) THEN
+            error stop 
+        ENDIF
+
+    ENDSUBROUTINE 
     subroutine voro2tet()
         implicit none
         
@@ -841,7 +867,7 @@ end subroutine
                 IF(N2>SIZE(VCADJLIST(N1).NODE)) CALL enlarge_ar(VCADJLIST(N1).NODE,5)
                 VCADJLIST(N1).NODE(N2)=I
             ENDDO
-        enddo
+        ENDDO
     END
 
     !subroutine RECOVER_DELAUNAY_EDGE_FROM_VFACE()
@@ -876,46 +902,111 @@ end subroutine
         DEALLOCATE(VAL1)
     END SUBROUTINE
     
-    !update the adjlist(i).node and adjlist(i).edge,where i=p and v.
-    !subroutine vaddadjlist(adjlist,v1,v2,ICELL,EDGE,NEDGE,JEDGE)
-	    !use meshds,only:adjlist_tydef
-	    !implicit none
-     !   type(adjlist_tydef),allocatable::adjlist(:)
-     !   type(VEDGE_TYDEF),allocatable::EDGE(:)
-	    !integer,intent(in)::v1,v2,ICELL,NEDGE
-     !   integer,optional,intent(out)::JEDGE 
-     !   integer::i,j,v(2),n1,n2,n3,nsize1,jedge1
-	    !integer,pointer::node1(:)=>null(),edge1(:)=>null()
-     !   integer,parameter::maxnadjlist=10
-     !
-	    !if(v1<0.or.v2<0) return !the edge in SuperTri is not taken into the list.
-	    !v(1)=v1
-	    !v(2)=v2
-     !   if(any(v>size(adjlist))) call enlarge_ar(adjlist,100)
-     !
-	    !if(any(adjlist(v1).node==v2)) then
-     !       n2=minloc(abs(adjlist(v1).node-v2),dim=1)
-     !       jedge1=adjlist(v1).edge(n2)
-     !       CALL AddToEdgeList(EDGE,NEDGE,v1,v2,ICELL,jedge1)
-     !   else
-     !       call AddToEdgeList(EDGE,NEDGE,v1,v2,ICELL)
-		   ! do i=1,2
-			  !  n1=v(i)
-			  !  n2=v(mod(i,2)+1)
-			  !  adjlist(n1).count=adjlist(n1).count+1
-			  !  n3=adjlist(n1).count
-			  !  nsize1=size(adjlist(n1).node)
-			  !  if(n3>nsize1) then
-     !               call enlarge_ar(adjlist(n1).node,5)
-     !               call enlarge_ar(adjlist(n1).edge,5)				
-			  !  end if
-			  !  adjlist(n1).node(n3)=n2
-			  !  adjlist(n1).edge(n3)=NEDGE
-     !       end do
-     !       jedge1=NEDGE
-     !   end if
-     !   if(present(jedge)) jedge=jedge1
-     !end subroutine
+    !SUBROUTINE VEDGE_SET()
+    !    implicit none
+    !    integer::I,J
+    !   
+    !    do i=1,nver
+    !        do j=1,vnadjlist(i).nnode
+    !            if(vnadjlist(i).node(j)>i) then
+    !                call AddToEdgeList()
+    !            endif 
+    !        enddo
+    !    endif
+    !    
+    !
+    !END SUBROUTINE
+
+    SUBROUTINE VADJLIST_SET()
+    !生成节点邻接表
+        IMPLICIT NONE 
+        INTEGER::I,J,V1,V2,N1
+        IF(.NOT.ALLOCATED(VNADJLIST)) ALLOCATE(VNADJLIST(NVER)) 
+        DO I=1,NVPPF 
+            N1=VPPFACE(I).NE
+            DO J=1,N1
+                V1=VPPFACE(I).V(J)
+                V2=VPPFACE(I).V(MOD(J,N1)+1)
+                CALL vnaddadjlist(VNADJLIST,v1,v2,i)
+            ENDDO
+        ENDDO    
+
+    END SUBROUTINE
+
+    !update the adjlist(i).node 
+    subroutine vnaddadjlist(adjlist,v1,v2,iface)
+	    implicit none
+        type(adj_tydef)::adjlist(:)
+	    integer,intent(in)::v1,v2,iface
+        integer::i,j,v(2),n1,n2,n3,nsize1,iedge
+     
+	    if(v1<0.or.v2<0) return 
+	    v(1)=v1
+	    v(2)=v2
+        if(v1>v2) then
+            v(1)=v2
+            v(2)=v1
+        endif
+             
+	    if(any(adjlist(v(1)).node==v(2))) then
+            n2=minloc(abs(adjlist(v(1)).node-v(2)),dim=1)
+            iedge=adjlist(v(1)).edge(n2)
+            CALL AddToEdgeList(v(1),v(2),iedge,iface)
+        else
+		    do i=1,2
+                n1=v(i)
+                n2=v(mod(i,2)+1)
+                adjlist(n1).nnode=adjlist(n1).nnode+1
+                n3=adjlist(n1).nnode
+                nsize1=size(adjlist(n1).node)
+                if(n3>nsize1) then
+                    call enlarge_ar(adjlist(n1).node,5)	
+                    call enlarge_ar(adjlist(n1).edge,5)		
+                end if
+			    adjlist(n1).node(n3)=n2
+                if(i==1) then
+                    iedge=0
+                    call AddToEdgeList(n1,n2,iedge,iface)
+                endif
+                adjlist(n1).edge(n3)=iedge
+            end do
+        end if
+     end subroutine
+
+    subroutine AddToEdgeList(v1,v2,iedge,iface)
+        !如果jedge<1,则把vppcell(icell)由节点V1,V2组成的边加入edge数组
+        !否则，则更新edge(jedge).element.
+        implicit none
+        
+        integer,intent(in)::v1,v2,iface
+        integer,intent(inout)::iedge
+        INTEGER::I=0,CELL1(2)
+        IF(IEDGE<1) THEN
+            NVE=NVE+1
+            IF(NVE>SIZE(VEDGE)) CALL VENLARGE_AR(VEDGE,100)
+            VEDGE(NVE).V=[V1,V2]
+            IEDGE=NVE
+        ENDIF
+
+        IF(.NOT.ANY(VEDGE(IEDGE).FACE(:VEDGE(IEDGE).NFACE)==IFACE)) THEN
+            VEDGE(IEDGE).NFACE=VEDGE(IEDGE).NFACE+1
+            IF(VEDGE(IEDGE).NFACE>SIZE(VEDGE(IEDGE).FACE)) CALL enlarge_ar(VEDGE(IEDGE).FACE,5)
+            VEDGE(IEDGE).FACE(VEDGE(IEDGE).NFACE)=IFACE
+        ENDIF
+
+        CELL1=VPPFACE(IFACE).ADJC
+        DO I=1,2
+            IF(CELL1(I)==0) CYCLE 
+            IF(.NOT.ANY(VEDGE(IEDGE).CELL(:VEDGE(IEDGE).NCELL)==CELL1(I))) THEN
+                VEDGE(IEDGE).NCELL=VEDGE(IEDGE).NCELL+1
+                IF(VEDGE(IEDGE).NCELL>SIZE(VEDGE(IEDGE).CELL)) CALL enlarge_ar(VEDGE(IEDGE).CELL,5)
+                VEDGE(IEDGE).CELL(VEDGE(IEDGE).NCELL)=CELL1(I)
+            ENDIF
+        ENDDO
+        
+        
+        
+    end subroutine
 
     ! subroutine Removeadjlist(adjlist,v1,v2)	
 	!     !use meshds,only:adjlist_tydef
@@ -945,33 +1036,6 @@ end subroutine
 	!     end do
     ! end subroutine 
     
-    !subroutine AddToEdgeList(EDGE,NE,v1,v2,ICELL,JEDGE)
-    !    !如果jedge<1,则把vppcell(icell)由节点V1,V2组成的边加入edge数组
-    !    !否则，则更新edge(jedge).element.
-    !    implicit none
-    !    TYPE(VEDGE_TYDEF),ALLOCATABLE::Edge(:)
-    !    integer,intent(in)::v1,v2
-    !    INTEGER,INTENT(IN),OPTIONAL::JEDGE
-    !    integer,intent(out)::NE
-    !    INTEGER::jedge1=0
-
-        !IF(present(jedge)) jedge1=JEDGE
-        !
-        !IF(jedge1<1) THEN
-        !    NE=NE+1
-        !    IF(NE>SIZE(EDGE)) CALL VENLARGE_AR(EDGE,100)
-        !    EDGE(NE).V=[V1,V2]
-        !    jedge1=NE
-        !ENDIF
-        !IF(.NOT.ANY(EDGE(jedge1).ELEMENT(:EDGE(JEDGE1).NELT)==ICELL)) THEN
-        !    EDGE(JEDGE1).NELT=EDGE(jedge1).NELT+1
-        !    IF(EDGE(jedge1).NELT>SIZE(EDGE(jedge1).ELEMENT)) CALL enlarge_ar(EDGE(jedge1).ELEMENT,5)
-        !    EDGE(jedge1).ELEMENT(EDGE(jedge1).NELT)=ICELL
-        !ENDIF
-
-    !
-    !    
-    !
-    !end subroutine
+ 
 
 end module 

@@ -657,8 +657,8 @@ SUBROUTINE WELLBORE_Q_K_UPDATE(STEPDIS,IEL,ISTEP,IITER)
             STOP "ERRORS IN WELLBORE_Q_K_UPDATE"
         ENDIF
         
-         KM1(1:NDOF1,1:NDOF1)=KM_WELLBORE(A1(1),A1(2),A1(3))
-
+        KM1(1:NDOF1,1:NDOF1)=KM_WELLBORE(A1(1),A1(2),A1(3))
+        KM1(1:NDOF1,1:NDOF1)=(ELEMENT(IEL).KM+KM1(1:NDOF1,1:NDOF1))*0.5
     ENDIF
     
     
@@ -954,8 +954,8 @@ SUBROUTINE WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IEL,ISTEP,IITER)
             STOP "ERRORS IN WELLBORE_Q_K_UPDATE_SPMETHOD."
         ENDIF
         
-         KM1(1:NDOF1,1:NDOF1)=KM_WELLBORE(A1(1),A1(2),A1(3))
-
+        KM1(1:NDOF1,1:NDOF1)=KM_WELLBORE(A1(1),A1(2),A1(3))
+        KM1(1:NDOF1,1:NDOF1)=(ELEMENT(IEL).KM+KM1(1:NDOF1,1:NDOF1))*0.5
     ENDIF
     
     
@@ -1224,7 +1224,7 @@ SUBROUTINE WELLBORE_Q_K_UPDATE3(STEPDIS,IEL,ISTEP,IITER)
         ENDIF
         
          KM1(1:NDOF1,1:NDOF1)=KM_WELLBORE(A1(1),A1(2),A1(3))
-
+         KM1(1:NDOF1,1:NDOF1)=(ELEMENT(IEL).KM+KM1(1:NDOF1,1:NDOF1))*0.5
     ENDIF
     
     
@@ -1796,7 +1796,7 @@ SUBROUTINE SPHFLOW_Q_K_SPMETHOD(STEPDIS,IELT,ISTEP,IITER)
     
     INTEGER::I,J,K,IELT1,N1,N2,N3,ANODE1
     REAL(8)::XV1(3),T1,HK1,PHI1,TPHI1,WR1,L1,DV1(3),PI1,RO1,Q1,X1(3),H1,LAMDA1,K1,KM1(2,2),NHEAD1(2),NHEAD2(10,1)
-    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1,SPH1(10),QN1(2)
+    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1,SPH1(10),QN1(2),T2
     LOGICAL::ISISOTROPIC=.FALSE.
    
         
@@ -1853,8 +1853,13 @@ SUBROUTINE SPHFLOW_Q_K_SPMETHOD(STEPDIS,IELT,ISTEP,IITER)
             !PHI1=ELEMENT(IELT1).ANGLE(SNADJL(N1).SUBID(J)) 
             PHI1=1.D0
             TPHI1=TPHI1+PHI1
-           
-            Q1=Q1+(H1-NHEAD1(1))*2.D0*PI1*KR1/(1/WR1-1/RO1)*PHI1    
+            IF(SOLVER_CONTROL.well_bottom_type==0) THEN
+                T2=4.0
+            ELSE
+                T2=2.0*PI1
+            ENDIF
+
+            Q1=Q1+(H1-NHEAD1(1))*T2*KR1/(1/WR1-1/RO1)*PHI1    
                         
                    
 
@@ -1872,6 +1877,7 @@ SUBROUTINE SPHFLOW_Q_K_SPMETHOD(STEPDIS,IELT,ISTEP,IITER)
     
     KM1(1,1)=1.D0;KM1(2,2)=1.D0
     KM1(2,1)=-1.D0;KM1(1,2)=-1.D0
+    T1=(T1+1.0/element(ielt).property(1))/2.0 !!!!
     KM1=KM1*T1
     element(ielt).property(1)=1/T1
 
@@ -1896,7 +1902,7 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE3(STEPDIS,IELT,ISTEP,IITER)
     
     INTEGER::I,J,K,IELT1,N1,N2,N3,ANODE1
     REAL(8)::XV1(3),T1,HK1,PHI1,TPHI1,WR1,L1,DV1(3),PI1,RO1,Q1,X1(3),H1,LAMDA1,K1,KM1(2,2),NHEAD1(2)
-    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1,QN1(2)
+    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1,QN1(2),T2
     LOGICAL::ISISOTROPIC=.FALSE.
    
         
@@ -1957,8 +1963,12 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE3(STEPDIS,IELT,ISTEP,IITER)
                 !PHI1=ELEMENT(IELT1).ANGLE(SNADJL(N1).SUBID(J)) 
                 PHI1=1.D0
                 TPHI1=TPHI1+PHI1
-           
-                Q1=Q1+(H1-NHEAD1(1))*2.D0*PI1*KR1/(1/WR1-1/RO1)*PHI1    
+                IF(SOLVER_CONTROL.well_bottom_type==0) THEN
+                    T2=4.0
+                ELSE
+                    T2=2.0*PI1
+                ENDIF
+                Q1=Q1+(H1-NHEAD1(1))*T2*KR1/(1/WR1-1/RO1)*PHI1    
                         
             ENDDO            
 
@@ -1975,6 +1985,7 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE3(STEPDIS,IELT,ISTEP,IITER)
     
     KM1(1,1)=1.D0;KM1(2,2)=1.D0
     KM1(2,1)=-1.D0;KM1(1,2)=-1.D0
+    T1=(T1+1.0/element(ielt).property(1))/2.0 !!!!
     KM1=KM1*T1
     element(ielt).property(1)=1/T1
 
@@ -1998,7 +2009,7 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE(STEPDIS,IELT,ISTEP,IITER)
     
     INTEGER::I,J,K,IELT1,N1,N2,N3
     REAL(8)::XV1(3),T1,HK1,PHI1,TPHI1,WR1,L1,DV1(3),PI1,RO1,Q1,X1(3),H1,LAMDA1,K1,KM1(2,2),NHEAD1(2)
-    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1,QN1(2)
+    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1,QN1(2),T2
     LOGICAL::ISISOTROPIC=.FALSE.
    
         
@@ -2083,8 +2094,12 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE(STEPDIS,IELT,ISTEP,IITER)
             
             
             KR1=LAMDA1*KR1 
-            
-            Q1=Q1+(H1-NHEAD1(1))*2.D0*PI1*KR1/(1/WR1-1/RO1)*PHI1        
+            IF(SOLVER_CONTROL.well_bottom_type==0) THEN
+                T2=4.0
+            ELSE
+                T2=2.0*PI1
+            ENDIF
+            Q1=Q1+(H1-NHEAD1(1))*T2*KR1/(1/WR1-1/RO1)*PHI1        
         ENDDO
         Q1=Q1/TPHI1
         IF(ELEMENT(IELT).ET==SPHFLOW) Q1=2.D0*Q1
@@ -2098,6 +2113,7 @@ SUBROUTINE SPHFLOW_Q_K_UPDATE(STEPDIS,IELT,ISTEP,IITER)
     
     KM1(1,1)=1.D0;KM1(2,2)=1.D0
     KM1(2,1)=-1.D0;KM1(1,2)=-1.D0
+    T1=(T1+1.0/element(ielt).property(1))/2.0 !!!!
     KM1=KM1*T1
     element(ielt).property(1)=1/T1
 

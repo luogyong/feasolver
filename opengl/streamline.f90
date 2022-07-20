@@ -420,8 +420,10 @@ subroutine streamline_integration(istreamline)
         ELSE
             DIRECTION1=1.d0
         ENDIF
-        DO WHILE(I<MAXSTEP1)        
+        DO WHILE(I<MAXSTEP1)
+           !print *, 'to derivs'
            CALL derivs(T,y,V1) 
+           !print *, 'Over derivs'
            VAL1(1:POSDATA.NVAR,I)=RKINFO.VAL(1:POSDATA.NVAR)
            IF(RKINFO.ISOUTOFRANGE.AND.I>0) then
                 ISINTERCEPT1=0

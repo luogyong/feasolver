@@ -585,9 +585,10 @@ integer function POINTlOC_BC(Pt,TRYiel)
     !INTEGER,EXTERNAL::POINTlOC
     integer::N2E1(1:4,3:4)=reshape([2,3,1,0,3,4,2,1],[4,2])
     
-    LOGICAL::ISSEARCHED(0:NTET)
+    LOGICAL,ALLOCATABLE::ISSEARCHED(:)
     
-    
+    !print *, ntet,tryiel
+    ALLOCATE(ISSEARCHED(0:NTET))
     ISSEARCHED=.FALSE.
     ISSEARCHED(0)=.TRUE.
     N2=0
@@ -621,7 +622,12 @@ integer function POINTlOC_BC(Pt,TRYiel)
     ELSE
         IEL=TRYiel
     ENDIF
+    
     N3=0
+    IF(IEL<1.OR.IEL>NTET) THEN
+        ERROR STOP 'ELEMENT LOCATION ERRORS.' 
+    ENDIF
+    
     ISSEARCHED(IEL)=.TRUE.
     do while(N3<=NTET)
         N3=N3+1
@@ -648,6 +654,7 @@ integer function POINTlOC_BC(Pt,TRYiel)
         !ISSEARCH(IEL)=IEL
     enddo
     
+    DEALLOCATE(ISSEARCHED)
     !if(.not.isfound) iel=0
     
 end function

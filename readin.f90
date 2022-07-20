@@ -480,6 +480,7 @@ subroutine solvercommand(term,unit)
     USE DS_SlopeStability
     use DownWaternSettlement,only:settlement_head
     use PoreNetWork,only:pnw
+	use plaxis2tecplot
 	implicit none
     
 	integer::unit
@@ -516,6 +517,23 @@ subroutine solvercommand(term,unit)
 	term=trim(term)
 
 	select case(term)
+		case('plaxisfiles')
+			print *,'Begin to read plaxis result files'
+			do i=1, pro_num
+				select case(property(i).name)
+					case('nfile')
+						nplaxisfile=int(property(i).value)
+					case('et')
+						et_plaxis=int(property(i).value)
+					case('nnum')
+						nnum=int(property(i).value)
+					case('enum')
+						enum=int(property(i).value)
+					case default
+						call Err_msg(property(i).name)
+				end select
+			end do			
+			call read_plaxisfiles(unit)
         case('settlement_head')
             print *,'Reading head1 and head2  for settelement induced by downwater.'
             do i=1, pro_num

@@ -743,12 +743,12 @@ subroutine EL_SFR2(ET)
 			localxy1(3,4)=t1
 			do i=5,7
 				do j=1,3
-					localxy1(j,i)=localxy1(j,i-4)+localxy1(j,mod(i-4,3)+1)
+					localxy1(j,i)=(localxy1(j,i-4)+localxy1(j,mod(i-4,3)+1))/2.0
 				end do
 			end do
 			do i=8,10
 				do j=1,3
-					localxy1(j,i)=localxy1(j,i-7)+localxy1(j,4)
+					localxy1(j,i)=(localxy1(j,i-7)+localxy1(j,4))/2.0
 				end do
 			end do			
 			do i=1,ecp(et).nnum

@@ -94,14 +94,16 @@ contains
       end if
     end do
 
-    allocate(maxtab(2,c))
-    allocate(mintab(2,d))
-    where (.not.ieee_is_nan(maxtab_tmp))
-      maxtab=maxtab_tmp
-    end where
-    where (.not.ieee_is_nan(mintab_tmp))
-      mintab=mintab_tmp
-    end where
+    !allocate(maxtab(2,c))
+    !allocate(mintab(2,d))
+    maxtab=reshape(pack(maxtab_tmp,.not.ieee_is_nan(maxtab_tmp)),([2,c]))
+    mintab=reshape(pack(mintab_tmp,.not.ieee_is_nan(mintab_tmp)),([2,d]))
+    !where (.not.ieee_is_nan(maxtab_tmp))
+    !  maxtab=maxtab_tmp
+    !end where
+    !where (.not.ieee_is_nan(mintab_tmp))
+    !  mintab=mintab_tmp
+    !end where
   end subroutine peakdet
 
 end module FindLocalEx1D
