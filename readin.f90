@@ -958,7 +958,7 @@ subroutine solvercommand(term,unit)
                         element1(i).nnum=2
                         allocate(element1(i).node(2))
                         element1(i).node=int(ar(1:2)) 
-                        element1(i).property(1:n1-2)=ar(3:n1) !direction vector.
+                        element1(i).property(4:6)=ar(3:n1) !direction vector.
                     CASE(zt6_spg,zt4_spg,zt6_spg2,zt4_spg2)
                         call strtoint(unit,ar,nmax,n1,n_toread,set,maxset,nset)
                         element1(i).nnum=nnum1
@@ -1698,8 +1698,10 @@ subroutine solvercommand(term,unit)
                         solver_control.time_unit=int(property(i).value)
                     case('len_unit','lunit')
                         solver_control.len_unit=int(property(i).value) 
-					!case('pnw_clogging') 
-					!	solver_control.pnw_clogging=int(property(i).value)                      
+					case('well_bottom_type') 
+						solver_control.well_bottom_type=int(property(i).value)  
+      !              case('well_bottom_method') 
+						!solver_control.well_bottom_method=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select

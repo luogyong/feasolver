@@ -786,7 +786,11 @@ subroutine Initialization()
                 node(element(i).node(1:element(i).nnum)).dof(4)=0
 				allocate(element(i).km(element(i).nnum,element(i).nnum))
 				element(i).km=0.0D0
-                CALL INI_SPHFLOW(I)
+                IF(SOLVER_CONTROL.WELLMETHOD/=4) THEN 
+                    CALL INI_SPHFLOW(I)
+                ELSE
+                    CALL sphere_flow_element(I)
+                ENDIF
                 ISOUT_WELL_FILE=.TRUE.
                 
 			CASE(ZT4_SPG,ZT6_SPG) !assume no flow occurs in the diections parallel to element faces.

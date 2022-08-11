@@ -391,4 +391,42 @@ real(8) function TetVOL(xyz)
 	TetVOL=1./6.*ABS(TetVOL)
 end function
 
+real(8) function tet_shape_factor(xy,ifactor)
+!given the coordinates xy of a tet
+!return the value based on ifactor
+!ifactor:
+!0--- volume of the tet
+!ij---i = 1 ~ 4,represent the column a b c and d respectively; j = 1 ~ 4 represent row 1 2 3 and 4. for example,
+!if ij=11 return the cofactor a1, and ij=32 return the cofactor c2.
+    implicit none
+    real(8),intent(in)::xy(3,4)
+    integer,intent(in)::ifactor
+    real(8)::mat(4,4),mat1(3,3)
+    integer::i,j,icol(0:3),jrow(0:3)
+
+    mat(1:4,1)=1
+    mat(1:4,2:4)=TRANSPOSE(xy)
+
+    if(ifactor==0) then
+        tet_shape_factor=TetVOL(TRANSPOSE(xy))
+    else
+        jrow(0)=mod(ifactor,10)    !1 2 3 4     
+        icol(0)=(ifactor-jrow(0))/10 !a b c d
+        if(icol(0)<1.or.icol(0)>4.or.jrow(0)<1.or.jrow(0)>4) then
+            print *, 'illegal ifactor.'
+            return
+        endif
+        do i=1,3
+            jrow(i)=mod(jrow(i-1),4)+1
+            icol(i)=mod(icol(i-1),4)+1
+        enddo
+        mat1=mat(jrow(1:3),icol(1:3))
+        tet_shape_factor=(-1)**(jrow(0)+icol(0))*determinant(mat1) 
+    endif
+  
+
+
+endfunction
+
+
 end module

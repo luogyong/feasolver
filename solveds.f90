@@ -66,7 +66,7 @@ module solverds
 		!and be consistent with Iy and Iz.
 		real(kind=DPN)::property(6)=0.0D0,cc=0.d0  !for spg problem and iniflux is used, property(3)=low lamda,property(2)=up lamda
         !for wellbore element, property(1), element frictional resistance,(2) and (3) are geometrical resistance; (4) acceralated resistantce; (5)=WELL SKIN RESISTANCE , property(6) surround angle.
-        !fore sphflow and semi_sphflow property(1)= geometrical resistance.
+        !fore sphflow and semi_sphflow property(1)= geometrical resistance.for semi_sphflow,property(4-6)=domain direction vector
         !for pipe2/poreflow  element,property(1), element frictional resistance,(2)D2, throat diameter(for poreflow),(3) D1,(4)=Length of the throat.(5)=length of clogging volume,(6)K of the clogging volume
 		real(kind=DPN),allocatable::angle(:)!internal angle for every nodes
         !当et=wellbore时,angle存储node2单元对应的二面角。
@@ -291,6 +291,7 @@ module solverds
         real(kind=DPN)::cdt=1.d0 !concentration integerate time
 		integer::pnw_clogging=0 !if>0
 		integer::well_bottom_type=0 !=0,平底井(默认);<>0,井底为半球底
+        !integer::well_bottom_method=0 !=0,解析单元法(非迭代,默认);=1,迭代
     contains
         procedure::unit_factor=>unit_scaling_factor
         procedure::get_g=>get_gravity
