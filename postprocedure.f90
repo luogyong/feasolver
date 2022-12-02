@@ -279,7 +279,7 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
         call voropp_handle(volfile=volfile)
     endif
 	999 format(<nc>E15.7)
-	9999 format(<nc>I7)
+	9999 format(<nc>(I10,X))
 end subroutine
 
 SUBROUTINE NODAL_ACTIVE_DOF(INODE,DOFS,ADOFS,NDOFS)

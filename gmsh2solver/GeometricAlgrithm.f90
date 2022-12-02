@@ -1,6 +1,7 @@
 module GeoMetricAlgorithm
     implicit none
-    public::rayintbox,rayintcyl,NORMAL_TRIFACE,cylinder_point_inside_3d,box_contains_point_nd,coplane_points_hull_3d,Pi
+    public::rayintbox,rayintcyl,NORMAL_TRIFACE,cylinder_point_inside_3d,box_contains_point_nd,coplane_points_hull_3d,Pi,&
+        GEN_CORDINATE_SYSTEM,AREA_ON_CYLINDER_SURFACE_CUT_BY_TWO_TRIANGLES
     
     private
     
@@ -851,6 +852,438 @@ subroutine rayintcyl(raybase,raycos,base,axis,radius,isint,in,out,botplane,toppl
   
     end function     
     
+    SUBROUTINE GEN_CORDINATE_SYSTEM(ORG,G2L,XV,YV,ZV)
+        !GIVEN ONE OR TWO AXIS,SET UP A LOCAL SYSTEM: ORIGIN=ORG
+        !RETURN THE G2L MATRIX
+        IMPLICIT NONE
+        REAL(8),INTENT(IN)::ORG(3)
+        REAL(8),INTENT(IN),OPTIONAL::XV(3),YV(3),ZV(3)
+        REAL(8),INTENT(OUT)::G2L(3,3)
+        REAL(8)::D1,T1,XV1(3),ZV1(3)        
+        INTEGER::IAXIS(3)=0,AX1,AX2,AX3
+
+        IF(PRESENT(ZV)) THEN
+            T1=NORM2(ZV)                
+            IF(ABS(T1)>1.E-7) THEN
+                G2L(3,:)=ZV/NORM2(ZV)
+                IAXIS(3)=3
+            ENDIF
+        ENDIF
+        IF(PRESENT(YV)) THEN
+            T1=NORM2(YV)                
+            IF(ABS(T1)>1.E-7) THEN
+                G2L(2,:)=YV/NORM2(YV)
+                IAXIS(2)=2
+            ENDIF
+        ENDIF
+        IF(PRESENT(XV)) THEN
+            T1=NORM2(XV)                
+            IF(ABS(T1)>1.E-7) THEN
+                G2L(1,:)=XV/NORM2(XV)
+                IAXIS(1)=1
+            ENDIF
+        ENDIF
+
+
+        IF(COUNT(IAXIS>0)==1) THEN
+            AX1=MAXVAL(IAXIS)
+            ZV1=G2L(AX1,:)
+            AX2=MINLOC(IAXIS,DIM=1)
+            IAXIS(AX2)=AX2
+            !过ogr1与ZV1垂直的平面方程：Ax+By+Cz+D=0,先求出D,然后假定（x,y,z）任意两个，求第三个。
+            D1=-DOT_PRODUCT(ZV1,ORG) !
+            IF(ABS(ZV1(3))>1E-7) THEN
+                XV1=[ORG(1)+1.0,0.D0,-(D1+ZV1(1)*(ORG(1)+1.0))/ZV1(3)]
+            ELSEIF(ABS(ZV1(2))>1E-7) THEN
+                XV1=[ORG(1)+1.0,-(D1+ZV1(1)*(ORG(1)+1.0))/ZV1(2),0.D0]
+            ELSE
+                XV1=[-(D1+ZV1(2)*(ORG(2)+1.0))/ZV1(1),ORG(2)+1.0,0.D0]
+            ENDIF            
+            XV1=XV1-ORG
+            XV1=XV1/NORM2(XV1)
+            G2L(AX2,:)=XV1
+        ENDIF
+        
+        AX3=MINLOC(IAXIS,DIM=1)
+        IF(AX3==0) THEN
+            AX1=MOD(AX3,3)+1;AX2=MOD(AX1,3)+1
+            G2L(AX3,:)=NORMAL_TRIFACE(RESHAPE([0.D0,0.D0,0.D0,G2L(AX1,:),G2L(AX2,:)],([3,3])),.TRUE.)
+        ENDIF     
+    ENDSUBROUTINE
+    
+    SUBROUTINE AREA_ON_CYLINDER_SURFACE_CUT_BY_TWO_TRIANGLES(p1,p2,p3,p4,AREA)
+        !坐标系:z轴为圆柱的轴线,坐标的原点为(0,0,0).
+        !计算圆柱面被2个三角面(O-P1-P2,O-P3-P4)截取后的面积,圆柱坐标的原点。
+        !Pi为三角形边O-Pi与圆柱面的交点
+        !Pi的格式为圆柱坐标系(ro,sita,z)
+        !p1,p3的sita相等，p2,p4的sita相等
+        !三角形，sita差值小于180
+        IMPLICIT NONE
+        real(8),intent(in)::p1(3),p2(3),p3(3),p4(3)
+        real(8),intent(out)::AREA
+        real(8)::t1,s0,s1,plane1(3),plane2(3),xy1(3,2),t2,r1,c1
+
+        !check data
+        if(abs((p1(2)-p3(2))*(p2(2)-p4(2)))>1.E-7) then
+            print *,'the points are not aligned.'
+            error stop 'AREA_ON_CYLINDER_SURFACE_CUT_BY_TWO_TRIANGLES.'
+        endif
+        
+        !确定积分上下限sita        
+        t1=max(p2(2),p1(2))
+        t2=min(p2(2),p1(2))        
+        if(t1-t2<PI) then
+            s0=t2;s1=t1
+        else
+            s0=t1;s1=t2+2*PI
+        endif
+        
+
+        !cut plane equation
+        
+        xy1(1,1)=p1(1)*cos(p1(2))
+        xy1(2,1)=p1(1)*sin(p1(2))
+        xy1(3,1)=p1(3)
+        xy1(1,2)=p2(1)*cos(p2(2))
+        xy1(2,2)=p2(1)*sin(p2(2))
+        xy1(3,2)=p2(3)
+        plane1=NORMAL_TRIFACE(RESHAPE([0.D0,0.D0,0.D0,xy1(:,1),xy1(:,2)],([3,3])),.TRUE.)        
+        xy1(1,1)=p3(1)*cos(p3(2))
+        xy1(2,1)=p3(1)*sin(p3(2))
+        xy1(3,1)=p3(3)
+        xy1(1,2)=p4(1)*cos(p4(2))
+        xy1(2,2)=p4(1)*sin(p4(2))
+        xy1(3,2)=p4(3)
+        plane2=NORMAL_TRIFACE(RESHAPE([0.D0,0.D0,0.D0,xy1(:,1),xy1(:,2)],([3,3])),.TRUE.) 
+        if(p1(3)+p2(3)<p3(3)+p4(3)) then
+            xy1(:,1)=plane1
+            plane1=plane2
+            plane2=plane1
+        endif
+
+        t1=plane1(2)*plane2(3)-plane2(2)*plane1(3)
+        t2=plane1(1)*plane2(3)-plane2(1)*plane1(3)
+        r1=p1(1)
+        c1=r1**2/(plane1(3)*plane2(3))
+        area=c1*(t1*(cos(s1)-cos(s0))+t2*(sin(s0)-sin(s1)))       
+
+    ENDSUBROUTINE
+
+    function area_cylin_cut_by_tet(TET,AXIS,R) result(area)
+    !求四面体单元TET的面与原点为tet(:,1),半径为R,轴线为AXIS的圆柱面的交线所围成的柱面面积(0-AXIS(3)范围内的面积)。
+    !假定：  1) 相对于R,tet足够大，即除处于轴线上的节点外，其它节点均处于圆柱外.
+    !       2) AXIS包含柱高信息(原点为tet(:,1))，不要归一化这个向量.
+    !       3) tet(:,1)为圆柱的原点.
+    !算法：1）坐标变换，将圆柱的原点定为坐标原点，轴线为z轴。2）然后积分，边界由三角面与圆柱面的交线确定
+    
+
+        IMPLICIT NONE
+        REAL(8),INTENT(IN)::TET(3,4),R,AXIS(3)
+        REAL(8)::AREA
+        REAL(8)::IP1(3,4),g2l1(3,3),org1(3),T1,XY1(3,4),P1(3),V1(3,3),PT1(3,3,4),AXIS1(3)
+        INTEGER::I,J,K,NODE1(4),N1,V11,V21,N2,ITYPE1(4),i1
+        LOGICAL::isint,ISP1
+
+        NODE1=[1,2,3,4]
+        XY1(:,1)=0.D0;ISP1=.FALSE.
+        DO I=2,4
+            XY1(:,I)=TET(:,I)-TET(:,1)
+            T1=DOT_PRODUCT(XY1(:,i)/NORM2(XY1(:,i)),AXIS/NORM2(AXIS))
+            IF(ABS(T1-1.D0)<1E-7) THEN
+                ISP1=.TRUE.
+                v21=I
+            ENDIF
+        ENDDO
+        !SET UP LOCAL SYSTEM
+        ORG1=0.D0              
+        CALL GEN_CORDINATE_SYSTEM(ORG1,G2L1,ZV=AXIS)
+        AXIS1=MATMUL(G2L1,AXIS)
+        N1=0
+        DO I=2,4
+            XY1(:,I)=MATMUL(G2L1,XY1(:,I))
+            if(ISP1.AND.I==V21) CYCLE
+            !交点
+            T1=norm2(xy1(1:2,i))
+            IF(T1<R) THEN
+                PRINT *, 'A NODE IS INSIDE THE CYLINDER.'
+                !ERROR STOP
+            ENDIF
+            N1=N1+1
+            IP1(:,N1)=XY1(:,I)*R/T1
+            !to cylinder system
+            IP1(2,N1)=atan2(ip1(2,N1),ip1(1,N1))
+            IP1(1,N1)=R;
+        
+            !当四面体的一边平行axis时，另一交点可根据相似三角形得到。
+            !IP14//IP23
+            IF(ISP1) THEN
+                N2=5-N1
+                IP1(1:2,N2)=IP1(1:2,N1)
+                IP1(3,N2)=IP1(3,N1)+AXIS1(3)*(T1-R)/T1
+            ENDIF           
+            
+        END DO
+        IF(N1==2) N1=4
+        
+        !求截线与圆柱上下顶面的交点
+        DO I=1,N1
+            J=MOD(I,N1)+1
+            IF(N1==4.AND.I==3) THEN
+                V1(:,1)=[0.D0,0.D0,AXIS1(3)]
+            ELSE
+                V1(:,1)=[0.,0.,0.]
+            ENDIF
+            V1(:,2)=IP1(:,I)            
+            V1(:,3)=IP1(:,J)
+            call  intersectionline_cut_by_zplane(V1,AXIS1(3),Pt1(:,:,I),itype1(I))            
+        ENDDO
+
+        !积分区域的边界(面)
+        
+        DO i=2,N1
+
+        ENDDO
+        
+        if(N1==3) THEN
+            I=MINLOC(IP1(2,1:3),DIM=1)
+            K=MAXLOC(IP1(2,1:3),DIM=1)
+            DO I1=1,3
+                IF(I1/=I.AND.I1/=K) THEN
+                    J=I1
+                    EXIT
+                ENDIF
+            ENDDO
+            !O-I-K PLANE EQUATION
+            P1=NORMAL_TRIFACE(RESHAPE([0.D0,0.D0,0.D0,IP1(1,I)*COS(IP1(2,I)),IP1(1,I)*SIN(IP1(2,I)),IP1(3,I),&
+            IP1(1,K)*COS(IP1(2,K)),IP1(1,K)*SIN(IP1(2,K)),IP1(3,K)],([3,3])),.TRUE.)
+            
+            CALL AREA_ON_CYLINDER_SURFACE_CUT_BY_TWO_TRIANGLES(IP1(:,I),IP1(:,J),IP1(:,I),IP1(:,K),AREA)
+        ELSE
+                
+        ENDIF
+    
+             
+       
+    contains
+
+        subroutine intersectionline_cut_by_zplane(v,h,Pt,itype)
+            !求空间三角面与圆柱面上下顶面范围内的三角面Pt(3,3)
+            !假定：
+            !1)圆柱对称轴为z轴，半径为v(1,2) or (1,3),原点为0.,高为h
+            !2)三角面顶点1,v(:,1)要么为圆柱轴线原点0或顶点h
+            !3)柱坐标系（r,s,z）
+            !4) v(:,2:3)在圆柱面上,即，v(1,2:3)=r
+            !itype  =0: v2,v3 完全在范围内,no cut
+            !       =4 v2,v3 均小于0,return plane z=0    
+            !       =5 v2,v3 均大于h,return plane z=h 
+            !       =1 v2,v3 only cut by z=0 plane;
+            !       =2 v2,v3 only cut by z=h plane; 
+            !       =3 v2,v3 cut both by z=0 and z=h plane;      
+            implicit none
+            real(8),intent(in)::v(3,3),h
+            real(8),intent(out)::pt(3,3)
+            integer,intent(out)::itype
+            real(8)::v1(3,3),plane1(4),t1,t2,a,b,c,x1(2),xmin1,xmax1,sol1,cyl(3)
+            integer::imin,imax
+
+            if(abs(v(1,2)-v(1,3))>1.e-7) then
+                error stop 'v2,v3 are assumed to be on the cylinder surface.'
+            endif
+
+            cyl(1)=v(1,2);cyl(2)=0.d0;cyl(3)=h
+
+            imin=minloc(v(3,2:3),dim=1);
+            if(imin==2) then
+                imax=3
+            else
+                imax=2
+            endif
+
+            pt=v
+
+            !特例            
+            if(v(3,imax)<=cyl(2)) then
+                !1)整个交线位于圆柱下方
+                pt(:,1)=[0.,0.,0.]
+                pt(3,2:3)=cyl(2)
+                itype=4
+                return
+            elseif(v(3,imin)>=cyl(3)) then
+                !2)整个交线位于圆柱上方
+                pt(:,1)=[0.D0,0.D0,cyl(3)]
+                pt(3,2:3)=cyl(3)
+                itype=5
+                return
+            elseif(v(3,imin)>=cyl(2).and.v(3,imax)<=cyl(3)) then
+                !截线位于圆柱上下顶面范围内
+                itype=0
+                return
+            endif
+
+            !三角面与圆柱轴线平行
+            if(abs(v(2,2)-v(2,3))<1.d-7) THEN
+                if(v(3,imin)<cyl(2)) then
+                    pt(3,imin)=cyl(2)
+                    itype=1
+                endif
+                if(v(3,imax)>cyl(3)) then
+                    pt(3,imax)=cyl(3)
+                    if(itype==1) then
+                        itype=3
+                    else
+                        itype=2
+                    endif  
+                endif
+                return
+            endif
+            
+            !一般情况
+            !to xyz coordinate
+            v1(1,:)=v(1,:)*cos(v(2,:));
+            v1(2,:)=v(1,:)*sin(v(2,:));
+            v1(3,:)=v(3,:)            
+            call plane_exp2imp_3d(v1(:,1),v1(:,2),v1(:,3),plane1(1),plane1(2),plane1(3),plane1(4))
+
+
+            xmin1=minval(v1(1,2:3));xmax1=maxval(v1(1,2:3));
+
+            t1=-plane1(1)/plane1(2)
+            
+            if(v1(3,imin)<cyl(2)) then
+                t2=-(plane1(3)*cyl(2)+plane1(4))/plane1(2)
+                a=(1+t1**2);b=2*t1*t2;c=t2**2-cyl(1)**2
+                X1=quadratic_real_roots(a,b,c)
+                if((x1(1)-xmin1)*(x1(1)-xmax1)<0.d0) then
+                    sol1=x1(1)
+                else
+                    sol1=x1(2)
+                endif
+                v1(1,imin)=sol1
+                v1(2,imin)=t1*SOL1+t2
+                v1(3,imin)=cyl(2)
+                !to cylinder system
+                v1(2,imin)=atan2(v1(2,imin),v1(1,imin))
+                itype=1
+            endif
+
+            if(v1(3,imax)>cyl(3)) then
+                t2=-(plane1(3)*cyl(3)+plane1(4))/plane1(2)
+                a=(1+t1**2);b=2*t1*t2;c=t2**2-cyl(1)**2
+                X1=quadratic_real_roots(a,b,c)
+                if((x1(1)-xmin1)*(x1(1)-xmax1)<0.d0) then
+                    sol1=x1(1)
+                else
+                    sol1=x1(2)
+                endif
+                v1(1,imax)=sol1
+                v1(2,imax)=t1*SOL1+t2
+                v1(3,imax)=cyl(3)
+                !to cylinder system
+                v1(2,imax)=atan2(v1(2,imax),v1(1,imax)) 
+                if(itype==1) then
+                    itype=3
+                else
+                    itype=2
+                endif               
+            endif
+
+            pt(1,2:3)=cyl(1);
+            pt(2,2:3)=v1(2,2:3)
+            pt(3,2:3)=v1(3,2:3)        
+
+
+        endsubroutine
 
     
+    ENDFUNCTION
+
+    subroutine plane_exp2imp_3d ( p1, p2, p3, a, b, c, d )
+
+    !*****************************************************************************80
+    !
+    !! PLANE_EXP2IMP_3D converts an explicit plane to implicit form in 3D.
+    !
+    !  Discussion:
+    !
+    !    The explicit form of a plane in 3D is
+    !
+    !      the plane through P1, P2 and P3.
+    !
+    !    The implicit form of a plane in 3D is
+    !
+    !      A * X + B * Y + C * Z + D = 0
+    !
+    !  Licensing:
+    !
+    !    This code is distributed under the GNU LGPL license. 
+    !
+    !  Modified:
+    !
+    !    11 February 2005
+    !
+    !  Author:
+    !
+    !    John Burkardt
+    !
+    !  Reference:
+    !
+    !    Adrian Bowyer, John Woodwark,
+    !    A Programmer's Geometry,
+    !    Butterworths, 1983,
+    !    ISBN: 0408012420.
+    !
+    !  Parameters:
+    !
+    !    Input, real ( kind = 8 ) P1(3), P2(3), P3(3), three points on the plane.
+    !
+    !    Output, real ( kind = 8 ) A, B, C, D, coefficients which describe 
+    !    the plane.
+    !
+    implicit none
+
+    integer ( kind = 4 ), parameter :: dim_num = 3
+
+    real ( kind = 8 ) a
+    real ( kind = 8 ) b
+    real ( kind = 8 ) c
+    real ( kind = 8 ) d
+    real ( kind = 8 ) p1(dim_num)
+    real ( kind = 8 ) p2(dim_num)
+    real ( kind = 8 ) p3(dim_num)
+
+    a = ( p2(2) - p1(2) ) * ( p3(3) - p1(3) ) &
+        - ( p2(3) - p1(3) ) * ( p3(2) - p1(2) )
+
+    b = ( p2(3) - p1(3) ) * ( p3(1) - p1(1) ) &
+        - ( p2(1) - p1(1) ) * ( p3(3) - p1(3) )
+
+    c = ( p2(1) - p1(1) ) * ( p3(2) - p1(2) ) &
+        - ( p2(2) - p1(2) ) * ( p3(1) - p1(1) )
+
+    d = - p2(1) * a - p2(2) * b - p2(3) * c
+
+    return
+    end subroutine
+
+    function quadratic_real_roots(a,b,c) result(x)
+        implicit none
+        real(8),intent(in)::a,b,C
+        real(8)::x(2)
+        real(8)::delta1
+
+        if(abs(a)<1.e-10) then
+            error stop 'a=0 for the quadratic equation.'
+        endif
+        delta1=b**2-4*a*C
+        if(delta1<0) then
+            error stop 'no real roots for the quadratic equation.'
+        endif
+        delta1=delta1**0.5
+        x(1)=(-b-delta1)/(2*a)
+        x(2)=(-b+delta1)/(2*a)
+
+
+
+    end function 
+
 end module

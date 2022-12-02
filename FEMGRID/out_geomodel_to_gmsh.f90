@@ -6,10 +6,11 @@ module geomodel
                         ENLARGE_AR,adjlist_tydef,addadjlist,removeadjlist,ar2d_tydef2,&
                         iar2str,segindex,seg,zmin,ISMESHSIZE
     use ds_t
-    use CutoffWall,only:xzone,nxzone,cowall,ncow,vseg_pg,nvseg_pg,vface_pg,nvface_pg,node_pg,nnode_pg
+    use quicksort
+    use CutoffWall,only:xzone,nxzone,cowall,ncow,vseg_pg,nvseg_pg,vface_pg,nvface_pg,node_pg,nnode_pg,vol_pg,nvol_pg
     implicit none
     private
-    public BLO,NBLO,CHECK_ORIENT,Gen_SubElement,out_volume_to_gmsh2,NGNODE
+    public BLO,NBLO,CHECK_ORIENT,Gen_SubElement,out_volume_to_gmsh2,NGNODE,out_z_at_center,out_z_at_node
     real(8),parameter::Pi=3.141592653589793
     
     INTERFACE INCOUNT
@@ -121,6 +122,88 @@ module geomodel
     
     contains
     
+    subroutine out_z_at_node()
+
+        implicit none
+        character*256 term
+        INTEGER::I,J,NC1
+		integer(4)::msg,LEN1
+		character(512)::outfile,OUTFILE2
+		character(8)::CH1,ZNAME1(0:SOILLAYER)
+        
+        call st_membrance()
+       
+		outfile=trim(path_name)//'_nodal_z.dat'
+        open(unit=60,file=outfile,status='replace')
+        DO I=0,SOILLAYER
+            NC1=INCOUNT(I)
+            WRITE(ch1,10) I 
+            ZNAME1(I)='Z'//trim(adjustl(ch1))
+        ENDDO
+        WRITE(60,20) ZNAME1(0:SOILLAYER)
+        DO I=1,NNODE
+            
+            write(60,30) i,NODE(i).X*XYSCALE+XMIN,NODE(i).Y*XYSCALE+YMIN,NODE(i).ELEVATION(:SOILLAYER)*XYSCALE+ZMIN
+            
+        ENDDO
+        CLOSE(60)
+  !      OUTFILE2=trim(path_name)//'_offmodel.off'
+		!CALL OUT_OFF_MATHER_MODEL(OUTFILE2)
+        
+		term="THE NODE Z FILE HAS BEEN OUTPUT! Click Yes to Exit,No to Continue."
+	 	LEN1=LEN_trim(term)
+     	msg = MESSAGEBOXQQ(TRIM(term(1:LEN1)),'COMPLETED'C,MB$ICONINFORMATION.OR.MB$YESNO.OR.MB$DEFBUTTON1)
+     	if(msg==MB$IDYES) msg=clickmenuqq(loc(WINEXIT))	
+10      FORMAT(I<NC1>)
+20 FORMAT(14X,'N',X,14X,'X',X,14X,'Y',X,<1+SOILLAYER>(12X,A3,X))        
+30 FORMAT(I15,X,<3+soillayer>(F15.3,X))
+        
+    endsubroutine  
+
+    subroutine out_z_at_center()
+
+        implicit none
+        character*256 term
+        INTEGER::I,J,NC1
+		integer(4)::msg,LEN1
+		character(512)::outfile,OUTFILE2
+		character(8)::CH1,ZNAME1(0:SOILLAYER)
+        real(8)::x1,y1,z1(0:soillayer)
+        call st_membrance()
+       
+		outfile=trim(path_name)//'_center_z.dat'
+        open(unit=60,file=outfile,status='replace')
+        DO I=0,SOILLAYER
+            NC1=INCOUNT(I)
+            WRITE(ch1,10) I 
+            ZNAME1(I)='Z'//trim(adjustl(ch1))
+        ENDDO
+        WRITE(60,20) ZNAME1(0:SOILLAYER)
+        DO I=1,NELT
+            if(elt(i).isdel) cycle 
+            x1=sum(NODE(elt(i).node(1:3)).X)/3
+            y1=sum(NODE(elt(i).node(1:3)).y)/3
+            do j=0,soillayer
+                z1(j)=sum(NODE(elt(i).node(1:3)).ELEVATION(j))
+            enddo
+            write(60,30) i,elt(i).zn,x1*XYSCALE+XMIN,Y1*XYSCALE+YMIN,z1(:SOILLAYER)*XYSCALE+ZMIN
+            
+        ENDDO
+        CLOSE(60)
+  !      OUTFILE2=trim(path_name)//'_offmodel.off'
+		!CALL OUT_OFF_MATHER_MODEL(OUTFILE2)
+        
+		term="THE ELEMENTAL CENTER Z FILE HAS BEEN OUTPUT! Click Yes to Exit,No to Continue."
+	 	LEN1=LEN_trim(term)
+     	msg = MESSAGEBOXQQ(TRIM(term(1:LEN1)),'COMPLETED'C,MB$ICONINFORMATION.OR.MB$YESNO.OR.MB$DEFBUTTON1)
+     	if(msg==MB$IDYES) msg=clickmenuqq(loc(WINEXIT))	
+10      FORMAT(I<NC1>)
+20 FORMAT(9X,'IELT',X,9X,'IZONE',X,14X,'X',X,14X,'Y',X,<1+SOILLAYER>(12X,A3,X))        
+30 FORMAT(I15,X,<3+soillayer>(F15.3,X))
+        
+    endsubroutine  
+        
+    
     subroutine tetgen_facet2gmsh(this,facebase,unit)
         implicit none
         class(general_poly_face_tydef)::this
@@ -207,33 +290,100 @@ module geomodel
     subroutine vseg_pg_handle()
     !把竖向线物理的控制点插入模型，并找出其所包含的线段
         implicit none
-        integer::i,j,k,n1,n2
-        integer,allocatable::vedge1(:)
-        
+        integer::i,j,k,n1,n2,n3,n4
+        integer,allocatable::vedge1(:),n2uz1(:),o2n1(:)
+        real(8),allocatable::uz1(:)
+        real(8)::zmin1,zmax1
         do i=1,nvseg_pg
-            call vseg_pg(i).getnode()            
+            call vseg_pg(i).getnode()
+            
+            zmin1=node(vseg_pg(i).ip).elevation(0)
+            zmax1=node(vseg_pg(i).ip).elevation(soillayer)
+            
+            if(vseg_pg(i).z(1)<zmin1.or.vseg_pg(i).z(vseg_pg(i).nnode)>zmax1) then
+                if(vseg_pg(i).z(1)<zmin1) vseg_pg(i).z=[vseg_pg(i).z,zmin1]
+                if(vseg_pg(i).z(vseg_pg(i).nnode)>zmax1) vseg_pg(i).z=[vseg_pg(i).z,zmax1]
+                if(allocated(n2uz1)) deallocate(n2uz1)
+                allocate(n2uz1(size(vseg_pg(i).z)))
+                call quick_sort(vseg_pg(i).z,uz1,n2uz1)
+                vseg_pg(i).z=uz1
+                vseg_pg(i).nnode=size(uz1)
+                deallocate(vseg_pg(i).node)
+                allocate(vseg_pg(i).node(vseg_pg(i).nnode))
+                vseg_pg(i).node=0
+            endif
+            
             do j=1,vseg_pg(i).nnode
+                if(vseg_pg(i).z(j)<zmin1.or.vseg_pg(i).z(j)>zmax1 ) then
+                    ngnode=ngnode+1
+                    if(size(node)<ngnode) call enlarge_ar(node,100)
+                    node(ngnode).x=node(vseg_pg(i).ip).x;node(ngnode).y=node(vseg_pg(i).ip).y;node(ngnode).z=vseg_pg(i).z(j);        
+                    node(ngnode).s=0.d0
+                    node(ngnode).iptr=ngnode
+                    vseg_pg(i).node(j)=ngnode
+                    cycle                    
+                endif
+                
                 vedge1=node2vgedge(vseg_pg(i).ip)
+                
                 do k=1,size(vedge1)
-                    call cut_edge_by_z(vedge1(k),vseg_pg(i).z(j),vseg_pg(i).node(j))
+                    call cut_edge_by_z(vedge1(k),vseg_pg(i).z(j),vseg_pg(i).node(j))                    
                     if(vseg_pg(i).node(j)>0) exit
                 enddo
+                                
             enddo
+                    
+            
             vedge1=node2vgedge(vseg_pg(i).ip)
             n1=0;n2=0
+            if(vseg_pg(i).z(1)<zmin1) then
+                n3=minloc(abs(vseg_pg(i).z-zmin1),dim=1)
+            else
+                n3=1
+            endif
+            if(vseg_pg(i).z(vseg_pg(i).nnode)>zmax1) then
+                n4=minloc(abs(vseg_pg(i).z-zmax1),dim=1)
+            else
+                n4=vseg_pg(i).nnode
+            endif          
+            
             do k=1,size(vedge1)
-                if(gedge(vedge1(k)).v(1)==vseg_pg(i).node(1)) n1=k
-                if(gedge(vedge1(k)).v(2)==vseg_pg(i).node(vseg_pg(i).nnode)) n2=k
+                if(gedge(vedge1(k)).v(1)==vseg_pg(i).node(n3)) n1=k
+                if(gedge(vedge1(k)).v(2)==vseg_pg(i).node(n4)) n2=k
                 if(n1*n2/=0) then
-                    vseg_pg(i).edge=vedge1(n1:n2)
-                    allocate(vseg_pg(i).igmshvol(n2-n1+1))
-                    vseg_pg(i).igmshvol=0
+                    vseg_pg(i).edge=vedge1(n1:n2)                    
                     exit
                 endif
             enddo
             
+            !add edges outside the model
+            do k=1,n3-1
+                ngedge=ngedge+1
+                if(ngedge+1>size(gedge)) call GM_ENLARGE_AR(gedge,100)        
+                gedge(ngedge).cutpoint=0
+                gedge(ngedge).v=[vseg_pg(i).node(k),vseg_pg(i).node(k+1)]
+                call addadjlist(gadjlist,gedge(ngedge).v(1),gedge(ngedge).v(2),ngedge,gedge(ngedge).iptr)
+                if(gedge(ngedge).iptr/=ngedge) gedge(ngedge).isdel=.true.
+                
+            enddo
+            if(n3>1) vseg_pg(i).edge=[ngedge-(n3-1)+1:ngedge,vseg_pg(i).edge]
+            do k=n4,vseg_pg(i).nnode-1
+                ngedge=ngedge+1
+                if(ngedge+1>size(gedge)) call GM_ENLARGE_AR(gedge,100)        
+                gedge(ngedge).cutpoint=0
+                gedge(ngedge).v=[vseg_pg(i).node(k),vseg_pg(i).node(k+1)]
+                call addadjlist(gadjlist,gedge(ngedge).v(1),gedge(ngedge).v(2),ngedge,gedge(ngedge).iptr)
+                if(gedge(ngedge).iptr/=ngedge) gedge(ngedge).isdel=.true.
+            enddo 
+            if(n4<vseg_pg(i).nnode) vseg_pg(i).edge=[vseg_pg(i).edge,ngedge-(vseg_pg(i).nnode-n4)+1:ngedge]
+            allocate(vseg_pg(i).igmshvol(size(vseg_pg(i).edge)))
+            vseg_pg(i).igmshvol=0
+            gedge(vseg_pg(i).edge).iscedge=-100 !cannot be merged
         enddo
         if(allocated(vedge1)) deallocate(vedge1)
+        if(allocated(n2uz1)) deallocate(n2uz1)
+        if(allocated(uz1)) deallocate(uz1)
+        if(allocated(o2n1)) deallocate(o2n1)
     endsubroutine
     subroutine node_pg_handle(iflag)
         !把控制点插入模型
@@ -912,7 +1062,9 @@ module geomodel
         DO I=1,ZNUM
             IF(.NOT.ALLOCATED(ZONE(I).HFACE)) ALLOCATE(ZONE(I).HFACE(SOILLAYER))
             IF(.NOT.ALLOCATED(ZONE(I).VFACE)) ALLOCATE(ZONE(I).VFACE(SOILLAYER))
+            IF(.NOT.ALLOCATED(ZONE(I).BFACE)) CYCLE
             DO J=1,SOILLAYER
+                
                 CALL VOLUME_NUMBER_INSIDE_ZONE(I,J)
                 
                 !outer HORIZONTAL faces
@@ -934,7 +1086,7 @@ module geomodel
             do j=1,size(vseg_pg(i).edge)
                 if(gedge(vseg_pg(i).edge(j)).isb==0)then
                     gedge(vseg_pg(i).edge(j)).isb=6
-                    node(gedge(vseg_pg(i).edge(j)).v).isb=6
+                    node(gedge(vseg_pg(i).edge(j)).v).isb=77777
                     !find containing volume
                     iw1=gedge2selt(vseg_pg(i).edge(j))
                     if(size(iw1)>0) then
@@ -1000,6 +1152,7 @@ module geomodel
         do i=1,ngedge
             if(gedge(i).isdel.or.gedge(i).isb<1) cycle
             n1=gedge(i).nface
+            if(n1<1) cycle
             n2=count(face(gedge(i).face(:n1)).isb>0)
             if(n2==2) then                
                 f1=pack([1:n1],face(gedge(i).face(:n1)).isb>0)                
@@ -2432,19 +2585,23 @@ module geomodel
 		DO I=1,ZNUM
             
             IF(ZONE(I).OUTGMSHTYPE==2) CYCLE
+            IF(.NOT.ALLOCATED(ZONE(I).VBFACE)) CYCLE
             
-			DO J=1,SOILLAYER
+			DO J=1,SOILLAYER              
+                
                 WRITE(CH1,'(I4)') I
 				WRITE(CH2,'(I4)') J
                 CH3='Z'//TRIM(ADJUSTL(CH1))//'_L'//TRIM(ADJUSTL(CH2))                
                 CH4=TRIM(ADJUSTL(CH3))//'_HFACE'
                 CH5=TRIM(ADJUSTL(CH3))//'_VFACE'
                 NV1=N1
+                
                 DO K=1,ZONE(I).VBFACE(J).NVOL
                     !IF(ZONE(I).VBFACE(J).BFACE(K).NNUM<4) CYCLE
                     !IF(COUNT((SELT.ISDEL==.FALSE.).AND.(SELT.ZN==I).AND.(SELT.ILAYER==J))==0) CYCLE
 				    N1=N1+1
 				    INC=INCOUNT(N1)
+                    !ZONE(I).VBFACE(J).BFACE(K).IVOL=N1 !VOLUME ID
                     !IF(N1/=19) CYCLE
                     !UPDATE TEH BFACES AFTER MERGE
                     IF(NGPF>0) THEN
@@ -2505,7 +2662,7 @@ module geomodel
                 ENDIF   
 			    
             ENDDO
-                
+                            
         ENDDO        
         
         !RETURN
@@ -2585,7 +2742,10 @@ module geomodel
             
         DO I=1,NVSEG_PG
             if(SIZE(VSEG_PG(I).EDGE)<1) cycle
-            IF(ISMERGED==1) VSEG_PG(I).EDGE=PACK(VSEG_PG(I).EDGE,GEDGE(VSEG_PG(I).EDGE).ISB>0)
+            IF(ISMERGED==1) THEN
+                VSEG_PG(I).IGMSHVOL=PACK(VSEG_PG(I).IGMSHVOL,GEDGE(VSEG_PG(I).EDGE).ISB>0)
+                VSEG_PG(I).EDGE=PACK(VSEG_PG(I).EDGE,GEDGE(VSEG_PG(I).EDGE).ISB>0)                
+            ENDIF
 
             DO J=1,SIZE(VSEG_PG(I).EDGE)
                 INC2=INCOUNT(VSEG_PG(I).EDGE(J))
@@ -2639,7 +2799,28 @@ module geomodel
 				WRITE(50,100) TRIM(CH5),STR1(1:INC2)
             ENDIF                
                 
-        ENDDO        
+        ENDDO 
+
+       DO I=1,NVOL_PG 
+            CALL VOL_PG(I).GETVOL()
+            
+            IF(VOL_PG(I).ngvol<1) CYCLE    
+            
+            INC2=INCOUNT(I)
+            CH1=""
+            WRITE(CH1,91) I
+            
+            CH5='USER_VOL_PG'//TRIM(ADJUSTL(CH1))
+            
+            STR1=IAR2STR(VOL_PG(I).GVOL)
+            INC2=LEN_TRIM(STR1)                    
+   
+			LEN1=LEN(TRIM(ADJUSTL(CH5)))
+			IF(VOL_PG(I).NGVOL>0) THEN
+				WRITE(50,140) TRIM(CH5),STR1(1:INC2)
+            ENDIF                
+                
+        ENDDO      
         
         DO I=1,NBLO
             CALL BLO(i).write(50)
@@ -2667,7 +2848,8 @@ module geomodel
     102 FORMAT('Physical Line("',A<LEN1>,'"',")={",I<INC2>"};") 
 110     FORMAT('Curve {',I<INC2>,'} In Volume {',I<INC>,'};') 
 120     FORMAT('Compound Surface{',A<INC2>,'};')
-130     FORMAT('Physical Point("',A<LEN1>,'"',")={",A<INC2>"};")        
+130     FORMAT('Physical Point("',A<LEN1>,'"',")={",A<INC2>"};") 
+140     FORMAT('Physical Volume("',A<LEN1>,'"',")={",A<INC2>"};")       
     ENDSUBROUTINE	    
     
     SUBROUTINE UPDATE_FACES_AFTER_MERGED(IA,NIA)
@@ -2726,7 +2908,7 @@ module geomodel
 		DO I=1,ZNUM
             
             IF(ZONE(I).OUTGMSHTYPE==2) CYCLE
-            
+            IF(.NOT.ALLOCATED(ZONE(I).BFACE)) CYCLE
 			DO J=1,SOILLAYER
    
                 
@@ -3216,6 +3398,7 @@ module geomodel
             ZONE(IZONE).VBFACE(ILAYER).BFACE(NVBF1).INSIDEPT(1)=SUM(NODE(SELT(STACK1(1)).NODE(:SELT(STACK1(1)).NNUM)).X)/SELT(STACK1(1)).NNUM
             ZONE(IZONE).VBFACE(ILAYER).BFACE(NVBF1).INSIDEPT(2)=SUM(NODE(SELT(STACK1(1)).NODE(:SELT(STACK1(1)).NNUM)).Y)/SELT(STACK1(1)).NNUM
             ZONE(IZONE).VBFACE(ILAYER).BFACE(NVBF1).INSIDEPT(3)=SUM(NODE(SELT(STACK1(1)).NODE(:SELT(STACK1(1)).NNUM)).Z)/SELT(STACK1(1)).NNUM
+            !蚕食法
             DO WHILE(N2>0)
                 IELT1=STACK1(N2)                
                 N2=N2-1

@@ -33,7 +33,7 @@ module meshDS
 	   real(8)::x,y,z=0.0D0 !点的坐标
 	   real(8)::s  !该点附近的单元大小
 	   INTEGER::SUBBW  !=-999 ,the node is dead.
-	   integer::layer=0,onbdy=0,marker !nodal layer
+	   integer::layer=0,onbdy=0,marker,mother=0 !nodal layer
        integer::havesoildata=0 ![0,1,2] 0,no;1,partially;2,completely yes.(all soillayers have elevation(no -999)) 
        integer::iptr=0,isb=0,nat=0 !iptr=i,表明此节点在高程上i节点重合；!isb=1,zone boundary node;=2,model boundary node;=0,zone inside node
        real(8),allocatable::elevation(:),we(:),at(:) !we(1:2)=防渗墙顶和底高程

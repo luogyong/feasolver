@@ -200,6 +200,7 @@ module solverds
     TYPE(QWELLNODE_TYDEF),ALLOCATABLE::QWELLNODE(:),QWELLNODE1(:)
     REAL(kind=DPN),ALLOCATABLE::QWAN(:,:)   !井节点node2(i)的解析流量qan(1,i)及数值流量qan(2,i)
     INTEGER::NQWNODE=0
+	LOGICAL::IS_WELL_GEO_INI=.FALSE.
     
     type hinge_typef
         integer::element,node,dof=7 !单元号，节点号，自由度

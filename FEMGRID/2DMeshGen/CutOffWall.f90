@@ -7,7 +7,7 @@ use ds_t,only:arr_t
 implicit none
 private
 real ( kind = 8 ), parameter :: Pi = 3.141592653589793D+00
-public::cowall,ncow,xzone,nxzone,vseg_pg,nvseg_pg,vface_pg,nvface_pg,node_pg,nnode_pg
+public::cowall,ncow,xzone,nxzone,vseg_pg,nvseg_pg,vface_pg,nvface_pg,node_pg,nnode_pg,vol_pg,nvol_pg
 
 type cutoffwall_type
     integer::NCP=0,mat=1     
@@ -116,8 +116,111 @@ contains
 end type
 type(node_pg_tydef),allocatable::node_pg(:)
 integer::nnode_pg=0
+
+type volume_pg_tydef
+    integer::izone,ixzone(2)=0 !ixzone(1:2) 物理组上、下表面的截平面（假定这两个截平面都位于同一个zone）,如果=0,则表示上/下表面为地表或地层底.
+    integer::ngvol=0
+    integer,allocatable::gvol(:)
+    character(1024)::helpstring= &
+        &"vol_pg的作用是定义输出同一个zone内两个截平面之间的几何体的物理组,方便定义特定的结构,比如悬挂式防渗墙.\n &
+        & \n vol_pg的输入格式为:\n &
+        & 1)nvol_pg //物理组个数  \n &	
+        & 2) ixzone(2)[,izone] // ixzone(1:2) 物理组上、下表面的截平面坐在ixzone编号(假定这两个截平面都位于同一个zone),如果=0,则表示上/下表面为地表或地层底.\n &
+        &                      // 如果ixzone(1:2)都为0,则izone要输入,以确定操作对象区域. \n &
+        & "C        
+contains
+    procedure,nopass::help=>write_help
+    procedure::readin=>vol_pg_readin        
+    procedure::getvol=>vol_pg_vol_id 
+    procedure,private::getz=>vol_pg_xy2z !给定x,y,返回上下截面的z高程
+    PROCEDURE,PRIVATE,NOPASS::GET_XZONE_Z=>xzone_xy2z !给定x,y,返回截面的z高程
+endtype
+type(volume_pg_tydef),allocatable::vol_pg(:)
+integer::nvol_pg=0
+
+
     contains
-    
+
+    subroutine vol_pg_readin(this,unit)
+        class(volume_pg_tydef)::this
+        integer,intent(in)::unit
+        INTEGER::I,J,N1,DN=0,NINC1
+        INTEGER,PARAMETER::DNMAX=1000
+        REAL(8)::AR(DNMAX) 
+        
+ 	    call strtoint(unit,ar,dnmax,dn,dnmax)
+        this.ixzone=int(ar(1:2))
+        !check input data
+        this.izone=maxval(this.ixzone)        
+        if(this.izone==0) then
+            this.izone=int(ar(3))
+        else
+            this.izone=xzone(this.izone).izone
+        endif
+        if(this.izone==0) then
+            error stop 'izone=0 is illegal. vol_pg input.'
+        endif
+        if(all(this.ixzone>0)) then
+            if(xzone(this.ixzone(1)).izone/=xzone(this.ixzone(2)).izone) then
+                error stop "the zones are different in the input two xzone. sub vol_pg_readin." 
+            end if
+        endif
+       
+
+
+    endsubroutine
+
+    subroutine vol_pg_vol_id(this)
+        class(volume_pg_tydef)::this
+        integer::izone,i,J,NVOL1
+        INTEGER,ALLOCATABLE::VOL1(:)
+        REAL(8)::Z1(2),T1
+
+        izone=this.izone
+        
+        NVOL1=SUM(ZONE(IZONE).VBFACE(1:SOILLAYER).NVOL)
+        ALLOCATE(VOL1(NVOL1))
+        NVOL1=0
+        do i=1,soillayer          
+            
+            DO J=1,ZONE(IZONE).VBFACE(i).NVOL
+                Z1=THIS.getz(ZONE(IZONE).VBFACE(i).BFACE(J).INSIDEPT(1:2))
+                T1=ZONE(IZONE).VBFACE(i).BFACE(J).INSIDEPT(3)
+                IF(T1<=Z1(1).AND.T1>=Z1(2)) THEN
+                    NVOL1=NVOL1+1
+                    VOL1(NVOL1)=ZONE(IZONE).VBFACE(i).BFACE(J).IVOL
+                ENDIF
+            ENDDO           
+            
+        enddo
+
+        THIS.ngvol=NVOL1
+        this.gvol=vol1(1:nvol1)
+        
+        IF(ALLOCATED(VOL1)) DEALLOCATE(VOL1)
+        
+    endsubroutine
+
+    function vol_pg_xy2z(this,xy) result(z)
+        class(volume_pg_tydef)::this
+        real(8),intent(in)::xy(2)
+        real(8)::z(2)
+        INTEGER::I
+        
+        DO I=1,2
+            IF(THIS.IXZONE(I)>0) THEN
+                Z(I)=THIS.GET_XZONE_Z(XZONE(THIS.IXZONE(I)),XY)          
+            ELSE
+                IF(I==1) THEN
+                    Z(I)=1.D10
+                ELSE
+                    Z(I)=-1.D10
+                ENDIF
+
+            ENDIF
+        ENDDO
+    endfunction
+
     real(8) function node_pg_getz(this,inode)
         implicit none
         class(node_pg_tydef)::this

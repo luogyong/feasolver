@@ -234,6 +234,15 @@ enddo
 	 term=trim(term)
 	
 	 select case(term)
+        case('vol_pg')
+            print *,'Reading vol_pg zone data...'
+            call skipcomment(unit)
+            read(unit,*) nvol_pg
+            allocate(vol_pg(nvol_pg))
+            if(nvol_pg>0) call vol_pg(1).help(vol_pg(1).helpstring)
+            do i=1,nvol_pg
+                call vol_pg(i).readin(unit)
+            enddo             
         case('vseg_pg')
             print *,'Reading vseg_pg Zone data...'
             call skipcomment(unit)

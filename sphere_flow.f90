@@ -12,7 +12,7 @@ SUBROUTINE INI_SPHFLOW(IELT)
     REAL(8)::XV1(3),T1,HK1,PHI1,TPHI1,WR1,L1,DV1(3),PI1,ZV1(3),YV1(3),D1,ANGLE1(7),SPT1(3,100),SR1,ORG1(3),try0,try1,try2
     REAL(8)::RDIS2(400)
     
-    if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
+    if(.not.IS_WELL_GEO_INI) CALL WELL_GEO_INI(.false.)
     
         
     N1=ELEMENT(IELT).NODE(2)
@@ -561,16 +561,14 @@ SUBROUTINE sphere_flow_element(ielt)
     
     USE MESHADJ
     USE solverds
-    USE SolverMath
-    USE MESHGEO,ONLY:getval_solver
-    USE forlab ,ONLY:ISOUTLIER
+
     IMPLICIT NONE
     INTEGER,INTENT(IN)::IELT
     INTEGER::I,J,IELT1,N1,N2,N3,K
     REAL(8)::XV1(3),T1,HK1,PHI1,TPHI1,WR1,L1,DV1(3),PI1,SK1
     REAL(8)::RDIS2(400)
     
-    if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
+    if(.not.IS_WELL_GEO_INI) CALL WELL_GEO_INI(.true.)
     
         
     N1=ELEMENT(IELT).NODE(2)
@@ -587,8 +585,8 @@ SUBROUTINE sphere_flow_element(ielt)
         .OR.ELEMENT(IELT1).ET==WELLBORE_SPGFACE) CYCLE !ITSELF EXCLUDED
         
         IF(ELEMENT(IELT1).EC/=SPG) CYCLE
-        IF(ALLOCATED(ELEMENT(IELT1).ANGLE)) CYCLE
-        CALL calangle(IELT1)
+        IF(.NOT.ALLOCATED(ELEMENT(IELT1).ANGLE)) CALL calangle(IELT1)
+
         !AVERAGED K, ASSUME ISOTROPIC        
         IF(ELEMENT(IELT).ET==SEMI_SPHFLOW) THEN
             !centroid
@@ -612,7 +610,9 @@ SUBROUTINE sphere_flow_element(ielt)
     HK1=HK1/TPHI1 !平均的K
     !HK1=1
     !统计边长
-    SK1=(TPHI1)**2*WR1/SK1     
+    SK1=(TPHI1)**2*WR1/SK1
+    !SK1=(TPHI1)*WR1/SK1 
+    !IF(solver_control.well_bottom_type==0)  SK1=SK1*0.95  
     ELEMENT(IELT).KM(1,1)=1.D0;ELEMENT(IELT).KM(2,2)=1.D0
     ELEMENT(IELT).KM(2,1)=-1.D0;ELEMENT(IELT).KM(1,2)=-1.D0
     ELEMENT(IELT).KM=ELEMENT(IELT).KM*SK1
@@ -629,7 +629,8 @@ subroutine cal_element_k(ielt,inwell,rw)
     integer,intent(in)::ielt,inwell
     real(8),intent(in)::rw
     integer::node1(4),i,j
-    real(8)::xy1(3,4),cofactor1(4,4),vol1,beta1(4),beta,alpha1,Sb,Si,K1(3),Ki,XSCALE1,t1,r1
+    real(8)::xy1(3,4),cofactor1(4,4),vol1,beta1(4),beta,alpha1,Sb,Si,K1(3),Ki,XSCALE1,t1,r1, &
+                        XC1(3),cos1,sm,sp,grad1
 
     select case(inwell)
     case(1)
@@ -653,11 +654,20 @@ subroutine cal_element_k(ielt,inwell,rw)
             (xy1(2,i)*xscale1)**2 + &
             xy1(3,i)**2)**0.5
         t1=beta1(i)/norm2(xy1(:,i))
+        !beta1(i)=(beta1(i)-t1*rw)/beta1(i)
+        ! if(solver_control.well_bottom_type==0) then
+        !     beta1(i)=pi()/2.0*beta1(i)
+        ! endif 
         if(solver_control.well_bottom_type/=0) then        
             beta1(i)=(beta1(i)-t1*rw)/beta1(i) 
         ELSE
             r1=((xy1(1,i)*xscale1)**2 + (xy1(2,i)*xscale1)**2)**0.5
-            beta1(i)=Pi()/2.0-asin(((xy1(3,i)**2+(r1+rw)**2)**0.5-(xy1(3,i)**2+(r1-rw)**2)**0.5)/(2*r1))
+            if(r1>1.d-7) then
+                beta1(i)=Pi()/2.0-asin(((xy1(3,i)**2+(r1+rw)**2)**0.5-(xy1(3,i)**2+(r1-rw)**2)**0.5)/(2*r1))
+            else
+                beta1(i)=Pi()/2.0-asin(rw/(rw**2+xy1(3,i)**2)**0.5)
+            endif
+            !if(i==4) beta1(2:4)=sum(beta1(2:4))/3.0
         ENDIF
     enddo
      
@@ -674,8 +684,22 @@ subroutine cal_element_k(ielt,inwell,rw)
     Sb= -Sb
     Si = K1(1)*cofactor1(1,2)**2 + K1(2)*cofactor1(1,3)**2 + K1(3)*cofactor1(1,4)**2 
     alpha1=element(ielt).angle(inwell)
-    !element(ielt).fd=Ki*rw*alpha1*Si/(Sb-36*Ki*Vol1*rw*alpha1)
     element(ielt).fd=alpha1*(Sb-36*Ki*Vol1*rw*alpha1)/(Ki*Si)
+    
+    !if(solver_control.well_bottom_type==0) then
+    !    DO I=1,3
+    !        XC1(I)=SUM(XY1(I,2:4))/3.0            
+    !    ENDDO
+    !    COS1=ABS(XC1(3))/NORM2(XC1(1:3))
+    !    Sp=sqrt(2.*(1. + cos1));Sm=sqrt(2.*(1. - cos1));
+    !    grad1= ((Sm + Sp)*cos1 + Sm - Sp)/(sqrt(2.*(cos1**2-1.) + Sp*Sm )*Sm*Sp)
+    !    alpha1=alpha1*abs(grad1)/(2*pi())
+    !else
+    !    alpha1=alpha1/(2*pi())
+    !endif  
+    !element(ielt).fd=alpha1*(Sb-72*Ki*PI()*Vol1*rw*alpha1)/(Ki*Si)
+    
+    
 endsubroutine 
     
 SUBROUTINE SPHFLOW_Q_K_UPDATE_ANALYTICAL(STEPDIS,IELT,ISTEP,IITER)

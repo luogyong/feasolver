@@ -966,7 +966,7 @@ subroutine Initialization()
 				!allocate(element(i).g(element(i).ndof))
 				call fepv(i,dof1)
 				call dofbw(i)
-			case(PRM6,PRM15,BAR)
+			case(PRM6,PRM15,BAR,tet4,tet10)
 				dof1=0
 				dof1(1)=1
 				dof1(2)=2

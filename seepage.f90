@@ -414,6 +414,7 @@ ENDSUBROUTINE
 SUBROUTINE ZT_SPG_INI2(IELT)
     USE solverds
     USE SolverMath
+    use MESHADJ,only:Setup_Solver_MESHTOPO
     IMPLICIT NONE
     INTEGER,INTENT(IN)::IELT
     !INTEGER,INTENT(INOUT)::ISPF(:,:)
@@ -422,7 +423,7 @@ SUBROUTINE ZT_SPG_INI2(IELT)
 	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord1(3,4)=0,cent1(3,2)=0,c1(3,3)=0,VEC1(3),t2
     
     
-    if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
+    if(.not.isIniSEdge) CALL Setup_Solver_MESHTOPO()
     !找出zt单元的由face1指向face2的向量VEC1
     IF(ELEMENT(IELT).ET==ZT4_SPG.OR.ELEMENT(IELT).ET==ZT4_SPG2) THEN
         AELT1=ELEMENT(IELT).ADJELT([1,3])

@@ -49,6 +49,8 @@ subroutine graph
 	result = INSERTMENUQQ (4, 3, $MENUENABLED, 'Generate 3D model'c, Generate_3D_MODEL)
     !result = INSERTMENUQQ (4, 4, $MENUENABLED, 'Generate gmsh volume model'c, out_volume_to_gmsh)
     result = INSERTMENUQQ (4, 4, $MENUENABLED, 'Generate gmsh volume model'c, out_volume_to_gmsh2)
+    result = INSERTMENUQQ (4, 5, $MENUENABLED, 'Output Elevation at nodes'c, out_z_at_node)
+    result = INSERTMENUQQ (4, 6, $MENUENABLED, 'Output Elevation at element center'c, out_z_at_center)
     !result = INSERTMENUQQ (4, 5, $MENUENABLED, 'Generate tet element'c, Generate_tet_element)
 	result = INSERTMENUQQ (6, 0, $MENUCHECKED, 'Control'c, nul)
 	result = INSERTMENUQQ (6, 1, $MENUENABLED, 'display&all'c, displayall)

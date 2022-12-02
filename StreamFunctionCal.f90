@@ -1,4 +1,5 @@
 MODULE STREAMFUNCTION
+! ref:Aalto J. Finite element seepage flow nets[J]. International Journal for Numerical and Analytical Methods in Geomechanics, 1984, 8(3): 297-303.
 !假定：
 !1)渗透系数的主轴与坐标轴平行
 !2)承压
@@ -7,7 +8,7 @@ MODULE STREAMFUNCTION
     USE solverds, ONLY:ELEMENT,ENUM,NODE,NNUM,ECP,SPG2D,CAX_SPG,TDISP,SOLVER_CONTROL,DOFADJL_TYDEF,&
         UM,isIniSEdge,PI,flownet_file,title,esetid,eset,neset,timestep,cpe8_spg,cps8_spg,CAX8_spg,cpe8r_spg,cps8r_spg,CAX8R_spg,&
         cpe6_spg,cps6_spg,CAX6_spg,cpe15_spg,cps15_spg,CAX15_spg,bar,bar2d,beam,beam2d,ssp2d,sf,bc_disp,bc_load,BD_NUM,BL_NUM
-    USE MESHGEO,ONLY:sedge,nsedge,snadjl,EDGE_TYDEF,NODE_ADJ_TYDEF,I_ENLARGE_AR,GETGMSHET,ELTTYPE
+    USE MESHADJ,ONLY:sedge,nsedge,snadjl,EDGE_TYDEF,NODE_ADJ_TYDEF,I_ENLARGE_AR,GETGMSHET,ELTTYPE,Setup_Solver_MESHTOPO
     USE SolverMath,ONLY:ANGLE2D
     USE MKL_DSS	
     IMPLICIT NONE
@@ -39,8 +40,8 @@ MODULE STREAMFUNCTION
         integer::NEDGE=0
         LOGICAL::ISINI=.FALSE.
 		integer,allocatable::node(:)
-        integer,allocatable::EDGE(:),ADJELT(:) 
-        REAL(KIND=RPRE),ALLOCATABLE::K(:,:),QC(:,:) 
+        integer,allocatable::EDGE(:),ADJELT(:)        
+        REAL(KIND=RPRE),ALLOCATABLE::K(:,:),QC(:,:),Q(:) 
     CONTAINS
         PROCEDURE,PASS::KQ_CAL=>SF_KQ_INI
         PROCEDURE::FORM_DOFADJL=>SF_FORM_DOFADJL
@@ -96,7 +97,7 @@ MODULE STREAMFUNCTION
         REAL(KIND=RPRE),ALLOCATABLE::VSF(:)
 
         
-        if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
+        if(.not.isIniSEdge) call Setup_Solver_MESHTOPO()
         
         CALL MODEL_SF.INITIALIZE()
         
@@ -127,7 +128,7 @@ MODULE STREAMFUNCTION
 SUBROUTINE SF_Q_CAL(SELF,MODEL)
     class(MKL_SOLVER_TYDEF)::self
     CLASS(M2S_DOMAIN_TYDEF)::MODEL
-    INTEGER::I
+    INTEGER::I,IELT
         
     IF(.NOT.ALLOCATED(self.Q)) ALLOCATE(self.Q(SELF.NDOF))
     IF(.NOT.ALLOCATED(self.H)) ALLOCATE(self.H(SELF.NDOF))
@@ -135,10 +136,10 @@ SUBROUTINE SF_Q_CAL(SELF,MODEL)
     self.h=TDISP(MODEL.node.node)
     DO I=1,MODEL.ENUM
         if(element(I).isactive==0) CYCLE              
-        SELF.Q(MODEL.ELEMENT(I).NODE)=SELF.Q(MODEL.ELEMENT(I).NODE)+ &
-            MATMUL(MODEL.ELEMENT(I).QC,SELF.H(MODEL.ELEMENT(I).NODE))            
-    ENDDO
-    
+        ! SELF.Q(MODEL.ELEMENT(I).NODE)=SELF.Q(MODEL.ELEMENT(I).NODE)+ &
+        !     MATMUL(MODEL.ELEMENT(I).QC,SELF.H(MODEL.ELEMENT(I).NODE))
+        SELF.Q(MODEL.ELEMENT(I).NODE)=SELF.Q(MODEL.ELEMENT(I).NODE)+ MODEL.ELEMENT(I).Q
+    ENDDO  
     
 END SUBROUTINE
 
@@ -650,6 +651,8 @@ SUBROUTINE m2s_get_bc_loop(self)
     
     SELF.BLOOPS(OUTBC1).ISOUTBC=1
     SELF.BLOOPS(0)=SELF.BLOOPS(OUTBC1) !存多连通区域合并为单连通域的边界
+
+    
     
     
 
@@ -680,32 +683,33 @@ END SUBROUTINE
         if(SELF.ISINI.OR.element(IELT).isactive==0) RETURN 
         if(element(iELT).ec==spg2d.or.element(iELT).ec==cax_spg)  then
             NDOF1=SIZE(SELF.NODE)
-            allocate(SELF.K(NDOF1,NDOF1),SELF.QC(NDOF1,NDOF1))
+            allocate(SELF.K(NDOF1,NDOF1),SELF.Q(NDOF1))
             allocate(B1(2,NDOF1))
 
      
           
             self.k=0.0D0
-            self.qc=0.0d0
-            
+            ! self.qc=0.0d0
+            SELF.Q=0.0d0
 	        do i=1,element(IELT).ngp
                 r1=1.0
                 if(element(ielt).ec==CAX_SPG) then
 			        r1=abs(element(ielt).xygp(1,i))
 			        if(abs(r1)<1e-7) r1=1.0e-7
 		        end if 
-		        self.k=self.k+ecp(element(IELT).et).weight(I)*element(IELT).DETJAC(I)*R1* MATMUL( &
+		        self.k=self.k+ecp(element(IELT).et).weight(I)*element(IELT).DETJAC(I)* MATMUL( &
 				        TRANSPOSE(element(IELT).b(:,:,I)),element(IELT).b(:,:,I))
                 
-                
-                KM1=ELEMENT(ielt).D*element(ielt).kr(i)
-                !DET1=KM1(1,1)*KM1(2,2)-KM1(1,2)*KM1(2,1)
-                !KM1=KM1/DET1
-                T1=km1(1,1);km1(1,1)=km1(2,2);km1(2,2)=t1;
-                B1(1,:)=element(IELT).b(2,:,I)
-                B1(2,:)=-element(IELT).b(1,:,I)                
-		        self.QC=self.QC+ecp(element(IELT).et).weight(I)*element(IELT).DETJAC(I)*R1* MATMUL( &
-				        MATMUL(TRANSPOSE(element(IELT).b(:,:,I)),KM1),B1)	                
+                B1(1,:)=-element(IELT).b(2,:,I)
+                B1(2,:)=element(IELT).b(1,:,I)  
+
+                ! KM1=ELEMENT(ielt).D*element(ielt).kr(i)
+                ! !DET1=KM1(1,1)*KM1(2,2)-KM1(1,2)*KM1(2,1)
+                ! !KM1=KM1/DET1
+                ! T1=km1(1,1);km1(1,1)=km1(2,2);km1(2,2)=t1;              
+		        ! self.QC=self.QC+ecp(element(IELT).et).weight(I)*element(IELT).DETJAC(I)*(R1)* MATMUL( &
+				!         MATMUL(TRANSPOSE(element(IELT).b(:,:,I)),KM1),B1)
+                SELF.Q=SELF.Q+ecp(element(IELT).et).weight(I)*element(IELT).DETJAC(I)*(R1)*matmul(element(ielt).velocity(:,i),B1)
             ENDDO
             
         endif
@@ -988,7 +992,7 @@ subroutine outdata_flownet(iincs,isubts)
 		cstring='TITLE = '//'"'//trim(title)//'_flownet"'
 		write(file_unit,'(a1024)') cstring
 		!call tecplot_variables(cstring)
-		write(file_unit,'(a)') 'Variables="X","Y","H","VSF"'
+		write(file_unit,'(a)') 'Variables="X","Y","Vx","Vy","H","VSF"'
 		isfirstcall=.false.
 	else
 		open(unit=file_unit,file=flownet_file,status='old',access='append')
@@ -1009,10 +1013,10 @@ subroutine outdata_flownet(iincs,isubts)
 		
 		if((.not.isbarfamily).and.(.not.isset1)) then
             write(file_unit,'(a1024)') eset(iset1).zonetitle_sf
-            nc=4
+            nc=6
 			do j=1,model_sf.nnum
                 n1=model_sf.node(j).node	
-		        write(file_unit,999) node(n1).coord(1:2),solver_sf.h(j),solver_sf.Q(j)
+		        write(file_unit,999) node(n1).coord(1:2),node(n1).velocity(1:2),solver_sf.h(j),solver_sf.Q(j)
             enddo
 
 			isset1=.true.

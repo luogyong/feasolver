@@ -53,7 +53,7 @@ subroutine unique_real(list,ulist,n2ulist,o2n)
         O2N2(j)=n2
     enddo
     
-    n2ulist(o2n)=O2N2    
+    n2ulist(o2n2)=O2N2    
     ulist=ulist(1:n2)
     
 endsubroutine
@@ -87,7 +87,7 @@ subroutine unique_int(list,ulist,n2ulist,o2n)
         O2N2(j)=n2
     enddo
     
-    n2ulist(o2n)=O2N2    
+    n2ulist(o2n2)=O2N2    
     ulist=ulist(1:n2)
     
 endsubroutine

@@ -980,31 +980,32 @@ subroutine solvercommand(term,unit)
 						if(n1>nnum1+1) then
 							element1(i).property(1)=ar(nnum1+2)  !frictional resistance
                         endif
+                        
                         if(isporeflow>0) then
                             if(.not.allocated(element1(i).pfp)) then
 								allocate(element1(i).pfp(11))
 								element1(i).pfp=0.0d0
                             endif
+                        
+                        
+						    do j=1,3
+							    if(n1>nnum1+1+j) then
+								    !if(.not.allocated(element1(i).pfp)) then
+								    !	allocate(element1(i).pfp(11))
+								    !	element1(i).pfp=0.0d0
+								    !endif
+								    element1(i).PFP(j)=ar(nnum1+2+j)  !D1,D2,Lr
+							    endif
+                            enddo
+                        
+						    if(element1(i).PFP(1)<=0.0d0)	element1(i).PFP(1)=element1(i).property(2)
+						    if(element1(i).PFP(2)<=0.0d0)	element1(i).PFP(2)=element1(i).property(2)
+						    if(element1(i).PFP(3)<=0.0d0)	element1(i).PFP(3)=0.5d0
+						    element1(i).property(4)=norm2(node(element1(i).node(2)).coord-node(element1(i).node(1)).coord)	
+						    element1(i).PFP(4)=vol_cone(element1(i).property(4)*element1(i).PFP(3),element1(i).PFP(1)/2.,element1(i).property(2)/2.)
+						    element1(i).PFP(5)=vol_cone(element1(i).property(4)*(1.0-element1(i).PFP(3)),element1(i).PFP(2)/2.,element1(i).property(2)/2.)
+                            node(element1(i).node(1:2)).poresize=node(element1(i).node(1:2)).poresize+element1(i).pfp(4:5)
                         endif
-                        
-						do j=1,3
-							if(n1>nnum1+1+j) then
-								!if(.not.allocated(element1(i).pfp)) then
-								!	allocate(element1(i).pfp(11))
-								!	element1(i).pfp=0.0d0
-								!endif
-								element1(i).PFP(j)=ar(nnum1+2+j)  !D1,D2,Lr
-							endif
-                        enddo
-                        
-						if(element1(i).PFP(1)<=0.0d0)	element1(i).PFP(1)=element1(i).property(2)
-						if(element1(i).PFP(2)<=0.0d0)	element1(i).PFP(2)=element1(i).property(2)
-						if(element1(i).PFP(3)<=0.0d0)	element1(i).PFP(3)=0.5d0
-						element1(i).property(4)=norm2(node(element1(i).node(2)).coord-node(element1(i).node(1)).coord)	
-						element1(i).PFP(4)=vol_cone(element1(i).property(4)*element1(i).PFP(3),element1(i).PFP(1)/2.,element1(i).property(2)/2.)
-						element1(i).PFP(5)=vol_cone(element1(i).property(4)*(1.0-element1(i).PFP(3)),element1(i).PFP(2)/2.,element1(i).property(2)/2.)
-                        node(element1(i).node(1:2)).poresize=node(element1(i).node(1:2)).poresize+element1(i).pfp(4:5)
-
 					case default
                     	element1(i).nnum=nnum1
                         if(n3<1) then

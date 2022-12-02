@@ -1,67 +1,70 @@
-SUBROUTINE Model_MESHTOPO_INI()
-    USE MESHADJ,ONLY:SETUP_EDGE_ADJL,SEDGE,NSEDGE,SNADJL,GETGMSHET,ELTTYPE, &
-                        SETUP_FACE_ADJL,SFACE,NSFACE, &
-                        SETUP_ADJACENT_ELEMENT_SOLVER,SETUP_SUBZONE_SOLVER
-    USE solverds,ONLY:isIniSEdge,NODE,ELEMENT,NDIMENSION,NQWNODE,QWELLNODE,WELLBORE,WELLBORE_SPGFACE,PIPE2,POREFLOW,ENUM,QWAN,NNUM
+SUBROUTINE WELL_GEO_INI(IS_ONLY_SNADJL)
+    USE MESHADJ,ONLY:SEDGE,NSEDGE,SNADJL,GETGMSHET,ELTTYPE, &                        
+                        Setup_Solver_MESHTOPO,SETUP_NODE2ELEMENT_ADJL_SOLVER
+    USE solverds,ONLY:isIniSEdge,NODE,ELEMENT,NDIMENSION,NQWNODE,QWELLNODE,WELLBORE,WELLBORE_SPGFACE,PIPE2,POREFLOW,ENUM,QWAN,NNUM, &
+                IS_WELL_GEO_INI
     IMPLICIT NONE
+    LOGICAL,INTENT(IN)::IS_ONLY_SNADJL
     INTEGER I,J,K,N1,N2,N3,N4,A1(2),A2(200)
     INTEGER,ALLOCATABLE::IELT1(:),ielt2(:)
     REAL(8)::XYLMT(2,3)
     
-    
-    if(.not.isIniSEdge) then
-        CALL SETUP_EDGE_ADJL(SEDGE,NSEDGE,SNADJL)
-        CALL SETUP_FACE_ADJL(SFACE,NSFACE,SEDGE,NSEDGE)
-        CALL SETUP_ADJACENT_ELEMENT_SOLVER(SEDGE,SFACE,ELEMENT,NDIMENSION)
-        !IF(NDIMENSION==2) CALL SETUP_EDGE_BC_SOLVER()
-        DO I=1,3
-            XYLMT(1,I)=MAXVAL(NODE.COORD(I))
-            XYLMT(2,I)=MINVAL(NODE.COORD(I))
-        ENDDO
-        CALL SETUP_SUBZONE_SOLVER(XYLMT(1,1),XYLMT(2,1),XYLMT(1,2),XYLMT(2,2),XYLMT(1,3),XYLMT(2,3),ELEMENT)
-        A1=[4,3]
-        
-        IF(.NOT.ALLOCATED(IELT1)) ALLOCATE(IELT1(ENUM))
-        IELT1=0
-        ielt2=ielt1
-        DO I=1,NQWNODE
-            N3=0
-            DO K=1,SNADJL(QWELLNODE(I).NODE(1)).ENUM !如果井口节点位于中间，上下各搜索一次
-                N1=QWELLNODE(I).NODE(1)
+    IF(.NOT.isIniSEdge) THEN
+        if(.not.IS_ONLY_SNADJL) then
+            call Setup_Solver_MESHTOPO()
+        else
+            call SETUP_NODE2ELEMENT_ADJL_SOLVER(SNADJL)
+        endif
+    ENDIF
+
+    IF(IS_WELL_GEO_INI) RETURN
+
+    A1=[4,3]    
+    IF(.NOT.ALLOCATED(IELT1)) ALLOCATE(IELT1(ENUM))
+    IELT1=0
+    ielt2=ielt1
+    DO I=1,NQWNODE
+        N3=0
+        DO K=1,SNADJL(QWELLNODE(I).NODE(1)).ENUM !如果井口节点位于中间，上下各搜索一次
+            N1=QWELLNODE(I).NODE(1)
 10              DO J=1,SNADJL(N1).ENUM
-                    N2=SNADJL(N1).ELEMENT(J)                    
-                    IF(IELT1(N2)>0) CYCLE !假定[WELLBORE,WELLBORE_SPGFACE,PIPE2]单元类中的每个单元只属于唯一井线
-                    !与井口相连的必然是这三种单元,且假定井线不相交
-                    IF(ANY([WELLBORE,WELLBORE_SPGFACE,PIPE2]-ELEMENT(N2).ET==0)) THEN
-                        IELT1(N2)=I
-                        IF(ELEMENT(N2).ET/=PIPE2) THEN
-                            IF(N3<1) THEN
-                                N3=N3+1
-                                A2(N3)=ELEMENT(N2).NODE(A1(SNADJL(N1).SUBID(J)))
-                                WHERE(ELEMENT(SNADJL(A2(N3)).ELEMENT).ESHAPE>300) IELT2(SNADJL(A2(N3)).ELEMENT)=I
-                            ENDIF
-                            N4=MOD(SNADJL(N1).SUBID(J),2)+1
+                N2=SNADJL(N1).ELEMENT(J)                    
+                IF(IELT1(N2)>0) CYCLE !假定[WELLBORE,WELLBORE_SPGFACE,PIPE2]单元类中的每个单元只属于唯一井线
+                !与井口相连的必然是这三种单元,且假定井线不相交
+                IF(ANY([WELLBORE,WELLBORE_SPGFACE,PIPE2]-ELEMENT(N2).ET==0)) THEN
+                    IELT1(N2)=I
+                    IF(ELEMENT(N2).ET/=PIPE2) THEN
+                        IF(N3<1) THEN
                             N3=N3+1
-                            A2(N3)=ELEMENT(N2).NODE(A1(N4))
+                            A2(N3)=ELEMENT(N2).NODE(A1(SNADJL(N1).SUBID(J)))
                             WHERE(ELEMENT(SNADJL(A2(N3)).ELEMENT).ESHAPE>300) IELT2(SNADJL(A2(N3)).ELEMENT)=I
-                            N1=ELEMENT(N2).NODE(N4)
-                            GOTO 10
                         ENDIF
-                    ENDIF  
-                ENDDO
+                        N4=MOD(SNADJL(N1).SUBID(J),2)+1
+                        N3=N3+1
+                        A2(N3)=ELEMENT(N2).NODE(A1(N4))
+                        WHERE(ELEMENT(SNADJL(A2(N3)).ELEMENT).ESHAPE>300) IELT2(SNADJL(A2(N3)).ELEMENT)=I
+                        N1=ELEMENT(N2).NODE(N4)
+                        GOTO 10
+                    ENDIF
+                ENDIF  
             ENDDO
-            IF(N3<1) THEN
-                PRINT *, "NO ELEMENT CONNECTING TO WELLHEAD I,I=",N1
-            ELSE
-                QWELLNODE(I).NNODE2=N3
-                QWELLNODE(I).NODE2=A2(1:N3)
-                QWELLNODE(I).ELEMENT=PACK([1:enum],IELT2==I)
-                ALLOCATE(QWELLNODE(I).QAN(2,N3))                
-            ENDIF
         ENDDO
-        ALLOCATE(QWAN(2,NNUM))        
-        ISINISEDGE=.TRUE.
-    endif
+        IF(N3<1) THEN
+            PRINT *, "NO ELEMENT CONNECTING TO WELLHEAD I,I=",N1
+        ELSE
+            QWELLNODE(I).NNODE2=N3
+            QWELLNODE(I).NODE2=A2(1:N3)
+            QWELLNODE(I).ELEMENT=PACK([1:enum],IELT2==I)
+            ALLOCATE(QWELLNODE(I).QAN(2,N3))                
+        ENDIF
+    ENDDO
+
+    ALLOCATE(QWAN(2,NNUM)) 
+           
+    IS_WELL_GEO_INI=.TRUE.
+
+    IF(ALLOCATED(IELT1)) DEALLOCATE(IELT1)
+    IF(ALLOCATED(IELT2)) DEALLOCATE(IELT2)
 
 ENDSUBROUTINE
 
@@ -80,7 +83,7 @@ SUBROUTINE INI_WELLBORE(IELT)
         ORG1(3),AREA1,XYLMT(2,3),SR1,try1,try2,TRY0
     REAL(8),ALLOCATABLE::RDIS2(:),SPT1(:,:)
     
-    if(.not.isIniSEdge) CALL Model_MESHTOPO_INI()
+    if(.not.IS_WELL_GEO_INI) CALL WELL_GEO_INI(.false.)
     
     
     
@@ -88,7 +91,8 @@ SUBROUTINE INI_WELLBORE(IELT)
     L1=SEDGE(IEDGE1).DIS/2.0
     IF(ELEMENT(IELT).ISTOPO>0) IEDGE1=ABS(ELEMENT(IELT).EDGE(5))
     N1=0
-    
+    WR1=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(1)
+
     IF(SEDGE(IEDGE1).ENUM<2) THEN
         PRINT *, "NO ELEMENTS SURROUNDING THE WELLBORE ELEMENT I. I=",IELT
         PRINT *, "TRY TO EMBED THE WELL LINE INTO THE CORRESPOINDING VOLUME."
@@ -100,7 +104,7 @@ SUBROUTINE INI_WELLBORE(IELT)
         GMET1=GETGMSHET(ELEMENT(IELT1).ET)
         IF(ELTTYPE(GMET1).DIM==3.AND.ELEMENT(IELT1).EC==SPG) THEN
             N1=N1+1
-            IF(.NOT.ALLOCATED(ELEMENT(IELT1).ANGLE)) CALL calangle(IELT1) 
+            IF(.NOT.ALLOCATED(ELEMENT(IELT1).ANGLE)) CALL calangle(IELT1)            
         ENDIF
     ENDDO
     
@@ -117,6 +121,7 @@ SUBROUTINE INI_WELLBORE(IELT)
             IF(ELEMENT(IELT1).EC/=SPG) CYCLE
             IF(ALLOCATED(ELEMENT(IELT1).ANGLE)) CYCLE
             CALL calangle(IELT1)
+            !call wellbore_area(IELT1,SEDGE(IEDGE1).V(I),SEDGE(IEDGE1).V(mod(i,2)+1),wr1)
         ENDDO    
     ENDDO
     
@@ -175,7 +180,7 @@ SUBROUTINE INI_WELLBORE(IELT)
     YV1=YV1/NORM2(YV1)
     ELEMENT(IELT).G2L(1,:)=XV1;ELEMENT(IELT).G2L(2,:)=YV1;ELEMENT(IELT).G2L(3,:)=ZV1;
     
-    WR1=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(1)
+    
     T2=PHI1*SIN(PHI1)/(1-COS(PHI1))
     SR1=0;N2=0
     DO J=1,2        
@@ -1269,5 +1274,89 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
             KR=KR+1/K1*GQ_TET4_O3(5,K)*6.D0
         ENDIF
     ENDDO
-ENDSUBROUTINE
+    ENDSUBROUTINE
     
+    ! SUBROUTINE wellbore_area(IELT,V1,V2,WR,AREA)
+    ! !求以V1为其中一个节点的四面体单元IELT的面与半径为WR,轴线为V1-V2的圆柱面的交线所围成的柱面面积(v1-v2范围内的面积)。
+    ! !假定：1)单元ielt的其中一个(v1)或2个(v1,v2)节点落在圆柱轴线V1-V2上.
+    ! !算法：1）先求出各边与圆柱面的交点，然后数值积分，数值积分区域的边界由三角面与圆柱面的交线确定
+    !     USE solverds,ONLY:NODE,ELEMENT
+    !     USE GeoMetricAlgorithm
+    !     IMPLICIT NONE
+    !     INTEGER,INTENT(IN)::IELT,V1,V2
+    !     REAL(8),INTENT(IN)::WR
+    !     REAL(8),INTENT(OUT)::AREA
+    !     REAL(8)::AXIS(3),IP1(3,4),g2l1(3,3),org1(3),T1,XY1(3,4),P1(3)
+    !     INTEGER::I,J,K,NODE1(4),N1,V11,V21
+    !     LOGICAL::isint,ISP1
+        
+        
+        
+    !     NODE1=PACK([1:4],ELEMENT(IELT).NODE(1:4)==V1,[0,0,0,0])
+    !     NODE1(2:4)=PACK([1:4],ELEMENT(IELT).NODE(1:4)/=V1)
+        
+    !     ISP1=.FALSE.
+    !     IF(ANY(ELEMENT(IELT).NODE(1:4)==V2)) THEN
+    !         ISP1=.TRUE.
+    !         V21=MINLOC(ABS(ELEMENT(IELT).NODE(1:4)-V2),DIM=1)
+    !     ENDIF
+    !     DO I=1,4
+    !         XY1(:,I)=NODE(ELEMENT(IELT).NODE(NODE1(I))).COORD-NODE(V1).COORD
+    !     ENDDO
+    !     AXIS=node(V2).coord-node(v1).coord
+        
+    !     !SET UP LOCAL SYSTEM
+    !     ORG1=NODE(V1).COORD               
+    !     CALL GEN_CORDINATE_SYSTEM(ORG1,G2L1,ZV=AXIS)
+    !     AXIS=MATMUL(G2L1,AXIS)
+    !     N1=0
+    !     DO I=2,4
+    !         XY1(:,I)=MATMUL(G2L1,XY1(:,I))
+    !         if(ISP1.AND.I==V21) CYCLE
+    !         !交点
+    !         T1=norm2(xy1(1:2,i))
+    !         IF(T1<WR) THEN
+    !             PRINT *, 'NODE(I) IS INSIDE THE WELLBORE,I=',ELEMENT(IELT).NODE(NODE1(I))
+    !             !ERROR STOP
+    !         ENDIF
+    !         N1=N1+1
+    !         IP1(:,N1)=XY1(:,I)*WR/T1
+    !         !to cylinder system
+    !         IP1(2,N1)=atan2(ip1(2,N1),ip1(1,N1))
+    !         IP1(1,N1)=WR;
+        
+    !         !当四面体的一边平行axis时，另一交点可根据相似三角形得到。
+    !         !IP13//IP24
+    !         IF(ISP1) THEN
+    !             IP1(1:2,2+N1)=IP1(1:2,N1)
+    !             IP1(3,2+N1)=IP1(3,N1)+AXIS(3)*(T1-WR)/T1
+    !         ENDIF
+            
+            
+    !     END DO
+        
+    !     if(N1==3) THEN
+    !         I=MINLOC(IP1(2,1:3),DIM=1)
+    !         K=MAXLOC(IP1(2,1:3),DIM=1)
+    !         DO I1=1,3
+    !             IF(I1/=I.AND.I1/=K) THEN
+    !                 J=I1
+    !                 EXIT
+    !             ENDIF
+    !         ENDDO
+    !         !O-I-K PLANE EQUATION
+    !         P1=NORMAL_TRIFACE(RESHAPE([0.D0,0.D0,0.D0,IP1(1,I)*COS(IP1(2,I)),IP1(1,I)*SIN(IP1(2,I)),IP1(3,I),&
+    !         IP1(1,K)*COS(IP1(2,K)),IP1(1,K)*SIN(IP1(2,K)),IP1(3,K)],([3,3])),.TRUE.)
+            
+    !         CALL AREA_ON_CYLINDER_SURFACE_CUT_BY_TWO_TRIANGLES(IP1(:,I),IP1(:,J),IP1(:,I),IP1(:,K),AREA)
+    !     ELSE
+
+    !     ENDIF
+    
+             
+       
+    
+    
+    ! ENDSUBROUTINE
+
+
