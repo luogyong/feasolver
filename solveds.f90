@@ -447,7 +447,7 @@ module solverds
 	
 	character(1024)::title,resultfile,resultfile1,resultfile2,resultfile3,resultfile21,resultfile22,EXCAMSGFILE,EXCAB_BEAMRES_FILE,&
 					EXCAB_STRURES_FILE,EXCAB_EXTREMEBEAMRES_FILE,SLOPE_FILE,helpfile,well_file,flownet_file,volfile,poreflowfile
-	INTEGER::DATAPOINT_UNIT=29
+	INTEGER::DATAPOINT_UNIT=29,NSFR=0
 	integer::datapacking=1	!=1,point format:{x1,y1,z1},{x2,y2,z2},..., . (Default Format)
 						 != 2, block format, {x1,x2,...},{y1,y2,...},{z1,z2,...}
 	integer::ndimension=2	!nodal dimension,

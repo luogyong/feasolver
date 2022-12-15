@@ -407,34 +407,7 @@ subroutine ContourLine(EDGE_L,NEDGE_L,FACE_L,NFACE_L,TET_L,NTET_L,XYZ,&
 	
 end subroutine
 
-subroutine initialize_contourplot(IVARPLOT)
-    !use solverds
-    use function_plotter
-    implicit none
-	INTEGER,INTENT(IN)::IVARPLOT
-    integer::i
-    real(GLDOUBLE) :: graphmin,graphmax,graphstep
-    !real(GLDOUBLE),allocatable :: contour_value(:)
-    character(128)::str1,str2  
-    
-    CONTOURBAR.IVARPLOT=IVARPLOT
-    minv=minval(POSDATA.NODALQ(:,IVARPLOT,:))
-    maxv=maxval(POSDATA.NODALQ(:,IVARPLOT,:))
-    WRITE(STR1,'(G13.3)') MAXV;WRITE(STR2,'(G13.3)') MINV;
-        
-    contourbar.title=trim(adjustl(POSDATA.OUTVAR(IVARPLOT).name))//',MAX='//TRIM(ADJUSTL(STR1))//',MIN='//TRIM(ADJUSTL(STR2))
-    IF(ABS(MINV)<1E-7) MINV=SIGN(1E-7,MINV)
-    call loose_label(minv, maxv,init_num_contour,graphmin,graphmax,graphstep,contourbar.nfrac)
-    graphstep=graphstep/scale_contour_num
-    contourbar.nval=MAX(floor((graphmax-graphmin)/graphstep)+1,2)
-    if(allocated(contourbar.VAL)) deallocate(contourbar.VAL)
-    if(allocated(contourbar.color)) deallocate(contourbar.color)
-    allocate(contourbar.VAL(contourbar.nval),contourbar.color(4,contourbar.nval))
-    do i=1,contourbar.nval
-        contourbar.VAL(i)=graphmin+(i-1)*graphstep
-        !call get_rainbow(contourbar.VAL(i),graphmin,graphmax,contourbar.color(:,i))            
-    enddo
-end subroutine
+
 
     
 !---+----3----+----2----+----1----+---<>---+----1----+----2----+----3----+----4
@@ -526,7 +499,7 @@ subroutine Color_Bar()
     !10 pound 
     scale1=PPM1*3.527777778/119.05*0.75
     call glLineWidth(1.0_glfloat)
-    call drawStrokeText(90.0,ORIG(1)-viewport1(3)/250., ORIG(2),ORIG(3),scale1,TRIM(ADJUSTL(contourbar.title)))
+    call drawStrokeText2d(90.0,ORIG(1)-viewport1(3)/250., ORIG(2),ORIG(3),scale1,TRIM(ADJUSTL(contourbar.title)))
     
     CALL glPopMatrix()
     CALL glMatrixMode(GL_PROJECTION)

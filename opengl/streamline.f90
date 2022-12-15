@@ -13,7 +13,7 @@ SUBROUTINE STREAMLINE_INI()
     case(VECTOR_GROUP_SEEPAGE_GRAD)
         IVO=[POSDATA.IGRADX,POSDATA.IGRADY,POSDATA.IGRADZ]
     case(VECTOR_GROUP_SFR)
-        IVO(1:2)=[POSDATA.ISFR_SFRX,POSDATA.ISFR_SFRY]
+        IVO=[POSDATA.ISFR_SFRX,POSDATA.ISFR_SFRY,POSDATA.ISFR_SFRZ]
 	CASE DEFAULT
 		CALL BEEPQQ(4000,500)
 		PRINT *, 'NO SUCH STREAMLINE_VECTOR.'
@@ -28,7 +28,7 @@ SUBROUTINE STREAMLINE_PLOT()
     use function_plotter
 
     implicit none
-    integer :: i,j,k,n1,DIRECTION1=1
+    integer :: i,j,k,n1,DIRECTION1=1,NDIM1
     REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1,DEG2,MAX1
     CHARACTER(16)::STR1
     REAL(GLFLOAT)::COLOR1(4),COLOR2(4)
@@ -42,7 +42,7 @@ SUBROUTINE STREAMLINE_PLOT()
     call glPolygonMode(gl_front_and_back, gl_fill)
 	call gldisable(GL_CULL_FACE);  
     !MAX1=MAXVAL(STREAMLINE.SF_SLOPE,MASK=STREAMLINE.SF_SLOPE<10)
-    
+    NDIM1=POSDATA.NDIM
     
     DO I=1,NSTREAMLINE
 
@@ -81,7 +81,7 @@ SUBROUTINE STREAMLINE_PLOT()
         
         DIRECTION1=1 !SLIDE LEFE
         IF(ISSTREAMLINESLOPE) THEN
-            IF((STREAMLINE(I).V(2,STREAMLINE(I).NV)-STREAMLINE(I).V(2,1))/(STREAMLINE(I).V(1,STREAMLINE(I).NV)-STREAMLINE(I).V(1,1))<0.D0) DIRECTION1=-1 !SLIDE RIGHT      
+            IF((STREAMLINE(I).V(NDIM1,STREAMLINE(I).NV)-STREAMLINE(I).V(NDIM1,1))/(STREAMLINE(I).V(1,STREAMLINE(I).NV)-STREAMLINE(I).V(1,1))<0.D0) DIRECTION1=-1 !SLIDE RIGHT      
         ENDIF
         
          
@@ -101,7 +101,7 @@ SUBROUTINE STREAMLINE_PLOT()
         
         IF(ISSTREAMLINESLOPE) THEN
             DX1=STREAMLINE(I).V(1,STREAMLINE(I).NV)-STREAMLINE(I).V(1,STREAMLINE(I).NV-1)
-            DY1=STREAMLINE(I).V(2,STREAMLINE(I).NV)-STREAMLINE(I).V(2,STREAMLINE(I).NV-1)
+            DY1=STREAMLINE(I).V(NDIM1,STREAMLINE(I).NV)-STREAMLINE(I).V(NDIM1,STREAMLINE(I).NV-1)
 
             IF(ABS(DX1)>1E-7) THEN
                 DEG1=ATAN(DY1/DX1)/PI*180.
@@ -112,7 +112,7 @@ SUBROUTINE STREAMLINE_PLOT()
             IF(DEG1<0) DEG1=DEG1+180.
 
             DX1=STREAMLINE(I).V(1,1)-STREAMLINE(I).V(1,2)
-            DY1=STREAMLINE(I).V(2,1)-STREAMLINE(I).V(2,2)
+            DY1=STREAMLINE(I).V(NDIM1,1)-STREAMLINE(I).V(NDIM1,2)
             !DEG1=ASIN(DY1/T1)/PI*180.0 
             IF(ABS(DX1)>1E-7) THEN
                 DEG2=ATAN(DY1/DX1)/PI*180.
@@ -134,17 +134,20 @@ SUBROUTINE STREAMLINE_PLOT()
             
             CALL drawStrokeText(DEG1,&
                                 STREAMLINE(I).V(1,STREAMLINE(I).NV), &
-                                STREAMLINE(I).V(2,STREAMLINE(I).NV),0.0, &
+                                STREAMLINE(I).V(2,STREAMLINE(I).NV),STREAMLINE(I).V(3,STREAMLINE(I).NV), &
                                 scale1,&
                                 STR1)
             CALL drawStrokeText(DEG2,&
                                 STREAMLINE(I).V(1,1), &
-                                STREAMLINE(I).V(2,1),0.0, &
+                                STREAMLINE(I).V(2,1),STREAMLINE(I).V(3,1), &
                                 scale1,&
                                 STR1)                                
             !CALL output3D(STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV), &
-            !              STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV),0.0, &
-            !              STR1)                    
+            !              STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV),STREAMLINE(I).VAL(POSDATA.IZ,STREAMLINE(I).NV), &
+            !              STR1)    
+            !CALL output3D(STREAMLINE(I).VAL(POSDATA.IX,1), &
+            !              STREAMLINE(I).VAL(POSDATA.IY,1),STREAMLINE(I).VAL(POSDATA.IZ,1), &
+            !              STR1)             
         ENDIF
         IF(SHOW_STREAMLINE_NODE) THEN
 		    call glPointSize(4.0_glfloat)
@@ -206,15 +209,22 @@ subroutine slopestability_streamline(islip)
     use quicksort
     USE solverds,ONLY:SOLVER_CONTROL
     USE, INTRINSIC :: IEEE_ARITHMETIC
+    USE stress_failure_ratio
+    use SolverMath
     implicit none
     integer,intent(in)::islip
     real(8)::pt1(3),VAL1(100)
     integer::i,j,n1,n2
     INTEGER,SAVE::IEL1=0
-    REAL(8)::SS(3),T1,RAD1,DX1,DY1,SNT1(2),C1,PHI1,SIGMA_TF1,SIGMA_T1,T2,SFR1
-    REAL(8)::RA1(NSTREAMLINE)
-   
-    IF(POSDATA.ISXX*POSDATA.ISYY*POSDATA.ISXY*POSDATA.IMC_C*POSDATA.IMC_PHI==0) THEN
+    REAL(8)::SS(6),T1,RAD1,DX1,DY1,SNT1(2),C1,PHI1,SIGMA_TF1,SIGMA_T1,T2,SFR1
+    REAL(8)::RA1(NSTREAMLINE),DZ1,DCOS1(3,3)
+    
+    N1=POSDATA.ISXX*POSDATA.ISYY*POSDATA.ISXY*POSDATA.IMC_C*POSDATA.IMC_PHI
+    IF(POSDATA.NDIM==3) THEN        
+        N1=N1*POSDATA.ISZZ*POSDATA.ISYZ*POSDATA.ISXZ
+    ENDIF
+    
+    IF(N1==0) THEN
         RETURN
     ELSE
         ISSTREAMLINESLOPE=.TRUE.
@@ -236,27 +246,31 @@ subroutine slopestability_streamline(islip)
             IF(IEL1==0) THEN
                 WRITE(*,*) 'ERROR IN slopestability_streamline. POINT LOCATION FAILED.X=',PT1    
             ENDIF
-            SS(1)=VAL1(POSDATA.ISXX);SS(2)=VAL1(POSDATA.ISYY);SS(3)=VAL1(POSDATA.ISXY);
+            SS(1)=VAL1(POSDATA.ISXX);SS(2)=VAL1(POSDATA.ISYY)
             C1=VAL1(POSDATA.IMC_C);PHI1=VAL1(POSDATA.IMC_PHI);SFR1=VAL1(POSDATA.ISFR);
-      !
-      !      SS(1)=(STREAMLINE(I).VAL(POSDATA.ISXX,J)+STREAMLINE(I).VAL(POSDATA.ISXX,J+1))/2.0
-      !      SS(2)=(STREAMLINE(I).VAL(POSDATA.ISYY,J)+STREAMLINE(I).VAL(POSDATA.ISYY,J+1))/2.0
-		    !SS(3)=(STREAMLINE(I).VAL(POSDATA.ISXY,J)+STREAMLINE(I).VAL(POSDATA.ISXY,J+1))/2.0
-      !      C1=(STREAMLINE(I).VAL(POSDATA.IMC_C,J)+STREAMLINE(I).VAL(POSDATA.IMC_C,J+1))/2.0
-      !      PHI1=(STREAMLINE(I).VAL(POSDATA.IMC_PHI,J)+STREAMLINE(I).VAL(POSDATA.IMC_PHI,J+1))/2.0
-      !      SFR1=(STREAMLINE(I).VAL(POSDATA.ISFR,J)+STREAMLINE(I).VAL(POSDATA.ISFR,J+1))/2.0
-            
-
-            
             DX1=STREAMLINE(I).VAL(POSDATA.IX,J+1)-STREAMLINE(I).VAL(POSDATA.IX,J)
             DY1=STREAMLINE(I).VAL(POSDATA.IY,J+1)-STREAMLINE(I).VAL(POSDATA.IY,J)
-            T1=(DX1**2+DY1**2)**0.5
-            IF(ABS(DX1)>1E-7) THEN
-                RAD1=ATAN(DY1/DX1)
+            IF(POSDATA.NDIM==2) THEN
+                SS(3)=VAL1(POSDATA.ISXY);
+                T1=(DX1**2+DY1**2)**0.5
+                IF(ABS(DX1)>1E-7) THEN
+                    RAD1=ATAN(DY1/DX1)
+                ELSE
+                    RAD1=SIGN(PI/2.0,DY1)
+                ENDIF
+                CALL stress_in_inclined_plane(SS,RAD1,SNT1)
             ELSE
-                RAD1=SIGN(PI/2.0,DY1)
+                SS(3)=VAL1(POSDATA.ISZZ);SS(4)=VAL1(POSDATA.ISXY);
+                SS(5)=VAL1(POSDATA.ISYZ);SS(6)=VAL1(POSDATA.ISXZ);
+                DZ1=STREAMLINE(I).VAL(POSDATA.IZ,J+1)-STREAMLINE(I).VAL(POSDATA.IZ,J)
+                T1=NORM2([DX1,DY1,DZ1])
+                DCOS1(1,:)=[DX1,DY1,DZ1]/T1
+                DCOS1(2,:)=[VAL1(POSDATA.IXPS2),VAL1(POSDATA.IYPS2),VAL1(POSDATA.IZPS2)]
+                DCOS1(2,:)=DCOS1(2,:)/NORM2(DCOS1(2,:))
+                DCOS1(3,:)=CS_VECTOR(DCOS1(1,:),DCOS1(2,:))
+                CALL STRESS_ON_PLANE(SS,DCOS1(3,:),SNT1)
             ENDIF
-            CALL stress_in_inclined_plane(SS,RAD1,SNT1)
+            
             !注意：
             !SOLVER_CONTROL.SLOPE_ISTENSIONCRACK 因为这个参数来源于sinp文件，如果是直接读入plot进行边坡稳定分析，则SLOPE_ISTENSIONCRACK的值为默认值=1。
             !如果默认值与计算文件sinp的值不一样，则两者的结果很可能不一样。
@@ -280,7 +294,8 @@ subroutine slopestability_streamline(islip)
         IF(ABS(SIGMA_T1)>1E-10.AND.SIGMA_TF1>1.D-6) THEN
             STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1)            
         ELSE
-            STREAMLINE(I).SF_SLOPE=HUGE(1.D0)
+            STREAMLINE(I).ISCOMPATABLE=.FALSE.
+            !STREAMLINE(I).SF_SLOPE=HUGE(1.D0)
         ENDIF
         IF(.NOT.STREAMLINE(I).ISCOMPATABLE) STREAMLINE(I).SF_SLOPE=HUGE(1.D0)
         !IF(ISNAN(STREAMLINE(I).SF_SLOPE)) THEN
@@ -356,7 +371,7 @@ subroutine Filterlocalminimalslope(P1,P2)
 END SUBROUTINE
 
 SUBROUTINE stress_in_inclined_plane(ss,RAD,SNT)
-!rad，angle with x axis,in rad.
+!rad，stress plane (not its direction ) angle with x axis(),in rad.
 !ss:sx,sy,sxy
 !ss1:sn,st
     implicit none
@@ -409,12 +424,13 @@ subroutine streamline_integration(istreamline)
             VAL1(1:POSDATA.NVAR,0:MAXSTEP1), VAL2(1:POSDATA.NVAR,0:MAXSTEP1)
     REAL(8)::P1(3),P2(3)
     EXTERNAL::DERIVS
-    INTEGER::ISINTERCEPT1
+    INTEGER::ISINTERCEPT1,ploc1(0:MAXSTEP1),ploc_up(0:MAXSTEP1)
     
  
     DO J=1,2
         I=0;Y=0.D0
-        y=STREAMLINE(ISTREAMLINE).PTstart(1:POSDATA.NDIM);t=0.d0;YSAV=0.D0;VAL1=0.D0
+        !STREAMLINE(ISTREAMLINE).PTstart(1:POSDATA.NDIM)=[17.684233535860802E+00,-508.428711332805094E-03,10.000000000000000E+00]
+        y=STREAMLINE(ISTREAMLINE).PTstart(1:POSDATA.NDIM);t=0.d0;YSAV=0.D0;VAL1=0.D0        
         IF(J==1) THEN
             DIRECTION1=-1.d0
         ELSE
@@ -425,6 +441,7 @@ subroutine streamline_integration(istreamline)
            CALL derivs(T,y,V1) 
            !print *, 'Over derivs'
            VAL1(1:POSDATA.NVAR,I)=RKINFO.VAL(1:POSDATA.NVAR)
+           ploc1(i)=RKINFO.IEL
            IF(RKINFO.ISOUTOFRANGE.AND.I>0) then
                 ISINTERCEPT1=0
                 IF(I==1) THEN                
@@ -448,7 +465,8 @@ subroutine streamline_integration(istreamline)
                     !IF(NORM2(IPT1)<1E-10) THEN
                     !    PAUSE
                     !ENDIF
-                    call ProbeatPhyscialspace(IPT1,VAL1(1:POSDATA.NVAR,I),iel) 
+                    call ProbeatPhyscialspace(IPT1,VAL1(1:POSDATA.NVAR,I),iel)
+                    ploc1(i)=IEL
                     !if(norm2(ipt1(1:2)-VAL1(1:2,i))>0.01) then
                     !    pause
                     !endif
@@ -489,6 +507,7 @@ subroutine streamline_integration(istreamline)
         IF(J==1) THEN
             NUP1=I
             YSAV_UP(:,1:NUP1)=YSAV(:,NUP1:1:-1)
+            ploc_up(1:NUP1)=ploc1(NUP1:1:-1)
             VAL2(1:POSDATA.NVAR,1:NUP1)=VAL1(1:POSDATA.NVAR,NUP1:1:-1)
         ELSE
             STREAMLINE(istreamline).NV=I+NUP1+1
@@ -496,6 +515,7 @@ subroutine streamline_integration(istreamline)
             ALLOCATE(STREAMLINE(istreamline).V(3,STREAMLINE(istreamline).NV))
             IF(ALLOCATED(STREAMLINE(ISTREAMLINE).VAL)) DEALLOCATE(STREAMLINE(ISTREAMLINE).VAL)
             ALLOCATE(STREAMLINE(ISTREAMLINE).VAL(1:POSDATA.NVAR,STREAMLINE(istreamline).NV))
+            ALLOCATE(STREAMLINE(ISTREAMLINE).IEL(STREAMLINE(istreamline).NV))
             STREAMLINE(ISTREAMLINE).VAL=0.D0
             STREAMLINE(istreamline).V(3,:)=0.d0
             STREAMLINE(istreamline).V(1:POSDATA.NDIM,1:NUP1)=YSAV_UP(:,1:NUP1)                
@@ -503,8 +523,13 @@ subroutine streamline_integration(istreamline)
             STREAMLINE(istreamline).V(1:POSDATA.NDIM,2+NUP1:I+1+NUP1)=YSAV(:,1:I)
             STREAMLINE(ISTREAMLINE).VAL(:,1:NUP1)=VAL2(1:POSDATA.NVAR,1:NUP1)
             STREAMLINE(ISTREAMLINE).VAL(:,NUP1+1:NUP1+I+1)=VAL1(1:POSDATA.NVAR,0:I)
+            STREAMLINE(ISTREAMLINE).IEL(1:NUP1)=PLOC_UP(1:NUP1)
+            STREAMLINE(ISTREAMLINE).IEL(NUP1+1:NUP1+I+1)=PLOC1(0:I)
+             
             CALL slopestability_streamline(ISTREAMLINE)
-
+            !IF((.NOT.STREAMLINE(ISTREAMLINE).ISCOMPATABLE).AND.ISSTREAMLINESLOPE) THEN
+            !    
+            !ENDIF
         ENDIF
         !ENDIF
     ENDDO
@@ -556,7 +581,7 @@ SUBROUTINE derivs(T,PT,V)
         IF(IVO(3)>0) V(3)=VAL1(IVO(3))
         RKINFO.LASTIEL=IEL
         
-        IF(SLOPE_CHECK_ADMISSIBILITY.AND.POSDATA.ISLOPE_SD>0) THEN
+        IF(ISSTREAMLINESLOPE.and.POSDATA.NDIM==2.AND.SLOPE_CHECK_ADMISSIBILITY.AND.POSDATA.ISLOPE_SD>0) THEN
             SSD1=VAL1(POSDATA.ISLOPE_SD)
             
             XC1=(POSDATA.MINX+POSDATA.MAXX)/2
@@ -1015,7 +1040,16 @@ SUBROUTINE GET_BC_INTERSECTION(PT1,PT2,IPT1,IPT2,ISINTERCEPT)
                 CALL intersect3D_SegmentPlane([PT1,PT2],[POSDATA.NODE(FACE(I).V(1)).COORD,&
                     POSDATA.NODE(FACE(I).V(2)).COORD,POSDATA.NODE(FACE(I).V(3)).COORD],&
                     IPT1,ISINTERCEPT)
-                IF(ISINTERCEPT==1) EXIT
+                IF(ISINTERCEPT==1) THEN
+                    
+                    IF(POSDATA.IH_BC>0) THEN
+                        IF(ALL(POSDATA.NODALQ(FACE(I).V(1:FACE(I).SHAPE),POSDATA.IH_BC,STEPPLOT.ISTEP)==0)) THEN
+                            ISINTERCEPT=10
+                        ENDIF                    
+                    ENDIF
+                    
+                    EXIT
+                ENDIF
             ENDIF
         ENDDO   
     

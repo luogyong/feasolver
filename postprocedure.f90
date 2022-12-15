@@ -437,10 +437,10 @@ subroutine tecplot_variables(cstring)
 	outvar(locx).value=locx
 	outvar(locy).name='Y'
 	outvar(locy).value=locy
-	if(ndimension==3) then
-		outvar(locz).name='Z'
-		outvar(locz).value=locz		
-	end if
+	!if(ndimension==3) then
+	outvar(locz).name='Z'
+	outvar(locz).value=locz		
+	!end if
 	cstring='Variables='
 
 	!default output for upper bound analysis
@@ -695,16 +695,17 @@ subroutine pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
 			case(discharge)
 				IDISQ1=I
 				NodalQ(:,i,NnodalQ)=node.q
+
 			case(kr_spg)
 				NodalQ(:,i,NnodalQ)=node.kr
 			case(mw_spg)
 				NodalQ(:,i,NnodalQ)=node.mw
 			case(SFR)
-				do j=1,11
+				do j=1,12
 					NodalQ(:,i+j-1,nnodalq)=node.SFR(j)
 				enddo
 			CASE(PSIGMA)
-				do j=1,4
+				do j=1,13
 					DO K=1,NNUM 
                         IF(ALLOCATED(node(K).psigma)) NodalQ(K,i+j-1,nnodalq)=node(K).psigma(j)
                     ENDDO
@@ -1245,11 +1246,11 @@ subroutine BlOCKout(file_unit,ISTEP,ISUBTS,ITER)
 			case(mw_spg)
 				write(file_unit,999) node.mw
 			case(SFR)
-				do j=1,11
+				do j=1,12
 					write(file_unit,999) node.SFR(j)
 				enddo
 			case(PSIGMA)
-				do j=1,4
+				do j=1,13
 					write(file_unit,999) node.PSIGMA(j)
 				enddo				
 			case(NF)

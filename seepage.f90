@@ -273,8 +273,9 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
 	INTEGER,INTENT(IN)::NHH,IENUM,IGP,ISTEP,IITER
     REAL(DPN),INTENT(IN)::HHEAD(NHH),HJ
 	REAL(DPN),INTENT(OUT)::KT(NDIMENSION,NDIMENSION)
-	REAL(DPN)::ROT1(2,2),COS1,SIN1,T1,FAC1,SITA1,LAMDA,C1,PHI1,SFR1(8),SIGMA1(6),TS1,PI1,MU1
-    INTEGER::I,IENUMC1,IE1,TSFAIL1=0	
+	REAL(DPN)::ROT1(NDIMENSION,NDIMENSION),COS1,SIN1,T1,FAC1,SITA1,LAMDA,C1,PHI1,SFR1(20),SIGMA1(6),TS1,PI1,MU1,KT1(NDIMENSION,NDIMENSION)
+    INTEGER::I,IENUMC1,IE1,TSFAIL1=0
+    LOGICAL::TOF1
     
     
 	
@@ -330,7 +331,7 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
     
     
     FAC1=MAX((ABS(SFR1(1)))**solver_control.slope_kscale,1.D-9)
-    SITA1=-SFR1(2)/180.*PI()
+    !SITA1=-SFR1(2)/180.*PI()
     
     !element(ienum).kr(IGP)=element(ienum).kr(IGP)*fac1
     
@@ -349,20 +350,43 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
     !element(ienum).kr(IGP)=lamda
     ELEMENT(IENUMC1).SFR(7,IGP)=LAMDA
     if(solver_control.slope_kratio>0) then
-        kt(2,2)=kt(1,1)/solver_control.slope_kratio
+        if(ndimension==2) then
+            kt(2,2)=kt(1,1)/solver_control.slope_kratio
+        else
+            kt(3,3)=kt(1,1)/solver_control.slope_kratio
+            kt(2,2)=kt(1,1)
+        endif
     endif
     KT=KT*lamda
-
-    IF(ABS(KT(1,1)-KT(2,2))>1E-7) THEN        
-	    COS1=COS(SITA1);SIN1=SIN(SITA1)
-	    ROT1(1,1)=COS1;ROT1(2,2)=COS1;ROT1(1,2)=SIN1;ROT1(2,1)=-SIN1
-	    KT=MATMUL(MATMUL(ROT1,KT),TRANSPOSE(ROT1))
+    IF(NDIMENSION==2) THEN
+        TOF1=ABS(KT(1,1)-KT(2,2))>1E-7
+    ELSE
+        TOF1=ABS(KT(1,1)-KT(2,2))>1E-7.OR.ABS(KT(3,3)-KT(2,2))>1.E-7.OR.ABS(KT(3,3)-KT(1,1))>1.E-7
     ENDIF
     
+    IF(TOF1) THEN        
+	    !COS1=COS(SITA1);SIN1=SIN(SITA1)
+	    !ROT1(1,1)=COS1;ROT1(2,2)=COS1;ROT1(1,2)=SIN1;ROT1(2,1)=-SIN1
+	    !KT1=MATMUL(MATMUL(ROT1,KT),TRANSPOSE(ROT1)) 
+        
+        ROT1(1,1:NDIMENSION)=SFR1(11:10+NDIMENSION)
+        IF(NDIMENSION==2) THEN
+            ROT1(2,1:NDIMENSION)=SFR1(17:16+NDIMENSION)
+        ELSE
+            ROT1(2,1:NDIMENSION)=SFR1(14:13+NDIMENSION)
+            ROT1(3,1:NDIMENSION)=SFR1(17:16+NDIMENSION)            
+        ENDIF
+        KT=MATMUL(MATMUL(TRANSPOSE(ROT1),KT),ROT1) 
+    ENDIF
+
+    WRITE(99,20) IITER,IENUM,IENUMC1,ELEMENT(IENUMC1).DSTRESS(:,IGP),ROT1
+    
+    RETURN
     !if(any(isnan(kt))) then
     !    pause
     !endif	
-
+10  FORMAT('ITER','IELT','IENUMC1','RTMatrix(1:3,1:3)')
+20  FORMAT(3(I7,X),15(E15.7,X))    
 END SUBROUTINE
 
 	!update Signorini boundary condition

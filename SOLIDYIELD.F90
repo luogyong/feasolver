@@ -1849,6 +1849,7 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 
 	use solverds
     USE Geometry
+    use stress_failure_ratio
 	!use operation_ix
 	implicit none
 	logical,intent(in)::iscon
@@ -1864,8 +1865,8 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 					Dstress1(6)=0.0,dqwi(3)=0.0,dqf(6)=0.0,dp(6,6)=0.0,&
 					de(6,6)=0.0,t1=0.0,pstress1(6)=0.0,lamda=0.0,&
 					buf1(6)=0.0,buf2(6)=0.0,pstrain(6)=0.0,ev=0,PlasPar(3),SIGMAB(6),SIGMAC(6),&
-                    C1,PHI1,TS1,PI1,MU1,SFR1(6)
-	REAL(8)::E1,V1,R1,vyf2,AT1(6),DLAMDA,DSIGMAP1(6),VYF1,UW1(6)=0.D0
+                    C1,PHI1,TS1,PI1,MU1,SFR1(9)
+	REAL(8)::E1,V1,R1,vyf2,AT1(6),DLAMDA,DSIGMAP1(6),VYF1,UW1(6)=0.D0,trans(3,3)
 	integer::nd1=0,ndim1,region,SITER1
     REAL(8),EXTERNAL::MultiSegInterpolate
 	
@@ -2030,7 +2031,7 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 		element(ienum).ev(j)=ev
 		!element(ienum).e(j)=e
 		
-        if(outvar(SFR).value>0.AND.ELEMENT(IENUM).EC==CPE) THEN
+        if(outvar(SFR).value>0) THEN
             MU1=material(ELEMENT(IENUM).MAT).GET(2,ISTEP)
             C1=material(ELEMENT(IENUM).MAT).GET(3,ISTEP)
 	        Phi1=material(ELEMENT(IENUM).MAT).GET(4,ISTEP)
@@ -2041,13 +2042,20 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
             !!!!HERE,THE STRESS IS STILL NOT UPDATED.
             SIGMA=ELEMENT(IENUM).STRESS(:,J)+ELEMENT(IENUM).DSTRESS(:,J)
 
-	        call stress_in_failure_surface(element(ienum).sfr(:,J),SIGMA,2,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1)
-            !IF(.NOT.ALLOCATED(element(IENUM).sfrko)) ALLOCATE(element(IENUM).sfrko(N1))
+	        !call stress_in_failure_surface(sfr1,SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1)
+            call stress_in_failure_surface(element(ienum).sfr(:,J),SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1,trans)
+            element(ienum).sfr(11:19,J)=pack(transpose(trans),.true.)
+			!IF(.NOT.ALLOCATED(element(IENUM).sfrko)) ALLOCATE(element(IENUM).sfrko(N1))
             !!假定ko应力，ko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
-            SIGMA(1)=mu1/(1-mu1)*SIGMA(2);SIGMA(3)=SIGMA(1);SIGMA(4:6)=0                
-	        call stress_in_failure_surface(sfr1,SIGMA,2,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1)
+            if(ndimension==2) then
+            	SIGMA(1)=mu1/(1-mu1)*SIGMA(2);SIGMA(3)=SIGMA(1);SIGMA(4:6)=0 
+			else
+				SIGMA(1)=mu1/(1-mu1)*SIGMA(3);SIGMA(2)=SIGMA(1);SIGMA(4:6)=0 
+			endif               
+	        !call stress_in_failure_surface(sfr1,SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1)
+            call stress_in_failure_surface(sfr1,SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1,trans)
             element(IENUM).sfr(8,J)=SFR1(1)                
-            if(solver_control.slope_mko>0) then
+            if(solver_control.slope_mko>0.and.element(ienum).sfr(1,J)>0.d0) then
                 element(ienum).sfr(1,J)=element(ienum).sfr(1,J)-SFR1(1)
             endif
                 

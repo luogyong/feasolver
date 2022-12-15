@@ -2518,6 +2518,10 @@ subroutine solvercommand(term,unit)
                         OUTVAR(MC_PHI).VALUE=MC_PHI
                         OUTVAR(SLOPE_SD).NAME='SlideDirection'
                         OUTVAR(SLOPE_SD).VALUE=SLOPE_SD
+
+						outvar(SFR_SFRZ).name='SFRZ'
+						outvar(SFR_SFRZ).value=SFR_SFRZ
+                      
                         !OUTVAR(SFR_ALPHA).NAME='PSIGMASURFACE'
                         !OUTVAR(SFR_ALPHA).VALUE=SFR_ALPHA
                         !OUTVAR(SFR_PSITA).NAME='SFRMAX_ANGLE_WITH_PSS'
@@ -2657,7 +2661,17 @@ subroutine solvercommand(term,unit)
 						OUTVAR(PSIGMA2).VALUE=PSIGMA2
 						OUTVAR(PSIGMA2).NAME='PSIGMA2'
 						OUTVAR(APSIGMA1).VALUE=APSIGMA1
-						OUTVAR(APSIGMA1).NAME='APSIGMA1'						
+						OUTVAR(APSIGMA1).NAME='APSIGMA1'
+						OUTVAR(XPS1).VALUE=XPS1;OUTVAR(XPS1).NAME='XPS1'
+                        OUTVAR(YPS1).VALUE=YPS1;OUTVAR(YPS1).NAME='YPS1'
+                        OUTVAR(ZPS1).VALUE=ZPS1;OUTVAR(ZPS1).NAME='ZPS1'
+                        OUTVAR(XPS2).VALUE=XPS2;OUTVAR(XPS2).NAME='XPS2'
+                        OUTVAR(YPS2).VALUE=YPS2;OUTVAR(YPS2).NAME='YPS2'
+                        OUTVAR(ZPS2).VALUE=ZPS2;OUTVAR(ZPS2).NAME='ZPS2'
+                        OUTVAR(XPS3).VALUE=XPS3;OUTVAR(XPS3).NAME='XPS3'
+                        OUTVAR(YPS3).VALUE=YPS3;OUTVAR(YPS3).NAME='YPS3'
+                        OUTVAR(ZPS3).VALUE=ZPS3;OUTVAR(ZPS3).NAME='ZPS3'
+                        
 						IF(NDIMENSION>2) THEN
 							outvar(syz).name='syz'  
 							outvar(syz).value=syz

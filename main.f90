@@ -21,7 +21,8 @@ program main
 	CALL CPU_TIME (time_begin )
 	winfo%TYPE = QWIN$Min 
 	status = SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo) 
-	status = SETWSIZEQQ(0, winfo)
+ !   winfo%TYPE = QWIN$Max
+	!status = SETWSIZEQQ(0, winfo)
 	Print *, 'FEASOLVER. LGY WORK.'
     !ef = setexitqq(QWIN$EXITNOPERSIST)
 	call TIME(char_time) 

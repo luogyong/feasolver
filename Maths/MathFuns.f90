@@ -1,5 +1,6 @@
 module SolverMath
-IMPLICIT NONE
+    USE cubic_root
+    IMPLICIT NONE
 
 INTEGER,PARAMETER::iwp=SELECTED_REAL_KIND(15)
 REAL(8),PRIVATE,PARAMETER::PI=3.141592653589793
@@ -319,6 +320,30 @@ ENDSUBROUTINE
       real ( kind = 8 ) normal(SIZE(V,DIM=1))
       
       V1=V(:,2)-V(:,1);V2=V(:,3)-V(:,1);
+
+      normal(1) = v1(2) * v2(3) - v1(3) * v2(2)
+      normal(2) = v1(3) * v2(1) - v1(1) * v2(3)
+      normal(3) = v1(1) * v2(2) - v1(2) * v2(1)
+      !normal=normal/norm2(normal)
+      return
+  
+    end function
+
+    function cs_vector(V1,V2) result (Normal)
+
+    !*****************************************************************************80
+    !v1(3),v2(3),
+    !CALCULATE THE NORMAL VECTOR through the cross product. 
+    !
+
+    !
+      implicit none
+
+      REAL(8),INTENT(IN)::V1(3),v2(3)
+
+      real ( kind = 8 ) normal(3)
+      
+      !V1=V(:,2)-V(:,1);V2=V(:,3)-V(:,1);
 
       normal(1) = v1(2) * v2(3) - v1(3) * v2(2)
       normal(2) = v1(3) * v2(1) - v1(1) * v2(3)

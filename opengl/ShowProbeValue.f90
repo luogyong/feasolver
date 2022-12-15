@@ -128,7 +128,7 @@ ENDSUBROUTINE
     
     call tetshapefun(Pt,itet,shpfun)
     n1=tet(itet).nv    
-    do i=1,size(POSDATA.nodalq,dim=2)
+    do i=1,POSDATA.NVAR
         val1(1:n1)=POSDATA.nodalq(tet(itet).v(1:n1),i,stepplot.istep)
         val(i)=dot_product(val1(1:n1),shpfun(1:n1))
     enddo
