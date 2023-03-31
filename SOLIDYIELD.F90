@@ -16,6 +16,7 @@ subroutine solve_SLD()
     use ifqwin
     USE IFCORE
 	use PoreNetWork
+	use confinedWell2D
 	implicit none
 	integer::i,j,iincs,iiter,istep=1,isubts=0,isref_spgcount=0
 	integer::kref=0,dof1,NC1
@@ -371,6 +372,10 @@ subroutine solve_SLD()
 			
 			
 			Tdisp=Tstepdis(:,iincs) !!for outdata
+			!恢复减压井的水头
+            do i=1,nrwell
+				tdisp(node(reliefwell(i).num).dof(4))=reliefwell(i).hw 
+			enddo
 			if(isexca2d/=0) call Beam_Result_EXCA(iincs)
 			if(pnw.isclogging>0) then
 				node.cc=node.cc+pnw.dc
@@ -626,6 +631,7 @@ endsubroutine
 
 subroutine KM_UPDATE_SPG2(stepdis,iiter,IINCS)
 	USE SOLVERDS
+	use confinedWell2D
 	implicit none
 	real(8),intent(in)::stepdis(ndof)
 	integer,intent(in)::iiter,IINCS
@@ -646,7 +652,11 @@ subroutine KM_UPDATE_SPG2(stepdis,iiter,IINCS)
 			!load(dof1)=(Nseep(j).value-stepdis(dof1))*sf(Nseep(j).sf).factor(iincs)*UM
 		end if
 	end do
-	
+	do j=1,nrwell
+		dof1=node(reliefwell(j).num).dof(4)
+		km(diaglkmloc(dof1))=km(diaglkmloc(dof1))+1./reliefwell(j).co	
+		!tm(node(reliefwell(j).num).sbw)=tm(node(reliefwell(j).num).sbw)+1/reliefwell(j).co
+	enddo
 	!!!lacy method
 	!IF(IITER>1) THEN
 	!	DO J=1,NNUM
@@ -1865,7 +1875,7 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 					Dstress1(6)=0.0,dqwi(3)=0.0,dqf(6)=0.0,dp(6,6)=0.0,&
 					de(6,6)=0.0,t1=0.0,pstress1(6)=0.0,lamda=0.0,&
 					buf1(6)=0.0,buf2(6)=0.0,pstrain(6)=0.0,ev=0,PlasPar(3),SIGMAB(6),SIGMAC(6),&
-                    C1,PHI1,TS1,PI1,MU1,SFR1(9)
+                    C1,PHI1,TS1,PI1,MU1,SFR1(9),dis1(ndimension)
 	REAL(8)::E1,V1,R1,vyf2,AT1(6),DLAMDA,DSIGMAP1(6),VYF1,UW1(6)=0.D0,trans(3,3)
 	integer::nd1=0,ndim1,region,SITER1
     REAL(8),EXTERNAL::MultiSegInterpolate
@@ -2041,9 +2051,20 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
             ENDIF
             !!!!HERE,THE STRESS IS STILL NOT UPDATED.
             SIGMA=ELEMENT(IENUM).STRESS(:,J)+ELEMENT(IENUM).DSTRESS(:,J)
-
-	        !call stress_in_failure_surface(sfr1,SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1)
-            call stress_in_failure_surface(element(ienum).sfr(:,J),SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1,trans)
+            if(solver_control.slope_guide_direction==1) then 
+                !按位移场
+			    dis1=get_gp_dis(istep,ienum,j,Ddis)			
+	            !call stress_in_failure_surface(sfr1,SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1)
+                call stress_in_failure_surface(element(ienum).sfr(:,J),SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1,trans,dis1)
+            elseif(solver_control.slope_guide_direction==2) then
+                !按计算点与其在输入参考线上投影点连线的夹角确定
+				!参考线通过关键词slope_guide_line输入控制点
+				!控制点一般为模型的坡底上表面最外侧边线，也可根据实际情况确定
+				dis1=get_gp_direction(istep,ienum,j)
+				call stress_in_failure_surface(element(ienum).sfr(:,J),SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1,trans,dis1)
+            else
+                call stress_in_failure_surface(element(ienum).sfr(:,J),SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1,trans)
+            endif
             element(ienum).sfr(11:19,J)=pack(transpose(trans),.true.)
 			!IF(.NOT.ALLOCATED(element(IENUM).sfrko)) ALLOCATE(element(IENUM).sfrko(N1))
             !!假定ko应力，ko=v/(1-v),sxx=k0*syy,szz=sxx,txy=0
@@ -2053,7 +2074,7 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
 				SIGMA(1)=mu1/(1-mu1)*SIGMA(3);SIGMA(2)=SIGMA(1);SIGMA(4:6)=0 
 			endif               
 	        !call stress_in_failure_surface(sfr1,SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1)
-            call stress_in_failure_surface(sfr1,SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1,trans)
+            call stress_in_failure_surface(sfr1,SIGMA,ndimension,C1,Phi1,solver_control.slidedirection,ELEMENT(IENUM).XYGP(1:NDIMENSION,J),TS1,trans,iflag=1)
             element(IENUM).sfr(8,J)=SFR1(1)                
             if(solver_control.slope_mko>0.and.element(ienum).sfr(1,J)>0.d0) then
                 element(ienum).sfr(1,J)=element(ienum).sfr(1,J)-SFR1(1)
@@ -2083,6 +2104,7 @@ subroutine bload_inistress_update(iiter,iscon,istep,ienum,bload,Ddis,nbload)
     
 	return
 end subroutine
+
 
 
 subroutine element_activate(istep)

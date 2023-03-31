@@ -1,6 +1,6 @@
-ï»¿  
-    !å®šä¹‰æ±‚è§£å™¨çš„æ•°æ®ç»“æ„
-	!èŠ‚ç‚¹
+  
+    !¶¨ÒåÇó½âÆ÷µÄÊı¾İ½á¹¹
+	!½Úµã
 module solverds
 
     
@@ -11,9 +11,9 @@ module solverds
     
 	type node_tydef
 		real(kind=DPN)::coord(3)=0.0D0 !coordinates (x,y,z)
-		integer::ndof=0 !èŠ‚ç‚¹çš„è‡ªç”±åº¦ä¸ªæ•°
+		integer::ndof=0 !½ÚµãµÄ×ÔÓÉ¶È¸öÊı
 		integer::dof(MNDOF)=inactive !-9999999,inactive dof; >0:active dof. if dof()>0, then it indexes the dof number.						 		
-		real(kind=DPN),allocatable::stress(:),strain(:),pstrain(:),SFR(:),PSIGMA(:)  !SFR=åº”åŠ›ç ´åæ¯”
+		real(kind=DPN),allocatable::stress(:),strain(:),pstrain(:),SFR(:),PSIGMA(:)  !SFR=Ó¦Á¦ÆÆ»µ±È
 		real(kind=DPN),allocatable::FQ(:),M(:) !nodal shear forces and nodal bending moments.
 		real(kind=DPN),allocatable::igrad(:),velocity(:)	!for spg element, gradients,velocities.
 		real(kind=DPN)::angle=0.0D0 !the angle around the vertex.
@@ -24,38 +24,38 @@ module solverds
 !		integer::Property=0 !for SPG, Property=1 suggesting that the node is on the seepage surface.
 
 	end type
-	integer::nnum !èŠ‚ç‚¹æ•°
+	integer::nnum !½ÚµãÊı
 	type(node_tydef),allocatable::node(:)
 	real(DPN),ALLOCATABLE::GNODE(:,:) !GHOST NODE
 	INTEGER::NGNODE=0
     
 	type element_tydef
 		integer::nnum,NEDGE=0,NFACE=0,NTET=0,ISTOPO=0 !node numbers of this element
-		integer,allocatable::node(:),EDGE(:),FACE(:),TET(:),ADJELT(:) !å•å…ƒçš„èŠ‚ç‚¹,TETä¸ºå•å…ƒçš„ç»†åˆ†å•å…ƒç»„çš„ä¸‹æ ‡ã€‚
-        integer,allocatable::node2(:),NSPLOC(:) !ä¸ºæ–¹ä¾¿Barå’ŒBeamå•å…ƒçš„åå¤„ç†ï¼Œä¸ºå•å…ƒé›†å†…çš„èŠ‚ç‚¹ç¼–å·ï¼Œå°†å…¶è½¬æ¢æˆå®ä½“å…­é¢ä½“å•å…ƒåè¾“å‡º,å½“å•å…ƒä¸ºzt4_spg,æˆ–zt6_spgæ—¶ï¼Œnode2æŒ‡å‘gnodeã€‚
-        !å½“et=wellboreæ—¶ï¼Œnode2å­˜å‚¨ä»¥wellboreå•å…ƒç¬¬3ï¼Œ4èŠ‚ç‚¹ä¸ºè¾¹çš„3ç»´å•å…ƒ,NSPLOCä¸ºäº•å‘¨é‡‡æ ·ç‚¹æ‰€åœ¨çš„å•å…ƒä½ç½® 
-        !å½“ISTOPO==1æ—¶ï¼Œç”±é«˜æ¬¡å•å…ƒç”Ÿæˆçš„ä¸€æ¬¡çš„wellboreç±»å•å…ƒï¼Œä½†å…¶ä»–é¢å…ƒæˆ–ä½“å…ƒä¸ºé«˜æ¬¡å•å…ƒæ—¶ï¼Œå› wellboreç±»å•å…ƒç›®å‰åªæœ‰2èŠ‚ç‚¹çš„ä¸€æ¬¡å•å…ƒï¼Œæ‰€ä»¥å¯¹é«˜æ¬¡çº¿å•å…ƒè¿›è¡Œäº†åˆ†è§£ï¼Œ
-        !node(nnum+1:nnum+2)è®°å½•å½“å‰å•å…ƒå¯¹åº”çš„é«˜æ¬¡å•å…ƒçš„ç«¯èŠ‚ç‚¹ï¼Œä»¥ä¾¿è¿›è¡Œåé¢çš„æ‹“æ‰‘é‚»æ¥åˆ†æã€‚        
-		integer::et  !å•å…ƒç±»å‹
+		integer,allocatable::node(:),EDGE(:),FACE(:),TET(:),ADJELT(:) !µ¥ÔªµÄ½Úµã,TETÎªµ¥ÔªµÄÏ¸·Öµ¥Ôª×éµÄÏÂ±ê¡£
+        integer,allocatable::node2(:),NSPLOC(:) !Îª·½±ãBarºÍBeamµ¥ÔªµÄºó´¦Àí£¬Îªµ¥Ôª¼¯ÄÚµÄ½Úµã±àºÅ£¬½«Æä×ª»»³ÉÊµÌåÁùÃæÌåµ¥ÔªºóÊä³ö,µ±µ¥ÔªÎªzt4_spg,»òzt6_spgÊ±£¬node2Ö¸Ïògnode¡£
+        !µ±et=wellboreÊ±£¬node2´æ´¢ÒÔwellboreµ¥ÔªµÚ3£¬4½ÚµãÎª±ßµÄ3Î¬µ¥Ôª,NSPLOCÎª¾®ÖÜ²ÉÑùµãËùÔÚµÄµ¥ÔªÎ»ÖÃ 
+        !µ±ISTOPO==1Ê±£¬ÓÉ¸ß´Îµ¥ÔªÉú³ÉµÄÒ»´ÎµÄwellboreÀàµ¥Ôª£¬µ«ÆäËûÃæÔª»òÌåÔªÎª¸ß´Îµ¥ÔªÊ±£¬ÒòwellboreÀàµ¥ÔªÄ¿Ç°Ö»ÓĞ2½ÚµãµÄÒ»´Îµ¥Ôª£¬ËùÒÔ¶Ô¸ß´ÎÏßµ¥Ôª½øĞĞÁË·Ö½â£¬
+        !node(nnum+1:nnum+2)¼ÇÂ¼µ±Ç°µ¥Ôª¶ÔÓ¦µÄ¸ß´Îµ¥ÔªµÄ¶Ë½Úµã£¬ÒÔ±ã½øĞĞºóÃæµÄÍØÆËÁÚ½Ó·ÖÎö¡£        
+		integer::et  !µ¥ÔªÀàĞÍ
 		integer::mat,mattype  !material id and material type.the paramters is got from material(mat)
-		!for et=soilspring, mat=-1,ä¸»åŠ¨ä¾§å•å…ƒï¼Œmat=-2,è¢«åŠ¨ä¾§å•å…ƒ
+		!for et=soilspring, mat=-1,Ö÷¶¯²àµ¥Ôª£¬mat=-2,±»¶¯²àµ¥Ôª
 		integer::set=0 !element set
 		integer::ndof !total dofs of the element
 		integer::ngp !the number of gauss points		
-		integer::isactive=1 !1Y0Nã€‚-1,COUPLEELEMET,ä¸è¿›è¡Œè®¡ç®—ï¼Œä»…è¾“å‡ºä¸Šä¸€æ­¥çš„ç»“æœä½œä¸ºæœ¬æ­¥çš„ç»“æœã€‚
+		integer::isactive=1 !1Y0N¡£-1,COUPLEELEMET,²»½øĞĞ¼ÆËã£¬½öÊä³öÉÏÒ»²½µÄ½á¹û×÷Îª±¾²½µÄ½á¹û¡£
         INTEGER::SF=0 !STEP FUNCTION .FACTOR=0,DEATICE;FACTOR=1,ACTIVE
 		integer::sign=1 !for soilspring element .sign=1, Pa,Po,Pp,Pw=+; sign=-1, pa,po,pp,pw=-.
-					!for pe_ssp2d,ngp=iæŒ‡å‘smnp(i).		
+					!for pe_ssp2d,ngp=iÖ¸Ïòsmnp(i).		
 		integer::nd ! the dimension of the strain-stress matrix
 		integer::id  !element id number in the set
 		integer::ec=0,eshape=-1 !element class,shape
 		integer::nspr=0 ! the patch number sharing the element
 		integer::layer=1 !element layer, for horizontal seepage analysis; 
 						!for sectional seepage analysis, =1, all nodes are under water table,=-1,all nodes are above water talbe,=0 cross the water table
-		integer::ifreedof=0 !>0,è¡¨é“°æ¥ç‚¹,æŒ‡å‘freedof(ifreedof)
+		integer::ifreedof=0 !>0,±í½Â½Óµã,Ö¸Ïòfreedof(ifreedof)
 		                    !for poreflow element,particle number clogging in the throat. 
 		!integer::status=1 !=1,fixed(default); =2,slip;=0:free.
-		integer::referencestep=1 !=i,è¡¨æ˜æ­¤å•å…ƒå˜å½¢è®¡ç®—åˆå§‹å‚è€ƒçŠ¶æ€èµ·ç‚¹ä¸ºç¬¬iæ­¥ç»“æŸçš„ä½ç§»åœºã€‚        
+		integer::referencestep=1 !=i,±íÃ÷´Ëµ¥Ôª±äĞÎ¼ÆËã³õÊ¼²Î¿¼×´Ì¬ÆğµãÎªµÚi²½½áÊøµÄÎ»ÒÆ³¡¡£        
 		integer::system=0 !local coordinate system, =0,global coordinate
 		! local coordinate system for bar element:
 		! x-axis is along the bar and the positive direction is from node 1 to node 2
@@ -69,9 +69,9 @@ module solverds
         !fore sphflow and semi_sphflow property(1)= geometrical resistance.for semi_sphflow,property(4-6)=domain direction vector
         !for pipe2/poreflow  element,property(1), element frictional resistance,(2)D2, throat diameter(for poreflow),(3) D1,(4)=Length of the throat.(5)=length of clogging volume,(6)K of the clogging volume
 		real(kind=DPN),allocatable::angle(:)!internal angle for every nodes
-        !å½“et=wellboreæ—¶,angleå­˜å‚¨node2å•å…ƒå¯¹åº”çš„äºŒé¢è§’ã€‚
-		integer,allocatable::g(:) !å•å…ƒçš„å®šä½å‘é‡
-		real(kind=DPN),allocatable::km(:,:) !å•å…ƒçš„å•åˆš,km(ndof,ndof)
+        !µ±et=wellboreÊ±,angle´æ´¢node2µ¥Ôª¶ÔÓ¦µÄ¶şÃæ½Ç¡£
+		integer,allocatable::g(:) !µ¥ÔªµÄ¶¨Î»ÏòÁ¿
+		real(kind=DPN),allocatable::km(:,:) !µ¥ÔªµÄµ¥¸Õ,km(ndof,ndof)
 		real(kind=DPN),allocatable::CMM(:,:) !Consistent mass matrix
 		real(kind=DPN),allocatable::B(:,:,:)  !B matrix, B(nd,ndof,ngp+nnum)
 		real(kind=DPN),allocatable::D(:,:)  !elastic strain-stress Matrix, D(nd,nd), its shape depends on the
@@ -91,7 +91,7 @@ module solverds
         real(kind=DPN),allocatable::uw(:) !pore pressure at each gausian point
 		real(kind=DPN),allocatable::GForce(:),DGforce(:) !the cumulative general force of each dof in globle system,Gf(ndof),useful for structure elements
 														!the nodal discharges, for spg element.
-                                                        !Dgforce(:),æ¯æ­¥å†…åŠ›å¢é‡ã€‚
+                                                        !Dgforce(:),Ã¿²½ÄÚÁ¦ÔöÁ¿¡£
 		real(kind=DPN),allocatable::GForceILS(:) !the nodal force in the local system.
         !real(kind=DPN)::reference
  		real(kind=DPN),allocatable::G2L(:,:) !transformation matrix from global system to local system
@@ -110,15 +110,15 @@ module solverds
 		!additional variables for upper bound analysis
 		real(kind=DPN),allocatable::A12(:,:)  ! for UBZT4 is A23;WELLBORE,SAMPLE POINTS
 		real(kind=DPN),allocatable::X2(:)
-        REAL(8),allocatable::PFP(:) !(1-5):D1,D2,LR,Vol1,Vol2åˆ†åˆ«å¯¹åº”èŠ‚ç‚¹12å‡ºåœ†å°ç›´å¾„åŠå–‰çš„ä½ç½®,(6,7)Lc1,Lc2åˆ†åˆ«ä¸ºæ·¤å µä½“çš„é•¿åº¦,(8,9)npc1,npc2æ·¤å µçš„é¢—ç²’æ•°
+        REAL(8),allocatable::PFP(:) !(1-5):D1,D2,LR,Vol1,Vol2·Ö±ğ¶ÔÓ¦½Úµã12³öÔ²Ì¨Ö±¾¶¼°ºíµÄÎ»ÖÃ,(6,7)Lc1,Lc2·Ö±ğÎªÓÙ¶ÂÌåµÄ³¤¶È,(8,9)npc1,npc2ÓÙ¶ÂµÄ¿ÅÁ£Êı
         REAL(8)::BBOX(2,3)=0.D0 !MIN,MAX OF X,Y AND Z
-        REAL(8)::fqw=1.0d0,FD=0.D0 !äº•å‘¨å•å…ƒæ¸—é€ç³»æ•°è°ƒèŠ‚å› å­.FD=FRICTIONAL TERM FOR PIPE2/poreflow
+        REAL(8)::fqw=1.0d0,FD=0.D0 !¾®ÖÜµ¥ÔªÉøÍ¸ÏµÊıµ÷½ÚÒò×Ó.FD=FRICTIONAL TERM FOR PIPE2/poreflow
 		REAL(8)::cdt=1.0d0 !poreflow convective term flow integration time
 		
 	contains
 		procedure::RIJ=>PNW_FLOW_RIJ
 	end type
-	integer::enum=0 !èŠ‚ç‚¹æ•°
+	integer::enum=0 !½ÚµãÊı
 	type(element_tydef),allocatable::element(:)
 	
 	
@@ -126,10 +126,10 @@ module solverds
 	type stepfun_tydef
 		real(kind=DPN),allocatable::factor(:)
         character(64)::title=""  
-        integer::base=1 !å½“base=1æ—¶ï¼Œfactor(0)=0ï¼Œå½“base=0,factor(0)=input by user.
-		!æ³¨æ„,è¾“å…¥çš„æ˜¯å„æ­¥è·è½½æˆ–ä½ç§»è¾¹ç•Œçš„å¢é‡.
-		!å½“FACTOR(ISTEP)=-999æ—¶,æ­¤è¾¹ç•Œæˆ–è·è½½åœ¨æ­¤æ­¥ä¸­å¤±æ•ˆï¼ˆæ— ä½œç”¨ï¼‰.	
-        !è¡¨å•å…ƒç”Ÿæ­»æ—¶ï¼Œ1ä¸ºç”Ÿ,å…¶ä»–æœªæ­»ã€‚
+        integer::base=1 !µ±base=1Ê±£¬factor(0)=0£¬µ±base=0,factor(0)=input by user.
+		!×¢Òâ,ÊäÈëµÄÊÇ¸÷²½ºÉÔØ»òÎ»ÒÆ±ß½çµÄÔöÁ¿.
+		!µ±FACTOR(ISTEP)=-999Ê±,´Ë±ß½ç»òºÉÔØÔÚ´Ë²½ÖĞÊ§Ğ§£¨ÎŞ×÷ÓÃ£©.	
+        !±íµ¥ÔªÉúËÀÊ±£¬1ÎªÉú,ÆäËûÎ´ËÀ¡£
 	endtype
 	type(stepfun_tydef),allocatable::sf(:)
 	integer::nsf=0
@@ -153,16 +153,16 @@ module solverds
         logical::issteady=.true.
         integer::bctype=step,loadtype=step
         
-        !LOADTYPE(BCTYPE):ä¸ºè·è½½(ä½ç§»è¾¹ç•Œ)æ–½åŠ æ–¹å¼ï¼Œ
-		!=1(ramp),è¡¨ç¤ºæ­¥å†…è·è½½(ä½ç§»è¾¹ç•Œ)éšæ—¶é—´çº¿æ€§æ–½åŠ ï¼Œ
-		!=2(step(default))ï¼Œè¡¨ç¤ºæ­¥è·è½½(ä½ç§»è¾¹ç•Œ)åœ¨æ­¥åˆç¬é—´æ–½åŠ ã€‚
-		!=-1(ReRamp) è¡¨ç¤ºæ­¥è·è½½(ä½ç§»è¾¹ç•Œ)éšæ—¶é—´çº¿æ€§ä»å¤§å˜å°ã€‚
+        !LOADTYPE(BCTYPE):ÎªºÉÔØ(Î»ÒÆ±ß½ç)Ê©¼Ó·½Ê½£¬
+		!=1(ramp),±íÊ¾²½ÄÚºÉÔØ(Î»ÒÆ±ß½ç)ËæÊ±¼äÏßĞÔÊ©¼Ó£¬
+		!=2(step(default))£¬±íÊ¾²½ºÉÔØ(Î»ÒÆ±ß½ç)ÔÚ²½³õË²¼äÊ©¼Ó¡£
+		!=-1(ReRamp) ±íÊ¾²½ºÉÔØ(Î»ÒÆ±ß½ç)ËæÊ±¼äÏßĞÔ´Ó´ó±äĞ¡¡£
 	end type
     type(Stepinfo_tydef),allocatable::stepinfo(:)
     integer::nstepinfo=1
 	
 !	type IniValue_tydef
-!		real(kind=DPN),allocatable::v(:) !åˆå€¼. initialvalue(nnode)
+!		real(kind=DPN),allocatable::v(:) !³õÖµ. initialvalue(nnode)
 !	end type
 !	type(IniValue_tydef)::InitialValue(MNDOF)
 	
@@ -174,14 +174,14 @@ module solverds
 		integer::isdead=0 !for =1,the condition is deactive in the current step.
 		real(kind=DPN)::value=0
 				
-		!å¯¹äºbc_disp,å¦‚æœisdual==i(>0),åˆ™è¡¨ç¤ºæ­¤è‡ªç”±åº¦å¯èƒ½ä¸å‡ºæº¢è¾¹ç•ŒNseep(i)é‡å¤ï¼Œå¦‚æœè¾¹ç•Œæ°´å¤´å°äºä½ç½®æ°´å¤´ï¼Œåˆ™å˜ä¸ºå‡ºæº¢è¾¹ç•Œã€‚
-		!å¯¹äºNseep, å¦‚æœisdual==i(>0)ï¼Œåˆ™è¡¨ç¤ºæ­¤è‡ªç”±åº¦å¯èƒ½ä¸æ°´å¤´è¾¹ç•ŒBC_disp(i)é‡å¤ï¼Œå¦‚æœè¾¹ç•Œæ°´å¤´å¤§äºä½ç½®æ°´å¤´ï¼Œåˆ™ä»¥æ°´å¤´è¾¹ç•Œä¸ºå‡†ï¼Œå³æ°´å¤´è¾¹ç•Œçš„ä¼˜å…ˆçº§å¤§äºå‡ºæº¢è¾¹ç•Œã€‚
+		!¶ÔÓÚbc_disp,Èç¹ûisdual==i(>0),Ôò±íÊ¾´Ë×ÔÓÉ¶È¿ÉÄÜÓë³öÒç±ß½çNseep(i)ÖØ¸´£¬Èç¹û±ß½çË®Í·Ğ¡ÓÚÎ»ÖÃË®Í·£¬Ôò±äÎª³öÒç±ß½ç¡£
+		!¶ÔÓÚNseep, Èç¹ûisdual==i(>0)£¬Ôò±íÊ¾´Ë×ÔÓÉ¶È¿ÉÄÜÓëË®Í·±ß½çBC_disp(i)ÖØ¸´£¬Èç¹û±ß½çË®Í·´óÓÚÎ»ÖÃË®Í·£¬ÔòÒÔË®Í·±ß½çÎª×¼£¬¼´Ë®Í·±ß½çµÄÓÅÏÈ¼¶´óÓÚ³öÒç±ß½ç¡£
 		integer::isdual=0,iswellhead=0 
-        !å¯¹äºbc_disp,iswellhead>0,è¡¨ç¤ºæ­¤èŠ‚ç‚¹ä¸ºå‡å‹è‡ªæµäº•è¾¹ç•ŒèŠ‚ç‚¹ï¼ŒèŠ‚ç‚¹æµé‡åªå‡ºä¸è¿›ï¼Œå¦‚æœæµå…¥æµé‡ï¼Œåˆ™ä»¤æ­¤è¾¹ç•Œå¤±æ•ˆ
-        !å¯¹äºNseep,iswellhead>0,è¡¨ç¤ºæ­¤èŠ‚ç‚¹ä¸ºäº•å£å‡ºæº¢é¢ï¼Œä¸”æ­¤å‡ºæº¢ç‚¹çš„æµé‡ï¼Œè®¡å…¥ç¼–å·ä¸ºiswellheadçš„äº•ç‚¹æµé‡
-		integer::ssp_onepile=0 !åªå¯¹SSPå•å…ƒèŠ‚ç‚¹èµ·ä½œç”¨ï¼Œæ ‡ç¤ºè¿™ä¸ªä½œç”¨æ˜¯å¦æ˜¯ä½œç”¨åœ¨å…¶ä¸­ä¸€æ ¹é’¢æ¿æ¡©ä¸Š,è€Œä¸ä¸¤æ ¹éƒ½ä½œç”¨ã€‚
-								!/=0,ä½œç”¨åœ¨å•æ ¹é’¢æ¿æ¡©ä¸Šï¼Œ=0éƒ½ä½œç”¨ã€‚
-		integer::isincrement=0 !å¦‚æœä¸º1ï¼Œåˆ™è¡¨æ˜valueæ˜¯å¢é‡ï¼Œè€Œä¸æ˜¯å…¨é‡ï¼ˆé»˜è®¤ï¼‰
+        !¶ÔÓÚbc_disp,iswellhead>0,±íÊ¾´Ë½ÚµãÎª¼õÑ¹×ÔÁ÷¾®±ß½ç½Úµã£¬½ÚµãÁ÷Á¿Ö»³ö²»½ø£¬Èç¹ûÁ÷ÈëÁ÷Á¿£¬ÔòÁî´Ë±ß½çÊ§Ğ§
+        !¶ÔÓÚNseep,iswellhead>0,±íÊ¾´Ë½ÚµãÎª¾®±Ú³öÒçÃæ£¬ÇÒ´Ë³öÒçµãµÄÁ÷Á¿£¬¼ÆÈë±àºÅÎªiswellheadµÄ¾®µãÁ÷Á¿
+		integer::ssp_onepile=0 !Ö»¶ÔSSPµ¥Ôª½ÚµãÆğ×÷ÓÃ£¬±êÊ¾Õâ¸ö×÷ÓÃÊÇ·ñÊÇ×÷ÓÃÔÚÆäÖĞÒ»¸ù¸Ö°å×®ÉÏ,¶ø²»Á½¸ù¶¼×÷ÓÃ¡£
+								!/=0,×÷ÓÃÔÚµ¥¸ù¸Ö°å×®ÉÏ£¬=0¶¼×÷ÓÃ¡£
+		integer::isincrement=0 !Èç¹ûÎª1£¬Ôò±íÃ÷valueÊÇÔöÁ¿£¬¶ø²»ÊÇÈ«Á¿£¨Ä¬ÈÏ£©
         
 	end type
 	type(bc_tydef),allocatable::bc_disp(:),bc_load(:),bf(:),NSeep(:),IniValue(:),CFN(:),ccbc(:)
@@ -191,20 +191,20 @@ module solverds
     TYPE QWELLNODE_TYDEF
         INTEGER::NNODE,DOF=4,NNODE2=0
         INTEGER,ALLOCATABLE::NODE(:),NODE2(:),ELEMENT(:) 
-        REAL(kind=DPN),ALLOCATABLE::QAN(:,:) !äº•èŠ‚ç‚¹node2(i)çš„è§£ææµé‡qan(1,i)åŠæ•°å€¼æµé‡qan(2,i)
-        !NODEä¸ºæ¯å£äº•çš„äº•å£èŠ‚ç‚¹åŠå‡ºæº¢èŠ‚ç‚¹ï¼Œä»¥ç»Ÿè®¡äº•æµé‡ã€‚
-        !node2ä¸ºæ¯å£äº•çš„äº•æµå•å…ƒåŠäº•æµå‡ºæº¢é¢å•å…ƒçš„ç¬¬3ã€4å·èŠ‚ç‚¹  
-        !ELEMENTä¸ºäº•å‘¨é™„è¿‘çš„å®ä½“å•å…ƒï¼ˆå½¢çŠ¶ä¸º203æˆ–304çš„å•å…ƒï¼‰
+        REAL(kind=DPN),ALLOCATABLE::QAN(:,:) !¾®½Úµãnode2(i)µÄ½âÎöÁ÷Á¿qan(1,i)¼°ÊıÖµÁ÷Á¿qan(2,i)
+        !NODEÎªÃ¿¿Ú¾®µÄ¾®¿Ú½Úµã¼°³öÒç½Úµã£¬ÒÔÍ³¼Æ¾®Á÷Á¿¡£
+        !node2ÎªÃ¿¿Ú¾®µÄ¾®Á÷µ¥Ôª¼°¾®Á÷³öÒçÃæµ¥ÔªµÄµÚ3¡¢4ºÅ½Úµã  
+        !ELEMENTÎª¾®ÖÜ¸½½üµÄÊµÌåµ¥Ôª£¨ĞÎ×´Îª203»ò304µÄµ¥Ôª£©
         real(kind=DPN)::Q=0,QA=0,QN=0 !
     ENDTYPE
     TYPE(QWELLNODE_TYDEF),ALLOCATABLE::QWELLNODE(:),QWELLNODE1(:)
-    REAL(kind=DPN),ALLOCATABLE::QWAN(:,:)   !äº•èŠ‚ç‚¹node2(i)çš„è§£ææµé‡qan(1,i)åŠæ•°å€¼æµé‡qan(2,i)
+    REAL(kind=DPN),ALLOCATABLE::QWAN(:,:)   !¾®½Úµãnode2(i)µÄ½âÎöÁ÷Á¿qan(1,i)¼°ÊıÖµÁ÷Á¿qan(2,i)
     INTEGER::NQWNODE=0
 	LOGICAL::IS_WELL_GEO_INI=.FALSE.
     
     type hinge_typef
-        integer::element,node,dof=7 !å•å…ƒå·ï¼ŒèŠ‚ç‚¹å·ï¼Œè‡ªç”±åº¦
-		integer::newnode=0 !æŒ‡å‘ä¸èŠ‚ç‚¹Nodeä¸ºé‡åˆçš„èŠ‚ç‚¹node(newnode)ã€‚
+        integer::element,node,dof=7 !µ¥ÔªºÅ£¬½ÚµãºÅ£¬×ÔÓÉ¶È
+		integer::newnode=0 !Ö¸ÏòÓë½ÚµãNodeÎªÖØºÏµÄ½Úµãnode(newnode)¡£
     endtype
     type(hinge_typef),allocatable::FreeDOF(:)
     integer::Nfreedof=0
@@ -269,30 +269,31 @@ module solverds
         INTEGER::ISLS=0,ISACC=DANG  !ISACC=0,NO ACCELERATION, =1,SLOAN, =2,DANG(DEFAULT)
         INTEGER::NLS=10
         real(kind=DPN)::STOL=0.8D0,S0=0.D0,ALPHA=1.0D0 !ALPHA =INISTIFFNESS ACCELERATION PARAMETER
-        integer::RF_EPP=0 !è¢«åŠ¨ä¾§åœŸå¼¹ç°§æŠ—åŠ›é™å€¼æ˜¯å¦è¦å‡æ‰åˆå§‹çš„åœŸå‹åŠ›ã€‚
-        integer::RF_APP=0 !ä¸»åŠ¨ä¾§ä¸»åŠ¨åœŸå‹åŠ›è·è½½ï¼Œå¼€æŒ–é¢ä»¥ä¸‹æ˜¯å¦æŒ‰å€’ä¸‰è§’æŠ˜å‡ã€‚
-		integer::INIEPP=2  !è¢«åŠ¨ä¾§åœŸå¼¹ç°§æŠ—åŠ›é™å€¼æ˜¯å¦è¦å‡æ‰åˆå§‹çš„åœŸå‹åŠ›,2=ä¸»åŠ¨åœŸå‹åŠ›ï¼Œ1=é™æ­¢åœŸå‹åŠ›
+        integer::RF_EPP=0 !±»¶¯²àÍÁµ¯»É¿¹Á¦ÏŞÖµÊÇ·ñÒª¼õµô³õÊ¼µÄÍÁÑ¹Á¦¡£
+        integer::RF_APP=0 !Ö÷¶¯²àÖ÷¶¯ÍÁÑ¹Á¦ºÉÔØ£¬¿ªÍÚÃæÒÔÏÂÊÇ·ñ°´µ¹Èı½ÇÕÛ¼õ¡£
+		integer::INIEPP=2  !±»¶¯²àÍÁµ¯»É¿¹Á¦ÏŞÖµÊÇ·ñÒª¼õµô³õÊ¼µÄÍÁÑ¹Á¦,2=Ö÷¶¯ÍÁÑ¹Á¦£¬1=¾²Ö¹ÍÁÑ¹Á¦
         integer::nopopup=0
-        integer::isParasys=0,CaseID=0 !isParasys,æ˜¯å¦ä¸ºå‚æ•°æ•æ„Ÿæ€§åˆ†æ(must start form 1)
-!		integer::isPostCal=0 !æ‰€æœ‰çš„æœªçŸ¥é‡å‡ä¸ºå·²çŸ¥ï¼ˆç”±è¾¹ç•Œæ¡ä»¶è¾“å…¥ï¼‰ï¼Œä»…è¿›è¡Œåå¤„ç†è®¡ç®—ã€‚
+        integer::isParasys=0,CaseID=0 !isParasys,ÊÇ·ñÎª²ÎÊıÃô¸ĞĞÔ·ÖÎö(must start form 1)
+!		integer::isPostCal=0 !ËùÓĞµÄÎ´ÖªÁ¿¾ùÎªÒÑÖª£¨ÓÉ±ß½çÌõ¼şÊäÈë£©£¬½ö½øĞĞºó´¦Àí¼ÆËã¡£
         !REAL(KIND=DPN),ALLOCATABLE::ETA(:),RATIO(:)
         integer::slidedirection=right,slope_isTensionCrack=1,ISSLOPEPA=0,slope_mko=1,slope_ONLY_SEARCHTOP=0
-        real(kind=DPN)::slope_kscale=2.D0,slope_kbase=-0.2,slope_kratio=10,slope_sfrpeak=1.1 
-        !å¦‚æœslope_kbase<0,åˆ™kbå–ç›¸å¯¹å€¼ï¼Œkb=abs(slope_kbase)*maxsfr;å¦åˆ™ï¼Œkbå–ç»å¯¹å€¼ï¼Œkb=slope_kbase
-        !sfrpeak=a,è¡¨ç¤ºé«˜äºå½“æŸç‚¹çš„sfr/maxsfr>=aæ—¶ï¼Œå…¶æ¸—é€ç³»æ•°æŒ‰exp(2*sfr)æé«˜,æ—¨åœ¨å¸å¼•æ›´å¤šçš„æµçº¿æµå‘ç ´ååŒº,a>1è¡¨ä¸è€ƒè™‘æ­¤åŠ å¼º,ä½†å‘ç°ä¼šåˆ°å¯¼è‡´æ¸—æµè®¡ç®—ä¸ç¨³å®šï¼Œæ•…ä»¤å…¶ä¸º1.1ï¼ˆä¸ä½œç”¨ï¼‰ã€‚
-        !slope_mko>0,è¡¨sfrè¦å‡æ‰åˆå§‹koåº”åŠ›åœºçš„sfrko.å‡å®ško=v/1-v,sxx=ko*syy,szz=sxx,txy=txz=tyz=0
-        !IS_ONLY_SEARCHTOP/=0,åˆ©ç”¨streamlineæ–¹æ³•è¿›è¡Œå‚æ•°åˆ†ææ—¶ï¼Œå¯ä»¥ä½¿å…¶ä»…ä»…æœç´¢è¾¹å¡çš„é¡¶éƒ¨ï¼Œé¿å…åœ¨å¡é¢ä¸Šäº§ç”Ÿå°æ»‘å¼§ã€‚
+        real(kind=DPN)::slope_kscale=2.D0,slope_kbase=-0.2,slope_kratio=10,slope_sfrpeak=1.1,slope_guide_direction=0 
+        !Èç¹ûslope_kbase<0,ÔòkbÈ¡Ïà¶ÔÖµ£¬kb=abs(slope_kbase)*maxsfr;·ñÔò£¬kbÈ¡¾ø¶ÔÖµ£¬kb=slope_kbase
+        !sfrpeak=a,±íÊ¾¸ßÓÚµ±Ä³µãµÄsfr/maxsfr>=aÊ±£¬ÆäÉøÍ¸ÏµÊı°´exp(2*sfr)Ìá¸ß,Ö¼ÔÚÎüÒı¸ü¶àµÄÁ÷ÏßÁ÷ÏòÆÆ»µÇø,a>1±í²»¿¼ÂÇ´Ë¼ÓÇ¿,µ«·¢ÏÖ»áµ½µ¼ÖÂÉøÁ÷¼ÆËã²»ÎÈ¶¨£¬¹ÊÁîÆäÎª1.1£¨²»×÷ÓÃ£©¡£
+        !slope_mko>0,±ísfrÒª¼õµô³õÊ¼koÓ¦Á¦³¡µÄsfrko.¼Ù¶¨ko=v/1-v,sxx=ko*syy,szz=sxx,txy=txz=tyz=0
+        !IS_ONLY_SEARCHTOP/=0,ÀûÓÃstreamline·½·¨½øĞĞ²ÎÊı·ÖÎöÊ±£¬¿ÉÒÔÊ¹Æä½ö½öËÑË÷±ßÆÂµÄ¶¥²¿£¬±ÜÃâÔÚÆÂÃæÉÏ²úÉúĞ¡»¬»¡¡£
         !if(slope_kratio>0),ky=kx/slope_kratio,else,ky=input value.
-        integer::wellmethod=3 !è®¡ç®—è§£æäº•æµé‡æ—¶ï¼Œ=0ï¼Œè¡¨å–æ ·ç‚¹ä¸ºå•å…ƒèŠ‚ç‚¹ï¼›=1ï¼Œä¸ºå•å…ƒå½¢å¿ƒ;=2,åœ¨å•å…ƒå‘¨è¾¹å‡å¸ƒ3å±‚é‡‡æ ·ç‚¹(ä¸¤ç«¯åŠä¸­é—´),æ¯æ’é‡‡æ ·ç‚¹æ•°ä¸ºnspwell,çƒçŠ¶æµä»ä¸ºå•å…ƒèŠ‚ç‚¹ã€‚>2,å‡ä¸ºé‡‡æ ·ç‚¹
-        integer::nspwell=12 !wellmethod=2æ—¶,æ¯å±‚(2*Pi)é‡‡æ ·ç‚¹æ•°ã€‚å¦‚æœäº•å‘¨è§’é2PI,èŒƒå›´ä¹‹å¤–çš„ç‚¹å°†ä¸¢å¼ƒã€‚
-        integer::wellaniso=0 !æ°´å¹³å„å‘å¼‚æ€§ï¼Œ=0ï¼Œdirectional K methodï¼› =1, Charles R. Fitts method.(è½¬åŒ–ä¸ºå„å‘åŒæ€§ææ–™è¿›è¡Œ)ï¼›=2ï¼Œç‹å»ºè£æ–¹æ³•ï¼Œæ ¹æ®å…¶å…¬å¼è¿›è¡Œè®¡ç®— 
+		!slope_guide_direction==0,°´¼ôÁ¦È·¶¨×îÓÅ»¬¶¯·½Ïò;==1,°´Î»ÒÆ³¡È·¶¨;==2,°´¼ÆËãµãÓëÆäÔÚÊäÈë²Î¿¼ÏßÉÏÍ¶Ó°µãÁ¬ÏßµÄ¼Ğ½ÇÈ·¶¨.
+        integer::wellmethod=3 !¼ÆËã½âÎö¾®Á÷Á¿Ê±£¬=0£¬±íÈ¡ÑùµãÎªµ¥Ôª½Úµã£»=1£¬Îªµ¥ÔªĞÎĞÄ;=2,ÔÚµ¥ÔªÖÜ±ß¾ù²¼3²ã²ÉÑùµã(Á½¶Ë¼°ÖĞ¼ä),Ã¿ÅÅ²ÉÑùµãÊıÎªnspwell,Çò×´Á÷ÈÔÎªµ¥Ôª½Úµã¡£>2,¾ùÎª²ÉÑùµã
+        integer::nspwell=12 !wellmethod=2Ê±,Ã¿²ã(2*Pi)²ÉÑùµãÊı¡£Èç¹û¾®ÖÜ½Ç·Ç2PI,·¶Î§Ö®ÍâµÄµã½«¶ªÆú¡£
+        integer::wellaniso=0 !Ë®Æ½¸÷ÏòÒìĞÔ£¬=0£¬directional K method£» =1, Charles R. Fitts method.(×ª»¯Îª¸÷ÏòÍ¬ĞÔ²ÄÁÏ½øĞĞ)£»=2£¬Íõ½¨ÈÙ·½·¨£¬¸ù¾İÆä¹«Ê½½øĞĞ¼ÆËã 
         real(kind=DPN)::disf_scale=1.0d0
         integer::len_unit=0 !0,m;3,mm;2,cm;1,dm;4,km;
         integer::time_unit=0 !0,day;1,sec;2,min;3,hour;
         real(kind=DPN)::cdt=1.d0 !concentration integerate time
 		integer::pnw_clogging=0 !if>0
-		integer::well_bottom_type=0 !=0,å¹³åº•äº•(é»˜è®¤);<>0,äº•åº•ä¸ºåŠçƒåº•
-        !integer::well_bottom_method=0 !=0,è§£æå•å…ƒæ³•(éè¿­ä»£,é»˜è®¤);=1,è¿­ä»£
+		integer::well_bottom_type=0 !=0,Æ½µ×¾®(Ä¬ÈÏ);<>0,¾®µ×Îª°ëÇòµ×
+        !integer::well_bottom_method=0 !=0,½âÎöµ¥Ôª·¨(·Çµü´ú,Ä¬ÈÏ);=1,µü´ú
     contains
         procedure::unit_factor=>unit_scaling_factor
         procedure::get_g=>get_gravity
@@ -317,7 +318,7 @@ module solverds
 		integer::enums=0,enume=0 !the first and the last element number in the element() of the set. 
 		integer::ec
 		integer::et
-        integer::eshape=-1 !0,pointï¼Œ101=line,203=triangle,204=quadrilateral,304=tet,308=hex,306=prism
+        integer::eshape=-1 !0,point£¬101=line,203=triangle,204=quadrilateral,304=tet,308=hex,306=prism
         integer::system=0
 		character(1024)::zonetitle="",zonetitle_sf="",zonetitle_pf=''
 		character(64)::grouptitle=""
@@ -328,10 +329,10 @@ module solverds
 		integer::mesh_share_id_sf=0,out_mesh_sf=.true.
 		integer::mesh_share_id_pf=0,out_mesh_pf=.true.
 		!for bar ane beam element only.
-		real(kind=DPN),allocatable::xyz_section(:,:) !å•å…ƒé›†çš„ç»Ÿä¸€çš„æˆªé¢çš„å››ä¸ªè§’ç‚¹çš„åæ ‡ï¼Œç°å‡å®šä¸€ä¸ªå•å…ƒé›†å†…çš„æ‰€æœ‰æ†å•å…ƒæˆ–æ¢å•å…ƒçš„å±€éƒ¨åæ ‡ä¸€æ ·ã€‚
-		integer,allocatable::outorder(:) !è¾“å‡ºåå¤„ç†æ—¶ï¼ŒåŒä¸€å±€éƒ¨åæ ‡ä¸‹èŠ‚ç‚¹çš„è¾“å‡ºé¡ºåºï¼Œä¸element.node2èŠ‚ç‚¹å·å¯¹åº”ã€‚
+		real(kind=DPN),allocatable::xyz_section(:,:) !µ¥Ôª¼¯µÄÍ³Ò»µÄ½ØÃæµÄËÄ¸ö½ÇµãµÄ×ø±ê£¬ÏÖ¼Ù¶¨Ò»¸öµ¥Ôª¼¯ÄÚµÄËùÓĞ¸Ëµ¥Ôª»òÁºµ¥ÔªµÄ¾Ö²¿×ø±êÒ»Ñù¡£
+		integer,allocatable::outorder(:) !Êä³öºó´¦ÀíÊ±£¬Í¬Ò»¾Ö²¿×ø±êÏÂ½ÚµãµÄÊä³öË³Ğò£¬Óëelement.node2½ÚµãºÅ¶ÔÓ¦¡£
         integer::noutorder=0
-		integer,allocatable::elist(:,:) !å•å…ƒé›†å†…çš„elist(2,noutorder)ï¼Œç›®å‰å‡å®šä¸€ä¸ªèŠ‚ç‚¹æœ€å¤šæœ‰2ä¸ªæ†ç³»å•å…ƒã€‚
+		integer,allocatable::elist(:,:) !µ¥Ôª¼¯ÄÚµÄelist(2,noutorder)£¬Ä¿Ç°¼Ù¶¨Ò»¸ö½Úµã×î¶àÓĞ2¸ö¸ËÏµµ¥Ôª¡£
 
     end type
 	type(eset_tydef)::eset(maxset) !the maximum set number allowed is MAXSET.
@@ -378,7 +379,7 @@ module solverds
 											!horizontal soil layer
 		integer::nsoil=1 !the number of soil layers
 		real(kind=DPN),allocatable::KO(:),weight(:),height(:)
-        integer,allocatable::eset(:) !è®¡ç®—åœ°åº”åŠ›æ—¶ï¼Œæ¿€æ´»çš„å•å…ƒé›†,é»˜è®¤å…¨éƒ¨å•å…ƒé›†éƒ½æ¿€æ´»ã€‚
+        integer,allocatable::eset(:) !¼ÆËãµØÓ¦Á¦Ê±£¬¼¤»îµÄµ¥Ôª¼¯,Ä¬ÈÏÈ«²¿µ¥Ôª¼¯¶¼¼¤»î¡£
         integer::neset=0
 	end type
 	type(geostatic_tydef)::geostatic
@@ -386,14 +387,14 @@ module solverds
 	!output variables
 	type outvar_tydef
 		character(128)::name=''
-		integer::value=0,ivo=0	!>0, variable output is required.,ivo=æ­¤é‡å­˜è´®åœ¨NodalQ(:,ivo)
+		integer::value=0,ivo=0	!>0, variable output is required.,ivo=´ËÁ¿´æÖüÔÚNodalQ(:,ivo)
 		logical::iscentre=.false. !location, nodes or centroid of element.
 		integer::system=0	!reference systerm,the default system is the globel sysytem
 								!if system=-999, then the local system is a cylindrical system whose origin is along 
 								!the central line of the cylinder.
 								!if system=-9999,then the local system is a spherical syystem whose origin is located
 								!at the center of the sphere
-		integer::nval=1 !è¿™ä¸ªå˜é‡åŒ…å«å¤šå°‘ä¸ªæ•°ã€‚
+		integer::nval=1 !Õâ¸ö±äÁ¿°üº¬¶àÉÙ¸öÊı¡£
 	end type
 	type(outvar_tydef)::outvar(200)	
 	integer::vo(200)=0,nvo=0
@@ -405,13 +406,13 @@ module solverds
 	integer::ncoord=0
     
 	
-	!æ³¨æ„ï¼Œmasterç‚¹ä¸Šçš„mdofè‡ªç”±åº¦ä¸Šç›®å‰ä¸èƒ½æ–½åŠ ä½ç§»è¾¹ç•Œæ¡ä»¶ï¼Œè¿™æ—¶è¾“å…¥æ—¶å˜æ¢ä¸€ä¸ªslaveå’Œmaster
+	!×¢Òâ£¬masterµãÉÏµÄmdof×ÔÓÉ¶ÈÉÏÄ¿Ç°²»ÄÜÊ©¼ÓÎ»ÒÆ±ß½çÌõ¼ş£¬ÕâÊ±ÊäÈëÊ±±ä»»Ò»¸öslaveºÍmaster
 	type slave_master_node_pairtydef		
 		integer::slave=0,sdof=0		
 		integer::master=0,mdof=0
-		integer::nmbl=0 !ä½œç”¨åœ¨masterèŠ‚ç‚¹ä¸Šçš„è·è½½ä¸ªæ•°,ç›®å‰æœ€å¤šå…è®¸10ä¸ªã€‚
+		integer::nmbl=0 !×÷ÓÃÔÚmaster½ÚµãÉÏµÄºÉÔØ¸öÊı,Ä¿Ç°×î¶àÔÊĞí10¸ö¡£
 		integer::mbl(10)=0
-		integer::pe=0 !å¯¹åº”çš„ç½šå•å…ƒ
+		integer::pe=0 !¶ÔÓ¦µÄ·£µ¥Ôª
 		real(kind=DPN)::interforce=0.0d0,load=0.0d0
 		real(kind=DPN)::aff=0.0d0 !allowablefrictionforce
 	end type
@@ -462,8 +463,8 @@ module solverds
 	integer::bwmax=0 !the maximum value of the band width. 
 	real(kind=DPN),allocatable::load(:),Tload(:),km(:),tdisp(:),bfload(:),stepload(:)	!km(:):Lower  trianglar part of total stiffness matrix(including diagonal elements)
 	real(kind=DPN),allocatable::tdispInLS(:) ! Total displacement in a local system.
-	real(kind=DPN),allocatable::NI_NodalForce(:) !ç”±å•å…ƒç§¯åˆ†è€Œå¾—çš„èŠ‚ç‚¹åŠ›ã€‚
-	real(kind=DPN),allocatable::Tstepdis(:,:) !TstepDisp(ndof,nstep):å„æ­¥ç»“æŸæ—¶çš„å„è‡ªç”±åº¦çš„é‡ã€‚ 
+	real(kind=DPN),allocatable::NI_NodalForce(:) !ÓÉµ¥Ôª»ı·Ö¶øµÃµÄ½ÚµãÁ¦¡£
+	real(kind=DPN),allocatable::Tstepdis(:,:) !TstepDisp(ndof,nstep):¸÷²½½áÊøÊ±µÄ¸÷×ÔÓÉ¶ÈµÄÁ¿¡£ 
 	!additioinal variables defined when the linear system is unsymmetric.
 !	real(kind=DPN),allocatable::ukm(:)	!ukm(:):Upper trianglar part of total stiffness matrix(including diagonal elements,but set equel to 0)
 !	integer,allocatable::ubw(:)
@@ -472,19 +473,20 @@ module solverds
 
 	INTEGER::nnz=0
 	integer,allocatable::jcol(:),Lmre(:),adrn(:) !Lmre(i): the column number of the most rigth entry in the i row.
-	integer,allocatable::ROWINDEX(:) !rowindex:æ€»åˆšä¸­æ¯ä¸€è¡Œç¬¬ä¸€ä¸ªéé›¶å…ƒç´ åœ¨æ€»åˆšæ•°ç»„ä¸­çš„ä½ç½®;
-											!bw: ä¸€å¼€å§‹ä¸ºæ€»åˆšä¸­æ¯ä¸€è¡Œç¬¬ä¸€ä¸ªéé›¶å…ƒç´ åœ¨æ€»åˆšä¸­çš„åˆ—å·ï¼Œæœ€åä¸ºæ€»åˆšä¸­æ¯ä¸€è¡Œæœ€åä¸€ä¸ªéé›¶å…ƒç´ åœ¨æ€»åˆšæ•°ç»„ä¸­çš„ä½ç½®;
-											!Lmre:æ€»åˆšä¸­æ¯ä¸€è¡Œæœ€åä¸€ä¸ªéé›¶å…ƒç´ åœ¨æ€»åˆšä¸­çš„åˆ—å·ã€‚
-											!å€¼å¾—æ³¨æ„çš„æ˜¯ï¼šåœ¨default solverä¸­ï¼Œæ€»åˆšå«æœ‰é›¶å…ƒï¼ˆå­˜åœ¨äºæ¯è¡Œç¬¬ä¸€ä¸ªéé›¶å…ƒå’Œæœ€åä¸€ä¸ªéé›¶å…ƒä¹‹é—´ï¼‰ï¼Œè€Œåœ¨mklæˆ–åæ ‡å­˜å‚¨æ ¼å¼ä¸­ï¼Œæ€»åˆšä¸å«é›¶å…ƒã€‚
-											!adrn(i):åœ¨default solverä¸­çš„æ€»åˆšæ•°ç»„ä¸­éé›¶å…ƒ i åœ¨mklæ ¼å¼æ€»åˆšæ•°ç»„çš„ä½ç½®ã€‚
+	integer,allocatable::ROWINDEX(:) !rowindex:×Ü¸ÕÖĞÃ¿Ò»ĞĞµÚÒ»¸ö·ÇÁãÔªËØÔÚ×Ü¸ÕÊı×éÖĞµÄÎ»ÖÃ;
+											!bw: Ò»¿ªÊ¼Îª×Ü¸ÕÖĞÃ¿Ò»ĞĞµÚÒ»¸ö·ÇÁãÔªËØÔÚ×Ü¸ÕÖĞµÄÁĞºÅ£¬×îºóÎª×Ü¸ÕÖĞÃ¿Ò»ĞĞ×îºóÒ»¸ö·ÇÁãÔªËØÔÚ×Ü¸ÕÊı×éÖĞµÄÎ»ÖÃ;
+											!Lmre:×Ü¸ÕÖĞÃ¿Ò»ĞĞ×îºóÒ»¸ö·ÇÁãÔªËØÔÚ×Ü¸ÕÖĞµÄÁĞºÅ¡£
+											!ÖµµÃ×¢ÒâµÄÊÇ£ºÔÚdefault solverÖĞ£¬×Ü¸Õº¬ÓĞÁãÔª£¨´æÔÚÓÚÃ¿ĞĞµÚÒ»¸ö·ÇÁãÔªºÍ×îºóÒ»¸ö·ÇÁãÔªÖ®¼ä£©£¬¶øÔÚmkl»ò×ø±ê´æ´¢¸ñÊ½ÖĞ£¬×Ü¸Õ²»º¬ÁãÔª¡£
+											!adrn(i):ÔÚdefault solverÖĞµÄ×Ü¸ÕÊı×éÖĞ·ÇÁãÔª i ÔÚmkl¸ñÊ½×Ü¸ÕÊı×éµÄÎ»ÖÃ¡£
 	
 	
 	real(kind=DPN),allocatable::DIAGLKM(:) !STORED DIAGONAL ELEMENT OF THE KM BEFORE FACTORIZATION FOR FACTOR UPDATING.
-	integer,allocatable::diaglkmloc(:) !æ€»åˆšä¸­å¯¹è§’çº¿å…ƒç´ åœ¨æ€»åˆšæ•°ç»„ä¸­çš„ä½ç½®ã€‚
+	integer,allocatable::diaglkmloc(:) !×Ü¸ÕÖĞ¶Ô½ÇÏßÔªËØÔÚ×Ü¸ÕÊı×éÖĞµÄÎ»ÖÃ¡£
 
 	!one dimensional linear field function
 	real(kind=DPN)::LF1D(0:maxilf,2)  !LF1D(:,1)=k,LF1D(:,2)=c. then y=k*x+c
-
+	real(kind=dpn),allocatable:: slope_guide_line(:,:)
+	integer::nsgline=0
 !	integer::NLF1D=0 
 
 	!additional variables for upper bound analysis
@@ -496,16 +498,16 @@ module solverds
 	real(kind=DPN)::NormL=0.0
 	
 	real(kind=DPN)::minNPH=1e20,MAXSFR=-1.D20,MAXSFR_LAST=-1.D20
-	integer::isref_spg=0 !æ˜¯å¦é‡æ–°åˆ†è§£çŸ©é˜µ
+	integer::isref_spg=0 !ÊÇ·ñÖØĞÂ·Ö½â¾ØÕó
 	real(kind=DPN)::eps1=1e20,eps2=1e20
 	real(kind=DPN)::Origin_Sys_cylinder(3)=0.0  !in the order of x,y and z. the default value is 0.
-	real(kind=DPN)::Qinput=0.0d0,Qstored=0.0d0,Qstorted_ini=0.0d0 !è´¨é‡å®ˆæ’ 
+	real(kind=DPN)::Qinput=0.0d0,Qstored=0.0d0,Qstorted_ini=0.0d0 !ÖÊÁ¿ÊØºã 
 	
-	real(kind=DPN)::BARFAMILY_DIAGRAM_SCALE(12)=0.0D0 !å…ˆå­˜ç»å¯¹æœ€å¤§å€¼ï¼Œåå­˜ç”»å›¾æ”¾å¤§ç³»æ•°ï¼ŒDISX,DISY,DISZ,RX,RY,RZ,FX,FY,FZ,MX,MY,MZ
+	real(kind=DPN)::BARFAMILY_DIAGRAM_SCALE(12)=0.0D0 !ÏÈ´æ¾ø¶Ô×î´óÖµ£¬ºó´æ»­Í¼·Å´óÏµÊı£¬DISX,DISY,DISZ,RX,RY,RZ,FX,FY,FZ,MX,MY,MZ
 	real(kind=DPN)::barfamily_minxyz(3)=1.0d20,barfamily_maxxyz(3)=-1.0d20,MYFVAL=-1.0D20,SICR=0 ! SICR=STRESS INTEGRATION CONVERGE RATIO
     INTEGER::ISEXCA2D=0,ISHBEAM=0,ISSLOPE=0,NYITER(2)=0
 	
-	INTEGER::NDOFHEAD=0,NDOFMEC=0 !!æ¯æ­¥çš„æ¸—æµè‡ªç”±åº¦æ•°åŠåˆ©æ¯è‡ªç”±åº¦æ•°ï¼Œ
+	INTEGER::NDOFHEAD=0,NDOFMEC=0 !!Ã¿²½µÄÉøÁ÷×ÔÓÉ¶ÈÊı¼°ÀûÏ¢×ÔÓÉ¶ÈÊı£¬
 	INTEGER,ALLOCATABLE::DOFHEAD(:),DOFMEC(:),CalStep(:) !head dofs in the model.
 	real(kind=DPN),allocatable::NodalQ(:,:,:),RTime(:) !NODALQ(INODE,IVO,NNODALQ) !NNODALQ=SUM(TEIMSTEP.nsubts)
 	INTEGER::NNODALQ=0,isporeflow=0
@@ -1016,10 +1018,10 @@ REAL(8) FUNCTION Re_W(V,D,T)
 !calculate Reynold number of water for pipe flow
 !V,VELOCITY,m/s
 !D,DIAMETER,m
-!T,temperature,celsius æ‘„æ°åº¦, fitting range 0<=T<=80
+!T,temperature,celsius ÉãÊÏ¶È, fitting range 0<=T<=80
 IMPLICIT NONE
 REAL(8),INTENT(IN)::V,D !unit,v,m/s, D,m
-REAL(8),INTENT(IN),OPTIONAL::T !unit= æ‘„æ°åº¦
+REAL(8),INTENT(IN),OPTIONAL::T !unit= ÉãÊÏ¶È
 REAL(8)::T1,cf1,cf2
 
 IF(.NOT.PRESENT(T)) THEN
@@ -1041,16 +1043,16 @@ Re_W=ABS(V*cf2/cf1*D*cf2/Vk(T1))
 ENDFUNCTION
 
 SUBROUTINE PNW_FLOW_RIJ(THIS)
-    !è®¡ç®—å­”éš™ç½‘ç»œå•å…ƒçš„æ¸—æµé˜»åŠ›,å³Rij=1/Kij
-    !Kij=gij/rw,rwä¸ºæ°´çš„é‡åº¦
-    !gij=Pi*D**4/(128*u*L),uä¸ºæ°´çš„ç»å¯¹ç²˜æ»ç³»æ•°
+    !¼ÆËã¿×Ï¶ÍøÂçµ¥ÔªµÄÉøÁ÷×èÁ¦,¼´Rij=1/Kij
+    !Kij=gij/rw,rwÎªË®µÄÖØ¶È
+    !gij=Pi*D**4/(128*u*L),uÎªË®µÄ¾ø¶ÔÕ³ÖÍÏµÊı
     !Kij=Pi*D**4/(128*vk/g*L)
 
     IMPLICIT NONE
     CLASS(element_tydef)::THIS
-	!real(8),optional::Lc,Kc !æ·¤å µä½“çš„é•¿åº¦åŠæ¸—é€ç³»æ•° 
+	!real(8),optional::Lc,Kc !ÓÙ¶ÂÌåµÄ³¤¶È¼°ÉøÍ¸ÏµÊı 
     real(8)::t1,t2
-    !Rt,å–‰åŠå¾„,Ltå–‰é•¿åº¦,Ri,Rjåˆ†åˆ«ä¸ºä¸¤ç«¯å­”çš„åŠå¾„
+    !Rt,ºí°ë¾¶,Ltºí³¤¶È,Ri,Rj·Ö±ğÎªÁ½¶Ë¿×µÄ°ë¾¶
     REAL(8)::lc1,kc1,lt,alpha1,d1
     integer::i,j
 	
@@ -1074,8 +1076,8 @@ SUBROUTINE PNW_FLOW_RIJ(THIS)
 ENDSUBROUTINE
 
 REAL(8) FUNCTION KC_K(e,dp,temp)
-	!æ ¹æ®KCå…¬å¼ï¼Œè®¡ç®—æ¸—é€ç³»æ•°,unit=L/T
-	!input:e=å­”éš™ç‡,dp=é¢—ç²’ç›´å¾„
+	!¸ù¾İKC¹«Ê½£¬¼ÆËãÉøÍ¸ÏµÊı,unit=L/T
+	!input:e=¿×Ï¶ÂÊ,dp=¿ÅÁ£Ö±¾¶
 	implicit none 
 	REAL(8),intent(in)::e,dp,temp
 	optional::temp
@@ -1093,9 +1095,9 @@ REAL(8) FUNCTION KC_K(e,dp,temp)
 ENDFUNCTION
 
     real(8) function hagen_poiseuille_friction(imat,l,d1,d2,cc)
-        !è®¡ç®—å­”éš™ç½‘ç»œå•å…ƒçš„æ¸—æµé˜»åŠ›,å³Rij=1/Kij
-        !Kij=gij/rw,rwä¸ºæ°´çš„é‡åº¦
-        !gij=Pi*D**4/(128*u*L),uä¸ºæ°´çš„ç»å¯¹ç²˜æ»ç³»æ•°
+        !¼ÆËã¿×Ï¶ÍøÂçµ¥ÔªµÄÉøÁ÷×èÁ¦,¼´Rij=1/Kij
+        !Kij=gij/rw,rwÎªË®µÄÖØ¶È
+        !gij=Pi*D**4/(128*u*L),uÎªË®µÄ¾ø¶ÔÕ³ÖÍÏµÊı
         !Kij=Pi*D**4/(128*vk/g*L)
         implicit none
         integer,intent(in)::imat
@@ -1135,14 +1137,14 @@ real(8) function vol_cone(h,r1,r2)
 	vol_cone=1/3.0*PI()*h*(r1**2+r2**2+r1*r2)
 endfunction
 
-   !æŠŠå­—ç¬¦ä¸²ä¸­ç›¸å½“çš„æ•°å­—å­—ç¬¦(åŒ…æ‹¬æµ®ç‚¹å‹)è½¬åŒ–ä¸ºå¯¹åº”çš„æ•°å­—
-   !å¦‚ '123'è½¬ä¸º123,'14-10'è½¬ä¸º14,13,12,11,10
-   !stringä¸­è½¬åŒ–åçš„æ•°å­—ä»¥æ•°ç»„ar(n1)è¿”å›ï¼Œå…¶ä¸­,n1ä¸ºå­—ç¬¦ä¸²ä¸­æ•°å­—çš„ä¸ªæ•°:(æ³¨ã€€1-3è½¬åŒ–åä¸º3ä¸ªæ•°å­—ï¼š1,2,3)
-   !nmaxä¸ºæ•°ç»„arçš„å¤§å°,stringé»˜è®¤å­—ç¬¦é•¿åº¦ä¸º1024ã€‚
-   !num_readä¸ºè¦è¯»å…¥æ•°æ®çš„ä¸ªæ•°ã€‚
-   !unitä¸ºæ–‡ä»¶å·
-   !æ¯æ¬¡åªè¯»å…¥ä¸€ä¸ªæœ‰æ•ˆè¡Œï¼ˆä¸ä»¥'/'å¼€å¤´çš„è¡Œï¼‰
-   !æ¯è¡Œåé¢ä»¥'/'å¼€å§‹çš„åé¢çš„å­—ç¬¦æ˜¯æ— æ•ˆçš„ã€‚
+   !°Ñ×Ö·û´®ÖĞÏàµ±µÄÊı×Ö×Ö·û(°üÀ¨¸¡µãĞÍ)×ª»¯Îª¶ÔÓ¦µÄÊı×Ö
+   !Èç '123'×ªÎª123,'14-10'×ªÎª14,13,12,11,10
+   !stringÖĞ×ª»¯ºóµÄÊı×ÖÒÔÊı×éar(n1)·µ»Ø£¬ÆäÖĞ,n1Îª×Ö·û´®ÖĞÊı×ÖµÄ¸öÊı:(×¢¡¡1-3×ª»¯ºóÎª3¸öÊı×Ö£º1,2,3)
+   !nmaxÎªÊı×éarµÄ´óĞ¡,stringÄ¬ÈÏ×Ö·û³¤¶ÈÎª1024¡£
+   !num_readÎªÒª¶ÁÈëÊı¾İµÄ¸öÊı¡£
+   !unitÎªÎÄ¼şºÅ
+   !Ã¿´ÎÖ»¶ÁÈëÒ»¸öÓĞĞ§ĞĞ£¨²»ÒÔ'/'¿ªÍ·µÄĞĞ£©
+   !Ã¿ĞĞºóÃæÒÔ'/'¿ªÊ¼µÄºóÃæµÄ×Ö·ûÊÇÎŞĞ§µÄ¡£
    subroutine  strtoint(unit,ar,nmax,n1,num_read,set,maxset,nset,ef1,isall)
 		implicit none
 		INTEGER,INTENT(IN)::unit,nmax,num_read,maxset
@@ -1190,7 +1192,7 @@ endfunction
 
 		 if(string(1:2)/='//'.and.string(1:1)/='#') then
 			
-			!æ¯è¡Œåé¢ä»¥'/'å¼€å§‹çš„åé¢çš„å­—ç¬¦æ˜¯æ— æ•ˆçš„ã€‚
+			!Ã¿ĞĞºóÃæÒÔ'/'¿ªÊ¼µÄºóÃæµÄ×Ö·ûÊÇÎŞĞ§µÄ¡£
 			if(index(string,'//')/=0) then
 				strL=index(string,'//')-1
 				string=string(1:strL)
@@ -1223,7 +1225,7 @@ endfunction
 				if(n3>1) then
 				    tof1=(substring(i)(n3-1:n3-1)/='e'.and.substring(i)(n3-1:n3-1)/='E')
 				end if
-				if(tof1) then !å¤„ç†ç±»ä¼¼äº'1-5'è¿™æ ·çš„å½¢å¼çš„è¯»å…¥æ•°æ®
+				if(tof1) then !´¦ÀíÀàËÆÓÚ'1-5'ÕâÑùµÄĞÎÊ½µÄ¶ÁÈëÊı¾İ
 					read(substring(i)(1:n3-1),'(i8)') ns
 					read(substring(i)(n3+1:n2),'(i8)') ne
 					if(ns>ne) then
@@ -1240,7 +1242,7 @@ endfunction
 				     if(n4>1) then
 				             tof2=(substring(i)(n4-1:n4-1)/='e'.and.substring(i)(n4-1:n4-1)/='E')
 				     end if
-					if(tof2) then !å¤„ç†ç±»ä¼¼äº'1*5'(è¡¨ç¤º5ä¸ª1)è¿™æ ·çš„å½¢å¼çš„è¯»å…¥æ•°æ®
+					if(tof2) then !´¦ÀíÀàËÆÓÚ'1*5'(±íÊ¾5¸ö1)ÕâÑùµÄĞÎÊ½µÄ¶ÁÈëÊı¾İ
 						read(substring(i)(1:n4-1),*) t1
 						read(substring(i)(n4+1:n2),'(i8)') ne
 						ar((n1+1):(n1+ne))=t1
@@ -1317,7 +1319,132 @@ endfunction
 		get_free_file_unit_number=-1
 
 	end function
-    
+
+	function get_gp_dis(istep,ielt,igp,Ddis) result(dis)                                                                                                                                                                                    
+																																																											
+		implicit none                                                                                                                                                                                                                         
+		integer,intent(in)::istep,ielt,igp                                                                                                                                                                                                    
+		real(8),intent(in)::Ddis(:)                                                                                                                                                                                                           
+		real(8)::dis(ndimension)                                                                                                                                                                                                              
+		integer::I,nnode1,ndof1                                                                                                                                                                                                               
+		real(8)::xdis(50)                                                                                                                                                                                                                     
+																																																											
+		nnode1=element(ielt).nnum                                                                                                                                                                                                             
+		ndof1=element(ielt).ndof                                                                                                                                                                                                              
+		do i=1,ndimension                                                                                                                                                                                                                     
+			xdis(1:nnode1)=Tstepdis(node(element(ielt).node(1:nnode1)).dof(i),istep)+ddis([i:ndof1:ndimension])                                                                                                                                 
+			dis(i)=dot_product(xdis(1:nnode1),ecp(element(ielt).et).lshape(:,igp))                                                                                                                                                              
+		enddo                                                                                                                                                                                                                                 
+																																																											
+	end function 
+
+	function get_gp_direction(istep,ielt,igp) result(dis)                                                                                                                                                                                    
+																																																											
+		implicit none                                                                                                                                                                                                                         
+		integer,intent(in)::istep,ielt,igp
+		integer::i,n1                                                                                                                                                                                                    
+ 		real(8)::dis(ndimension)                                                                                                                                                                                                              
+		real(8)::x1(ndimension),t,f,g,h,x2(ndimension),t2=0,t1  
+        
+
+        if(nsgline==0) then
+			error stop 'Please input the parameters by keyword= slope_guide_line'
+		endif
+
+		x1=element(ielt).xygp(1:ndimension,igp)
+		t2=1.d20
+		if(nsgline<2.or.ndimension==2) then
+			dis=slope_guide_line(1:ndimension,1)-x1
+		else
+			do i=1,nsgline-1
+				f=slope_guide_line(1,i+1)-slope_guide_line(1,i)
+				g=slope_guide_line(2,i+1)-slope_guide_line(2,i)
+				h=slope_guide_line(3,i+1)-slope_guide_line(3,i)
+				call line_par_point_near_3d ( f, g, h, slope_guide_line(1,i), slope_guide_line(2,i), slope_guide_line(3,i), &
+				x1, x2,t )				
+				if(t>1.0d0) then
+					x2=slope_guide_line(:,i+1)
+				elseif(t<0.0d0) then
+					x2=slope_guide_line(:,i)
+				endif
+				t1=norm2(x2-x1)
+				if(t1<t2) then
+					t2=t1
+					dis=(x2-x1)/max(t1,1.0d-8)
+				endif 
+			enddo 
+		endif                                                                                                                                                                                                                     
+																																																											
+	end function
+	subroutine line_par_point_near_3d ( f, g, h, x0, y0, z0, p, pn,t )
+
+		!*****************************************************************************80
+		!
+		!! LINE_PAR_POINT_NEAR_3D: nearest point on parametric line to given point, 3D.
+		!
+		!  Discussion:
+		!
+		!    The parametric form of a line in 3D is:
+		!
+		!      X = X0 + F * T
+		!      Y = Y0 + G * T
+		!      Z = Z0 + H * T
+		!
+		!    We may normalize by choosing F*F + G*G + H*H = 1, and F nonnegative.
+		!
+		!  Licensing:
+		!
+		!    This code is distributed under the GNU LGPL license. 
+		!
+		!  Modified:
+		!
+		!    12 April 2013
+		!
+		!  Author:
+		!
+		!    John Burkardt
+		!
+		!  Reference:
+		!
+		!    Adrian Bowyer, John Woodwark,
+		!    A Programmer's Geometry,
+		!    Butterworths, 1983,
+		!    ISBN: 0408012420.
+		!
+		!  Parameters:
+		!
+		!    Input, real ( kind = 8 ) F, G, H, X0, Y0, Z0, the parametric 
+		!    line parameters.
+		!
+		!    Input, real ( kind = 8 ) P(3), the point whose distance from the line is
+		!    to be measured.
+		!
+		!    Output, real ( kind = 8 ) PN(3), the point on the parametric line which
+		!    is nearest to P.
+		!
+		implicit none
+
+		integer ( kind = 4 ), parameter :: dim_num = 3
+
+		real ( kind = 8 ) f
+		real ( kind = 8 ) g
+		real ( kind = 8 ) h
+		real ( kind = 8 ) p(dim_num)
+		real ( kind = 8 ) pn(dim_num)
+		real ( kind = 8 ) t
+		real ( kind = 8 ) x0
+		real ( kind = 8 ) y0
+		real ( kind = 8 ) z0
+
+		t = ( f * ( p(1) - x0 ) + g * ( p(2) - y0 ) + h * ( p(3) - z0 ) ) &
+			/ ( f * f + g * g + h * h )
+
+		pn(1) = x0 + t * f
+		pn(2) = y0 + t * g
+		pn(3) = z0 + t * h
+
+		return
+	end subroutine  
 end module
 
 INCLUDE 'mkl_dss.f90' 
@@ -1344,9 +1471,9 @@ MODULE SOLVERLIB
         ENDSUBROUTINE
         
         subroutine enlarge_element(EL,NEL,enel,iel)
-        !æ‰©å¤§ELæ•°ç»„,åŒæ—¶updateæ€»çš„å•å…ƒæ•°NEL=NEL+enel
-        !Enel:æ‰©å¤§çš„å•å…ƒä¸ªæ•°
-        !iel,:æ‰©å®¹éƒ¨åˆ†çš„èµ·ä½
+        !À©´óELÊı×é,Í¬Ê±update×ÜµÄµ¥ÔªÊıNEL=NEL+enel
+        !Enel:À©´óµÄµ¥Ôª¸öÊı
+        !iel,:À©Èİ²¿·ÖµÄÆğÎ»
             USE solverds
 	        integer,intent(in)::enel
             INTEGER,INTENT(IN OUT)::NEL
@@ -1355,9 +1482,9 @@ MODULE SOLVERLIB
         ENDSUBROUTINE
 
         subroutine enlarge_node(EL,NEL,enel,iel)
-        !æ‰©å¤§ELæ•°ç»„,åŒæ—¶updateæ€»çš„å•å…ƒæ•°NEL=NEL+enel
-        !Enel:æ‰©å¤§çš„å•å…ƒä¸ªæ•°
-        !iel,:æ‰©å®¹éƒ¨åˆ†çš„èµ·ä½
+        !À©´óELÊı×é,Í¬Ê±update×ÜµÄµ¥ÔªÊıNEL=NEL+enel
+        !Enel:À©´óµÄµ¥Ôª¸öÊı
+        !iel,:À©Èİ²¿·ÖµÄÆğÎ»
             USE solverds
 	        integer,intent(in)::enel
             INTEGER,INTENT(IN OUT)::NEL
@@ -1384,9 +1511,9 @@ MODULE SOLVERLIB
 
     
 subroutine enlarge_bc(bc,nbc,enbc,ibc)
-    !æ‰©å¤§bcæ•°ç»„,åŒæ—¶updateæ€»çš„å•å…ƒæ•°NBC=NBC+enBC
-    !EnBC:æ‰©å¤§çš„å•å…ƒä¸ªæ•°
-    !iBC:æ‰©å®¹éƒ¨åˆ†çš„åˆå§‹èµ·ä½
+    !À©´óbcÊı×é,Í¬Ê±update×ÜµÄµ¥ÔªÊıNBC=NBC+enBC
+    !EnBC:À©´óµÄµ¥Ôª¸öÊı
+    !iBC:À©Èİ²¿·ÖµÄ³õÊ¼ÆğÎ»
 	    use solverds	
 	    implicit none
 	    integer,intent(in)::enbc
@@ -1408,9 +1535,9 @@ subroutine enlarge_bc(bc,nbc,enbc,ibc)
     endsubroutine
     
 subroutine enlarge_element(EL,NEL,enel,iel)
-!æ‰©å¤§ELæ•°ç»„,åŒæ—¶updateæ€»çš„å•å…ƒæ•°NEL=NEL+enel
-!Enel:æ‰©å¤§çš„å•å…ƒä¸ªæ•°
-!iel,:æ‰©å®¹éƒ¨åˆ†çš„èµ·ä½
+!À©´óELÊı×é,Í¬Ê±update×ÜµÄµ¥ÔªÊıNEL=NEL+enel
+!Enel:À©´óµÄµ¥Ôª¸öÊı
+!iel,:À©Èİ²¿·ÖµÄÆğÎ»
 	use solverds	
 	implicit none
 	integer,intent(in)::enel
@@ -1432,9 +1559,9 @@ subroutine enlarge_element(EL,NEL,enel,iel)
 endsubroutine    
 
 subroutine enlarge_node(EL,NEL,enel,iel)
-!æ‰©å¤§ELæ•°ç»„,åŒæ—¶updateæ€»çš„å•å…ƒæ•°NEL=NEL+enel
-!Enel:æ‰©å¤§çš„å•å…ƒä¸ªæ•°
-!iel,:æ‰©å®¹éƒ¨åˆ†çš„èµ·ä½
+!À©´óELÊı×é,Í¬Ê±update×ÜµÄµ¥ÔªÊıNEL=NEL+enel
+!Enel:À©´óµÄµ¥Ôª¸öÊı
+!iel,:À©Èİ²¿·ÖµÄÆğÎ»
 	use solverds	
 	implicit none
 	integer,intent(in)::enel

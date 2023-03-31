@@ -27,7 +27,7 @@ SUBROUTINE WELL_GEO_INI(IS_ONLY_SNADJL)
         N3=0
         DO K=1,SNADJL(QWELLNODE(I).NODE(1)).ENUM !如果井口节点位于中间，上下各搜索一次
             N1=QWELLNODE(I).NODE(1)
-10              DO J=1,SNADJL(N1).ENUM
+10          DO J=1,SNADJL(N1).ENUM
                 N2=SNADJL(N1).ELEMENT(J)                    
                 IF(IELT1(N2)>0) CYCLE !假定[WELLBORE,WELLBORE_SPGFACE,PIPE2]单元类中的每个单元只属于唯一井线
                 !与井口相连的必然是这三种单元,且假定井线不相交

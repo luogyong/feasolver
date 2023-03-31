@@ -18,15 +18,17 @@ module stress_failure_ratio
     CONTAINS
 
 
-    subroutine stress_in_failure_surface_3D(sfr,stress,ndim,cohesion,PhiD,slidedirection,Y,TensileS,trans)
+    subroutine stress_in_failure_surface_3D(sfr,stress,ndim,cohesion,PhiD,slidedirection,Y,TensileS,trans,direction,iflag)
     
         implicit none
         integer,intent(in)::ndim,slidedirection
         real(8),intent(in)::stress(6),cohesion,PhiD,Y(NDIM),TensileS
         real(8),intent(inout)::sfr(:),trans(3,3)
+        real(8),optional,intent(in)::direction(3)
+        integer,optional,intent(in)::iflag !if iflag<>0, only calculate sfr(1) is neended.
         
-        integer::i,n1,n2
-        real(8)::ss1(6),pss1(3),t1,t2,C1,phi1,PI1,sin1,cos1,t3,t4,t5,ta1(4),A,B,an(3,3)
+        integer::i,n1,n2,iflag1=0
+        real(8)::ss1(6),pss1(3),t1,t2,C1,phi1,PI1,sin1,cos1,t3,t4,t5,ta1(4),A,B,an(3,3),TRANS1(3,3),D1(3)
         real(8)::sigmaC1,R1,sita1,YF1,hstress1,BETA1
         logical::isazone=.true.
         
@@ -34,7 +36,14 @@ module stress_failure_ratio
         C1=cohesion
         phi1=PhiD/180*PI1
         sfr=0.d0
-        
+        trans=0.d0
+
+        if(present(iflag)) then
+            iflag1=iflag
+        else
+            iflag1=0
+        endif
+
         CALL principal_stress_cal(STRESS, PSS1, AN)
 
             
@@ -85,8 +94,9 @@ module stress_failure_ratio
         else
             sfr(1)=0.001
             sita1=pi1/2.0-phi1
-        endif      
+        endif
 
+        if(iflag1/=0) return
         !
         t1=slidedirection
 
@@ -107,40 +117,64 @@ module stress_failure_ratio
         IF(slidedirection==1.and.SLOPEPARAMETER.ISYDWZ.AND.Y(NDIM)>SLOPEPARAMETER.YDOWNWARDZONE.AND.(.not.isazone)) THEN
             T1=-T1
         ENDIF
-        
-        !BETA1为破坏面与大主应力方向的夹角
-        IF(sfr(1)>=0.d0.or.Solver_control.slope_isTensionCrack<1) then
-            BETA1=0.5*(PI1+slidedirection*SITA1*sign(1.0,stress(2*ndim))*(-1)**NDIM)
-            if(isazone) then          
-                !调整坡脚主动区的顶部最大滑动面方向
-                !IF(ABS(SLOPEPARAMETER.TOEZONE(2))/=0.D0) THEN
-                !    T3=-(SLOPEPARAMETER.TOEZONE(1)*Y(1)+SLOPEPARAMETER.TOEZONE(3))/SLOPEPARAMETER.TOEZONE(2)
-                !    T3=Y(ndim)-T3
-                !    IF(T3<=0.D0) THEN
-                !        sfr(2)=(PI1-sita1)/2.0*T1
-                !    ENDIF
-                !ELSEIF(ABS(SLOPEPARAMETER.TOEZONE(1))/=0.D0) THEN
-                !    T3=-SLOPEPARAMETER.TOEZONE(3)/SLOPEPARAMETER.TOEZONE(1)
-                !    T3=Y(1)-T3
-                !    IF(T3*slidedirection>=0) sfr(2)=(PI1-sita1)/2.0*T1
-                !ENDIF
-            endif
-
+        IF(PRESENT(DIRECTION)) THEN
+            N1=2
+            T2=NORM2(DIRECTION)
+            IF(T2>1.E-10) THEN
+                D1=DIRECTION/T2
+            ELSE
+                D1=0.0d0
+                D1(NDIM)=-1.D0 !downward
+            ENDIF  
         ELSE
-            !TENSION FAILURE,THE FAILURE SURFACE IS ACTING PLANE OF THE MAJOR PRINCIPLE STRESS.
-            BETA1=0.5*PI1
-
+            N1=1
         ENDIF
+        T2=1.D20
+        DO I=1,N1
+            !BETA1为破坏面与大主应力方向的夹角
+            IF(sfr(1)>=0.d0.or.Solver_control.slope_isTensionCrack<1) then
+                IF(PRESENT(DIRECTION)) THEN
+                    BETA1=0.5*(PI1+((-1)**I)*SITA1)
+                ELSE                    
+                    BETA1=0.5*(PI1+slidedirection*SITA1*sign(1.0,stress(2*ndim))*(-1)**NDIM)
+                ENDIF
+                if(isazone) then          
+                    !调整坡脚主动区的顶部最大滑动面方向
+                    !IF(ABS(SLOPEPARAMETER.TOEZONE(2))/=0.D0) THEN
+                    !    T3=-(SLOPEPARAMETER.TOEZONE(1)*Y(1)+SLOPEPARAMETER.TOEZONE(3))/SLOPEPARAMETER.TOEZONE(2)
+                    !    T3=Y(ndim)-T3
+                    !    IF(T3<=0.D0) THEN
+                    !        sfr(2)=(PI1-sita1)/2.0*T1
+                    !    ENDIF
+                    !ELSEIF(ABS(SLOPEPARAMETER.TOEZONE(1))/=0.D0) THEN
+                    !    T3=-SLOPEPARAMETER.TOEZONE(3)/SLOPEPARAMETER.TOEZONE(1)
+                    !    T3=Y(1)-T3
+                    !    IF(T3*slidedirection>=0) sfr(2)=(PI1-sita1)/2.0*T1
+                    !ENDIF
+                endif
+
+            ELSE
+                !TENSION FAILURE,THE FAILURE SURFACE IS ACTING PLANE OF THE MAJOR PRINCIPLE STRESS.
+                BETA1=0.5*PI1
+                N1=1
+            ENDIF
         
-        
-        
-        !failure plane in principal stress system
-        trans(1,1)=cos(beta1);trans(1,3)=sin(beta1);trans(1,2)=0.d0
-        !in globle system
-        trans(1,:)=matmul(TRANSPOSE(an),trans(1,:)) !kmax axis
-        !this trans(1,:) and the middle principal forms the failure plane. the Kmax is along the trans(1,:)
-        trans(2,:)=an(2,:)
-        trans(3,:)=cs_vector (trans(1,:),trans(2,:)) !direction cosine of the failure plane,kmin axis
+            !failure plane in principal stress system
+            trans(1,1)=cos(beta1);trans(1,3)=sin(beta1);trans(1,2)=0.d0
+            !in globle system
+            trans(1,:)=matmul(TRANSPOSE(an),trans(1,:)) !kmax axis
+            !this trans(1,:) and the middle principal forms the failure plane. the Kmax is along the trans(1,:)
+            trans(2,:)=an(2,:)
+            trans(3,:)=cs_vector (trans(1,:),trans(2,:)) !direction cosine of the failure plane,kmin axis
+            IF(N1==2) THEN
+                T3=ABS(DOT_PRODUCT(TRANS(3,:),D1))
+                IF(T3<T2) THEN
+                    T2=T3;
+                    TRANS1=TRANS 
+                ENDIF
+                IF(I==2) TRANS=TRANS1
+            ENDIF   
+        ENDDO
 
         sfr(2)=sign(acos(trans(1,1)),trans(1,NDIM)) !破坏面与x轴的夹角
 
@@ -166,12 +200,15 @@ module stress_failure_ratio
     
     endsubroutine   
     
-    subroutine stress_on_plane(s,pcos,sop)
+   
+    subroutine stress_on_plane(s,pcos,sop,sdir,tau_sdir)
     !given:stress(s(6)) and plane direction cosine(pcos(3))
     !output:normal and tangent stress on the plane. (sop(2))  
         implicit none
         real(8),intent(in)::s(6),pcos(3)
         real(8),intent(out)::sop(2)
+        real(8),intent(in),optional::sdir(3) !方向矢量sdir
+        real(8),intent(out),optional::tau_sdir !该平面沿方向sdir上的应力
         real(8)::t(3),T1
 
         sop(1)=s(1)*pcos(1)**2+s(2)*pcos(2)**2+s(3)*pcos(3)**2 + &
@@ -187,6 +224,10 @@ module stress_failure_ratio
         ELSE
             sop(2)=0.d0
         ENDIF
+
+        if(present(sdir).and.present(tau_sdir)) then
+            tau_sdir=dot_product(t,sdir)
+        endif
     endsubroutine
     !THE 2D VERSION OF SUB stress_on_plane 
     SUBROUTINE stress_in_inclined_plane(ss,RAD,SNT)
@@ -415,12 +456,12 @@ module stress_failure_ratio
         INTEGER,OPTIONAL:: LSTR 
         REAL(8):: S(6), PS(3), A(3), B(3), C(3), V(3), AN(3,3)
         REAL(8) I1, I2, I3, J1, J2, J3, R, T, Q, ALP, SCALC, &
-            PRINC1, PRINC2, PRINC3, ARG,T1,T2,T3
+            PRINC1, PRINC2, PRINC3, ARG,T1,T2,T3,RA1(3)
         REAL(8),PARAMETER::ONE=1.D0,TWO=2.D0,THREE=3.D0, TWOSEVEN = 27.D0, &
             THIRD = ONE/THREE, TWENTYSEVENTH= ONE/TWOSEVEN, &
             TWOTWENTYSEVENTH = TWO/TWOSEVEN,TTPI=2.0943951023932D0, &
             FTPI=4.1887902047864D0
-        INTEGER::K,IA1(3),N1,N2,N3,L,M,N,LSTR1
+        INTEGER::K,IA1(3),N1,N2,N3,L,M,N,LSTR1,N4,K1
 
         IF(PRESENT(LSTR)) THEN
             LSTR1=LSTR
@@ -484,7 +525,14 @@ module stress_failure_ratio
         PS(1) = PRINC1
         PS(2) = PRINC2
         PS(3) = PRINC3
-
+        DO K=1,2
+            DO K1=K+1,3
+                IF(PS(K1)>PS(K)) THEN
+                    T1=PS(K);PS(K)=PS(K1);PS(K1)=T1
+                ENDIF
+            ENDDO
+        ENDDO
+        
         ! C
         ! C     Calculate cofactors and factor
         ! C
@@ -493,20 +541,25 @@ module stress_failure_ratio
         !S(4:6)=TXY,TYZ,TXZ
         !参考：王凯.主应力方向余弦的计算公式[J].力学与实践,2015,37(03):378-380.
 
-        IA1=0
+        IA1=0;AN=0.D0
         N1=COUNT(ABS(S(4:6))<1.E-10)
         IF(N1==3) THEN
             DO K=1,3
-                IF(ABS(PS(K)-S(1))<1.E-7.AND.IA1(1)==0) THEN
-                    AN(K,:)=[1.D0,0.D0,0.D0]
-                    IA1(1)=1                        
-                ELSEIF(ABS(PS(K)-S(2))<1.E-7.AND.IA1(2)==0) THEN
-                    AN(K,:)=[0.D0,1.D0,0.D0]
-                    IA1(2)=1
-                ELSEIF(ABS(PS(K)-S(3))<1.E-7.AND.IA1(3)==0) THEN   
-                    AN(K,:)=[0.D0,0.D0,1.D0] 
-                    IA1(3)=1                    
-                ENDIF                  
+                RA1=ABS(PS-S(K))                
+                N2=MINLOC(RA1,MASK=IA1==0,DIM=1)
+                IA1(N2)=1
+                AN(K,N2)=1.D0
+                     
+                !IF(ABS(PS(K)-S(1))<1.E-5.AND.IA1(1)==0) THEN
+                !    AN(K,:)=[1.D0,0.D0,0.D0]
+                !    IA1(1)=1                        
+                !ELSEIF(ABS(PS(K)-S(2))<1.E-5.AND.IA1(2)==0) THEN
+                !    AN(K,:)=[0.D0,1.D0,0.D0]
+                !    IA1(2)=1
+                !ELSEIF(ABS(PS(K)-S(3))<1.E-5.AND.IA1(3)==0) THEN   
+                !    AN(K,:)=[0.D0,0.D0,1.D0] 
+                !    IA1(3)=1                    
+                !ENDIF                  
             ENDDO
         ELSEIF(N1==2) THEN
             N2=MAXLOC(ABS(S(4:6)),DIM=1)            
@@ -518,11 +571,14 @@ module stress_failure_ratio
             CASE(3) !TXZ/=0
                 N3=2;L=1;N=3;M=1                  
             END SELECT
+            
+            N4=MINLOC(ABS(PS-S(N3)),DIM=1)
             DO K=1,3
                 T1=(PS(K)-S(M))/S(3+N2)
                 T2=1.0/(1+T1**2)**0.5
                 T3=T1*T2
-                IF(ABS(PS(K)-S(N3))<1.D-7) THEN
+                
+                IF(K==N4) THEN
                     AN(K,:)=0.D0
                     AN(K,N3)=1.D0
                 ELSE

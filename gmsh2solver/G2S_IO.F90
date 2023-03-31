@@ -144,7 +144,7 @@ subroutine kwcommand(term,unit)
 	implicit none
 	integer,intent(in)::unit	
 	character(512),intent(in)::term
-	integer::n1,n2,n3,nacw=0,ALLC_ERR
+	integer::n1,n2,n3,nacw=0,ALLC_ERR,ndim1=0
 	integer::en1(50)=0
 	logical,external::isacw
     logical::ischeckacw=.false.,isacw1=.false.
@@ -212,7 +212,23 @@ subroutine kwcommand(term,unit)
         strL1=11
         write(*, 20) "ENDHELPFILE" 
     
-        
+    CASE('reliefwell2d','rw2d')
+        print *, 'READING reliefwell2d DATA...'
+        call skipcomment(unit)
+        read(unit,*) nrwell
+        if(nrwell>0) allocate(reliefwell(nrwell))
+        do i=1,nrwell 
+            call skipcomment(unit)
+            call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
+            reliefwell(i).ipg=ar(1)
+            reliefwell(i).rw=ar(2)
+            reliefwell(i).hw=ar(3)
+            reliefwell(i).hu=ar(4)
+			reliefwell(i).hd=ar(5)
+        enddo
+    CASE("endreliefwell2d","endrw2d")
+        strL1=7
+        write(*, 20) "ENDRW2D"        
     CASE('cut_off_wall_material','cow_mat','cowmat')
         print *, 'READING cut_off_wall_material DATA...'
         call skipcomment(unit)
@@ -416,7 +432,7 @@ subroutine kwcommand(term,unit)
 			call skipcomment(unit)
 			read(unit,*) nel
 			allocate(element(nel))
-            nacw=-1
+            nacw=-1;ndim1=-1
 			do i=1,nel				
 				call strtoint(unit,ar,nmax,nread,nmax,set,maxset,nset)
 				n1=int(ar(1))
@@ -431,9 +447,10 @@ subroutine kwcommand(term,unit)
 					physicalgroup(element(n1).tag(1)).nel=physicalgroup(element(n1).tag(1)).nel+1
 					physicalgroup(element(n1).tag(1)).ET_GMSH=ELEMENT(N1).ET !????????????GROUP??????????????????????????????
                     
-                    if(nacw/=element(n1).tag(2)) then                        
+                    if(nacw/=element(n1).tag(2).or.ndim1/=physicalgroup(element(n1).tag(1)).ndim) then                        
                         ischeckacw=.true.
                         nacw=element(n1).tag(2)
+                        ndim1=physicalgroup(element(n1).tag(1)).ndim
                     else
                         ischeckacw=.false.
                     end if  
@@ -848,7 +865,8 @@ subroutine kwcommand(term,unit)
 			end do
         CASE("endwellbore")
 			strL1=LEN_trim("endwellbore")
-			write(*, 20) "endwellbore"    
+			write(*, 20) "endwellbore"
+    
 		case default
 			strL1=len_trim(term)
 			write(*, 10) term
@@ -1238,6 +1256,16 @@ subroutine Tosolver()
 	DO I=1,NCOPYFILE
 		CALL DO_COPYFILE(COPYFILE(I),UNIT)			
 	END DO
+	IF(NRWELL>0) THEN
+		N1=SUM(PHYSICALGROUP(reliefwell.IPG).NEL)
+		WRITE(UNIT,190) N1
+		DO I=1,nrwell
+			DO J=1,PHYSICALGROUP(reliefwell(I).IPG).NEL
+				WRITE(UNIT,191) NODE(ELEMENT(PHYSICALGROUP(reliefwell(I).IPG).ELEMENT(J)).NODE(1)).INODE, &
+				reliefwell(I).RW,reliefwell(I).HW,reliefwell(I).HU,reliefwell(I).HD
+			ENDDO
+		ENDDO
+	ENDIF
 	
 	
 100 FORMAT(A<ITEM>)	
@@ -1280,6 +1308,8 @@ subroutine Tosolver()
 
 180 FORMAT('_MAT',I<INC>)    
 
+190 FORMAT(/"RW,NUM=",I7,/,"//NODE,RW,HW,HU,HD")
+191 FORMAT(I7,X,4(F15.4,X))
 end subroutine
 
 SUBROUTINE DO_COPYFILE(SRCFILE,IDESFILE)

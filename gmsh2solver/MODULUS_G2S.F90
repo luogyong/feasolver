@@ -225,6 +225,14 @@ module DS_Gmsh2Solver
     ENDTYPE
     TYPE(COWMAT_TYDEF),ALLOCATABLE::COWMAT(:)
     INTEGER::NCOWMAT=0
+    
+    type relief_well_group_tydef
+        integer::ipg=0
+        real(8)::rw,hw,hu,hd 
+    end type 
+    type(relief_well_group_tydef),allocatable::reliefwell(:) 
+    integer::nrwell=0
+
     CONTAINS
     
     REAL(8) FUNCTION LINEARFILEDCAL(BCG,X,Y,Z)

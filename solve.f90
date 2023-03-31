@@ -283,6 +283,7 @@ end subroutine
 
 subroutine incremental_load(iincs,iiter,method,isubts)
 	use solverds
+	use confinedWell2D
 	implicit none
 	integer,intent(in)::iincs,iiter,method,isubts
 	integer::i,j
@@ -305,7 +306,14 @@ subroutine incremental_load(iincs,iiter,method,isubts)
 				if(t2==-999.d0 .OR. bc_load(i).ISINCREMENT==1) t2=0
 				t1=(sf(bc_load(i).sf).factor(iincs)-t2)*tsfactor(iincs,isubts,stepinfo(iincs).loadtype)
 				load(dof1)=load(dof1)+bc_load(i).value*t1
-			end do		
+			end do
+			do i=1,nrwell
+				call reliefwell(i).modify()
+				dof1=node(reliefwell(i).num).dof(4)
+				load(dof1)=load(dof1)+reliefwell(i).hw/reliefwell(i).co
+				!tm(node(reliefwell(j).num).sbw)=tm(node(reliefwell(j).num).sbw)+1/reliefwell(j).co
+				!node(reliefwell(j).num).h=node(reliefwell(j).num).h+reliefwell(j).hw/reliefwell(j).co
+			enddo		
 		else !generate initial load for initial stress field
 			call bf_initialstress()
 		endif

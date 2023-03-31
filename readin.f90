@@ -481,6 +481,7 @@ subroutine solvercommand(term,unit)
     use DownWaternSettlement,only:settlement_head
     use PoreNetWork,only:pnw
 	use plaxis2tecplot
+	use confinedwell2D
 	implicit none
     
 	integer::unit
@@ -517,8 +518,37 @@ subroutine solvercommand(term,unit)
 	term=trim(term)
 
 	select case(term)
+		case('slope_guide_line')
+			print *,'Begin to read the points of the slope guide line'
+			do i=1, pro_num
+				select case(property(i).name)
+					case('num')
+						nsgline=int(property(i).value)
+					case default
+						call Err_msg(property(i).name)
+				end select
+			ENDDO
+			call skipcomment(unit)
+			if(nsgline>0) then
+				allocate(slope_guide_line(3,nsgline))
+				do i=1,nsgline
+					read(unit,*) slope_guide_line(1:ndimension,i)
+				enddo
+			endif			
+        case('reliefwell','rw')
+			print *,'Begin to read reliefwell data...'
+			do i=1, pro_num
+				select case(property(i).name)
+					case('num')
+						nrwell=int(property(i).value)
+					case default
+						call Err_msg(property(i).name)
+				end select
+			ENDDO
+			call skipcomment(unit)
+			call rwell_readin(nrwell,unit)			
 		case('plaxisfiles')
-			print *,'Begin to read plaxis result files'
+			print *,'Begin to read plaxis result files...'
 			do i=1, pro_num
 				select case(property(i).name)
 					case('nfile')
@@ -1701,8 +1731,8 @@ subroutine solvercommand(term,unit)
                         solver_control.len_unit=int(property(i).value) 
 					case('well_bottom_type') 
 						solver_control.well_bottom_type=int(property(i).value)  
-      !              case('well_bottom_method') 
-						!solver_control.well_bottom_method=int(property(i).value)
+                    case('slope_guide_direction') 
+						solver_control.slope_guide_direction=int(property(i).value)
 					case default
 						call Err_msg(property(i).name)
 				end select

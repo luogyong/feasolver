@@ -29,7 +29,7 @@ SUBROUTINE STREAMLINE_PLOT()
 
     implicit none
     integer :: i,j,k,n1,DIRECTION1=1,NDIM1
-    REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1,DEG2,MAX1
+    REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1,DEG2,MAX1,MIN1
     CHARACTER(16)::STR1
     REAL(GLFLOAT)::COLOR1(4),COLOR2(4)
     
@@ -41,7 +41,8 @@ SUBROUTINE STREAMLINE_PLOT()
 
     call glPolygonMode(gl_front_and_back, gl_fill)
 	call gldisable(GL_CULL_FACE);  
-    !MAX1=MAXVAL(STREAMLINE.SF_SLOPE,MASK=STREAMLINE.SF_SLOPE<10)
+    ! MAX1=MIN(MAXVAL(STREAMLINE.SF_SLOPE),10.D0)
+    ! MIN1=
     NDIM1=POSDATA.NDIM
     
     DO I=1,NSTREAMLINE
@@ -49,11 +50,11 @@ SUBROUTINE STREAMLINE_PLOT()
         IF((.NOT.STREAMLINE(I).SHOW)) CYCLE 
         IF(STREAMLINE(I).NV<2) CYCLE
         CALL glLineWidth(2.0_glfloat)
-        !IF(ISSTREAMLINESLOPE) THEN
-        !    CALL get_rainbow(STREAMLINE(I).SF_SLOPE,STREAMLINE(SF_SLOPE(1)).SF_SLOPE,MAX1,COLOR1)
-        !ELSE
-        COLOR1=mycolor(:,BLUE)
-        !ENDIF
+        IF(ISSTREAMLINESLOPE) THEN
+           CALL get_rainbow(STREAMLINE(I).SF_SLOPE,ContourBar.val(1),ContourBar.val(ContourBar.nval),COLOR1)
+        ELSE
+            COLOR1=mycolor(:,BLUE)
+        ENDIF
        
         !INPUTSLIPS ARE ALWAYS PLOTTED.
         IF(ISSTREAMLINESLOPE.AND.STREAMLINE(I).ISINPUTSLIP==0) THEN        
@@ -216,7 +217,7 @@ subroutine slopestability_streamline(islip)
     real(8)::pt1(3),VAL1(100)
     integer::i,j,n1,n2
     INTEGER,SAVE::IEL1=0
-    REAL(8)::SS(6),T1,RAD1,DX1,DY1,SNT1(2),C1,PHI1,SIGMA_TF1,SIGMA_T1,T2,SFR1
+    REAL(8)::SS(6),T1,RAD1,DX1,DY1,SNT1(2),C1,PHI1,SIGMA_TF1,SIGMA_T1,T2,SFR1,T3
     REAL(8)::RA1(NSTREAMLINE),DZ1,DCOS1(3,3)
     
     N1=POSDATA.ISXX*POSDATA.ISYY*POSDATA.ISXY*POSDATA.IMC_C*POSDATA.IMC_PHI
@@ -268,7 +269,8 @@ subroutine slopestability_streamline(islip)
                 DCOS1(2,:)=[VAL1(POSDATA.IXPS2),VAL1(POSDATA.IYPS2),VAL1(POSDATA.IZPS2)]
                 DCOS1(2,:)=DCOS1(2,:)/NORM2(DCOS1(2,:))
                 DCOS1(3,:)=CS_VECTOR(DCOS1(1,:),DCOS1(2,:))
-                CALL STRESS_ON_PLANE(SS,DCOS1(3,:),SNT1)
+                CALL STRESS_ON_PLANE(SS,DCOS1(3,:),SNT1,DCOS1(1,:),T3)
+                SNT1(2)=T3 !T3为沿流线方向的剪力
             ENDIF
             
             !注意：
@@ -515,6 +517,7 @@ subroutine streamline_integration(istreamline)
             ALLOCATE(STREAMLINE(istreamline).V(3,STREAMLINE(istreamline).NV))
             IF(ALLOCATED(STREAMLINE(ISTREAMLINE).VAL)) DEALLOCATE(STREAMLINE(ISTREAMLINE).VAL)
             ALLOCATE(STREAMLINE(ISTREAMLINE).VAL(1:POSDATA.NVAR,STREAMLINE(istreamline).NV))
+            IF(ALLOCATED(STREAMLINE(ISTREAMLINE).IEL)) DEALLOCATE(STREAMLINE(ISTREAMLINE).IEL)
             ALLOCATE(STREAMLINE(ISTREAMLINE).IEL(STREAMLINE(istreamline).NV))
             STREAMLINE(ISTREAMLINE).VAL=0.D0
             STREAMLINE(istreamline).V(3,:)=0.d0
