@@ -329,7 +329,7 @@ ENDSUBROUTINE
   
     end function
 
-    function cs_vector(V1,V2) result (Normal)
+    function cs_vector(V1,V2,isunify) result (Normal)
 
     !*****************************************************************************80
     !v1(3),v2(3),
@@ -341,14 +341,20 @@ ENDSUBROUTINE
 
       REAL(8),INTENT(IN)::V1(3),v2(3)
 
-      real ( kind = 8 ) normal(3)
-      
+      real ( kind = 8 ) normal(3),t1
+      logical,intent(in),optional::isunify
+
       !V1=V(:,2)-V(:,1);V2=V(:,3)-V(:,1);
 
       normal(1) = v1(2) * v2(3) - v1(3) * v2(2)
       normal(2) = v1(3) * v2(1) - v1(1) * v2(3)
       normal(3) = v1(1) * v2(2) - v1(2) * v2(1)
-      !normal=normal/norm2(normal)
+      if(present(isunify)) then
+        if(isunify) then
+          t1=norm2(normal)
+          if(abs(t1)>1.d-10) normal=normal/t1
+        endif
+      endif
       return
   
     end function

@@ -12,6 +12,7 @@ MODULE SLOPE_PSO
     use pikaia_module, only: pikaia_class
     USE solverds,ONLY:INPUTFILE,lowcase
     USE INPUT_PARSER
+    !USE function_plotter,ONLY:drawStrokeText
     IMPLICIT NONE
     
     PRIVATE
@@ -1873,6 +1874,42 @@ SD1=SQRT(VARIANCE1)
 STOCH=[MEAN1,VARIANCE1,SD1]
 
 END FUNCTION
+
+    subroutine drawStrokeText(angle,x,y,z,scale,s,rotate_axis)
+        use opengl_gl
+        use opengl_glut
+        
+        implicit none
+        
+        real(GLDOUBLE),INTENT(in) :: ANGLE,x,y,z,scale
+        real(GLDOUBLE),INTENT(in),optional :: rotate_axis(3)
+        character,intent(in) :: s*(*)
+        character :: c
+        integer :: i,lenc
+        real(GLDOUBLE)::raxis1(3)
+        
+        call glPushMatrix();
+        !call glLoadIdentity()
+        call glTranslated(x, y,z);
+        if(present(rotate_axis)) then
+            raxis1=rotate_axis
+        else
+            raxis1=[0.,0.,1.]
+        endif
+        call glrotated(ANGLE,raxis1(1),raxis1(2),raxis1(3))
+            
+        call glScaled(scale, scale, scale);
+        lenc = len(s)
+        do i=1,lenc
+            c = s(i:i)
+            call glutStrokeCharacter(GLUT_STROKE_ROMAN, &
+                ichar(c))
+        end do
+        call glPopMatrix();
+        
+        call glutPostRedisplay
+    end subroutine drawStrokeText
+
 
 !SUBROUTINE STOCH_OUT()
 !    

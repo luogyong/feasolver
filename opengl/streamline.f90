@@ -26,10 +26,10 @@ END SUBROUTINE
 
 SUBROUTINE STREAMLINE_PLOT()
     use function_plotter
-
+    USE SolverMath
     implicit none
-    integer :: i,j,k,n1,DIRECTION1=1,NDIM1
-    REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1,DEG2,MAX1,MIN1
+    integer :: i,j,k,n1,DIRECTION1=1,NDIM1,N2
+    REAL(8)::DX1,DY1,DEG1,T1,SCALE1,PPM1,FS1,DEG2,MAX1,MIN1,RAXIS1(3)
     CHARACTER(16)::STR1
     REAL(GLFLOAT)::COLOR1(4),COLOR2(4)
     
@@ -39,7 +39,7 @@ SUBROUTINE STREAMLINE_PLOT()
     call reset_view    
     call glNewList(STREAMLINELIST, gl_compile_and_execute)
 
-    call glPolygonMode(gl_front_and_back, gl_fill)
+    call glPolygonMode(gl_front_and_back, GL_LINE)
 	call gldisable(GL_CULL_FACE);  
     ! MAX1=MIN(MAXVAL(STREAMLINE.SF_SLOPE),10.D0)
     ! MIN1=
@@ -100,55 +100,52 @@ SUBROUTINE STREAMLINE_PLOT()
 		ENDDO
 	    CALL GLEND()
         
-        IF(ISSTREAMLINESLOPE) THEN
-            DX1=STREAMLINE(I).V(1,STREAMLINE(I).NV)-STREAMLINE(I).V(1,STREAMLINE(I).NV-1)
-            DY1=STREAMLINE(I).V(NDIM1,STREAMLINE(I).NV)-STREAMLINE(I).V(NDIM1,STREAMLINE(I).NV-1)
+        IF(ISSTREAMLINESLOPE.and.IsShowFSLabel) THEN
+            
+            DO J=1,2
+                RAXIS1=[0.,0.,1.0]
+                IF(J==1) THEN
+                    N1=1;N2=2
+                ELSE
+                    N1=STREAMLINE(I).NV;N2=N1-1
+                ENDIF
+                IF(POSDATA.NDIM==2) THEN
+                    DX1=STREAMLINE(I).V(1,N1)-STREAMLINE(I).V(1,N2)
+                    DY1=STREAMLINE(I).V(NDIM1,N1)-STREAMLINE(I).V(NDIM1,N2)
 
-            IF(ABS(DX1)>1E-7) THEN
-                DEG1=ATAN(DY1/DX1)/PI*180.
-            ELSE
-                DEG1=SIGN(PI/2.0,DY1)/PI*180.
-            ENDIF
-            
-            IF(DEG1<0) DEG1=DEG1+180.
-
-            DX1=STREAMLINE(I).V(1,1)-STREAMLINE(I).V(1,2)
-            DY1=STREAMLINE(I).V(NDIM1,1)-STREAMLINE(I).V(NDIM1,2)
-            !DEG1=ASIN(DY1/T1)/PI*180.0 
-            IF(ABS(DX1)>1E-7) THEN
-                DEG2=ATAN(DY1/DX1)/PI*180.
-            ELSE
-                DEG2=SIGN(PI/2.0,DY1)/PI*180.
-            ENDIF
-            
-            IF(DEG2<0) DEG2=DEG2+180.
-            
-            
-            WRITE(STR1,'(F7.3)') STREAMLINE(I).SF_SLOPE
-            
-            !PPM1=glutget(GLUT_SCREEN_WIDTH)/REAL(glutget(GLUT_SCREEN_WIDTH_MM)) !PIXELS PER MM
-            !10 pound 
-            FS1=glutStrokeWidth(GLUT_STROKE_ROMAN,ICHAR("X")) 
-            SCALE1=POSDATA.MODELR/80/FS1*stroke_fontsize
-            !scale1=PPM1*3.527777778/119.05*0.02*stroke_fontsize
-            call glLineWidth(1.0_glfloat)
-            
-            CALL drawStrokeText(DEG1,&
-                                STREAMLINE(I).V(1,STREAMLINE(I).NV), &
-                                STREAMLINE(I).V(2,STREAMLINE(I).NV),STREAMLINE(I).V(3,STREAMLINE(I).NV), &
-                                scale1,&
-                                STR1)
-            CALL drawStrokeText(DEG2,&
-                                STREAMLINE(I).V(1,1), &
-                                STREAMLINE(I).V(2,1),STREAMLINE(I).V(3,1), &
-                                scale1,&
-                                STR1)                                
-            !CALL output3D(STREAMLINE(I).VAL(POSDATA.IX,STREAMLINE(I).NV), &
-            !              STREAMLINE(I).VAL(POSDATA.IY,STREAMLINE(I).NV),STREAMLINE(I).VAL(POSDATA.IZ,STREAMLINE(I).NV), &
-            !              STR1)    
-            !CALL output3D(STREAMLINE(I).VAL(POSDATA.IX,1), &
-            !              STREAMLINE(I).VAL(POSDATA.IY,1),STREAMLINE(I).VAL(POSDATA.IZ,1), &
-            !              STR1)             
+                    IF(ABS(DX1)>1E-7) THEN
+                        DEG1=ATAN(DY1/DX1)/PI*180.
+                    ELSE
+                        DEG1=SIGN(PI/2.0,DY1)/PI*180.
+                    ENDIF                    
+                    IF(DEG1<0) DEG1=DEG1+180.                 
+                ELSE
+                    !XY平面和滑动面的夹角
+                    T1=DOT_PRODUCT(RAXIS1,STREAMLINE(I).PARA_SFCAL(9:11,N1))
+                    DEG1=ACOS(T1)/PI*180.
+                    !旋转轴
+                    IF(ABS(ABS(T1)-1.0D0)>0.001) THEN
+                        RAXIS1=cs_vector(RAXIS1,STREAMLINE(I).PARA_SFCAL(9:11,N1),.true.)
+                    ENDIF
+                ENDIF
+                
+                WRITE(STR1,'(F7.3)') STREAMLINE(I).SF_SLOPE
+                
+                !PPM1=glutget(GLUT_SCREEN_WIDTH)/REAL(glutget(GLUT_SCREEN_WIDTH_MM)) !PIXELS PER MM
+                !10 pound 
+                FS1=glutStrokeWidth(GLUT_STROKE_ROMAN,ICHAR("X")) 
+                SCALE1=POSDATA.MODELR/80/FS1*stroke_fontsize
+                !scale1=PPM1*3.527777778/119.05*0.02*stroke_fontsize
+                call glLineWidth(1.0_glfloat)
+                
+                CALL drawStrokeText(DEG1,&
+                                    STREAMLINE(I).V(1,N1), &
+                                    STREAMLINE(I).V(2,N1),STREAMLINE(I).V(3,N1), &
+                                    scale1,&
+                                    STR1,RAXIS1)
+                                             
+                
+            ENDDO            
         ENDIF
         IF(SHOW_STREAMLINE_NODE) THEN
 		    call glPointSize(4.0_glfloat)
@@ -158,6 +155,17 @@ SUBROUTINE STREAMLINE_PLOT()
 		        ENDDO			
 		    call glend        
         ENDIF
+
+        IF(IsShowSlideStrip) THEN
+            CALL glbegin(GL_QUAD_STRIP)
+            CALL glcolor4fv(COLOR1)
+            DO J=1,STREAMLINE(I).NV
+                call glvertex3dv(STREAMLINE(I).SLIDE_STRIP(:,J,1))
+                call glvertex3dv(STREAMLINE(I).SLIDE_STRIP(:,J,2))
+            ENDDO
+            CALL glend
+        ENDIF
+
     ENDDO
     CALL glLineWidth(1.0_glfloat)
     call glEndList
@@ -239,8 +247,8 @@ subroutine slopestability_streamline(islip)
     do i=n1,n2
         SIGMA_TF1=0.D0;SIGMA_T1=0.D0 
         IF(ALLOCATED(STREAMLINE(I).PARA_SFCAL)) DEALLOCATE(STREAMLINE(I).PARA_SFCAL)
-        ALLOCATE(STREAMLINE(I).PARA_SFCAL(8,streamline(i).nv))
-        STREAMLINE(I).PARA_SFCAL(:,streamline(i).nv)=0.d0        
+        ALLOCATE(STREAMLINE(I).PARA_SFCAL(11,streamline(i).nv))
+        STREAMLINE(I).PARA_SFCAL(:,streamline(i).nv)=0.d0
         DO j=1,streamline(i).nv-1
             PT1=(STREAMLINE(I).V(:,J)+STREAMLINE(I).V(:,J+1))/2.0
             CALL ProbeatPhyscialspace(PT1,VAL1(1:POSDATA.NVAR),iel1)
@@ -268,9 +276,10 @@ subroutine slopestability_streamline(islip)
                 DCOS1(1,:)=[DX1,DY1,DZ1]/T1
                 DCOS1(2,:)=[VAL1(POSDATA.IXPS2),VAL1(POSDATA.IYPS2),VAL1(POSDATA.IZPS2)]
                 DCOS1(2,:)=DCOS1(2,:)/NORM2(DCOS1(2,:))
-                DCOS1(3,:)=CS_VECTOR(DCOS1(1,:),DCOS1(2,:))
-                CALL STRESS_ON_PLANE(SS,DCOS1(3,:),SNT1,DCOS1(1,:),T3)
+                DCOS1(3,:)=CS_VECTOR(DCOS1(1,:),DCOS1(2,:),.true.)
+                CALL STRESS_ON_PLANE(SS,DCOS1(3,:),SNT1,DCOS1(1,:),T3)                
                 SNT1(2)=T3 !T3为沿流线方向的剪力
+                STREAMLINE(I).PARA_SFCAL(9:11,J)=DCOS1(3,:)                 
             ENDIF
             
             !注意：
@@ -290,11 +299,14 @@ subroutine slopestability_streamline(islip)
             ELSE
                 SFR1=IEEE_VALUE (1.0,IEEE_POSITIVE_INF)
             ENDIF
-            !SIGN,SIGT,RAD1,TAUF,DIS,C,PHI,SFR1
-            STREAMLINE(I).PARA_SFCAL(:,J)=[SNT1,RAD1,T2,T1,C1,PHI1,SFR1]
+            !SIGN,SIGT,RAD1,TAUF,LENGTH,C,PHI,SFR1
+            STREAMLINE(I).PARA_SFCAL(1:8,J)=[SNT1,RAD1,T2,T1,C1,PHI1,SFR1]
         ENDDO
+
         IF(ABS(SIGMA_T1)>1E-10.AND.SIGMA_TF1>1.D-6) THEN
-            STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1)            
+            STREAMLINE(I).SF_SLOPE=ABS(SIGMA_TF1/SIGMA_T1)  
+            STREAMLINE(I).PARA_SFCAL(:,STREAMLINE(I).NV)=STREAMLINE(I).PARA_SFCAL(:,STREAMLINE(I).NV-1)
+            CALL STREAMLINE(I).GET_SLIDE_STRIP(STRIP_WIDTH)            
         ELSE
             STREAMLINE(I).ISCOMPATABLE=.FALSE.
             !STREAMLINE(I).SF_SLOPE=HUGE(1.D0)
@@ -334,6 +346,7 @@ subroutine slopestability_streamline(islip)
     
     RETURN
 endsubroutine
+
 
 subroutine Filterlocalminimalslope(P1,P2)
     USE function_plotter

@@ -594,7 +594,7 @@ integer function POINTlOC_BC(Pt,TRYiel)
     N2=0
     POINTlOC_BC=0
     IEL=0
-    if(TRYiel<1) THEN
+    if(TRYiel<1.OR.TRYIEL>NTET) THEN
         DO I=1,NSZONE
             IF(SEARCHZONE(I).NEL<1) CYCLE
             IF(SEARCHZONE(I).NDX(1)>1) THEN

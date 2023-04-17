@@ -288,7 +288,7 @@ subroutine linearsoilinterpolate_tri(ielt,inode)
         do i=0,soillayer
             if(abs(node(inode).elevation(i)+999.d0)<1.e-7) then
                 if(any(abs(node(elt(ielt).node(1:3)).elevation(i)+999.d0)<1.e-7)) then
-                    print *,'UNBALE TO INTERPOLATE. THE NODE(I) OF THE INDCLUDING ELEMENT(J) HAS UNKOWN ELEVATION IN LAYER(K). (I,J,K)= ',INODE,IELT,I   
+                    print *,'UNABLE TO INTERPOLATE. THE NODE(I) OF THE INDCLUDING ELEMENT(J) HAS UNKOWN ELEVATION IN LAYER(K). (I,J,K)= ',INODE,IELT,I   
                     n1=1
                 else
                     node(inode).elevation(i)=dot_product(shafun,node(elt(ielt).node(1:3)).elevation(i))

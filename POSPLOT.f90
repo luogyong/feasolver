@@ -37,7 +37,7 @@ endinterface
 IF(SOLVER_CONTROL.ISSLOPEPA==0) THEN
     CALL TIME(char_time)
     PRINT *, 'Begin to Render...Stage=glutInit',char_time
-    call glutInit()
+    !call glutInit()
     PRINT *, 'Begin to Render...Stage=glutInitDisplayMode',char_time
     call glutInitDisplayMode(ior(GLUT_DOUBLE,ior(GLUT_RGB,GLUT_DEPTH)))
     call glutInitWindowPosition(10_glcint,10_glcint)
@@ -47,6 +47,7 @@ IF(SOLVER_CONTROL.ISSLOPEPA==0) THEN
     !winid = glutCreateWindow(trim(adjustl(POSDATA.title)))
     winid = glutCreateWindow('IFSOLVER')
     PRINT *, 'Create Window Successfully.'
+    call glutInit()
 ENDIF
 
 CALL TIME(char_time)
@@ -773,6 +774,10 @@ subroutine keyboardCB(key,  x,  y)
             info.inputstr=''           
             INFO.ISNEEDINPUT=.FALSE.
             info.qkey=.false.
+            left_button_func=ROTATE
+            isPickforstreamline=.FALSE.
+            IsFilterLocalMinimalMode=.FALSE.
+            call glutSetCursor(GLUT_CURSOR_LEFT_ARROW)
         endif
     case(ichar('+'),ichar('='))
            

@@ -73,10 +73,13 @@ LOGICAL::isstreamlineinitialized=.false.
 TYPE STREAMLINE_TYDEF
     INTEGER::NV=0,ISINPUTSLIP=0
     LOGICAL::SHOW=.TRUE.,ISLOCALSMALL=.FALSE.,ISCOMPATABLE=.TRUE.
-    REAL(8)::PTstart(3),SF_SLOPE=HUGE(1.d0)
+    REAL(8)::PTstart(3),SF_SLOPE=HUGE(1.d0),SVEC(2)=0.D0 !SVEC=3D SLOPE SLIDE SURFACE DIRECTION 
     REAL(8),ALLOCATABLE::V(:,:),VAL(:,:)
-    REAL(8),ALLOCATABLE::PARA_SFCAL(:,:) !SIGN,SIGT,RAD1,SIGTA,DIS,C,PHI,SFR	
+    REAL(8),ALLOCATABLE::PARA_SFCAL(:,:) !SIGN,SIGT,RAD1,SIGTA,SEG_LENGTH,C,PHI,SFR,DCOS(3) !后面三个为滑动面方向矢量	
     INTEGER,ALLOCATABLE::IEL(:) !流线上每个节点所在的单元号
+    REAL(8),ALLOCATABLE::SLIDE_STRIP(:,:,:) !以流线和第二主应力方向线生成的生成的滑动面（三维滑坡），slide_strip为滑动面两侧边线的坐标,把两边线对应的节点连起来,即为一个四边形滑动面.
+CONTAINS
+    PROCEDURE::GET_SLIDE_STRIP=>CAL_SLIDE_STRIP
 ENDTYPE
 INTEGER::MAXNSTREAMLINE=0
 TYPE(STREAMLINE_TYDEF),ALLOCATABLE::STREAMLINE(:)
@@ -230,9 +233,10 @@ integer,parameter::STREAMLINE_SLOPE_CLICK=1,ShowTopTen_SLOPE_CLICK=2,ShowMinimal
 ShowAll_SLOPE_CLICK=4,ReadSlipSurface_slope_click=5,ShowLocalMinimal_Slope_Click=6,&
                     SEARCH_SLOPE_CLICK=7,FilterLocalMinimal_Slope_Click=8,&
                     SFS_Slope_Click=9,CHECKADMISSIBILITY=10,ShowReadinSlip_Slope_CLICK=11,SEARCH_BY_PSO=12,&
-                    ShowStreamline_AdmissiblityImprove_CLICK=13,ShowSFContour_click=14
+                    ShowStreamline_AdmissiblityImprove_CLICK=13,ShowSFContour_click=14,ShowSSTRIP_click=15,& 
+                    ShowFSLabel_click=16,OutSlideInfo_click=17
 LOGICAL::ISSTREAMLINESLOPE=.FALSE.,IsFilterLocalMinimalMode=.false.,isProbeState_SFS=.FALSE.,&
-         IsShowReadinSlip=.false.
+         IsShowReadinSlip=.false.,IsShowSlideStrip=.false.,IsShowFSLabel=.false.
 
 !real(GLFLOAT) :: red(4) = (/1.0,0.0,0.0,1.0/), &
 !                 black(4) = (/0.0,0.0,0.0,1.0/), &
@@ -254,7 +258,7 @@ TYPE TIMESTEPINFO_TYDEF
 ENDTYPE
 TYPE(TIMESTEPINFO_TYDEF),PUBLIC::STEPPLOT
 
-REAL(8)::PT_PROBE(3)=0.0D0,VAL_PROBE(150)
+REAL(8)::PT_PROBE(3)=0.0D0,VAL_PROBE(150),STRIP_WIDTH=0.5
 INTEGER::IEL_PROBE=0
 
 
@@ -271,6 +275,179 @@ INTEGER::NODALID_SHOW=-1,ELEMENTID_SHOW=-2
 !END TYPE
 
     contains
+
+    SUBROUTINE CAL_SLIDE_STRIP(this,WIDTH)
+    !计算3D边坡滑动带
+    !滑动面由流线方向和第二主应力方向确定(近似)
+    !
+        USE SolverMath,ONLY:CS_VECTOR
+        IMPLICIT NONE
+        CLASS(STREAMLINE_TYDEF)::THIS
+        REAL(8),OPTIONAL::WIDTH
+        REAL(8)::DIR1(3),DX1(3),W1,T1,DIR2(3),w2,DX2(3),XC1,YC1
+        INTEGER::I,J,N1,N2,N3
+
+        IF(POSDATA.NDIM/=3) RETURN
+        W1=0.5
+        IF(PRESENT(WIDTH)) W1=WIDTH/2.0
+
+        IF(ALLOCATED(THIS.SLIDE_STRIP)) DEALLOCATE(THIS.SLIDE_STRIP) 
+        ALLOCATE(THIS.SLIDE_STRIP(3,THIS.nv,2))
+        ! DO I=1,THIS.NV
+
+        !     IF(I<THIS.NV) THEN
+        !         DX1=THIS.V(:,I+1)-THIS.V(:,I)
+        !         DX1=DX1/NORM2(DX1)
+        !         !DIR2:第二主应力方向
+        !         DIR2=CS_VECTOR(THIS.PARA_SFCAL(9:11,I),DX1,.true.)                
+        !     ENDIF
+        !     !dir1相邻滑动面交线向量
+        !     IF(I==1.OR.I==THIS.NV) THEN 
+        !         !假定第一个交线为z平面与第一个滑动面的交线
+        !         DIR1=CS_VECTOR([0.,0.,1.0],THIS.PARA_SFCAL(9:11,I),.true.) 
+        !     ELSE
+        !         T1=DOT_PRODUCT(THIS.PARA_SFCAL(9:11,I),THIS.PARA_SFCAL(9:11,I-1))
+        !         IF(ABS(ABS(T1)-1.D0)>0.001) THEN
+        !             DIR1=CS_VECTOR(THIS.PARA_SFCAL(9:11,I),THIS.PARA_SFCAL(9:11,I-1),.true.)  
+        !         ELSE
+        !             DIR1=DIR2
+        !         ENDIF              
+        !     ENDIF
+
+        !     T1=DOT_PRODUCT(DIR2,DIR1) !令条带的宽度近似相等
+        !     W2=W1/ABS(T1)
+        !     DX2=DIR1*W2
+
+        !     !下面的运算是为了保证四边形的对边不相交
+        !     IF(I>1) THEN
+        !         !相邻对边的方向的方向应该一致
+        !         DIR1=THIS.SLIDE_STRIP(:,I-1,1)-THIS.V(:,I-1)
+        !         T1=DOT_PRODUCT(DIR1,DX2)
+        !         IF(T1>0.D0) THEN
+        !             T1=1.0D0
+        !         ELSE
+        !             T1=-1.D0
+        !         ENDIF
+        !     ENDIF
+        !     THIS.SLIDE_STRIP(:,I,1)=THIS.V(:,I)+DX2*T1
+        !     THIS.SLIDE_STRIP(:,I,2)=THIS.V(:,I)-DX2*T1
+
+
+        ! ENDDO
+
+        DO I=1,THIS.NV
+
+            DX2=THIS.VAL([POSDATA.IXPS2,POSDATA.IYPS2,POSDATA.IZPS2],I)
+            DX2=DX2/NORM2(DX2)
+
+            !流线滑槽与坡表面的交线
+            IF(I==1.OR.I==THIS.NV) THEN 
+                !假定第一个交线为z平面与第一个滑动面的交线
+                N1=this.iel(i)
+                N2=COUNT(tet(n1).adjelt(1:TET(N1).NF)==0)
+                N3=0
+                DO J=1,tet(N1).NF
+                    IF(tet(n1).adjelt(j)==0) THEN
+                        IF(N2>1)THEN
+                            IF(PtInTri (THIS.V(:,I), POSDATA.NODE(FACE(TET(N1).F(J)).V(1)).COORD, &
+                                POSDATA.NODE(FACE(TET(N1).F(J)).V(2)).COORD, &
+                                POSDATA.NODE(FACE(TET(N1).F(J)).V(3)).COORD)) THEN
+                                N3=J
+                                EXIT
+                            ENDIF
+                        ELSE
+                            N3=J
+                            EXIT
+                        ENDIF
+                    ENDIF
+                ENDDO
+                IF(N3>0) THEN
+                    DIR1=CS_VECTOR(POSDATA.NODE(FACE(TET(N1).F(N3)).V(2)).COORD-POSDATA.NODE(FACE(TET(N1).F(N3)).V(1)).COORD,&
+                    POSDATA.NODE(FACE(TET(N1).F(N3)).V(3)).COORD-POSDATA.NODE(FACE(TET(N1).F(N3)).V(1)).COORD,.true.)
+                    T1=DOT_PRODUCT(DIR1,THIS.PARA_SFCAL(9:11,I))
+                    IF(ABS(ABS(T1)-1.D0)>0.001) THEN
+                        DX2=CS_VECTOR(DIR1,THIS.PARA_SFCAL(9:11,I),.true.)  
+                    ENDIF
+                ENDIF
+
+            ENDIF 
+
+            !下面的运算是为了保证四边形的对边不相交
+            T1=W1
+            IF(I>1) THEN
+                !相邻对边的方向应该一致
+                DIR1=THIS.SLIDE_STRIP(:,I-1,1)-THIS.SLIDE_STRIP(:,I-1,2)
+                T1=DOT_PRODUCT(DIR1,DX2)
+                IF(T1>0.D0) THEN
+                    T1=W1
+                ELSE
+                    T1=-W1
+                ENDIF
+            ENDIF
+
+            THIS.SLIDE_STRIP(:,I,1)=THIS.V(:,I)+DX2*T1
+            THIS.SLIDE_STRIP(:,I,2)=THIS.V(:,I)-DX2*T1
+
+
+        ENDDO
+
+        XC1=(POSDATA.MINX+POSDATA.MAXX)/2
+        YC1=(POSDATA.MINY+POSDATA.MAXY)/2
+    
+    
+        !IF((.NOT.STREAMLINE(I).ISCOMPATABLE).OR.STREAMLINE(I).NV<2) CYCLE
+        
+        N1=1
+            
+        !reference vector
+        DX1(1)=THIS.V(1,N1)-XC1
+        DX1(2)=THIS.V(2,N1)-YC1
+        T1=ATAN2(DX1(2),DX1(1))+1.57079632679
+        DX1(1)=COS(T1);DX1(2)=SIN(T1)
+        DX2=THIS.SLIDE_STRIP(:,N1,2)-THIS.SLIDE_STRIP(:,N1,1) 
+        T1=NORM2(DX2(1:2))
+        DX2=DX2/T1
+        T1=DOT_PRODUCT(DX1(1:2),DX2(1:2))
+        IF(T1<0.D0)  DX2=-DX2
+        THIS.SVEC=DX2(1:2)
+
+
+    ENDSUBROUTINE
+
+    subroutine drawStrokeText(angle,x,y,z,scale,s,rotate_axis)
+        use opengl_gl
+        use opengl_glut
+        
+        implicit none
+        
+        real(GLDOUBLE),INTENT(in) :: ANGLE,x,y,z,scale
+        real(GLDOUBLE),INTENT(in),optional :: rotate_axis(3)
+        character,intent(in) :: s*(*)
+        character :: c
+        integer :: i,lenc
+        real(GLDOUBLE)::raxis1(3)
+        
+        call glPushMatrix();
+        !call glLoadIdentity()
+        call glTranslated(x, y,z);
+        if(present(rotate_axis)) then
+            raxis1=rotate_axis
+        else
+            raxis1=[0.,0.,1.]
+        endif
+        call glrotated(ANGLE,raxis1(1),raxis1(2),raxis1(3))
+            
+        call glScaled(scale, scale, scale);
+        lenc = len(s)
+        do i=1,lenc
+            c = s(i:i)
+            call glutStrokeCharacter(GLUT_STROKE_ROMAN, &
+                ichar(c))
+        end do
+        call glPopMatrix();
+        
+        call glutPostRedisplay
+    end subroutine drawStrokeText
 
     SUBROUTINE TET2SN_ENLARGE_NODE(THIS,DSTEP)
         CLASS(STREAMLINENODE_IN_TET_TYDEF)::THIS
@@ -1116,6 +1293,14 @@ subroutine slope_handler(selection)
     CASE(ShowSFContour_click)
         N1=-1
         CALL SET_VARIABLE_SHOW(N1)
+    CASE(ShowSSTRIP_click)        
+        IsShowSlideStrip=.not.IsShowSlideStrip   
+        CALL STREAMLINE_PLOT() 
+     CASE(ShowFSLabel_click)        
+        IsShowFSLabel=.not.IsShowFSLabel   
+        CALL STREAMLINE_PLOT() 
+    CASE(OutSlideInfo_click)
+        CALL OUT_3D_SLOPE_SF_DIRECTION()          
     CASE default
 		!isPlotStreamLine=.not.isPlotStreamLine
   !  CASE(PLOTSLICEISOLINE_CLICK)
@@ -1718,7 +1903,12 @@ call glutAddMenuEntry("FilterLocalSmallSlip(DelectLocalLarger)",filterLocalMinim
 call glutAddMenuEntry("ShowLocalMinimalSlip",ShowLocalMinimal_Slope_Click)
 call glutAddMenuEntry("StressFailureState",SFS_SLOPE_CLICK)
 Call glutAddMenuEntry('ReadSlips',ReadSlipSurface_slope_click)
-call glutAddMenuEntry('ShowSFContour',ShowSFContour_click)
+if(POSDATA.ndim==3) then
+    call glutAddMenuEntry('ShowSFContour',ShowSFContour_click)
+    call glutAddMenuEntry('ShowSlideStrip',ShowSSTRIP_click)
+    call glutAddMenuEntry('ShowFSLabel',ShowFSLabel_click)
+    CALL glutAddMenuEntry('OutSlideInfo',OutSlideInfo_click)
+endif
 call glutAddMenuEntry("AdmissiblityImprove...",ShowStreamline_AdmissiblityImprove_CLICK)
 call glutAddMenuEntry("STREAMLINE_METHOD",STREAMLINE_SLOPE_CLICK)
 
@@ -1810,10 +2000,77 @@ SUBROUTINE OUT_SHOWN_STREAMLINE(FILE,OUTID,INFO)
     
 10  FORMAT('ILINE',1X,'  INODE',1X,22X,'FOS',1X,<POSDATA.NVAR>(A24,1X),&
         15X,'SLIPSEG_SN',14X,'SLIPSEG_TAU',5X,'SLIPSEG_ANGLE_IN_RAD',13X,'SLIPSEG_TAUF',&
-        14X,'SLIPSEG_DIS',16X,'SLIPSEG_C',14X,'SLIPSEG_PHI',14X,'SLIPSEG_SFR',5X,'//DATE=',A8,',TIME=',A8)
+        14X,'SLIPSEG_LEN',16X,'SLIPSEG_C',14X,'SLIPSEG_PHI',14X,'SLIPSEG_SFR',5X,'//DATE=',A8,',TIME=',A8)
 20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR+9>(EN24.15,1X))
          
 30  FORMAT(I5,1X,I7,1X,<POSDATA.NDIM>(EN24.15,1X),'*THE POINT IS OUT OF MODEL ZONE.*')
+
+ENDSUBROUTINE
+
+SUBROUTINE OUT_3D_SLOPE_SF_DIRECTION(FILE,OUTID,INFO)    
+    USE IFPORT
+    IMPLICIT NONE
+    CHARACTER(*),OPTIONAL,INTENT(IN)::FILE,INFO
+    INTEGER,OPTIONAL,INTENT(IN)::OUTID
+    INTEGER::I,J,EF,OUTID1=0,N1
+    CHARACTER(1024)::FILE1
+    LOGICAL::EXIST
+    CHARACTER(8)::char_time
+    REAL(8)::XC1,YC1,XY1(2),T1,XY2(3)
+    REAL(8),PARAMETER::PI=3.141592653589793
+    PRINT *, 'SELECT TO FILE TO SAVE THE STREAMLINE DATA...'
+    
+    FILE1=""
+    OUTID1=0
+    IF(PRESENT(FILE)) FILE1=TRIM(ADJUSTL(FILE))
+    IF(PRESENT(OUTID)) OUTID1=OUTID
+  !logical :: exist
+  !
+  !inquire(file=TRIM(FILE1), exist=exist)
+  !if (exist) then
+  !  open(20, file=TRIM(FILE1), status="UNKNOWN", position="append", action="write")
+  !else
+  !  open(2O, file=TRIM(FILE1), status="new", action="write")
+  !end if
+    
+    open(20,file=TRIM(FILE1),status="REPLACE",iostat=EF)
+    IF(EF/=0) RETURN
+         
+    WRITE(20,10)
+    XC1=(POSDATA.MINX+POSDATA.MAXX)/2
+    YC1=(POSDATA.MINY+POSDATA.MAXY)/2
+    
+    DO I=1,NSTREAMLINE
+        IF((.NOT.STREAMLINE(I).ISCOMPATABLE).OR.STREAMLINE(I).NV<2) CYCLE
+        !DO J=1,2
+        N1=1
+            !IF(J==2) N1=STREAMLINE(I).NV
+        !reference vector
+        XY1(1)=STREAMLINE(I).V(1,N1)-XC1
+        XY1(2)=STREAMLINE(I).V(2,N1)-YC1
+        T1=ATAN2(XY1(2),XY1(1))+PI/2
+        XY1(1)=COS(T1);XY1(2)=SIN(T1)
+        XY2=STREAMLINE(I).SLIDE_STRIP(:,N1,2)-STREAMLINE(I).SLIDE_STRIP(:,N1,1) 
+        T1=NORM2(XY2(1:2))
+        XY2=XY2/T1
+        T1=DOT_PRODUCT(XY1,XY2(1:2))
+        IF(T1<0.D0)  XY2=-XY2
+        STREAMLINE(I).SVEC=XY2(1:2)
+        WRITE(20,20) I,N1,STREAMLINE(I).V(:,N1),STREAMLINE(I).SF_SLOPE,XY2(1:2)
+        !ENDDO
+    END DO
+    
+    
+    
+    CLOSE(20)
+        
+    PRINT *, 'OUTDATA DONE!'
+    
+
+    
+10  FORMAT('ILINE',10X,'NODE',10X,'X',10X,'Y',10X,'Z',10X,'FS',10X,'DX',10X,'DY')
+20  FORMAT(2(I7,1X),6(EN24.15,1X))
+    
 
 ENDSUBROUTINE
 
