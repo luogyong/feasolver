@@ -3,7 +3,7 @@ module PoreNetWork
         strtoint,material,kc_k,nstep,solver_control,ndof,poreflowfile,title,esetid,eset,neset,&
         tdisp,sf,vo,nvo,outvar,ndimension,timestep,isIniSEdge,locx,locy,locz,head,phead,discharge,throatFriction,&
         throatQ,throatDiameter,PF_CC,PF_LEN_CLOGGING,PF_PC,ThroatSize,PoreSize,hagen_poiseuille_friction,THROATVOL,ELT_ID,&
-        bc_disp,bd_num,property,pro_num,get_free_file_unit_number
+        bc_disp,bd_num,property,pro_num,get_free_file_unit_number,get_value_element
     USE MESHADJ,ONLY:SNADJL    
     use GeoMetricAlgorithm,only:NORMAL_TRIFACE
     use cubic_root                        
@@ -217,7 +217,9 @@ module PoreNetWork
                     element(i).pfp(5+n1)=LEN_CLOGGING(element(i).pfp(n1)/2,element(i).property(2)/2.0,element(i).property(4)*t1,vpc1)
                 endif
                 element(i).property(4+n1)=Resist_cone(kc1,element(i).pfp(5+n1),element(i).property(2)/2.0,element(i).pfp(n1)/2.0)
-                node(element.node(n1)).mises=node(element.node(n1)).mises+vpc1
+                DO J=1,ENUM
+                    node(element(J).node(n1)).mises=node(element(J).node(n1)).mises+vpc1
+                ENDDO
                 !node(element.node(n1)).mises=vpc1
                 !call element(i).rij()
             else
@@ -741,15 +743,15 @@ end
                 case(throatDiameter)                    
                     call write_data_pf(file_unit,node.poresize,istep,0,throatDiameter)
                 case(throatQ)                   
-                    call write_data_pf(file_unit,abs(element.flux(1)),istep,1)
+                    call write_data_pf(file_unit,abs(GET_VALUE_ELEMENT(element,[1:ENUM],'flux',1)),istep,1)
                 case(throatFriction)
-                    call write_data_pf(file_unit,1.0/element.km(1,1),istep,1)
+                    call write_data_pf(file_unit,1.0/GET_VALUE_ELEMENT(element,[1:ENUM],'km',1,1),istep,1)
                 case(PF_LEN_CLOGGING)
-                    call write_data_pf(file_unit,element.pfp(6)+element.pfp(7),istep,1) 
+                    call write_data_pf(file_unit,GET_VALUE_ELEMENT(element,[1:ENUM],'pfp',6)+GET_VALUE_ELEMENT(element,[1:ENUM],'pfp',7),istep,1) 
                 case(PF_PC)
-                    call write_data_pf(file_unit,real(element.pfp(8)+element.pfp(9)),istep,1)
+                    call write_data_pf(file_unit,real(GET_VALUE_ELEMENT(element,[1:ENUM],'pfp',8)+GET_VALUE_ELEMENT(element,[1:ENUM],'pfp',9)),istep,1)
                 case(THROATVOL)
-                    call write_data_pf(file_unit,element.pfp(4)+element.pfp(5),istep,1) 
+                    call write_data_pf(file_unit,GET_VALUE_ELEMENT(element,[1:ENUM],'pfp',4)+GET_VALUE_ELEMENT(element,[1:ENUM],'pfp',5),istep,1) 
                 case(ELT_ID)
                     call write_data_pf(file_unit,REAL([1:ENUM]),istep,1)     
             end select		

@@ -37,6 +37,7 @@ module meshDS
        integer::havesoildata=0 ![0,1,2] 0,no;1,partially;2,completely yes.(all soillayers have elevation(no -999)) 
        integer::iptr=0,isb=0,nat=0 !iptr=i,表明此节点在高程上i节点重合；!isb=1,zone boundary node;=2,model boundary node;=0,zone inside node
        real(8),allocatable::elevation(:),we(:),at(:) !we(1:2)=防渗墙顶和底高程
+       
 	end type
 	type(point_tydef),allocatable,target::node(:)
 	type(point_tydef),allocatable::cp(:)  !control point
@@ -375,6 +376,32 @@ module meshDS
     logical::issoilinterpolated=.false.
     
     contains
+    
+    FUNCTION GET_VALUE_NODE(DAR,ILOC,ATTRIBUTE,IAT) RESULT(RA)
+        IMPLICIT NONE
+        TYPE(point_tydef),INTENT(IN)::DAR(:)
+        INTEGER,INTENT(IN)::ILOC(:),IAT
+        CHARACTER(*),INTENT(IN)::ATTRIBUTE
+        REAL(8),ALLOCATABLE::RA(:)
+        CHARACTER(LEN=:),ALLOCATABLE::ATTRIBUTE1
+        
+        INTEGER::N1,I
+        
+        N1=SIZE(ILOC)
+        
+        ALLOCATE(RA(N1))
+        ATTRIBUTE1=ATTRIBUTE
+        CALL LOWCASE(ATTRIBUTE1)
+        SELECT CASE(TRIM(ADJUSTL(ATTRIBUTE1)))
+        CASE('elevation','el')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).ELEVATION(IAT)
+            ENDDO
+        CASE DEFAULT
+            PRINT *, 'NO SUCH ATTRIBUTE'
+        ENDSELECT
+        
+    END FUNCTION
     
     function readline(nunitr) result(line)
         implicit none

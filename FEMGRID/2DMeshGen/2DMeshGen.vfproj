@@ -25,7 +25,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug|x64">
-				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" HeapArrays="0" FPS4Filenames="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtQuickWinDebug"/>
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" HeapArrays="0" F2003Semantics="true" FPS4Filenames="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtQuickWinDebug"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemWindows"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -84,8 +84,8 @@
 		<File RelativePath="..\mc40.for"/>
 		<File RelativePath="..\mc40dependency.for"/>
 		<File RelativePath="..\mc49.for"/></Filter>
-		<File RelativePath="..\..\..\..\..\github\functional-fortran\src\lib\mod_functional.f90"/>
-		<File RelativePath="..\..\..\..\..\github\functional-fortran\src\lib\mod_interfaces.f90"/>
+		<File RelativePath="..\mod_functional.f90"/>
+		<File RelativePath="..\mod_interfaces.f90"/>
 		<File RelativePath="..\..\Module\quicksort.f90"/></Filter>
 		<File RelativePath="..\readme.dat"/></Filter></Files>
 	<Globals/></VisualStudioProject>

@@ -559,8 +559,8 @@ module triangle_io
         class(triangle_tydef)::this
         real(8),intent(in)::pt(2)
         real(8),allocatable::attrib(:)
-        real(8)::tri1(2,3),xsi1(3)
-        integer::i,ielt1,nat1
+        real(8)::tri1(2,3),xsi1(3),ra1(3)
+        integer::i,ielt1,nat1,j
         
 
         
@@ -577,7 +577,10 @@ module triangle_io
         xsi1= trishafun( tri1, pt(1), pt(2) )
         allocate(attrib(nat1))
         do i=1,nat1
-            attrib(i)=dot_product(this.node(this.element(ielt1).node(1:3)).at(i),xsi1)
+            do j=1,3
+                ra1(j)=this.node(this.element(ielt1).node(j)).at(i)
+            enddo
+            attrib(i)=dot_product(ra1,xsi1)
         enddo
     end function
     

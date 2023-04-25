@@ -440,7 +440,7 @@ Subroutine Generate_3D_MODEL()
             else
                 node((n1+1):(n1+nnode)).x=node1(1:nnode).x;node((n1+1):(n1+nnode)).y=node1(1:nnode).y;
             endif
-            node((n1+1):(n1+nnode)).z=node1(1:nnode).elevation(i);
+            node((n1+1):(n1+nnode)).z=GET_VALUE_NODE(node1,[1:nnode],'el',i);
             node((n1+1):(n1+nnode)).mother=[1:nnode]
 		    node((n1+1):(n1+nnode)).layer=i			
 	    end do

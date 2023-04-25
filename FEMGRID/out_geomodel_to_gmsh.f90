@@ -164,7 +164,7 @@ module geomodel
 
         implicit none
         character*256 term
-        INTEGER::I,J,NC1
+        INTEGER::I,J,NC1,k
 		integer(4)::msg,LEN1
 		character(512)::outfile,OUTFILE2
 		character(8)::CH1,ZNAME1(0:SOILLAYER)
@@ -184,7 +184,10 @@ module geomodel
             x1=sum(NODE(elt(i).node(1:3)).X)/3
             y1=sum(NODE(elt(i).node(1:3)).y)/3
             do j=0,soillayer
-                z1(j)=sum(NODE(elt(i).node(1:3)).ELEVATION(j))
+                z1(j)=0
+                do k=1,3
+                    z1(j)=z1(j)+NODE(elt(i).node(k)).ELEVATION(j)
+                enddo
             enddo
             write(60,30) i,elt(i).zn,x1*XYSCALE+XMIN,Y1*XYSCALE+YMIN,z1(:SOILLAYER)*XYSCALE+ZMIN
             
@@ -1617,7 +1620,7 @@ module geomodel
     subroutine set_cow_face_edge()
         implicit none
         integer::i,j,k,staterr,n1,n2,n3,n4
-        real(8)::t1,t2,pt1(3,2),be1(2),te1(2),ite1,ibe1,dx1
+        real(8)::t1,t2,pt1(3,2),be1(2),te1(2),ite1,ibe1,dx1,ia1(2)
         integer,allocatable::eiz1(:)
         
         do i=1,ncow
@@ -1633,8 +1636,11 @@ module geomodel
                 pt1(1,:)=node(cowall(i).node([j,n3])).x
                 pt1(2,:)=node(cowall(i).node([j,n3])).y
                 !pt1(3,:)=node(node1([j,n3])).z
-                te1=node(cowall(i).node([j,n3])).we(1)
-                be1=node(cowall(i).node([j,n3])).we(2)
+                ia1=[j,n3]
+                do k=1,2                    
+                    te1(k)=node(cowall(i).node(ia1(k))).we(1)
+                    be1(k)=node(cowall(i).node(ia1(k))).we(2)
+                enddo
                 eiz1=edge2vface(abs(cowall(i).edge(j)))
                 do k=1,size(eiz1)
                     n4=eiz1(k)

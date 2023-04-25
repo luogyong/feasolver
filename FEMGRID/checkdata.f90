@@ -133,8 +133,8 @@
       integer(4)    oldcolor,iunit, ievent, ikeystate, ixpos, iypos
 	  INTEGER(2)    status,result
       INTEGER(4)     res
-	  character(256)  msg
-	  character(256) nnum,nnum1
+	  character(48)  msg
+	  character(8) nnum,nnum1
 	  !character(1) butter
 	  !common butter
 	  integer::i,j,k,n1,n2
@@ -155,7 +155,7 @@
          call getwindowcoord(ixpos-15, iypos-15,wxy)
 		
 		 if(ievent==MOUSE$MOVE) then
-		    write(msg,'("(x,y)=",f15.7,",",f15.7)') wxy.wx*xyscale+xmin,wxy.wy*xyscale+ymin           
+		    write(msg,'("(x,y)=",f15.7,X,",",f15.7,X)') wxy.wx*xyscale+xmin,wxy.wy*xyscale+ymin           
             CALL SETMESSAGEQQ (msg, QWIN$MSG_INPUTPEND)
 		    return
 	     end if
@@ -190,7 +190,7 @@
 		do i=1,inpn
 		   if(((arr_t(i).x-bp.next.npt.x)**2+(arr_t(i).y-bp.next.npt.y)**2)<1e-10) exit
 		end do
-		if(b(i)==0) then
+		if(b(i)==0.and.showvalue2>0) then
 		   call  value(nnum,i)
 		   oldcolor=setcolorrgb(#ffff00)
 		   call outgtext(trim(adjustL(nnum)))
@@ -258,11 +258,11 @@
         do k=1,inpn
 		       if(((arr_t(k).x-csl(i).conpoint(1,j))**2+(arr_t(k).y-csl(i).conpoint(2,j))**2)<1e-10) exit
 		    end do
-			if(b(k)==0) then
+			if(b(k)==0.and.showvalue2>0) then
 			   call  value(nnum,k)
 			   oldcolor=setcolorrgb(#ffff00)
 			   call outgtext(trim(adjustL(nnum)))
-			   b(k)=0
+			   b(k)=1
 			 end if
 		 end do
 		
@@ -270,12 +270,12 @@
 		    if(((arr_t(k).x-csl(i).conpoint(1,1))**2+(arr_t(k).y-csl(i).conpoint(2,1))**2)<1e-10) exit
 		 end do
 		
-		 if(b(k)==0) then
+		 if(b(k)==0.and.showvalue2>0) then
 		    call  value(nnum,k)
 		    oldcolor=setcolorrgb(#ffff00)
             call moveto_w(csl(i).conpoint(1,1),csl(i).conpoint(2,1),wxy)
 		    call outgtext(trim(adjustL(nnum)))
-			b(k)=0
+			b(k)=1
 		 end if
 		
 
@@ -290,12 +290,12 @@
 !		 end do
 		 k=aupoint(i).point
 		 status=ellipse_W($GBORDER,arr_t(k).x-size,arr_t(k).y-size,arr_t(k).x+size,arr_t(k).y+size)
-         if(b(k)==0) then
+         if(b(k)==0.and.showvalue2>0) then
 			call  value(nnum,k)
 			oldcolor=setcolorrgb(#ffff00)
 			call moveto_w(arr_t(k).x,arr_t(k).y,wxy)
 			call outgtext(trim(adjustL(nnum)))
-			b(k)=0		
+			b(k)=1		
 		 end if	
 	  end do
 
@@ -307,12 +307,12 @@
 !		 end do
 		 k=ccl(i).point
          status=ellipse_W($GBORDER,arr_t(k).x-size,arr_t(k).y-size,arr_t(k).x+size,arr_t(k).y+size)
-         if(b(k)==0) then
+         if(b(k)==0.and.showvalue2>0) then
 			call  value(nnum,k)
 			oldcolor=setcolorrgb(#ffff00)
 			call moveto_w(arr_t(k).x,arr_t(k).y,wxy)
 			call outgtext(trim(adjustL(nnum)))
-			b(k)=0		
+			b(k)=1		
 		 end if	
 	  end do
 
@@ -321,12 +321,12 @@
          oldcolor=setcolorrgb(#ffff00)
 		 k=i
          status=ellipse_W($GBORDER,arr_t(k).x-size,arr_t(k).y-size,arr_t(k).x+size,arr_t(k).y+size)
-         if(b(k)==0) then
+         if(b(k)==0.and.showvalue2>0) then
 			call  value(nnum,k)
 			oldcolor=setcolorrgb(#ffff00)
 			call moveto_w(arr_t(k).x,arr_t(k).y,wxy)
 			call outgtext(trim(adjustL(nnum)))
-			b(k)=0		
+			b(k)=1		
 		 end if	
 	  end do
 
@@ -350,9 +350,10 @@
 		implicit none
 		integer::n1
 		character(8)::nnum
+        nnum=' '
 		select case(showvalue2)
 		   case(1)
-		   write(nnum,'(i6)') arr_t(n1).num
+		   write(nnum,'(i8)') arr_t(n1).num
 		   case(2)
 		   write(nnum,'(f8.3)') arr_t(n1).s
 		end select

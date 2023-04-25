@@ -379,10 +379,12 @@ subroutine solve_SLD()
 			if(isexca2d/=0) call Beam_Result_EXCA(iincs)
 			if(pnw.isclogging>0) then
 				node.cc=node.cc+pnw.dc
-				where(element.et==poreflow) 
-                    element.pfp(8)=element.pfp(8)+pnw.nPc(1,:)
-                    element.pfp(9)=element.pfp(9)+pnw.nPc(2,:)
-                end where
+                do i=1,enum
+					if(element(i).et==poreflow) then
+						element(i).pfp(8)=element(i).pfp(8)+pnw.nPc(1,i)
+						element(i).pfp(9)=element(i).pfp(9)+pnw.nPc(2,i)
+                    endif
+                enddo
                 
 			endif
             
@@ -2114,7 +2116,7 @@ subroutine element_activate(istep)
     integer::i,j,k
     
     NODE.ISACTIVE=0
-    do concurrent (i=1:enum)
+    do i=1,enum
         if(element(i).ec/=soilspring) then
 			if(geostatic.isgeo.and.istep==0) then
                 !默认(base==1)单元都参与地应力计算。

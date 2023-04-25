@@ -167,7 +167,7 @@ subroutine graph
 	  !external,real displayinfo
 	  INTEGER(2)          status,result
       INTEGER(4)          res
-	  character(256)  msg
+	  character(48)  msg
 	  character(256) nnum
 	  !character(1) butter
 	  integer::i,n1,nt,j,k
