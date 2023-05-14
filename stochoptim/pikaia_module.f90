@@ -67,8 +67,9 @@
     
         !! Main class for using the Pikaia algorithm.
         !! INIT and SOLVE are the only public methods.
+        private    
         integer,public:: igen=0
-        private
+        
 
         integer :: n = 0  !number of solution variables
         real(wp),dimension(:),allocatable :: xl    !! lower bounds of x

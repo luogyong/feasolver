@@ -587,6 +587,133 @@ module solverds
    
     
     contains
+    
+    FUNCTION GET_VALUE_NODE(DAR,ILOC,ATTRIBUTE,IAT) RESULT(RA)
+    !get allocatable component of node. ra=node(iloc).attribute(iat)
+        IMPLICIT NONE
+        TYPE(node_tydef),INTENT(IN)::DAR(:)
+        INTEGER,INTENT(IN)::ILOC(:),IAT
+        CHARACTER(*),INTENT(IN)::ATTRIBUTE
+        REAL(8),ALLOCATABLE::RA(:)
+        CHARACTER(LEN=:),ALLOCATABLE::ATTRIBUTE1
+        
+        INTEGER::N1,I
+        
+        N1=SIZE(ILOC)
+        
+        ALLOCATE(RA(N1))
+        ATTRIBUTE1=ATTRIBUTE
+        CALL LOWCASE(ATTRIBUTE1)
+        
+!		real(kind=DPN),allocatable::stress(:),strain(:),pstrain(:),SFR(:),PSIGMA(:)  !SFR=Ó¦Á¦ÆÆ»µ±È
+!		real(kind=DPN),allocatable::FQ(:),M(:) !nodal shear forces and nodal bending moments.
+!		real(kind=DPN),allocatable::igrad(:),velocity(:)	!for spg element,        
+        SELECT CASE(TRIM(ADJUSTL(ATTRIBUTE1)))
+        CASE('s','stress')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).stress(IAT)
+            ENDDO
+        CASE('e','strain')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).strain(IAT)
+            ENDDO  
+        CASE('pe','pstrain')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).pstrain(IAT)
+            ENDDO
+        CASE('sfr')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).sfr(IAT)
+            ENDDO
+        CASE('ps','psigma')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).PSIGMA(IAT)
+            ENDDO  
+        CASE('i','igrad')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).igrad(IAT)
+            ENDDO
+        CASE('v','velocity')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).velocity(IAT)
+            ENDDO
+        CASE('fq')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).fq(IAT)
+            ENDDO  
+        CASE('m')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).m(IAT)
+            ENDDO             
+        CASE DEFAULT
+            PRINT *, 'NO SUCH ATTRIBUTE'
+        ENDSELECT
+        
+    END FUNCTION
+    
+	FUNCTION GET_VALUE_ELEMENT(DAR,ILOC,ATTRIBUTE,IAT,JAT) RESULT(RA)
+    !get allocatable component of node. ra=node(iloc).attribute(iat)
+        IMPLICIT NONE
+        TYPE(element_tydef),INTENT(IN)::DAR(:)
+        INTEGER,INTENT(IN)::ILOC(:),IAT
+        INTEGER,INTENT(IN),OPTIONAL::JAT
+        CHARACTER(*),INTENT(IN)::ATTRIBUTE
+        REAL(8),ALLOCATABLE::RA(:)
+        CHARACTER(LEN=:),ALLOCATABLE::ATTRIBUTE1
+        
+        INTEGER::N1,I
+        
+        N1=SIZE(ILOC)
+        
+        ALLOCATE(RA(N1))
+        ATTRIBUTE1=ATTRIBUTE
+        CALL LOWCASE(ATTRIBUTE1)
+        
+        
+        SELECT CASE(TRIM(ADJUSTL(ATTRIBUTE1)))
+        CASE('s','stress')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).stress(IAT,JAT)
+            ENDDO
+        CASE('e','strain')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).strain(IAT,JAT)
+            ENDDO  
+        CASE('pe','pstrain')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).pstrain(IAT,JAT)
+            ENDDO
+        CASE('sfr')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).sfr(IAT,JAT)
+            ENDDO
+        CASE('i','igrad')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).igrad(IAT,JAT)
+            ENDDO
+        CASE('v','velocity')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).velocity(IAT,JAT)
+            ENDDO
+        CASE('flux')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).flux(IAT)
+            ENDDO  
+        CASE('km')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).km(IAT,JAT)
+            ENDDO             
+        CASE('pfp')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).pfp(IAT)
+            ENDDO 
+        CASE DEFAULT
+            PRINT *, 'NO SUCH ATTRIBUTE'
+        ENDSELECT
+        
+    END FUNCTION 
+    
+    
     real(8) function get_gravity(this)
     !calculte the g value based on the model unit
         class(solver_tydef)::this
@@ -746,8 +873,11 @@ module solverds
 		CLASS(mat_tydef),INTENT(in):: MAT
 		INTEGER,INTENT(IN)::IPARA(:),ISTEP
         REAL(DPN)::VAL(SIZE(IPARA))
-        INTEGER::I
-		VAL=MAT.property(ipara)*sf(MAT.sf(ipara)).factor(istep) 
+        INTEGER::I,N1
+        N1=SIZE(IPARA)
+        DO I=1,N1
+			VAL(I)=MAT.property(ipara(I))*sf(MAT.sf(ipara(I))).factor(istep) 
+        ENDDO
         IF(MAT.TYPE==MC) THEN
             DO I=1,SIZE(IPARA)
                 IF(IPARA(I)==4.OR.IPARA(I)==5) THEN

@@ -1098,7 +1098,7 @@ subroutine set_container(this)
     !if(this.isini) return
     
     if(.not.this.isread) then
-        if(natr>0) maxr=maxval(node_tg.at(1))
+        if(natr>0) maxr=maxval(get_value_node_tg(node_tg,[1:nnode_tg],'at',1))
         maxr=maxr**0.5 !assumption
         this.box(1,1)=minval(node_tg.x(1))-maxr
         this.box(2,1)=minval(node_tg.x(2))-maxr
@@ -1275,5 +1275,32 @@ subroutine skipcomment(unit)
 	end do
 	
 end subroutine
+
+    FUNCTION GET_VALUE_NODE_TG(DAR,ILOC,ATTRIBUTE,IAT) RESULT(RA)
+    !get value of ra=dar(iloc).attribute(iat)
+        IMPLICIT NONE
+        TYPE(tetgen_node_tydef),INTENT(IN)::DAR(:)
+        INTEGER,INTENT(IN)::ILOC(:),IAT
+        CHARACTER(*),INTENT(IN)::ATTRIBUTE
+        REAL(8),ALLOCATABLE::RA(:)
+        CHARACTER(LEN=:),ALLOCATABLE::ATTRIBUTE1
+        
+        INTEGER::N1,I
+        
+        N1=SIZE(ILOC)
+        
+        ALLOCATE(RA(N1))
+        ATTRIBUTE1=ATTRIBUTE
+        CALL LOWCASE(ATTRIBUTE1)
+        SELECT CASE(TRIM(ADJUSTL(ATTRIBUTE1)))
+        CASE('at')        
+            DO I=1,N1    
+                RA(I)=DAR(ILOC(I)).AT(IAT)
+            ENDDO
+        CASE DEFAULT
+            PRINT *, 'NO SUCH ATTRIBUTE'
+        ENDSELECT
+        
+    END FUNCTION
 
 end module

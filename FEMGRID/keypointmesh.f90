@@ -254,7 +254,7 @@ end subroutine
 subroutine linearsoilinterpolate_tri(ielt,inode)
     use meshDS
     integer,intent(in)::ielt,inode
-    real(8)::shafun(3)=0,tri(2,3)
+    real(8)::shafun(3)=0,tri(2,3),RA1(3)
     integer::i,n1
     
     if(node(inode).havesoildata==2) return
@@ -287,11 +287,12 @@ subroutine linearsoilinterpolate_tri(ielt,inode)
         n1=0
         do i=0,soillayer
             if(abs(node(inode).elevation(i)+999.d0)<1.e-7) then
-                if(any(abs(node(elt(ielt).node(1:3)).elevation(i)+999.d0)<1.e-7)) then
+				RA1=GET_VALUE_NODE(NODE,elt(ielt).node(1:3),'el',i)
+                if(any(abs(RA1+999.d0)<1.e-7)) then
                     print *,'UNABLE TO INTERPOLATE. THE NODE(I) OF THE INDCLUDING ELEMENT(J) HAS UNKOWN ELEVATION IN LAYER(K). (I,J,K)= ',INODE,IELT,I   
                     n1=1
                 else
-                    node(inode).elevation(i)=dot_product(shafun,node(elt(ielt).node(1:3)).elevation(i))
+                    node(inode).elevation(i)=dot_product(shafun,RA1)
                 endif
             endif
         enddo
