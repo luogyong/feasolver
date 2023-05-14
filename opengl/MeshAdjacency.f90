@@ -1,16 +1,16 @@
 MODULE MESHADJ
-USE solverds,ONLY:MAX_NODE_ADJ,MAX_FACE_ADJ,NNUM,PI,NODE,NDIMENSION,ELEMENT,isIniSEdge   
+USE solverds,ONLY:MAX_NODE_ADJ,MAX_FACE_ADJ,NNUM,PI,NODE,NDIMENSION,ELEMENT,isIniSEdge,ENUM,ESET   
 USE MESHGEO
 USE SolverMath,ONLY:ANGLE2D
 USE quicksort
-
+USE MESHNEIGHBOR
 implicit none
 
 INTERFACE SETUP_EDGE_ADJL
-    MODULE PROCEDURE SETUP_EDGE_ADJL_MODEL,SETUP_EDGE_ADJL_TET,SETUP_EDGE_ADJL_SOLVER
+    MODULE PROCEDURE SETUP_EDGE_ADJL_MODEL,SETUP_EDGE_ADJL_TET
 END INTERFACE
 INTERFACE SETUP_FACE_ADJL
-    MODULE PROCEDURE SETUP_FACE_ADJL_MODEL,SETUP_FACE_ADJL_TET,SETUP_FACE_ADJL_SOLVER
+    MODULE PROCEDURE SETUP_FACE_ADJL_MODEL,SETUP_FACE_ADJL_TET
 END INTERFACE
 
 PRIVATE::MAX_NODE_ADJ,MAX_FACE_ADJ
@@ -20,13 +20,121 @@ CONTAINS
 SUBROUTINE Setup_Solver_MESHTOPO()
 
     IMPLICIT NONE
-    INTEGER I,J,K
-    REAL(8)::XYLMT(2,3)    
-    
+    INTEGER::I,J,K,ERR,N1,ISET1,NELT1,E2E1(ENUM)
+    REAL(8)::XYLMT(2,3)
+    integer,allocatable::node1(:,:),adj1(:,:),geo1(:,:) !
+    INTEGER::ET1,E1
     if(.not.isIniSEdge) then
-        CALL SETUP_EDGE_ADJL_SOLVER(SEDGE,NSEDGE,SNADJL)
-        CALL SETUP_FACE_ADJL_SOLVER(SFACE,NSFACE,SEDGE,NSEDGE)
-        CALL SETUP_ADJACENT_ELEMENT_SOLVER(SEDGE,SFACE,ELEMENT,NDIMENSION)
+
+        IF(.NOT.ISINI_GMSHET) THEN
+            
+            CALL Initialize_et2numNodes()
+            CALL ET_GMSH_EDGE_FACE()
+            ISINI_GMSHET=.TRUE.        
+        ENDIF
+
+        !N1=NDIMENSION+1
+        NELT1=0
+        allocate(node1(10,ENUM),adj1(10,enum),STAT=ERR)
+        E2E1=0 !local element to solver element
+        DO I=1,ENUM            
+            ISET1=ELEMENT(I).SET
+            IF(ESET(ISET1).COUPLESET>0 &            
+                .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
+            ET1=GETGMSHET(ELEMENT(I).ET)
+            ELEMENT(I).NEDGE=ELTTYPE(ET1).NEDGE
+            ELEMENT(I).NFACE=ELTTYPE(ET1).NFACE
+            IF(.NOT.ALLOCATED(ELEMENT(I).EDGE)) ALLOCATE(ELEMENT(I).EDGE(ELTTYPE(ET1).NEDGE),STAT=ERR)
+            IF(.NOT.ALLOCATED(ELEMENT(I).FACE)) ALLOCATE(ELEMENT(I).FACE(ELTTYPE(ET1).NFACE),STAT=ERR)
+            NELT1=NELT1+1
+                        
+            N1=MOD(ELEMENT(I).ESHAPE,100)
+            NODE1(10,NELT1)=ELEMENT(I).ESHAPE
+            NODE1(9,NELT1)=ESHAPE2NBC(ELEMENT(I).ESHAPE,ndimension)
+            NODE1(1:N1,NELT1)=ELEMENT(I).NODE(1:N1)
+            E2E1(NELT1)=I
+        ENDDO
+        call find_neighbors_mesh(10,NELT1,node1(:,1:NELT1),adj1(:,1:NELT1),geo1,ndimension)
+        DO I=1,NELT1
+            J=E2E1(I)
+            N1=ESHAPE2NBC(element(J).eshape,ndimension)
+            IF(.NOT.ALLOCATED(ELEMENT(J).ADJELT))  ALLOCATE(ELEMENT(J).ADJELT(N1),STAT=ERR)      
+            ELEMENT(J).ADJELT(1:N1)=ADJ1(1:N1,I)
+        ENDDO
+
+        IF(NDIMENSION==2) THEN
+            NSEDGE=SIZE(GEO1,DIM=2)
+            ALLOCATE(SEDGE(NSEDGE),STAT=ERR)
+            DO I=1,NSEDGE
+                SEDGE(I).ISINI=.TRUE.
+                E1=E2E1(GEO1(1,I))
+                ET1=GETGMSHET(ELEMENT(E1).ET)
+		        SEDGE(I).V=ELEMENT(E1).NODE(ELTTYPE(ET1).EDGE(:,GEO1(2,I)))
+              
+                IF(GEO1(3,I)==0) THEN
+                    SEDGE(I).ENUM=1
+                ELSE
+                    SEDGE(I).ENUM=2
+                ENDIF
+                ALLOCATE(SEDGE(I).ELEMENT(SEDGE(I).ENUM),SEDGE(I).SUBID(SEDGE(I).ENUM),STAT=ERR)
+                DO J=1,SEDGE(I).ENUM
+                    SEDGE(I).ELEMENT(J)=E2E1(GEO1((J-1)*2+1,I))
+                    SEDGE(I).SUBID(J)=GEO1((J-1)*2+2,I)
+                    ELEMENT(SEDGE(I).ELEMENT(J)).EDGE(SEDGE(I).SUBID(J))=I                    
+                ENDDO
+                IF(ELTTYPE(ET1).NMIDPNT>0) THEN
+                    SEDGE(I).NMIDPNT=ELTTYPE(ET1).NMIDPNT
+                    SEDGE(I).MIDPNT=ELEMENT(E2E1(GEO1(1,I))).NODE(ELTTYPE(ET1).MIDPNT(:,GEO1(2,I)))
+                ENDIF
+            ENDDO
+        ELSE
+            NSFACE=SIZE(GEO1,DIM=2)
+            ALLOCATE(SFACE(NSFACE),STAT=ERR)
+            DO I=1,NSFACE
+                SFACE(I).ISINI=.TRUE.
+                E1=E2E1(GEO1(1,I))
+                ET1=GETGMSHET(ELEMENT(E1).ET)
+                SFACE(I).SHAPE=ELTTYPE(ET1).FACE(0,GEO1(2,I))
+		        SFACE(I).V(:SFACE(I).SHAPE)=ELEMENT(E1).NODE(ELTTYPE(ET1).FACE(1:SFACE(I).SHAPE,GEO1(2,I)))
+                IF(GEO1(3,I)==0) THEN
+                    SFACE(I).ENUM=1
+                ELSE
+                    SFACE(I).ENUM=2
+                ENDIF
+                ALLOCATE(SFACE(I).ELEMENT(SFACE(I).ENUM),SFACE(I).SUBID(SFACE(I).ENUM),STAT=ERR)
+                DO J=1,SFACE(I).ENUM
+                    SFACE(I).ELEMENT(J)=E2E1(GEO1((J-1)*2+1,I))
+                    SFACE(I).SUBID(J)=GEO1((J-1)*2+2,I)
+                    ELEMENT(SFACE(I).ELEMENT(J)).FACE(SFACE(I).SUBID(J))=I
+                ENDDO
+				DO K=1,3
+					SFACE(I).BBOX(1,K)=MINVAL(NODE(SFACE(I).V(1:SFACE(I).SHAPE)).COORD(K))-VTOL
+					SFACE(I).BBOX(2,K)=MAXVAL(NODE(SFACE(I).V(1:SFACE(I).SHAPE)).COORD(K))+VTOL
+				ENDDO
+            ENDDO
+
+            !SET EDGE
+            CALL MESH2EDGE_SOLVER(SEDGE)
+
+            !SET FACE.EDGE
+            DO I=1,NSFACE
+                E1=E2E1(GEO1(1,I))
+                ET1=GETGMSHET(ELEMENT(E1).ET)
+                IF(SFACE(I).SHAPE>2) THEN
+		            SFACE(I).EDGE(:SFACE(I).SHAPE)=ELEMENT(E1).EDGE(ABS(ELTTYPE(ET1).FACEEDGE(1:SFACE(I).SHAPE,GEO1(2,I))))
+                ELSE !LINE ELEMENT
+                    SFACE(I).EDGE(1)=ELEMENT(E1).EDGE(ELTTYPE(ET1).FACEEDGE(1,GEO1(2,I)))
+                ENDIF
+            ENDDO
+            
+        ENDIF    
+        
+        CALL SETUP_NODE_ADJ_SOLVER(SEDGE,NSEDGE,SNADJL)
+
+        !CALL SETUP_EDGE_ADJL_SOLVER(SEDGE,NSEDGE,SNADJL)
+        !CALL SETUP_FACE_ADJL_SOLVER(SFACE,NSFACE,SEDGE,NSEDGE)
+        !CALL SETUP_ADJACENT_ELEMENT_SOLVER(SEDGE,SFACE,ELEMENT,NDIMENSION)
+
         !IF(NDIMENSION==2) CALL SETUP_EDGE_BC_SOLVER()
         DO I=1,3
             XYLMT(1,I)=MAXVAL(NODE.COORD(I))
@@ -37,8 +145,127 @@ SUBROUTINE Setup_Solver_MESHTOPO()
 
     isIniSEdge=.TRUE.
 
+    deallocate(node1,adj1,GEO1,STAT=ERR)
 
 END SUBROUTINE
+
+
+SUBROUTINE MESH2EDGE_SOLVER(EDGE1)
+    IMPLICIT NONE
+    TYPE(EDGE_TYDEF),ALLOCATABLE::EDGE1(:)
+    TYPE(tet_edge_tydef),ALLOCATABLE::AEDGE1(:)
+    INTEGER::triangle_order,triangle_num,triangle_node(10,enum)
+    INTEGER::I,J,K,NE1,ERR,NE2=0,NELT1,ISET1,N1,E2E1(ENUM),E1,ET1,IEDGE1
+
+
+    triangle_order=10;triangle_num=ENUM
+    DO I=1,ENUM            
+        ISET1=ELEMENT(I).SET
+        IF(ESET(ISET1).COUPLESET>0 &            
+            .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
+        NELT1=NELT1+1
+                    
+        N1=MOD(ELEMENT(I).ESHAPE,100)
+        triangle_node(10,NELT1)=ELEMENT(I).ESHAPE
+        triangle_node(9,NELT1)=ESHAPE2NEDGE(ELEMENT(I).ESHAPE)
+        triangle_node(1:N1,NELT1)=ELEMENT(I).NODE(1:N1)
+        E2E1(NELT1)=I
+    ENDDO
+    triangle_num=NELT1
+    
+    CALL find_mesh_edge( triangle_order, triangle_num,triangle_node,AEDGE1 )
+    
+    NE1=SIZE(AEDGE1)
+    NSEDGE=NE1
+    ALLOCATE(EDGE1(NE1),STAT=ERR)
+
+    DO I=1,NE1
+        EDGE1(I).ENUM=AEDGE1(I).NNODE/2
+        ALLOCATE(EDGE1(I).ELEMENT(EDGE1(I).ENUM),EDGE1(I).SUBID(EDGE1(I).ENUM),STAT=ERR)
+        EDGE1(I).ENUM=0
+        DO J=1,AEDGE1(I).NNODE,2
+            E1=E2E1(AEDGE1(I).NODE(J))
+            ET1=GETGMSHET(ELEMENT(E1).ET)
+            IEDGE1=AEDGE1(I).NODE(J+1)
+            EDGE1(I).ENUM=EDGE1(I).ENUM+1
+            EDGE1(I).ELEMENT(EDGE1(I).ENUM)=E1
+            EDGE1(I).SUBID(EDGE1(I).ENUM)=IEDGE1
+            IF(.NOT.EDGE1(I).ISINI) THEN
+                EDGE1(I).V=ELEMENT(E1).NODE(ELTTYPE(ET1).EDGE(:,AEDGE1(I).NODE(2)))      
+                EDGE1(I).ISINI=.TRUE.
+            ENDIF
+
+            IF(.NOT.ALLOCATED(ELEMENT(E1).EDGE)) THEN
+                ALLOCATE(ELEMENT(E1).EDGE(ELTTYPE(ET1).NEDGE),STAT=ERR)
+                ELEMENT(E1).NEDGE=ELTTYPE(ET1).NEDGE
+            ENDIF
+            ELEMENT(E1).EDGE(IEDGE1)=I
+        ENDDO
+    ENDDO
+     DEALLOCATE(AEDGE1,STAT=ERR)
+ENDSUBROUTINE
+
+!SET EDGE FOR SOLVER MODEL ELEMENT. 
+SUBROUTINE SETUP_NODE_ADJ_SOLVER(EDGE_L,NEDGE_L,NADJL)
+    USE solverds,ONLY:ELEMENT_L=>ELEMENT,NODE_L=>NODE,NNODE_L=>NNUM,NEL_L=>ENUM,ESET
+    IMPLICIT NONE
+    INTEGER::NEDGE_L
+	TYPE(EDGE_TYDEF),INTENT(IN)::EDGE_L(:)
+    TYPE(NODE_ADJ_TYDEF),ALLOCATABLE::NADJL(:)
+    INTEGER::I,J,K,ISET1,N1
+    
+    IF(ALLOCATED(NADJL)) DEALLOCATE(NADJL)
+    ALLOCATE(NADJL(NNODE_L))
+ 
+    DO I=1,NEL_L
+        ISET1=ELEMENT_L(I).SET
+        IF(ESET(ISET1).COUPLESET>0 &            
+            .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
+        NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM=NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM+1
+        !DO J=1,ELEMENT_L(I).NNUM
+        !    N1=ELEMENT_L(I).NODE(J)
+        !    NADJL(N1).ENUM=NADJL(N1).ENUM+1
+        !ENDDO
+    ENDDO
+    
+     DO I=1,NEDGE_L
+        NADJL(EDGE_L(I).V).NNUM=NADJL(EDGE_L(I).V).NNUM+1
+    ENDDO   
+
+    DO I=1, NNODE_L
+        ALLOCATE(NADJL(I).NODE(NADJL(I).NNUM),NADJL(I).ELEMENT(NADJL(I).ENUM),NADJL(I).SUBID(NADJL(I).ENUM))
+        ALLOCATE(NADJL(I).EDGE(NADJL(I).NNUM))
+        NADJL(I).ENUM=0;NADJL(I).NNUM=0
+    ENDDO
+
+    DO I=1,NEL_L
+        ISET1=ELEMENT_L(I).SET
+        IF(ESET(ISET1).COUPLESET>0 &            
+            .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
+        NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM=NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM+1
+        DO J=1,ELEMENT_L(I).NNUM
+            N1=ELEMENT_L(I).NODE(J)
+            NADJL(N1).ELEMENT(NADJL(N1).ENUM)=I
+            NADJL(N1).SUBID(NADJL(N1).ENUM)=J
+        ENDDO
+    ENDDO
+    
+     DO I=1,NEDGE_L
+        NADJL(EDGE_L(I).V).NNUM=NADJL(EDGE_L(I).V).NNUM+1
+        DO J=1,2
+            N1=EDGE_L(I).V(J)
+            NADJL(N1).NODE(NADJL(N1).NNUM)=EDGE_L(I).V(MOD(J,2)+1)
+            IF(J==1) THEN
+                NADJL(N1).EDGE(NADJL(N1).NNUM)=I !正向
+            ELSE
+                NADJL(N1).EDGE(NADJL(N1).NNUM)=-I !反向
+            ENDIF
+        ENDDO
+        NADJL(EDGE_L(I).V).ISINI=.TRUE.
+    ENDDO   
+    
+    RETURN
+ENDSUBROUTINE
 
 SUBROUTINE SETUP_EDGE_BC()
     IMPLICIT NONE
@@ -218,155 +445,559 @@ END SUBROUTINE
 
 
 
-!SET EDGE FOR SOLVER MODEL ELEMENT. 
-SUBROUTINE SETUP_EDGE_ADJL_SOLVER(EDGE_L,NEDGE_L,NADJL)
-    USE solverds,ONLY:ELEMENT_L=>ELEMENT,NODE_L=>NODE,NNODE_L=>NNUM,NEL_L=>ENUM,WELLBORE,WELLBORE_SPGFACE,PIPE2,POREFLOW,ESET=>eset
+! !SET EDGE FOR SOLVER MODEL ELEMENT. 
+! SUBROUTINE SETUP_EDGE_ADJL_SOLVER(EDGE_L,NEDGE_L,NADJL)
+!     USE solverds,ONLY:ELEMENT_L=>ELEMENT,NODE_L=>NODE,NNODE_L=>NNUM,NEL_L=>ENUM,WELLBORE,WELLBORE_SPGFACE,PIPE2,POREFLOW,ESET=>eset
+!     IMPLICIT NONE
+!     INTEGER::NEDGE_L
+! 	TYPE(EDGE_TYDEF),ALLOCATABLE::EDGE_L(:)
+!     TYPE(NODE_ADJ_TYDEF),ALLOCATABLE::NADJL(:)
+!     INTEGER::MAXADJL1
+!     INTEGER::ADJL1(MAX_NODE_ADJ,NNODE_L),E_ADJL1(MAX_NODE_ADJ,NNODE_L),NADJL1(NNODE_L) 
+!     INTEGER::VMAX1,VMIN1,IEDGE1,ET1,NEDGE1,N1,N2,V1(2)
+!     INTEGER::I,J,ISET1
+!     INTEGER,ALLOCATABLE::E1(:,:)    
+!     REAL(8)::DX1,DY1
+    
+!     MAXADJL1=MAX_NODE_ADJ
+    
+!     IF(.NOT.ISINI_GMSHET) THEN
+        
+!         CALL Initialize_et2numNodes()
+!         CALL ET_GMSH_EDGE_FACE()
+!         ISINI_GMSHET=.TRUE.
+    
+!     ENDIF
+    
+    
+! 	IF(ALLOCATED(EDGE_L)) DEALLOCATE(EDGE_L)
+! 	ALLOCATE(EDGE_L(NNODE_L))
+    
+!     IF(ALLOCATED(NADJL)) DEALLOCATE(NADJL)
+!     ALLOCATE(NADJL(NNODE_L))
+    
+!     ADJL1=0;E_ADJL1=0;NADJL1=0
+! 	DO I=1,NEL_L
+!         ISET1=ELEMENT_L(I).SET
+!         IF(ESET(ISET1).COUPLESET>0 &            
+!             .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
+        
+! 		ET1=GETGMSHET(ELEMENT_L(I).ET)
+! 		NEDGE1=ELTTYPE(ET1).NEDGE
+!         E1=ELTTYPE(ET1).EDGE
+!         IF(ELEMENT_L(I).ISTOPO>0.and.any([wellbore,wellbore_spgface,pipe2,POREFLOW]-ELEMENT_L(I).ET==0)) THEN
+!             NEDGE1=NEDGE1+1            
+!             !E1=RESHAPE(E1,([2,NEDGE1]),([ELEMENT_L(I).NODE(ELEMENT_L(I).NNUM+1:)]))
+!             E1=RESHAPE(([E1,ELEMENT_L(I).NNUM+1,ELEMENT_L(I).NNUM+2]),([2,NEDGE1]))
+!         ENDIF
+        
+!         ELEMENT_L(I).NEDGE=NEDGE1
+!         ALLOCATE(ELEMENT_L(I).EDGE(NEDGE1))
+! 		DO J=1,NEDGE1
+!             V1=ELEMENT_L(I).NODE(E1(:,J))
+           
+!             IF(V1(1)>V1(2)) THEN
+!                 VMAX1=V1(1);VMIN1=V1(2)
+!             ELSE
+!                 VMAX1=V1(2);VMIN1=V1(1)
+!             ENDIF
+ 
+!             N2=NADJL1(VMAX1)
+            
+!             N1=MINLOC(ABS(ADJL1(1:N2,VMAX1)-VMIN1),MASK=ADJL1(1:N2,VMAX1)-VMIN1==0,DIM=1)
+!             if(N1>0) THEN
+!                 IEDGE1=E_ADJL1(N1,VMAX1)            
+!             ELSE
+!                 NADJL1(VMAX1)=N2+1
+!                 IF(N2+1>MAXADJL1) THEN
+!                      print *, 'MAX_NODE_ADJ NEEDS TO BE  ENLARGED BY APPENDING "MAX_NODE_ADJ=XXX" TO THE KEYWORD "SolverControl".MAX_NODE_ADJ=',MAX_NODE_ADJ
+!                      stop
+!                 ENDIF             
+!                 ADJL1(N2+1,VMAX1)=VMIN1
+!                 NEDGE_L=NEDGE_L+1
+!                 IEDGE1=NEDGE_L
+!                 E_ADJL1(N2+1,VMAX1)=NEDGE_L                
+!             ENDIF
+     
+
+            
+!             IF(IEDGE1>SIZE(EDGE_L,DIM=1)) THEN
+!                 CALL EDGE_TYDEF_ENLARGE_AR(EDGE_L,100)
+!                 !MAXNEDGE=MAXNEDGE+1000
+!             ENDIF
+!             IF(.NOT.EDGE_L(IEDGE1).ISINI) THEN
+!                 ELEMENT_L(I).EDGE(J)=IEDGE1
+!                 EDGE_L(IEDGE1).V=V1
+!                 !EDGE_L(IEDGE1).DIS=NORM2(NODE_L(EDGE_L(IEDGE1).V(1)).COORD-NODE_L(EDGE_L(IEDGE1).V(2)).COORD)
+!                 !IF(NDIMENSION==2.AND.EDGE_L(IEDGE1).DIS>1E-7) THEN
+!                 !    EDGE_L(IEDGE1).angle=angle2D(NODE_L(EDGE_L(IEDGE1).V(1)).COORD,NODE_L(EDGE_L(IEDGE1).V(2)).COORD)                
+!                 !ELSE
+!                 !    EDGE_L(IEDGE1).angle=1./0.D0
+!                 !ENDIF
+!                 EDGE_L(IEDGE1).ISINI=.TRUE.
+!                 NEDGE_L=IEDGE1
+!                 IF(ELTTYPE(ET1).NMIDPNT>0) THEN
+!                     EDGE_L(IEDGE1).NMIDPNT=ELTTYPE(ET1).NMIDPNT
+!                     EDGE_L(IEDGE1).MIDPNT=ELEMENT_L(I).NODE(ELTTYPE(ET1).MIDPNT(:,J))
+!                 ENDIF
+!                 NADJL(EDGE_L(IEDGE1).V).NNUM=NADJL(EDGE_L(IEDGE1).V).NNUM+1
+!             ELSE
+!                 ELEMENT_L(I).EDGE(J)=-IEDGE1
+!             ENDIF
+!             IF(EDGE_L(IEDGE1).ENUM==0) ALLOCATE(EDGE_L(IEDGE1).ELEMENT(5),EDGE_L(IEDGE1).SUBID(5))
+!             EDGE_L(IEDGE1).ENUM=EDGE_L(IEDGE1).ENUM+1
+!             IF(EDGE_L(IEDGE1).ENUM>SIZE(EDGE_L(IEDGE1).ELEMENT,DIM=1)) THEN
+! 				CALL I_ENLARGE_AR(EDGE_L(IEDGE1).ELEMENT,5)
+! 				CALL I_ENLARGE_AR(EDGE_L(IEDGE1).SUBID,5)
+! 			ENDIF
+!             EDGE_L(IEDGE1).ELEMENT(EDGE_L(IEDGE1).ENUM)=I			
+!             EDGE_L(IEDGE1).SUBID(EDGE_L(IEDGE1).ENUM)=J
+            
+! 		ENDDO
+        
+!         NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM=NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM+1
+!     END DO
+    
+!     DO I=1, NNODE_L
+!         ALLOCATE(NADJL(I).NODE(NADJL(I).NNUM),NADJL(I).ELEMENT(NADJL(I).ENUM),NADJL(I).SUBID(NADJL(I).ENUM))
+!         ALLOCATE(NADJL(I).EDGE(NADJL(I).NNUM))
+!         NADJL(I).ENUM=0;NADJL(I).NNUM=0
+!     ENDDO
+    
+!     DO I=1,NEL_L
+!         ISET1=ELEMENT_L(I).SET
+!         IF(ESET(ISET1).COUPLESET>0 &            
+!             .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
+!         NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM=NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM+1
+!         DO J=1,ELEMENT_L(I).NNUM
+!             N1=ELEMENT_L(I).NODE(J)
+!             NADJL(N1).ELEMENT(NADJL(N1).ENUM)=I
+!             NADJL(N1).SUBID(NADJL(N1).ENUM)=J
+!         ENDDO
+!     ENDDO
+    
+!      DO I=1,NEDGE_L
+!         NADJL(EDGE_L(I).V).NNUM=NADJL(EDGE_L(I).V).NNUM+1
+!         DO J=1,2
+!             N1=EDGE_L(I).V(J)
+!             NADJL(N1).NODE(NADJL(N1).NNUM)=EDGE_L(I).V(MOD(J,2)+1)
+!             IF(J==1) THEN
+!                 NADJL(N1).EDGE(NADJL(N1).NNUM)=I !正向
+!             ELSE
+!                 NADJL(N1).EDGE(NADJL(N1).NNUM)=-I !反向
+!             ENDIF
+!         ENDDO
+!     ENDDO   
+    
+!     RETURN
+! ENDSUBROUTINE
+
+
+
+SUBROUTINE Setup_MODEL_MESHTOPO(EDGE_L,NEDGE_L,FACE_L,NFACE_L,ELEMENT_L,NEL_L,NODE_L,NNODE_L,ESET_L,NESET_L)
+
     IMPLICIT NONE
-    INTEGER::NEDGE_L
+ 	INTEGER,INTENT(IN)::NEL_L,NNODE_L,NESET_L
+    INTEGER::NEDGE_L,NFACE_L
 	TYPE(EDGE_TYDEF),ALLOCATABLE::EDGE_L(:)
-    TYPE(NODE_ADJ_TYDEF),ALLOCATABLE::NADJL(:)
-    INTEGER::MAXADJL1
-    INTEGER::ADJL1(MAX_NODE_ADJ,NNODE_L),E_ADJL1(MAX_NODE_ADJ,NNODE_L),NADJL1(NNODE_L) 
-    INTEGER::VMAX1,VMIN1,IEDGE1,ET1,NEDGE1,N1,N2,V1(2)
-    INTEGER::I,J,ISET1
-    INTEGER,ALLOCATABLE::E1(:,:)    
-    REAL(8)::DX1,DY1
+    TYPE(FACE_TYDEF),ALLOCATABLE::FACE_L(:)
+	type(ELEMENT_TYDEF)::ELEMENT_L(NEL_L)
+	REAL(8),INTENT(IN)::NODE_L(3,NNODE_L)
+    TYPE(ESET_TYDEF),INTENT(IN)::ESET_L(NESET_L)
+
+    INTEGER::I,J,K,ERR,N1,ISET1,NELT1,E2E1(NEL_L)
+    integer,allocatable::node1(:,:),adj1(:,:),geo1(:,:) !
+    INTEGER::ET1,E1
+
     
-    MAXADJL1=MAX_NODE_ADJ
-    
+
     IF(.NOT.ISINI_GMSHET) THEN
         
         CALL Initialize_et2numNodes()
         CALL ET_GMSH_EDGE_FACE()
-        ISINI_GMSHET=.TRUE.
-    
+        ISINI_GMSHET=.TRUE.        
     ENDIF
-    
-    
-	IF(ALLOCATED(EDGE_L)) DEALLOCATE(EDGE_L)
-	ALLOCATE(EDGE_L(NNODE_L))
-    
-    IF(ALLOCATED(NADJL)) DEALLOCATE(NADJL)
-    ALLOCATE(NADJL(NNODE_L))
-    
-    ADJL1=0;E_ADJL1=0;NADJL1=0
-	DO I=1,NEL_L
-        ISET1=ELEMENT_L(I).SET
-        IF(ESET(ISET1).COUPLESET>0 &            
-            .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
-        
-		ET1=GETGMSHET(ELEMENT_L(I).ET)
-		NEDGE1=ELTTYPE(ET1).NEDGE
-        E1=ELTTYPE(ET1).EDGE
-        IF(ELEMENT_L(I).ISTOPO>0.and.any([wellbore,wellbore_spgface,pipe2,POREFLOW]-ELEMENT_L(I).ET==0)) THEN
-            NEDGE1=NEDGE1+1            
-            !E1=RESHAPE(E1,([2,NEDGE1]),([ELEMENT_L(I).NODE(ELEMENT_L(I).NNUM+1:)]))
-            E1=RESHAPE(([E1,ELEMENT_L(I).NNUM+1,ELEMENT_L(I).NNUM+2]),([2,NEDGE1]))
-        ENDIF
-        
-        ELEMENT_L(I).NEDGE=NEDGE1
-        ALLOCATE(ELEMENT_L(I).EDGE(NEDGE1))
-		DO J=1,NEDGE1
-            V1=ELEMENT_L(I).NODE(E1(:,J))
-           
-            IF(V1(1)>V1(2)) THEN
-                VMAX1=V1(1);VMIN1=V1(2)
-            ELSE
-                VMAX1=V1(2);VMIN1=V1(1)
-            ENDIF
- 
-            N2=NADJL1(VMAX1)
-            
-            N1=MINLOC(ABS(ADJL1(1:N2,VMAX1)-VMIN1),MASK=ADJL1(1:N2,VMAX1)-VMIN1==0,DIM=1)
-            if(N1>0) THEN
-                IEDGE1=E_ADJL1(N1,VMAX1)            
-            ELSE
-                NADJL1(VMAX1)=N2+1
-                IF(N2+1>MAXADJL1) THEN
-                     print *, 'MAX_NODE_ADJ NEEDS TO BE  ENLARGED BY APPENDING "MAX_NODE_ADJ=XXX" TO THE KEYWORD "SolverControl".MAX_NODE_ADJ=',MAX_NODE_ADJ
-                     stop
-                ENDIF             
-                ADJL1(N2+1,VMAX1)=VMIN1
-                NEDGE_L=NEDGE_L+1
-                IEDGE1=NEDGE_L
-                E_ADJL1(N2+1,VMAX1)=NEDGE_L                
-            ENDIF
-     
 
+    !N1=NDIMENSION+1
+    NELT1=0
+    allocate(node1(10,NEL_L),adj1(10,NEL_L),STAT=ERR)
+    E2E1=0 !local ELEMENT_L to solver ELEMENT_L
+    DO I=1,NEL_L            
+		ET1=GETGMSHET(ESET_L(ELEMENT_L(I).ISET).ET)
+        ELEMENT_L(I).NEDGE=ELTTYPE(ET1).NEDGE
+        ELEMENT_L(I).NFACE=ELTTYPE(ET1).NFACE
+        IF(.NOT.ALLOCATED(ELEMENT_L(I).EDGE)) ALLOCATE(ELEMENT_L(I).EDGE(ELTTYPE(ET1).NEDGE),STAT=ERR)
+        IF(.NOT.ALLOCATED(ELEMENT_L(I).FACE)) ALLOCATE(ELEMENT_L(I).FACE(ELTTYPE(ET1).NFACE),STAT=ERR)
+        NELT1=NELT1+1
+                    
+        N1=MOD(ELTTYPE(ET1).ESHAPE,100)
+        NODE1(10,NELT1)=ELTTYPE(ET1).ESHAPE
+        NODE1(9,NELT1)=ESHAPE2NBC(ELTTYPE(ET1).ESHAPE,POSDATA.NDIM)
+        NODE1(1:N1,NELT1)=ELEMENT_L(I).NODE(1:N1)
+        E2E1(NELT1)=I
+    ENDDO
+    call find_neighbors_mesh(10,NELT1,node1(:,1:NELT1),adj1(:,1:NELT1),geo1,POSDATA.NDIM)
+
+
+    IF(POSDATA.NDIM==2) THEN
+        NEDGE_L=SIZE(GEO1,DIM=2)
+        ALLOCATE(EDGE_L(NEDGE_L),STAT=ERR)
+        DO I=1,NEDGE_L
+            EDGE_L(I).ISINI=.TRUE.
+            E1=E2E1(GEO1(1,I))
+            ET1=GETGMSHET(ESET_L(ELEMENT_L(E1).ISET).ET)
+            EDGE_L(I).V=ELEMENT_L(E1).NODE(ELTTYPE(ET1).EDGE(:,GEO1(2,I)))
             
-            IF(IEDGE1>SIZE(EDGE_L,DIM=1)) THEN
-                CALL EDGE_TYDEF_ENLARGE_AR(EDGE_L,100)
-                !MAXNEDGE=MAXNEDGE+1000
-            ENDIF
-            IF(.NOT.EDGE_L(IEDGE1).ISINI) THEN
-                ELEMENT_L(I).EDGE(J)=IEDGE1
-                EDGE_L(IEDGE1).V=V1
-                EDGE_L(IEDGE1).DIS=NORM2(NODE_L(EDGE_L(IEDGE1).V(1)).COORD-NODE_L(EDGE_L(IEDGE1).V(2)).COORD)
-                IF(NDIMENSION==2.AND.EDGE_L(IEDGE1).DIS>1E-7) THEN
-                    EDGE_L(IEDGE1).angle=angle2D(NODE_L(EDGE_L(IEDGE1).V(1)).COORD,NODE_L(EDGE_L(IEDGE1).V(2)).COORD)                
-                ELSE
-                    EDGE_L(IEDGE1).angle=1./0.D0
-                ENDIF
-                EDGE_L(IEDGE1).ISINI=.TRUE.
-                NEDGE_L=IEDGE1
-                IF(ELTTYPE(ET1).NMIDPNT>0) THEN
-                    EDGE_L(IEDGE1).NMIDPNT=ELTTYPE(ET1).NMIDPNT
-                    EDGE_L(IEDGE1).MIDPNT=ELEMENT_L(I).NODE(ELTTYPE(ET1).MIDPNT(:,J))
-                ENDIF
-                NADJL(EDGE_L(IEDGE1).V).NNUM=NADJL(EDGE_L(IEDGE1).V).NNUM+1
+            IF(GEO1(3,I)==0) THEN
+                EDGE_L(I).ENUM=1
             ELSE
-                ELEMENT_L(I).EDGE(J)=-IEDGE1
+                EDGE_L(I).ENUM=2
             ENDIF
-            IF(EDGE_L(IEDGE1).ENUM==0) ALLOCATE(EDGE_L(IEDGE1).ELEMENT(5),EDGE_L(IEDGE1).SUBID(5))
-            EDGE_L(IEDGE1).ENUM=EDGE_L(IEDGE1).ENUM+1
-            IF(EDGE_L(IEDGE1).ENUM>SIZE(EDGE_L(IEDGE1).ELEMENT,DIM=1)) THEN
-				CALL I_ENLARGE_AR(EDGE_L(IEDGE1).ELEMENT,5)
-				CALL I_ENLARGE_AR(EDGE_L(IEDGE1).SUBID,5)
-			ENDIF
-            EDGE_L(IEDGE1).ELEMENT(EDGE_L(IEDGE1).ENUM)=I			
-            EDGE_L(IEDGE1).SUBID(EDGE_L(IEDGE1).ENUM)=J
-            
-		ENDDO
+            ALLOCATE(EDGE_L(I).ELEMENT(EDGE_L(I).ENUM),EDGE_L(I).SUBID(EDGE_L(I).ENUM),STAT=ERR)
+            DO J=1,EDGE_L(I).ENUM
+                EDGE_L(I).ELEMENT(J)=E2E1(GEO1((J-1)*2+1,I))
+                EDGE_L(I).SUBID(J)=GEO1((J-1)*2+2,I)
+                ELEMENT_L(EDGE_L(I).ELEMENT(J)).EDGE(EDGE_L(I).SUBID(J))=I                    
+            ENDDO
+            IF(ELTTYPE(ET1).NMIDPNT>0) THEN
+                EDGE_L(I).NMIDPNT=ELTTYPE(ET1).NMIDPNT
+                EDGE_L(I).MIDPNT=ELEMENT_L(E2E1(GEO1(1,I))).NODE(ELTTYPE(ET1).MIDPNT(:,GEO1(2,I)))
+            ENDIF
+        ENDDO
+
+        !SET FACE OF 2D MODEL
+        NFACE_L=NEL_L
+        ALLOCATE(FACE_L(NEL_L),STAT=ERR)
+        DO I=1,NFACE_L
+            FACE_L(I).ISINI=.TRUE.
+            ET1=GETGMSHET(ESET_L(ELEMENT_L(I).ISET).ET)
+            FACE_L(I).SHAPE=ELTTYPE(ET1).NNODE
+            FACE_L(I).V(:FACE_L(I).SHAPE)=ELEMENT_L(I).NODE(ELTTYPE(ET1).FACE(1:FACE_L(I).SHAPE,1))
+            FACE_L(I).ENUM=1
+		    ELEMENT_L(I).NFACE=1
+            ALLOCATE(FACE_L(I).ELEMENT(FACE_L(I).ENUM),FACE_L(I).SUBID(FACE_L(I).ENUM),ELEMENT_L(I).FACE(1),STAT=ERR)
+
+            FACE_L(I).ELEMENT(1)=I
+            FACE_L(I).SUBID(1)=1
+            ELEMENT_L(I).FACE(1)=I
+
+            DO K=1,3
+                FACE_L(I).BBOX(1,K)=MINVAL(NODE_L(K,FACE_L(I).V(1:FACE_L(I).SHAPE)))-VTOL
+                FACE_L(I).BBOX(2,K)=MAXVAL(NODE_L(K,FACE_L(I).V(1:FACE_L(I).SHAPE)))+VTOL
+            ENDDO
+            !SET FACE.EDGE
+            IF(FACE_L(I).SHAPE>2) THEN
+                FACE_L(I).EDGE(:FACE_L(I).SHAPE)=ELEMENT_L(I).EDGE(ABS(ELTTYPE(ET1).FACEEDGE(1:FACE_L(I).SHAPE,1)))
+            ELSE !LINE ELEMENT_L
+                FACE_L(I).EDGE(1)=ELEMENT_L(I).EDGE(ELTTYPE(ET1).FACEEDGE(1,1))
+            ENDIF
+        ENDDO
+
+
+    ELSE
+        NFACE_L=SIZE(GEO1,DIM=2)
+        ALLOCATE(FACE_L(NFACE_L),STAT=ERR)
+        DO I=1,NFACE_L
+            FACE_L(I).ISINI=.TRUE.
+            E1=E2E1(GEO1(1,I))
+            ET1=GETGMSHET(ESET_L(ELEMENT_L(E1).ISET).ET)
+            FACE_L(I).SHAPE=ELTTYPE(ET1).FACE(0,GEO1(2,I))
+            FACE_L(I).V(:FACE_L(I).SHAPE)=ELEMENT_L(E1).NODE(ELTTYPE(ET1).FACE(1:FACE_L(I).SHAPE,GEO1(2,I)))
+            IF(GEO1(3,I)==0) THEN
+                FACE_L(I).ENUM=1
+            ELSE
+                FACE_L(I).ENUM=2
+            ENDIF
+            ALLOCATE(FACE_L(I).ELEMENT(FACE_L(I).ENUM),FACE_L(I).SUBID(FACE_L(I).ENUM),STAT=ERR)
+            DO J=1,FACE_L(I).ENUM
+                FACE_L(I).ELEMENT(J)=E2E1(GEO1((J-1)*2+1,I))
+                FACE_L(I).SUBID(J)=GEO1((J-1)*2+2,I)
+                ELEMENT_L(FACE_L(I).ELEMENT(J)).FACE(FACE_L(I).SUBID(J))=I
+            ENDDO
+            DO K=1,3
+                FACE_L(I).BBOX(1,K)=MINVAL(NODE_L(K,FACE_L(I).V(1:FACE_L(I).SHAPE)))-VTOL
+                FACE_L(I).BBOX(2,K)=MAXVAL(NODE_L(K,FACE_L(I).V(1:FACE_L(I).SHAPE)))+VTOL
+            ENDDO
+        ENDDO
+
+        !SET EDGE
+        CALL MESH2EDGE_MODEL(ELEMENT_L,EDGE_L,NEDGE_L,ESET_L)
+
+        !SET FACE.EDGE
+        DO I=1,NFACE_L
+            E1=E2E1(GEO1(1,I))
+            ET1=GETGMSHET(ESET_L(ELEMENT_L(E1).ISET).ET)
+            IF(FACE_L(I).SHAPE>2) THEN
+                FACE_L(I).EDGE(:FACE_L(I).SHAPE)=ELEMENT_L(E1).EDGE(ABS(ELTTYPE(ET1).FACEEDGE(1:FACE_L(I).SHAPE,GEO1(2,I))))
+            ELSE !LINE ELEMENT_L
+                FACE_L(I).EDGE(1)=ELEMENT_L(E1).EDGE(ELTTYPE(ET1).FACEEDGE(1,GEO1(2,I)))
+            ENDIF
+        ENDDO
         
-        NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM=NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM+1
-    END DO
+    ENDIF    
     
-    DO I=1, NNODE_L
-        ALLOCATE(NADJL(I).NODE(NADJL(I).NNUM),NADJL(I).ELEMENT(NADJL(I).ENUM),NADJL(I).SUBID(NADJL(I).ENUM))
-        ALLOCATE(NADJL(I).EDGE(NADJL(I).NNUM))
-        NADJL(I).ENUM=0;NADJL(I).NNUM=0
+
+
+
+    deallocate(node1,adj1,GEO1,STAT=ERR)
+
+END SUBROUTINE
+
+
+SUBROUTINE MESH2EDGE_MODEL(ELEMENT1,EDGE1,NEDGE1,ESET1)
+    IMPLICIT NONE
+    TYPE(ELEMENT_TYDEF)::ELEMENT1(:)
+    TYPE(EDGE_TYDEF),ALLOCATABLE::EDGE1(:)
+    TYPE(ESET_TYDEF),INTENT(IN)::ESET1(:)
+    TYPE(tet_edge_tydef),ALLOCATABLE::AEDGE1(:)
+    INTEGER::NEDGE1
+    INTEGER::triangle_order,triangle_num,triangle_node(10,SIZE(ELEMENT1))
+    INTEGER::I,J,K,NE1,ERR,NE2=0,NELT1,ISET1,N1,E2E1(SIZE(ELEMENT1)),E1,ET1,IEDGE1
+
+
+    triangle_order=10;triangle_num=SIZE(ELEMENT1)
+    DO I=1,triangle_num            
+        ET1=GETGMSHET(ESET1(ELEMENT1(I).ISET).ET)
+        IF(.NOT.ALLOCATED(ELEMENT1(I).EDGE)) THEN
+            ALLOCATE(ELEMENT1(I).EDGE(ELTTYPE(ET1).NEDGE),STAT=ERR)
+            ELEMENT1(I).NEDGE=ELTTYPE(ET1).NEDGE
+        ENDIF
+
+        NELT1=NELT1+1
+                    
+        N1=MOD(ELTTYPE(ET1).ESHAPE,100)
+        triangle_node(10,NELT1)=ELTTYPE(ET1).ESHAPE
+        triangle_node(9,NELT1)=ESHAPE2NEDGE(ELTTYPE(ET1).ESHAPE)
+        triangle_node(1:N1,NELT1)=ELEMENT1(I).NODE(1:N1)
+        E2E1(NELT1)=I
     ENDDO
+    triangle_num=NELT1
     
-    DO I=1,NEL_L
-        ISET1=ELEMENT_L(I).SET
-        IF(ESET(ISET1).COUPLESET>0 &            
-            .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
-        NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM=NADJL(ELEMENT_L(I).NODE(:ELEMENT_L(I).NNUM)).ENUM+1
-        DO J=1,ELEMENT_L(I).NNUM
-            N1=ELEMENT_L(I).NODE(J)
-            NADJL(N1).ELEMENT(NADJL(N1).ENUM)=I
-            NADJL(N1).SUBID(NADJL(N1).ENUM)=J
-        ENDDO
-    ENDDO
+    CALL find_mesh_edge( triangle_order, triangle_num,triangle_node,AEDGE1 )
     
-     DO I=1,NEDGE_L
-        NADJL(EDGE_L(I).V).NNUM=NADJL(EDGE_L(I).V).NNUM+1
-        DO J=1,2
-            N1=EDGE_L(I).V(J)
-            NADJL(N1).NODE(NADJL(N1).NNUM)=EDGE_L(I).V(MOD(J,2)+1)
-            IF(J==1) THEN
-                NADJL(N1).EDGE(NADJL(N1).NNUM)=I !正向
-            ELSE
-                NADJL(N1).EDGE(NADJL(N1).NNUM)=-I !反向
+    NE1=SIZE(AEDGE1)
+    NEDGE1=NE1
+    ALLOCATE(EDGE1(NE1),STAT=ERR)
+
+    DO I=1,NE1
+        EDGE1(I).ENUM=AEDGE1(I).NNODE/2
+        ALLOCATE(EDGE1(I).ELEMENT(EDGE1(I).ENUM),EDGE1(I).SUBID(EDGE1(I).ENUM),STAT=ERR)
+        EDGE1(I).ENUM=0
+        DO J=1,AEDGE1(I).NNODE,2
+            E1=E2E1(AEDGE1(I).NODE(J))
+            ET1=GETGMSHET(ESET1(ELEMENT1(E1).ISET).ET)
+            IEDGE1=AEDGE1(I).NODE(J+1)
+            EDGE1(I).ENUM=EDGE1(I).ENUM+1
+            EDGE1(I).ELEMENT(EDGE1(I).ENUM)=E1
+            EDGE1(I).SUBID(EDGE1(I).ENUM)=IEDGE1
+            IF(.NOT.EDGE1(I).ISINI) THEN
+                EDGE1(I).V=ELEMENT1(E1).NODE(ELTTYPE(ET1).EDGE(:,IEDGE1))      
+                EDGE1(I).ISINI=.TRUE.
             ENDIF
+            ELEMENT1(E1).EDGE(IEDGE1)=I
         ENDDO
-    ENDDO   
-    
-    RETURN
+    ENDDO
+
+    DEALLOCATE(AEDGE1,STAT=ERR)
+
 ENDSUBROUTINE
 
 
+SUBROUTINE Setup_TET_MESHTOPO(EDGE_L,NEDGE_L,FACE_L,NFACE_L,ELEMENT_L,NEL_L,NODE_L,NNODE_L,ESET_L,NESET_L)
 
+    IMPLICIT NONE
+ 	INTEGER,INTENT(IN)::NEL_L,NNODE_L,NESET_L
+    INTEGER::NEDGE_L,NFACE_L
+	TYPE(EDGE_TYDEF),ALLOCATABLE::EDGE_L(:)
+    TYPE(FACE_TYDEF),ALLOCATABLE::FACE_L(:)
+	type(TET_TYDEF)::ELEMENT_L(NEL_L)
+	REAL(8),INTENT(IN)::NODE_L(3,NNODE_L)
+    TYPE(ESET_TYDEF),INTENT(IN)::ESET_L(NESET_L)
+
+    INTEGER::I,J,K,ERR,N1,ISET1
+    integer,allocatable::node1(:,:),adj1(:,:),geo1(:,:) !
+    INTEGER::ET1,E1
+
+    
+
+    IF(.NOT.ISINI_GMSHET) THEN
+        
+        CALL Initialize_et2numNodes()
+        CALL ET_GMSH_EDGE_FACE()
+        ISINI_GMSHET=.TRUE.        
+    ENDIF
+
+    !N1=NDIMENSION+1
+    allocate(node1(10,NEL_L),adj1(10,NEL_L),STAT=ERR)
+
+    DO I=1,NEL_L            
+		ET1=ELEMENT_L(I).GMET
+        ELEMENT_L(I).NE=ELTTYPE(ET1).NEDGE
+        ELEMENT_L(I).NF=ELTTYPE(ET1).NFACE
+                     
+        N1=MOD(ELTTYPE(ET1).ESHAPE,100)
+        NODE1(10,I)=ELTTYPE(ET1).ESHAPE
+        NODE1(9,I)=ESHAPE2NBC(ELTTYPE(ET1).ESHAPE,POSDATA.NDIM)
+        NODE1(1:N1,I)=ELEMENT_L(I).V(1:N1)
+    ENDDO
+    call find_neighbors_mesh(10,NEL_L,node1(:,1:NEL_L),adj1(:,1:NEL_L),geo1,POSDATA.NDIM)
+
+    DO I=1,NEL_L
+        ELEMENT_L(I).ADJELT(1:4)=ADJ1(1:4,I)
+    ENDDO  
+
+    IF(POSDATA.NDIM==2) THEN
+        NEDGE_L=SIZE(GEO1,DIM=2)
+        ALLOCATE(EDGE_L(NEDGE_L),STAT=ERR)
+        DO I=1,NEDGE_L
+            EDGE_L(I).ISINI=.TRUE.
+            E1=GEO1(1,I)
+            ET1=ELEMENT_L(E1).GMET
+            EDGE_L(I).V=ELEMENT_L(E1).V(ELTTYPE(ET1).EDGE(:,GEO1(2,I)))
+            
+            IF(GEO1(3,I)==0) THEN
+                EDGE_L(I).ENUM=1
+            ELSE
+                EDGE_L(I).ENUM=2
+            ENDIF
+            ALLOCATE(EDGE_L(I).ELEMENT(EDGE_L(I).ENUM),EDGE_L(I).SUBID(EDGE_L(I).ENUM),STAT=ERR)
+            DO J=1,EDGE_L(I).ENUM
+                EDGE_L(I).ELEMENT(J)=GEO1((J-1)*2+1,I)
+                EDGE_L(I).SUBID(J)=GEO1((J-1)*2+2,I)
+                ELEMENT_L(EDGE_L(I).ELEMENT(J)).E(EDGE_L(I).SUBID(J))=I                    
+            ENDDO
+            IF(ELTTYPE(ET1).NMIDPNT>0) THEN
+                EDGE_L(I).NMIDPNT=ELTTYPE(ET1).NMIDPNT
+                EDGE_L(I).MIDPNT=ELEMENT_L(GEO1(1,I)).V(ELTTYPE(ET1).MIDPNT(:,GEO1(2,I)))
+            ENDIF
+        ENDDO
+
+        !SET FACE OF 2D MODEL
+        NFACE_L=NEL_L
+        ALLOCATE(FACE_L(NEL_L),STAT=ERR)
+        DO I=1,NFACE_L
+            FACE_L(I).ISINI=.TRUE.
+            ET1=ELEMENT_L(I).GMET
+            FACE_L(I).SHAPE=ELTTYPE(ET1).NNODE
+            FACE_L(I).V(:FACE_L(I).SHAPE)=ELEMENT_L(I).V(ELTTYPE(ET1).FACE(1:FACE_L(I).SHAPE,1))
+            FACE_L(I).ENUM=1
+		    ELEMENT_L(I).NF=1
+            ALLOCATE(FACE_L(I).ELEMENT(FACE_L(I).ENUM),FACE_L(I).SUBID(FACE_L(I).ENUM),STAT=ERR)
+
+            FACE_L(I).ELEMENT(1)=I
+            FACE_L(I).SUBID(1)=1
+            ELEMENT_L(I).F(1)=I
+
+            DO K=1,3
+                FACE_L(I).BBOX(1,K)=MINVAL(NODE_L(K,FACE_L(I).V(1:FACE_L(I).SHAPE)))-VTOL
+                FACE_L(I).BBOX(2,K)=MAXVAL(NODE_L(K,FACE_L(I).V(1:FACE_L(I).SHAPE)))+VTOL
+            ENDDO
+            !SET FACE.EDGE
+            IF(FACE_L(I).SHAPE>2) THEN
+                FACE_L(I).EDGE(:FACE_L(I).SHAPE)=ELEMENT_L(I).E(ABS(ELTTYPE(ET1).FACEEDGE(1:FACE_L(I).SHAPE,1)))
+            ELSE !LINE ELEMENT_L
+                FACE_L(I).EDGE(1)=ELEMENT_L(I).E(ELTTYPE(ET1).FACEEDGE(1,1))
+            ENDIF
+        ENDDO
+
+
+    ELSE
+        NFACE_L=SIZE(GEO1,DIM=2)
+        ALLOCATE(FACE_L(NFACE_L),STAT=ERR)
+        DO I=1,NFACE_L
+            FACE_L(I).ISINI=.TRUE.
+            E1=GEO1(1,I)
+            ET1=ELEMENT_L(E1).GMET
+            FACE_L(I).SHAPE=ELTTYPE(ET1).FACE(0,GEO1(2,I))
+            FACE_L(I).V(:FACE_L(I).SHAPE)=ELEMENT_L(E1).V(ELTTYPE(ET1).FACE(1:FACE_L(I).SHAPE,GEO1(2,I)))
+            IF(GEO1(3,I)==0) THEN
+                FACE_L(I).ENUM=1
+            ELSE
+                FACE_L(I).ENUM=2
+            ENDIF
+            ALLOCATE(FACE_L(I).ELEMENT(FACE_L(I).ENUM),FACE_L(I).SUBID(FACE_L(I).ENUM),STAT=ERR)
+            DO J=1,FACE_L(I).ENUM
+                FACE_L(I).ELEMENT(J)=GEO1((J-1)*2+1,I)
+                FACE_L(I).SUBID(J)=GEO1((J-1)*2+2,I)
+                ELEMENT_L(FACE_L(I).ELEMENT(J)).F(FACE_L(I).SUBID(J))=I
+            ENDDO
+            DO K=1,3
+                FACE_L(I).BBOX(1,K)=MINVAL(NODE_L(K,FACE_L(I).V(1:FACE_L(I).SHAPE)))-VTOL
+                FACE_L(I).BBOX(2,K)=MAXVAL(NODE_L(K,FACE_L(I).V(1:FACE_L(I).SHAPE)))+VTOL
+            ENDDO
+        ENDDO
+
+        !SET EDGE
+        CALL MESH2EDGE_TET(ELEMENT_L,EDGE_L,NEDGE_L,ESET_L)
+
+        !SET FACE.EDGE
+        DO I=1,NFACE_L
+            E1=GEO1(1,I)
+            ET1=ELEMENT_L(E1).GMET
+            IF(FACE_L(I).SHAPE>2) THEN
+                FACE_L(I).EDGE(:FACE_L(I).SHAPE)=ELEMENT_L(E1).E(ABS(ELTTYPE(ET1).FACEEDGE(1:FACE_L(I).SHAPE,GEO1(2,I))))
+            ELSE !LINE ELEMENT_L
+                FACE_L(I).EDGE(1)=ELEMENT_L(E1).E(ELTTYPE(ET1).FACEEDGE(1,GEO1(2,I)))
+            ENDIF
+        ENDDO
+        
+    ENDIF    
+
+    deallocate(node1,adj1,GEO1,STAT=ERR)
+
+END SUBROUTINE
+
+
+SUBROUTINE MESH2EDGE_TET(ELEMENT1,EDGE1,NEDGE1,ESET1)
+    IMPLICIT NONE
+    TYPE(TET_TYDEF)::ELEMENT1(:)
+    TYPE(EDGE_TYDEF),ALLOCATABLE::EDGE1(:)
+    TYPE(ESET_TYDEF),INTENT(IN)::ESET1(:)
+    TYPE(tet_edge_tydef),ALLOCATABLE::AEDGE1(:)
+    INTEGER::NEDGE1
+    INTEGER::triangle_order,triangle_num,triangle_node(10,SIZE(ELEMENT1))
+    INTEGER::I,J,K,NE1,ERR,NE2=0,NELT1,ISET1,N1,E1,ET1,IEDGE1
+
+
+    triangle_order=10;triangle_num=SIZE(ELEMENT1)
+    DO I=1,triangle_num            
+        ET1=ELEMENT1(I).GMET
+                    
+        N1=ELTTYPE(ET1).NNODE
+        triangle_node(10,I)=ELTTYPE(ET1).ESHAPE
+        triangle_node(9,I)=ESHAPE2NEDGE(ELTTYPE(ET1).ESHAPE)
+        triangle_node(1:N1,I)=ELEMENT1(I).V(1:N1)
+
+    ENDDO
+     
+    CALL find_mesh_edge( triangle_order, triangle_num,triangle_node,AEDGE1 )
+    
+    NE1=SIZE(AEDGE1)
+    NEDGE1=NE1
+    ALLOCATE(EDGE1(NE1),STAT=ERR)
+
+    DO I=1,NE1
+        EDGE1(I).ENUM=AEDGE1(I).NNODE/2
+        ALLOCATE(EDGE1(I).ELEMENT(EDGE1(I).ENUM),EDGE1(I).SUBID(EDGE1(I).ENUM),STAT=ERR)
+        EDGE1(I).ENUM=0
+        DO J=1,AEDGE1(I).NNODE,2
+            E1=AEDGE1(I).NODE(J)
+            ET1=ELEMENT1(E1).GMET
+            IEDGE1=AEDGE1(I).NODE(J+1)
+            EDGE1(I).ENUM=EDGE1(I).ENUM+1
+            EDGE1(I).ELEMENT(EDGE1(I).ENUM)=E1
+            EDGE1(I).SUBID(EDGE1(I).ENUM)=IEDGE1
+            IF(.NOT.EDGE1(I).ISINI) THEN
+                EDGE1(I).V=ELEMENT1(E1).V(ELTTYPE(ET1).EDGE(:,IEDGE1))      
+                EDGE1(I).ISINI=.TRUE.
+            ENDIF
+            ELEMENT1(E1).E(IEDGE1)=I
+        ENDDO
+    ENDDO
+
+    DEALLOCATE(AEDGE1,STAT=ERR)
+
+ENDSUBROUTINE
 
 !SET EDGE FOR MODEL ELEMENT. 
 SUBROUTINE SETUP_EDGE_ADJL_MODEL(EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NODE_L,NNODE_L,ESET,NESET)
@@ -434,7 +1065,7 @@ SUBROUTINE SETUP_EDGE_ADJL_MODEL(EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NODE_L,NNODE_L,E
             IF(.NOT.EDGE_L(IEDGE1).ISINI) THEN
                 ELEMENT_L(I).EDGE(J)=IEDGE1
                 EDGE_L(IEDGE1).V=ELEMENT_L(I).NODE(ELTTYPE(ET1).EDGE(:,J))
-                EDGE_L(IEDGE1).DIS=NORM2(NODE_L(:,EDGE_L(IEDGE1).V(1))-NODE_L(:,EDGE_L(IEDGE1).V(2)))
+                !EDGE_L(IEDGE1).DIS=NORM2(NODE_L(:,EDGE_L(IEDGE1).V(1))-NODE_L(:,EDGE_L(IEDGE1).V(2)))
                 EDGE_L(IEDGE1).ISINI=.TRUE.
                 NEDGE_L=IEDGE1
             ELSE
@@ -518,7 +1149,7 @@ SUBROUTINE SETUP_EDGE_ADJL_TET(EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NODE_L,NNODE_L,ESE
             ENDIF
             IF(.NOT.EDGE_L(IEDGE1).ISINI) THEN
                 EDGE_L(IEDGE1).V=ELEMENT_L(I).V(ELTTYPE(ET1).EDGE(:,J))
-                EDGE_L(IEDGE1).DIS=NORM2(NODE_L(:,EDGE_L(IEDGE1).V(1))-NODE_L(:,EDGE_L(IEDGE1).V(2)))
+                !EDGE_L(IEDGE1).DIS=NORM2(NODE_L(:,EDGE_L(IEDGE1).V(1))-NODE_L(:,EDGE_L(IEDGE1).V(2)))
                 EDGE_L(IEDGE1).ISINI=.TRUE.
                 NEDGE_L=IEDGE1
             ENDIF
@@ -870,192 +1501,192 @@ SUBROUTINE SETUP_FACE_ADJL_MODEL(FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,N
     
 ENDSUBROUTINE
 
-SUBROUTINE SETUP_FACE_ADJL_Solver(FACE_L,NFACE_L,EDGE_L,NEDGE_L)
-    USE solverds,ONLY:ELEMENT_L=>ELEMENT,NODE_L=>NODE,NNODE_L=>NNUM,NEL_L=>ENUM,ESET=>eset,NESET=>NESET,ESETID
-    IMPLICIT NONE
-    INTEGER,INTENT(IN)::NEDGE_L
-    INTEGER::NFACE_L
-	TYPE(EDGE_TYDEF),INTENT(IN)::EDGE_L(NEDGE_L)
-    TYPE(FACE_TYDEF),ALLOCATABLE::FACE_L(:)
-	!type(ELEMENT_TYDEF)::ELEMENT_L(NEL_L)    
-    !REAL(8),INTENT(IN)::NODE_L(3,NNODE_L)
-    !TYPE(ESET_TYDEF),INTENT(IN)::ESET(NESET)
-    INTEGER::I,J,N1,ET1,NFACE1,N2,K,K1,NV1,IFACE1,N2ORDER1(10),NODE1(10),O2NODE1(10),ORDER1(10)
-    REAL(8)::V1(3),V2(3),NORMAL1(3),T1
-    INTEGER::MAXADJL1,ISET1
-    INTEGER::ADJL1(3,MAX_FACE_ADJ,NNODE_L),F_ADJL1(MAX_FACE_ADJ,NNODE_L),NADJL1(NNODE_L) 
+! SUBROUTINE SETUP_FACE_ADJL_Solver(FACE_L,NFACE_L,EDGE_L,NEDGE_L)
+!     USE solverds,ONLY:ELEMENT_L=>ELEMENT,NODE_L=>NODE,NNODE_L=>NNUM,NEL_L=>ENUM,ESET=>eset,NESET=>NESET,ESETID
+!     IMPLICIT NONE
+!     INTEGER,INTENT(IN)::NEDGE_L
+!     INTEGER::NFACE_L
+! 	TYPE(EDGE_TYDEF),INTENT(IN)::EDGE_L(NEDGE_L)
+!     TYPE(FACE_TYDEF),ALLOCATABLE::FACE_L(:)
+! 	!type(ELEMENT_TYDEF)::ELEMENT_L(NEL_L)    
+!     !REAL(8),INTENT(IN)::NODE_L(3,NNODE_L)
+!     !TYPE(ESET_TYDEF),INTENT(IN)::ESET(NESET)
+!     INTEGER::I,J,N1,ET1,NFACE1,N2,K,K1,NV1,IFACE1,N2ORDER1(10),NODE1(10),O2NODE1(10),ORDER1(10)
+!     REAL(8)::V1(3),V2(3),NORMAL1(3),T1
+!     INTEGER::MAXADJL1,ISET1
+!     INTEGER::ADJL1(3,MAX_FACE_ADJ,NNODE_L),F_ADJL1(MAX_FACE_ADJ,NNODE_L),NADJL1(NNODE_L) 
 
-    MAXADJL1=MAX_FACE_ADJ
+!     MAXADJL1=MAX_FACE_ADJ
 
     
-    IF(.NOT.ISINI_GMSHET) THEN
-        CALL Initialize_et2numNodes() !根据gmsh单元类型和格式，确定每个单元的节点数
-        CALL ET_GMSH_EDGE_FACE() !根据gmsh单元类型和格式，确定每个边、面数
-        ISINI_GMSHET=.TRUE.
-    ENDIF 	
+!     IF(.NOT.ISINI_GMSHET) THEN
+!         CALL Initialize_et2numNodes() !根据gmsh单元类型和格式，确定每个单元的节点数
+!         CALL ET_GMSH_EDGE_FACE() !根据gmsh单元类型和格式，确定每个边、面数
+!         ISINI_GMSHET=.TRUE.
+!     ENDIF 	
 
-	IF(ALLOCATED(FACE_L)) DEALLOCATE(FACE_L)
-	ALLOCATE(FACE_L(NNODE_L))
-    ADJL1=0;F_ADJL1=0;NADJL1=0
-	DO I=1,NEL_L
-        ISET1=ELEMENT_L(I).SET
-        IF(ESET(ISET1).COUPLESET>0 &            
-            .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
+! 	IF(ALLOCATED(FACE_L)) DEALLOCATE(FACE_L)
+! 	ALLOCATE(FACE_L(NNODE_L))
+!     ADJL1=0;F_ADJL1=0;NADJL1=0
+! 	DO I=1,NEL_L
+!         ISET1=ELEMENT_L(I).SET
+!         IF(ESET(ISET1).COUPLESET>0 &            
+!             .AND.ESET(ISET1).COUPLESET<ISET1) CYCLE !附属单元不输出 !!!!!!!
         
-		ET1=GETGMSHET(ESET(ELEMENT_L(I).SET).ET)
-		NFACE1=ELTTYPE(ET1).NFACE
-		ELEMENT_L(I).NFACE=NFACE1
-        NV1=ELTTYPE(ET1).NNODE
-        NODE1(1:NV1)=ELEMENT_L(I).NODE(1:NV1)
-        ALLOCATE(ELEMENT_L(I).FACE(NFACE1))
-        IF(ELTTYPE(ET1).DIM==2) THEN
-            ALLOCATE(ELEMENT_L(I).ADJELT(ELTTYPE(ET1).NEDGE))
-        ELSEIF(ELTTYPE(ET1).DIM==3) THEN
-            ALLOCATE(ELEMENT_L(I).ADJELT(ELTTYPE(ET1).NFACE))
-        ELSE
-            ALLOCATE(ELEMENT_L(I).ADJELT(ELTTYPE(ET1).NNODE))
-        ENDIF
-        IF(ALLOCATED(ELEMENT_L(I).ADJELT)) ELEMENT_L(I).ADJELT=0
-        !DO J=1,NV1
-        !    N1=MINLOC(NODE1(1:NV1),MASK=NODE1(1:NV1)>0,DIM=1)
-        !    N2ORDER1(N1)=J;NODE1(N1)=-1
-        !    O2NODE1(J)=N1
-        !ENDDO
-        O2NODE1(1:NV1)=[1:NV1] !order2node
-        DO J=1,NV1-1
-            !N1=MINLOC(NODE1(1:NV1),MASK=NODE1(1:NV1)>0,DIM=1)
-            DO K=J+1,NV1
-                IF(NODE1(K)<NODE1(J)) THEN
-                    N1=NODE1(J);NODE1(J)=NODE1(K);NODE1(K)=N1;
-                    N1=O2NODE1(J);O2NODE1(J)=O2NODE1(K);O2NODE1(K)=N1
-                    !N2ORDER1(J)=O2NODE1(J);
-                    !N2ORDER1(N1)=J;NODE1(N1)=-1
-                    !O2NODE1(J)=N1
-                ENDIF
-            ENDDO
-        ENDDO
-        N2ORDER1(O2NODE1(1:NV1))=[1:NV1] !node2order
+! 		ET1=GETGMSHET(ESET(ELEMENT_L(I).SET).ET)
+! 		NFACE1=ELTTYPE(ET1).NFACE
+! 		ELEMENT_L(I).NFACE=NFACE1
+!         NV1=ELTTYPE(ET1).NNODE
+!         NODE1(1:NV1)=ELEMENT_L(I).NODE(1:NV1)
+!         ALLOCATE(ELEMENT_L(I).FACE(NFACE1))
+!         IF(ELTTYPE(ET1).DIM==2) THEN
+!             ALLOCATE(ELEMENT_L(I).ADJELT(ELTTYPE(ET1).NEDGE))
+!         ELSEIF(ELTTYPE(ET1).DIM==3) THEN
+!             ALLOCATE(ELEMENT_L(I).ADJELT(ELTTYPE(ET1).NFACE))
+!         ELSE
+!             ALLOCATE(ELEMENT_L(I).ADJELT(ELTTYPE(ET1).NNODE))
+!         ENDIF
+!         IF(ALLOCATED(ELEMENT_L(I).ADJELT)) ELEMENT_L(I).ADJELT=0
+!         !DO J=1,NV1
+!         !    N1=MINLOC(NODE1(1:NV1),MASK=NODE1(1:NV1)>0,DIM=1)
+!         !    N2ORDER1(N1)=J;NODE1(N1)=-1
+!         !    O2NODE1(J)=N1
+!         !ENDDO
+!         O2NODE1(1:NV1)=[1:NV1] !order2node
+!         DO J=1,NV1-1
+!             !N1=MINLOC(NODE1(1:NV1),MASK=NODE1(1:NV1)>0,DIM=1)
+!             DO K=J+1,NV1
+!                 IF(NODE1(K)<NODE1(J)) THEN
+!                     N1=NODE1(J);NODE1(J)=NODE1(K);NODE1(K)=N1;
+!                     N1=O2NODE1(J);O2NODE1(J)=O2NODE1(K);O2NODE1(K)=N1
+!                     !N2ORDER1(J)=O2NODE1(J);
+!                     !N2ORDER1(N1)=J;NODE1(N1)=-1
+!                     !O2NODE1(J)=N1
+!                 ENDIF
+!             ENDDO
+!         ENDDO
+!         N2ORDER1(O2NODE1(1:NV1))=[1:NV1] !node2order
         
- 		DO J=1,NFACE1
-            N2=ELTTYPE(ET1).FACE(0,J)            
-            ORDER1(1:N2)=N2ORDER1(ELTTYPE(ET1).FACE(1:N2,J))
-            NODE1(1:NV1)=0
-            NODE1(ORDER1(1:N2))=ELEMENT_L(I).NODE(O2NODE1(ORDER1(1:N2)))
-            N1=0
-            DO K=1,NV1
-                IF(NODE1(K)>0) THEN
-                    N1=N1+1
-                    IF(N1<K) NODE1(N1)=NODE1(K)
-                ENDIF
-            ENDDO
+!  		DO J=1,NFACE1
+!             N2=ELTTYPE(ET1).FACE(0,J)            
+!             ORDER1(1:N2)=N2ORDER1(ELTTYPE(ET1).FACE(1:N2,J))
+!             NODE1(1:NV1)=0
+!             NODE1(ORDER1(1:N2))=ELEMENT_L(I).NODE(O2NODE1(ORDER1(1:N2)))
+!             N1=0
+!             DO K=1,NV1
+!                 IF(NODE1(K)>0) THEN
+!                     N1=N1+1
+!                     IF(N1<K) NODE1(N1)=NODE1(K)
+!                 ENDIF
+!             ENDDO
 
             
-            !N1=MINLOC(F_ADJL1(:,NODE1(N2)),MASK=F_ADJL1(:,NODE1(N2))==0,DIM=1)-1
-            !IF(N1<0) THEN                
-            !    STOP "PLEASE ENLARGE ARRAY SIZE. SUB=SETUP_FACE_ADJL_MODEL"
-            !ENDIF
-            !!N2<=4
-            !IFACE1=0
-            !DO K=1,N1
-            !    if(SUM(ABS(ADJL1(1:N2-1,K,NODE1(N2))-NODE1(1:N2-1)))==0) THEN
-            !        IFACE1=F_ADJL1(K,NODE1(N2))
-            !        EXIT
-            !    ENDIF                
-            !ENDDO
-            !IF(IFACE1==0) THEN
+!             !N1=MINLOC(F_ADJL1(:,NODE1(N2)),MASK=F_ADJL1(:,NODE1(N2))==0,DIM=1)-1
+!             !IF(N1<0) THEN                
+!             !    STOP "PLEASE ENLARGE ARRAY SIZE. SUB=SETUP_FACE_ADJL_MODEL"
+!             !ENDIF
+!             !!N2<=4
+!             !IFACE1=0
+!             !DO K=1,N1
+!             !    if(SUM(ABS(ADJL1(1:N2-1,K,NODE1(N2))-NODE1(1:N2-1)))==0) THEN
+!             !        IFACE1=F_ADJL1(K,NODE1(N2))
+!             !        EXIT
+!             !    ENDIF                
+!             !ENDDO
+!             !IF(IFACE1==0) THEN
 
-            N1=NADJL1(NODE1(N2))
-            !N2<=4
-            IFACE1=0
-            !if(i==23.and.j==3) then
-            !    print *,i
-            !endif
-            DO K=1,N1
-                DO K1=1,N2-1
-                    if(ADJL1(K1,K,NODE1(N2))-NODE1(K1)/=0) EXIT
-                ENDDO
-                IF(K1==N2) THEN
-                    IFACE1=F_ADJL1(K,NODE1(N2))
-                    EXIT
-                ENDIF 
-            ENDDO
-            IF(IFACE1==0) THEN
-                NADJL1(NODE1(N2))=N1+1
-                IF(N1+1>MAXADJL1) THEN                
-                    print *, 'MAX_FACE_ADJ NEEDS TO BE  ENLARGED BY APPENDING "MAX_FACE_ADJ=XXX" TO THE KEYWORD "SolverControl".MAX_FACEE_ADJ=',MAX_FACE_ADJ
-                    stop
-                ENDIF
-                ADJL1(1:N2-1,N1+1,NODE1(N2))=NODE1(1:N2-1)
-                NFACE_L=NFACE_L+1
-                F_ADJL1(N1+1,NODE1(N2))=NFACE_L
-                IFACE1=NFACE_L
-                !IF(NODE1(N2)==50) THEN
-                !    PRINT *, I,J,NODE1(1:N2)
-                !ENDIF            
-            ENDIF
+!             N1=NADJL1(NODE1(N2))
+!             !N2<=4
+!             IFACE1=0
+!             !if(i==23.and.j==3) then
+!             !    print *,i
+!             !endif
+!             DO K=1,N1
+!                 DO K1=1,N2-1
+!                     if(ADJL1(K1,K,NODE1(N2))-NODE1(K1)/=0) EXIT
+!                 ENDDO
+!                 IF(K1==N2) THEN
+!                     IFACE1=F_ADJL1(K,NODE1(N2))
+!                     EXIT
+!                 ENDIF 
+!             ENDDO
+!             IF(IFACE1==0) THEN
+!                 NADJL1(NODE1(N2))=N1+1
+!                 IF(N1+1>MAXADJL1) THEN                
+!                     print *, 'MAX_FACE_ADJ NEEDS TO BE  ENLARGED BY APPENDING "MAX_FACE_ADJ=XXX" TO THE KEYWORD "SolverControl".MAX_FACEE_ADJ=',MAX_FACE_ADJ
+!                     stop
+!                 ENDIF
+!                 ADJL1(1:N2-1,N1+1,NODE1(N2))=NODE1(1:N2-1)
+!                 NFACE_L=NFACE_L+1
+!                 F_ADJL1(N1+1,NODE1(N2))=NFACE_L
+!                 IFACE1=NFACE_L
+!                 !IF(NODE1(N2)==50) THEN
+!                 !    PRINT *, I,J,NODE1(1:N2)
+!                 !ENDIF            
+!             ENDIF
 
-            ELEMENT_L(I).FACE(J)=IFACE1
+!             ELEMENT_L(I).FACE(J)=IFACE1
             
-            IF(IFACE1>SIZE(FACE_L,DIM=1)) THEN
-                CALL FACE_TYDEF_ENLARGE_AR(FACE_L,1000)
-                !MAXNFACE=MAXNFACE+1000
-            ENDIF
-            IF(.NOT.FACE_L(IFACE1).ISINI) THEN
-                FACE_L(IFACE1).SHAPE=ELTTYPE(ET1).FACE(0,J)
-                FACE_L(IFACE1).V(1:FACE_L(IFACE1).SHAPE)=ELEMENT_L(I).NODE(ELTTYPE(ET1).FACE(1:FACE_L(IFACE1).SHAPE,J))
-				FACE_L(IFACE1).EDGE(1:FACE_L(IFACE1).SHAPE)=ELEMENT_L(I).EDGE(ABS(ELTTYPE(ET1).FACEEDGE(1:FACE_L(IFACE1).SHAPE,J)))
-				!CHECK LOOP ORDER
-				DO K=1,FACE_L(IFACE1).SHAPE
-					IF(EDGE_L(ABS(FACE_L(IFACE1).EDGE(K))).V(1)/=FACE_L(IFACE1).V(K)) FACE_L(IFACE1).EDGE(K)=-FACE_L(IFACE1).EDGE(K)
-				ENDDO
-                !V1=NODE_L(:,FACE_L(IFACE1).V(2))-NODE_L(:,FACE_L(IFACE1).V(1))
-                !V2=NODE_L(:,FACE_L(IFACE1).V(3))-NODE_L(:,FACE_L(IFACE1).V(1))
-                !call r8vec_cross_3d ( v1, v2, NORMAL1(1:3) )
-                !T1 = sqrt ( sum ( ( NORMAL1 )**2 ) )
-                !if ( T1 /= 0.0D+00 ) then
-                !  NORMAL1 = NORMAL1/T1
-                !end if
-                !FACE_L(IFACE1).UNORMAL=NORMAL1
-                FACE_L(IFACE1).ISINI=.TRUE.
-                NFACE_L=IFACE1
-				DO K=1,3
-					FACE_L(NFACE_L).BBOX(1,K)=MINVAL(NODE_L(FACE_L(NFACE_L).V(1:FACE_L(NFACE_L).SHAPE)).COORD(K))-VTOL
-					FACE_L(NFACE_L).BBOX(2,K)=MAXVAL(NODE_L(FACE_L(NFACE_L).V(1:FACE_L(NFACE_L).SHAPE)).COORD(K))+VTOL
-				ENDDO
-            ENDIF
-            IF(FACE_L(IFACE1).ENUM==0) THEN
-                ALLOCATE(FACE_L(IFACE1).ELEMENT(2))
-                ALLOCATE(FACE_L(IFACE1).SUBID(2))
-            ENDIF
-            FACE_L(IFACE1).ENUM=FACE_L(IFACE1).ENUM+1
-            IF(FACE_L(IFACE1).ENUM>SIZE(FACE_L(IFACE1).ELEMENT,DIM=1)) THEN
-                CALL I_ENLARGE_AR(FACE_L(IFACE1).ELEMENT,5)
-                CALL I_ENLARGE_AR(FACE_L(IFACE1).SUBID,5)
-            ENDIF
+!             IF(IFACE1>SIZE(FACE_L,DIM=1)) THEN
+!                 CALL FACE_TYDEF_ENLARGE_AR(FACE_L,1000)
+!                 !MAXNFACE=MAXNFACE+1000
+!             ENDIF
+!             IF(.NOT.FACE_L(IFACE1).ISINI) THEN
+!                 FACE_L(IFACE1).SHAPE=ELTTYPE(ET1).FACE(0,J)
+!                 FACE_L(IFACE1).V(1:FACE_L(IFACE1).SHAPE)=ELEMENT_L(I).NODE(ELTTYPE(ET1).FACE(1:FACE_L(IFACE1).SHAPE,J))
+! 				FACE_L(IFACE1).EDGE(1:FACE_L(IFACE1).SHAPE)=ELEMENT_L(I).EDGE(ABS(ELTTYPE(ET1).FACEEDGE(1:FACE_L(IFACE1).SHAPE,J)))
+! 				!CHECK LOOP ORDER
+! 				DO K=1,FACE_L(IFACE1).SHAPE
+! 					IF(EDGE_L(ABS(FACE_L(IFACE1).EDGE(K))).V(1)/=FACE_L(IFACE1).V(K)) FACE_L(IFACE1).EDGE(K)=-FACE_L(IFACE1).EDGE(K)
+! 				ENDDO
+!                 !V1=NODE_L(:,FACE_L(IFACE1).V(2))-NODE_L(:,FACE_L(IFACE1).V(1))
+!                 !V2=NODE_L(:,FACE_L(IFACE1).V(3))-NODE_L(:,FACE_L(IFACE1).V(1))
+!                 !call r8vec_cross_3d ( v1, v2, NORMAL1(1:3) )
+!                 !T1 = sqrt ( sum ( ( NORMAL1 )**2 ) )
+!                 !if ( T1 /= 0.0D+00 ) then
+!                 !  NORMAL1 = NORMAL1/T1
+!                 !end if
+!                 !FACE_L(IFACE1).UNORMAL=NORMAL1
+!                 FACE_L(IFACE1).ISINI=.TRUE.
+!                 NFACE_L=IFACE1
+! 				DO K=1,3
+! 					FACE_L(NFACE_L).BBOX(1,K)=MINVAL(NODE_L(FACE_L(NFACE_L).V(1:FACE_L(NFACE_L).SHAPE)).COORD(K))-VTOL
+! 					FACE_L(NFACE_L).BBOX(2,K)=MAXVAL(NODE_L(FACE_L(NFACE_L).V(1:FACE_L(NFACE_L).SHAPE)).COORD(K))+VTOL
+! 				ENDDO
+!             ENDIF
+!             IF(FACE_L(IFACE1).ENUM==0) THEN
+!                 ALLOCATE(FACE_L(IFACE1).ELEMENT(2))
+!                 ALLOCATE(FACE_L(IFACE1).SUBID(2))
+!             ENDIF
+!             FACE_L(IFACE1).ENUM=FACE_L(IFACE1).ENUM+1
+!             IF(FACE_L(IFACE1).ENUM>SIZE(FACE_L(IFACE1).ELEMENT,DIM=1)) THEN
+!                 CALL I_ENLARGE_AR(FACE_L(IFACE1).ELEMENT,5)
+!                 CALL I_ENLARGE_AR(FACE_L(IFACE1).SUBID,5)
+!             ENDIF
             
-            IF(FACE_L(IFACE1).ENUM>1) THEN
-                DO K=1,FACE_L(IFACE1).SHAPE
-                    IF(FACE_L(IFACE1).V(K)==ELEMENT_L(I).NODE(ELTTYPE(ET1).FACE(1,J))) THEN
-                        IF(FACE_L(IFACE1).V(MOD(K,FACE_L(IFACE1).SHAPE)+1)/= &
-                            ELEMENT_L(I).NODE(ELTTYPE(ET1).FACE(2,J))) THEN
-                            FACE_L(IFACE1).ELEMENT(FACE_L(IFACE1).ENUM)=-I !I��Ԫ����ķ�����face�ķ�����,Ϊ-1
-                        ELSE
-                            FACE_L(IFACE1).ELEMENT(FACE_L(IFACE1).ENUM)=I
-                        ENDIF                  
-                        EXIT
-                    ENDIF
-                ENDDO
-            ELSE
-                FACE_L(IFACE1).ELEMENT(FACE_L(IFACE1).ENUM)=I 
-            ENDIF
-            FACE_L(IFACE1).SUBID(FACE_L(IFACE1).ENUM)=J
+!             IF(FACE_L(IFACE1).ENUM>1) THEN
+!                 DO K=1,FACE_L(IFACE1).SHAPE
+!                     IF(FACE_L(IFACE1).V(K)==ELEMENT_L(I).NODE(ELTTYPE(ET1).FACE(1,J))) THEN
+!                         IF(FACE_L(IFACE1).V(MOD(K,FACE_L(IFACE1).SHAPE)+1)/= &
+!                             ELEMENT_L(I).NODE(ELTTYPE(ET1).FACE(2,J))) THEN
+!                             FACE_L(IFACE1).ELEMENT(FACE_L(IFACE1).ENUM)=-I !I��Ԫ����ķ�����face�ķ�����,Ϊ-1
+!                         ELSE
+!                             FACE_L(IFACE1).ELEMENT(FACE_L(IFACE1).ENUM)=I
+!                         ENDIF                  
+!                         EXIT
+!                     ENDIF
+!                 ENDDO
+!             ELSE
+!                 FACE_L(IFACE1).ELEMENT(FACE_L(IFACE1).ENUM)=I 
+!             ENDIF
+!             FACE_L(IFACE1).SUBID(FACE_L(IFACE1).ENUM)=J
                 
             
-		ENDDO
-    END DO    
+! 		ENDDO
+!     END DO    
     
     
-ENDSUBROUTINE
+! ENDSUBROUTINE
 
 !重新建立节点的邻接单元
 SUBROUTINE SETUP_NODE2ELEMENT_ADJL_SOLVER(NADJL)
@@ -1110,6 +1741,55 @@ SUBROUTINE SETUP_NODE2ELEMENT_ADJL_SOLVER(NADJL)
     RETURN
 ENDSUBROUTINE
 
+integer function ESHAPE2NBC(eshape,is3d)
+!based on the element shapes,return the number of boundary
+!eshape=0,point，102=line,203=triangle,204=quadrilateral,304=tet,308=hex,306=prism
+    implicit none
+    INTEGER::ESHAPE,is3d
+    
+    select case(eshape)
+    case(102)
+        ESHAPE2NBC=1
+    case(203,204)
+        if(is3d==3) then
+            ESHAPE2NBC=1
+        else
+            ESHAPE2NBC=eshape-200
+        endif
+    case(304)
+        ESHAPE2NBC=4
+    case(305,306)
+        ESHAPE2NBC=5
+    case(308)
+        ESHAPE2NBC=6
+    end select
+       
+
+end function
+
+integer function ESHAPE2NEDGE(eshape)
+!based on the element shapes,return the number of EDGE
+!eshape=0,point，102=line,203=triangle,204=quadrilateral,304=tet,308=hex,306=prism
+    implicit none
+    INTEGER::ESHAPE
+    
+    select case(eshape)
+    case(102)
+        ESHAPE2NEDGE=1
+    case(203,204)
+        ESHAPE2NEDGE=eshape-200
+    case(304)
+        ESHAPE2NEDGE=6
+    case(305)
+        ESHAPE2NEDGE=8        
+    case(306)
+        ESHAPE2NEDGE=9
+    case(308)
+        ESHAPE2NEDGE=12
+    end select
+       
+
+end function
 
 END MODULE
     

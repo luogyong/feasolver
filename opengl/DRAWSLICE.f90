@@ -73,7 +73,7 @@ SUBROUTINE GEN_SLICE_ISOLINE_DATA()
     TYPE(FACE_TYDEF),ALLOCATABLE::FACE1(:)
     TYPE(EDGE_TYDEF),allocatable::EDGE1(:)
     real(8),allocatable::PTISOLINE1(:,:)
-    TYPE(hash_tbl_sll)::EDGE_TBL1,FACE_TBL1
+    !TYPE(hash_tbl_sll)::EDGE_TBL1,FACE_TBL1
     INTEGER::I,J,K,N1,N2,ISLICE
     INTEGER,ALLOCATABLE::AT1(:)
     interface

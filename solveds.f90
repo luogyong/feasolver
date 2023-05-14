@@ -318,7 +318,7 @@ module solverds
 		integer::enums=0,enume=0 !the first and the last element number in the element() of the set. 
 		integer::ec
 		integer::et
-        integer::eshape=-1 !0,point£¬101=line,203=triangle,204=quadrilateral,304=tet,308=hex,306=prism
+        integer::eshape=-1 !0,point£¬102=line,203=triangle,204=quadrilateral,304=tet,308=hex,306=prism
         integer::system=0
 		character(1024)::zonetitle="",zonetitle_sf="",zonetitle_pf=''
 		character(64)::grouptitle=""

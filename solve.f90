@@ -470,7 +470,7 @@ subroutine bc(iincs,iiter,load1,stepdis,isubts)
 
 			!对于水头边界，如果边界值小于其相应的位置水头，则认为该边界无效，不起作用。			
 			if(bc_disp(i).dof==4) then
-				if(bc_disp(i).value*t1<node(bc_disp(i).node).coord(ndimension)) then
+				if(node(bc_disp(i).node).coord(ndimension)-bc_disp(i).value*t1>1e-6) then
 					bc_disp(i).isdead=1
 					cycle
 				end if

@@ -2,6 +2,7 @@
 program main
 	use SOLVERLIB
 	use dflib
+    use MESHADJ
 !    USE MPI
 	implicit none
 	integer::itype=0,ef
@@ -43,7 +44,7 @@ program main
     
 	    call readin(itype)
 	    call TIME(char_time)
-
+        !call Setup_Solver_MESHTOPO()
 	    PRINT *, 'Initializing process...',char_time
 	    call Initialization()
 	    call TIME(char_time)

@@ -275,15 +275,19 @@ FUNCTION M2S_GETPATH(SELF,S1,E1) RESULT(PATH)
     INTEGER,INTENT(IN)::S1,E1
     INTEGER,ALLOCATABLE::PATH(:)
     REAL(8)::ALPHA1
-    INTEGER::N1,IEDGE1,N2,MAXLENGTH1=1000,I
-    REAL(8),ALLOCATABLE::ANGLE1(:)
+    INTEGER::N1,IEDGE1,N2,MAXLENGTH1=1000,I,V1(2),N3
+    REAL(8)::ANGLE1(200)
     INTEGER,ALLOCATABLE::PATH1(:)
-    N1=S1
     
+    N1=S1
+
     DO WHILE(.TRUE.)
         ALPHA1=angle2d(NODE(self.node(n1).node).COORD(1:2),NODE(self.node(E1).node).COORD(1:2))
-        ANGLE1=self.edge(ABS(Self.NADJL(N1).EDGE)).ANGLE
+        !ANGLE1=self.edge(ABS(Self.NADJL(N1).EDGE)).ANGLE
+        N3=SELF.NADJL(N1).NNUM
         DO I=1,SELF.NADJL(N1).NNUM
+            V1=self.edge(ABS(Self.NADJL(N1).EDGE(I))).V
+            ANGLE1(I)=angle2d(NODE(V1(1)).COORD(1:2),NODE(V1(2)).COORD(1:2))
             IF(Self.NADJL(N1).EDGE(I)<0) THEN 
                 IF(ANGLE1(I)>=0.D0) THEN
                     ANGLE1(I)=ANGLE1(I)-PI()
@@ -292,8 +296,8 @@ FUNCTION M2S_GETPATH(SELF,S1,E1) RESULT(PATH)
                 ENDIF
             ENDIF
          END DO   
-        ANGLE1=ALPHA1-ANGLE1
-        IEDGE1=MOD(minloc(ABS([ANGLE1,ANGLE1+2*PI(),ANGLE1-2*PI()]),DIM=1)-1,SELF.NADJL(N1).NNUM)+1
+        ANGLE1(1:N3)=ALPHA1-ANGLE1(1:N3)
+        IEDGE1=MOD(minloc(ABS([ANGLE1(:N3),ANGLE1(:N3)+2*PI(),ANGLE1(:N3)-2*PI()]),DIM=1)-1,SELF.NADJL(N1).NNUM)+1
         N2=Self.NADJL(N1).EDGE(IEDGE1)
         PATH1=[PATH1,N2]
         IF(N2>0) THEN
@@ -380,7 +384,7 @@ END FUNCTION
         if(self.edge(be1).enum>0.and.self.edge(be1).element(1)*sign1>0) then
             elt1=self.edge(be1).element(1)
             n1=self.edge(be1).subid(1)
-            n2=self.edge(be1).subid(2)
+            if(self.edge(be1).enum>1) n2=self.edge(be1).subid(2)
         elseif(self.edge(be1).enum>1.and.self.edge(be1).element(2)*sign1>0) then
             elt1=self.edge(be1).element(2)
             n1=self.edge(be1).subid(2)

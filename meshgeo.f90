@@ -2,7 +2,7 @@ MODULE MESHGEO
 
 !USE solverds
 USE POS_IO
-USE hashtbl
+!USE hashtbl
 implicit none
 !PRIVATE
 !PUBLIC::EDGE,NEDGE,FACE,NFACE,SETUP_EDGE_TBL_TET,SETUP_FACE_TBL_TET,TET,NTET,&
@@ -32,9 +32,9 @@ TYPE(NODE_ADJ_TYDEF),ALLOCATABLE::SNADJL(:)
 TYPE EDGE_TYDEF
     LOGICAL::ISINI=.FALSE.
     INTEGER::V(2)=0
-    INTEGER::HKEY=-1
-    CHARACTER(64)::CKEY=""
-    REAL(8)::DIS=0.D0,ANGLE
+    !INTEGER::HKEY=-1
+    !CHARACTER(64)::CKEY=""
+    !REAL(8)::DIS=0.D0,ANGLE
     INTEGER::ENUM=0
 	INTEGER::ISDEAD=0,NMIDPNT=0
     INTEGER,ALLOCATABLE::ELEMENT(:),SUBID(:),MIDPNT(:) !SUBID IS INDEX WHICH EDGE OF THE ELEMENT IS THE EDGE
@@ -44,8 +44,8 @@ TYPE FACE_TYDEF
     LOGICAL::ISINI=.FALSE.
     INTEGER::SHAPE=3
     INTEGER::V(4)=0,EDGE(4)=0 !IF EDGE(I)<0 MEANING ITS ORDER IS REVERSE .
-    INTEGER::HKEY=-1
-    CHARACTER(64)::CKEY="" 		
+    !INTEGER::HKEY=-1
+    !CHARACTER(64)::CKEY="" 		
     INTEGER::ISTRISURFACE=0 !<-1 ��face����
     REAL(8)::BBOX(2,3)=0.D0 !UNORMAL(3)=0.D0,
     INTEGER::ENUM=0
@@ -75,7 +75,7 @@ type et_type
 	character(512)::description
 	integer,allocatable::edge(:,:),face(:,:),FaceEdge(:,:),MIDPNT(:,:)
 	integer,allocatable::tet(:,:) !,tetEDGE(:,:),TETFACE(:,:)
-	INTEGER::DIM=-1
+	INTEGER::DIM=-1,ESHAPE=0
 	!edge(2,nedge),
 	!face: use node index to represent face. face(0:4,nface),face(0,:)==3,triangular face,==4, quadrilateral face
 	!FaceEdge: use edge index to represent face. FaceEdge(0:4,nface),FaceEdge(0,:)==3,triangular face, ==4, quadrilateral face
@@ -638,8 +638,8 @@ integer function POINTlOC_BC(Pt,TRYiel)
         n1=minloc(shpfun(1:n2),dim=1)
         if(shpfun(n1)<0.d0) then            
             IEL1=IEL
-            iel=tet(iel).adjelt(N2E1(n1,n2))
-            
+            !iel=tet(iel).adjelt(N2E1(n1,n2))
+            iel=tet(iel).adjelt(N1)
             !IF ISSEARCHED(IEL)=.TRUE. DEAD CYCLE.            
             if(iel==0.OR.ISSEARCHED(IEL)) then
                 !RECHECK BY THE FINAL METHOD.
@@ -723,7 +723,8 @@ integer function POINTlOC_BC_SOLVER(Pt,TRYiel)
         n1=minloc(shpfun(1:n2),dim=1)
         if(shpfun(n1)<0.d0) then            
             IEL1=IEL
-            iel=ELEMENT(IEL).adjelt(N2E1(n1,n2))
+            !iel=ELEMENT(IEL).adjelt(N2E1(n1,n2))
+            iel=ELEMENT(IEL).adjelt(N1)
             !IF ISSEARCHED(IEL)=.TRUE. DEAD CYCLE.            
             if(iel==0.OR.ISSEARCHED(IEL)) then
                 !RECHECK BY THE FINAL METHOD.
@@ -1010,7 +1011,7 @@ SUBROUTINE EDGE_TYDEF_ENLARGE_AR(AVAL,DSTEP)
 END SUBROUTINE
 
 SUBROUTINE ET_GMSH_EDGE_FACE()
-
+!2023-05-10,按点-边的方式改变三角形单元边的编号，按点-面的方式改变四面体单元面的编号
 	IMPLICIT NONE
 	INTEGER::I,ET,AET1(33)
 	
@@ -1019,14 +1020,15 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
         ET=AET1(I)
 		SELECT CASE(ET)
 			CASE(1) !LINE
-                ELTTYPE(ET).NNODE=2
-				Elttype(ET).NEDGE=1;Elttype(ET).NFACE=0;Elttype(ET).NTET=0;ELTTYPE(ET).DIM=1
+                ELTTYPE(ET).NNODE=2;ELTTYPE(ET).ESHAPE=102
+				Elttype(ET).NEDGE=1;Elttype(ET).NFACE=1;Elttype(ET).NTET=0;ELTTYPE(ET).DIM=1
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE))
 				Elttype(ET).EDGE(:,1)=[1,2]
-               
+                Elttype(ET).FACE(:,1)=[2,1,2,0,0] !degenerated
+                Elttype(ET).FACEEDGE(:,1)=[1,1,0,0,0]
 			CASE(2) !TRIANGLE
-                ELTTYPE(ET).NNODE=3
+                ELTTYPE(ET).NNODE=3;ELTTYPE(ET).ESHAPE=203
 				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1;Elttype(ET).NTET=1;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
@@ -1035,7 +1037,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 				Elttype(ET).FACEEDGE=Elttype(ET).FACE
 				Elttype(ET).TET(:,1)=[1,2,3,0]
 			CASE(9) !6-NODED-TRIANGLE
-                ELTTYPE(ET).NNODE=3;ELTTYPE(ET).NMIDPNT=1
+                ELTTYPE(ET).NNODE=3;ELTTYPE(ET).NMIDPNT=1;ELTTYPE(ET).ESHAPE=203
 				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1;Elttype(ET).NTET=4;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
@@ -1050,7 +1052,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                                                4,5,6,0],&
                                                (/4,4/))				
 			CASE(23) !15-NODED-TRIANGLE
-                ELTTYPE(ET).NNODE=3;ELTTYPE(ET).NMIDPNT=3
+                ELTTYPE(ET).NNODE=3;ELTTYPE(ET).NMIDPNT=3;ELTTYPE(ET).ESHAPE=203
 				Elttype(ET).NEDGE=3;Elttype(ET).NFACE=1;Elttype(ET).NTET=16;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
@@ -1081,7 +1083,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 				
 				
 			CASE(3) !QUADRANGLE
-                ELTTYPE(ET).NNODE=4
+                ELTTYPE(ET).NNODE=4;ELTTYPE(ET).ESHAPE=204
 				Elttype(ET).NEDGE=4;Elttype(ET).NFACE=1;Elttype(ET).NTET=2;ELTTYPE(ET).DIM=2
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
@@ -1093,7 +1095,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                                               3,4,1,0],(/4,2/))				
                 
 			CASE(16) !8-noded-QUADRANGLE
-                ELTTYPE(ET).NNODE=4;ELTTYPE(ET).NMIDPNT=1
+                ELTTYPE(ET).NNODE=4;ELTTYPE(ET).NMIDPNT=1;ELTTYPE(ET).ESHAPE=204
 				Elttype(ET).NEDGE=4;Elttype(ET).NFACE=1;Elttype(ET).NTET=6;ELTTYPE(ET).DIM=2				
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
@@ -1111,7 +1113,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 											   (/4,6/))				
 				
 			CASE(4) !TETRAHEDRON
-                ELTTYPE(ET).NNODE=4
+                ELTTYPE(ET).NNODE=4;ELTTYPE(ET).ESHAPE=304
 				Elttype(ET).NEDGE=6;Elttype(ET).NFACE=4;Elttype(ET).NTET=1;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))	
@@ -1127,7 +1129,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                 Elttype(ET).TET(:,:)=RESHAPE([1,2,3,4], (/4,1/))
 
 			CASE(11) !10-noded-TETRAHEDRON
-                ELTTYPE(ET).NNODE=4;ELTTYPE(ET).NMIDPNT=1
+                ELTTYPE(ET).NNODE=4;ELTTYPE(ET).NMIDPNT=1;ELTTYPE(ET).ESHAPE=304
 				Elttype(ET).NEDGE=6;Elttype(ET).NFACE=4;Elttype(ET).NTET=8;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
@@ -1152,7 +1154,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                                                 (/4,8/))
 
 			CASE(5) !HEXAHEDRON
-                ELTTYPE(ET).NNODE=8
+                ELTTYPE(ET).NNODE=8;ELTTYPE(ET).ESHAPE=308
 				Elttype(ET).NEDGE=12;Elttype(ET).NFACE=6;Elttype(ET).NTET=6;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))				
@@ -1181,7 +1183,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
                                                 (/4,6/))
 			
 			CASE(6) !6-NODE PRISM
-                ELTTYPE(ET).NNODE=6
+                ELTTYPE(ET).NNODE=6;ELTTYPE(ET).ESHAPE=306
 				Elttype(ET).NEDGE=9;Elttype(ET).NFACE=5;Elttype(ET).NTET=3;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))				
@@ -1203,7 +1205,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 												1,6,4,5],(/4,3/))
 
 			CASE(18) !15-NODE PRISM
-                ELTTYPE(ET).NNODE=6;ELTTYPE(ET).NMIDPNT=1
+                ELTTYPE(ET).NNODE=6;ELTTYPE(ET).NMIDPNT=1;ELTTYPE(ET).ESHAPE=306
 				Elttype(ET).NEDGE=9;Elttype(ET).NFACE=5;Elttype(ET).NTET=14;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))			
@@ -1237,7 +1239,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 												5,10,11,14],&
                                                 (/4,14/))
 			CASE(7) !5-node pyramid
-                ELTTYPE(ET).NNODE=5
+                ELTTYPE(ET).NNODE=5;ELTTYPE(ET).ESHAPE=305
 				Elttype(ET).NEDGE=8;Elttype(ET).NFACE=5;Elttype(ET).NTET=2;ELTTYPE(ET).DIM=3
 				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
 						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET))
@@ -1259,7 +1261,7 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 				
 				
 			CASE(15) !POINTS
-                ELTTYPE(ET).NNODE=1
+                ELTTYPE(ET).NNODE=1;ELTTYPE(ET).ESHAPE=1
 				Elttype(ET).NEDGE=0;Elttype(ET).NFACE=0
 				ELTTYPE(ET).DIM=0
             !CASE DEFAULT
@@ -1726,166 +1728,6 @@ SUBROUTINE I2_ENLARGE_AR(AVAL,DSTEP,DIM1)
 END SUBROUTINE
 
 
-!!SET EDGE FOR TRIANGLE AND TET. 
-!SUBROUTINE SETUP_EDGE_TBLi(EDGE_TBL_L,TBL_SIZE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NODE_L,NNODE_L)
-!    USE MESHGEO
-!    USE hashtbl
-!    IMPLICIT NONE
-!	INTEGER,INTENT(IN)::TBL_SIZE_L,NEL_L,NNODE_L
-!    INTEGER::NEDGE_L
-!	TYPE(hash_tbl_sll)::EDGE_TBL_L
-!	TYPE(EDGE_TYDEF),ALLOCATABLE::EDGE_L(:)
-!	type(TET_TYDEF)::ELEMENT_L(NEL_L)
-!	REAL(8),INTENT(IN)::NODE_L(3,NNODE_L)
-!    INTEGER::I,J,N1(2),ET1,NEDGE1
-!	CHARACTER(LEN=:),ALLOCATABLE::KEY1
-!    TYPE(DICT_DATA)::VAL1
-!    CHARACTER(64)::CKEY1
-!    INTEGER::HKEY1
-!    
-!     
-!    
-!	IF(.NOT.ALLOCATED(EDGE_L)) ALLOCATE(EDGE_L(TBL_SIZE_L))
-!	CALL EDGE_TBL_L.FREE
-!    IF(.NOT.EDGE_TBL_L.IS_INIT) CALL EDGE_TBL_L.INIT(TBL_SIZE_L)
-!	DO I=1,NEL_L
-!		ET1=ELEMENT_L(I).GMET
-!		NEDGE1=ELTTYPE(ET1).NEDGE
-!        ELEMENT_L(I).NE=NEDGE1
-!        !IF(.NOT.ALLOCATED(ELEMENT_L(I).EDGE)) ALLOCATE(ELEMENT_L(I).EDGE(NEDGE1))
-!		DO J=1,NEDGE1
-!            N1=ELEMENT_L(I).V(ELTTYPE(ET1).EDGE(:,J))
-!            CALL I2C_KEY_hash_tbl_sll(KEY1,N1(:),2)
-!            CKEY1=TRIM(KEY1)
-!            HKEY1 = MOD(ABS(HASH_DJB(KEY1)),EDGE_TBL_L%vec_len)
-!            VAL1.IEL=I;VAL1.ISE=J;VAL1.IITEM=EDGE_TBL_L.TBL_ID
-!			CALL EDGE_TBL_L.PUT(TRIM(KEY1),VAL1,HKEY1)
-!			ELEMENT_L(I).E(J)=VAL1.IITEM
-!            IF(VAL1.IITEM>SIZE(EDGE_L,DIM=1)) THEN
-!                CALL EDGE_TYDEF_ENLARGE_AR(EDGE_L,1000)
-!                !MAXNEDGE=MAXNEDGE+1000
-!            ENDIF
-!            IF(.NOT.EDGE_L(VAL1.IITEM).ISINI) THEN
-!                EDGE_L(VAL1.IITEM).CKEY=CKEY1
-!                EDGE_L(VAL1.IITEM).HKEY=HKEY1
-!                EDGE_L(VAL1.IITEM).V=ELEMENT_L(I).V(ELTTYPE(ET1).EDGE(:,J))
-!                EDGE_L(VAL1.IITEM).DIS=NORM2(NODE_L(:,EDGE_L(VAL1.IITEM).V(1))-NODE_L(:,EDGE_L(VAL1.IITEM).V(2)))
-!                EDGE_L(VAL1.IITEM).ISINI=.TRUE.
-!                NEDGE_L=VAL1.IITEM
-!            ENDIF
-!            IF(EDGE_L(VAL1.IITEM).ENUM==0) ALLOCATE(EDGE_L(VAL1.IITEM).ELEMENT(5),EDGE_L(VAL1.IITEM).SUBID(5))
-!            EDGE_L(VAL1.IITEM).ENUM=EDGE_L(VAL1.IITEM).ENUM+1
-!            IF(EDGE_L(VAL1.IITEM).ENUM>SIZE(EDGE_L(VAL1.IITEM).ELEMENT,DIM=1)) THEN
-!				CALL I_ENLARGE_AR(EDGE_L(VAL1.IITEM).ELEMENT,5)
-!				CALL I_ENLARGE_AR(EDGE_L(VAL1.IITEM).SUBID,5)
-!			ENDIF
-!            EDGE_L(VAL1.IITEM).ELEMENT(EDGE_L(VAL1.IITEM).ENUM)=I			
-!            EDGE_L(VAL1.IITEM).SUBID(EDGE_L(VAL1.IITEM).ENUM)=J
-!		ENDDO
-!    END DO
-!    RETURN
-!ENDSUBROUTINE
-!
-!
-!SUBROUTINE SETUP_FACE_TBLi(FACE_TBL_L,TBL_SIZE_L,FACE_L,NFACE_L,EDGE_L,NEDGE_L,ELEMENT_L,NEL_L,NODE_L,NNODE_L)
-!    use MESHGEO
-!    use hashtbl
-!    IMPLICIT NONE
-!    INTEGER,INTENT(IN)::TBL_SIZE_L,NEL_L,NEDGE_L,NNODE_L
-!    INTEGER::NFACE_L
-!	TYPE(hash_tbl_sll)::FACE_TBL_L
-!	TYPE(EDGE_TYDEF),INTENT(IN)::EDGE_L(NEDGE_L)
-!    TYPE(FACE_TYDEF),ALLOCATABLE::FACE_L(:)
-!	type(TET_TYDEF)::ELEMENT_L(NEL_L)
-!    REAL(8),INTENT(IN)::NODE_L(3,NNODE_L)
-!    INTEGER::I,J,N1(4),ET1,NFACE1,TBL_LEN,N2,K
-!    REAL(8)::V1(3),V2(3),NORMAL1(3),T1
-!	CHARACTER(LEN=:),ALLOCATABLE::KEY1
-!    TYPE(DICT_DATA)::VAL1
-!    CHARACTER(64)::CKEY1
-!    INTEGER::HKEY1
-!    
-!    IF(.NOT.ISINI_GMSHET) THEN
-!        CALL Initialize_et2numNodes()
-!        CALL ET_GMSH_EDGE_FACE()
-!        ISINI_GMSHET=.TRUE.
-!    ENDIF 	
-!
-!	IF(ALLOCATED(FACE_L)) DEALLOCATE(FACE_L)
-!	ALLOCATE(FACE_L(TBL_SIZE_L))
-!    CALL FACE_TBL_L.FREE
-!	IF(.NOT.FACE_TBL_L.IS_INIT) CALL FACE_TBL_L.INIT(TBL_SIZE_L)
-!
-!	DO I=1,NEL_L
-!		ET1=ELEMENT_L(I).GMET
-!		NFACE1=ELTTYPE(ET1).NFACE
-!		ELEMENT_L(I).NF=NFACE1
-!        !ALLOCATE(ELEMENT_L(I).F(NFACE1))
-!		DO J=1,NFACE1
-!            N2=ELTTYPE(ET1).FACE(0,J)
-!            N1(1:N2)=ELEMENT_L(I).V(ELTTYPE(ET1).FACE(1:N2,J))
-!            CALL FACE_TBL_L.KEY(KEY1,N1(1:N2),ELTTYPE(ET1).FACE(0,J))
-!            CKEY1=TRIM(KEY1)
-!            HKEY1 = MOD(ABS(HASH_DJB(KEY1)),FACE_TBL_L%vec_len)            
-!            VAL1.IEL=I;VAL1.ISE=J;VAL1.IITEM=FACE_TBL_L.TBL_ID
-!			CALL FACE_TBL_L.PUT(TRIM(KEY1),VAL1,HKEY1)
-!            ELEMENT_L(I).F(J)=VAL1.IITEM
-!            
-!            IF(VAL1.IITEM>SIZE(FACE_L,DIM=1)) THEN
-!                CALL FACE_TYDEF_ENLARGE_AR(FACE_L,1000)
-!                !MAXNFACE=MAXNFACE+1000
-!            ENDIF
-!            IF(.NOT.FACE_L(VAL1.IITEM).ISINI) THEN
-!                FACE_L(VAL1.IITEM).CKEY=CKEY1 
-!                FACE_L(VAL1.IITEM).HKEY=HKEY1
-!                FACE_L(VAL1.IITEM).SHAPE=ELTTYPE(ET1).FACE(0,J)
-!                FACE_L(VAL1.IITEM).V(1:FACE_L(VAL1.IITEM).SHAPE)=ELEMENT_L(I).V(ELTTYPE(ET1).FACE(1:FACE_L(VAL1.IITEM).SHAPE,J))
-!				FACE_L(VAL1.IITEM).EDGE(1:FACE_L(VAL1.IITEM).SHAPE)=ELEMENT_L(I).E(ABS(ELTTYPE(ET1).FACEEDGE(1:FACE_L(VAL1.IITEM).SHAPE,J)))
-!				!CHECK LOOP ORDER
-!				DO K=1,FACE_L(VAL1.IITEM).SHAPE
-!					IF(EDGE_L(FACE_L(VAL1.IITEM).EDGE(K)).V(1)/=FACE_L(VAL1.IITEM).V(K)) FACE_L(VAL1.IITEM).EDGE(K)=-FACE_L(VAL1.IITEM).EDGE(K)
-!				ENDDO
-!                V1=NODE_L(:,FACE_L(VAL1.IITEM).V(2))-NODE_L(:,FACE_L(VAL1.IITEM).V(1))
-!                V2=NODE_L(:,FACE_L(VAL1.IITEM).V(3))-NODE_L(:,FACE_L(VAL1.IITEM).V(1))
-!                call r8vec_cross_3d ( v1, v2, NORMAL1(1:3) )
-!                T1 = sqrt ( sum ( ( NORMAL1 )**2 ) )
-!                if ( T1 /= 0.0D+00 ) then
-!                  NORMAL1 = NORMAL1/T1
-!                end if
-!                FACE_L(VAL1.IITEM).UNORMAL=NORMAL1
-!                FACE_L(VAL1.IITEM).ISINI=.TRUE.
-!                NFACE_L=VAL1.IITEM
-!				DO K=1,3
-!					FACE_L(NFACE_L).BBOX(1,K)=MINVAL(NODE_L(K,FACE_L(NFACE_L).V(1:FACE_L(NFACE_L).SHAPE)))-VTOL
-!					FACE_L(NFACE_L).BBOX(2,K)=MAXVAL(NODE_L(K,FACE_L(NFACE_L).V(1:FACE_L(NFACE_L).SHAPE)))+VTOL
-!				ENDDO
-!            ENDIF
-!            IF(FACE_L(VAL1.IITEM).ENUM==0) ALLOCATE(FACE_L(VAL1.IITEM).ELEMENT(2))
-!            FACE_L(VAL1.IITEM).ENUM=FACE_L(VAL1.IITEM).ENUM+1
-!            IF(FACE_L(VAL1.IITEM).ENUM>SIZE(FACE_L(VAL1.IITEM).ELEMENT,DIM=1)) CALL I_ENLARGE_AR(FACE_L(VAL1.IITEM).ELEMENT,5)
-!            
-!            IF(FACE_L(VAL1.IITEM).ENUM>1) THEN
-!                DO K=1,FACE_L(VAL1.IITEM).SHAPE
-!                    IF(FACE_L(VAL1.IITEM).V(K)==ELEMENT_L(I).V(ELTTYPE(ELEMENT_L(I).GMET).FACE(1,J))) THEN
-!                        IF(FACE_L(VAL1.IITEM).V(MOD(K,FACE_L(VAL1.IITEM).SHAPE)+1)/= &
-!                            ELEMENT_L(I).V(ELTTYPE(ELEMENT_L(I).GMET).FACE(2,J))) THEN
-!                            FACE_L(VAL1.IITEM).ELEMENT(FACE_L(VAL1.IITEM).ENUM)=-I !I��Ԫ����ķ�����face�ķ�����,Ϊ-1
-!                        ELSE
-!                            FACE_L(VAL1.IITEM).ELEMENT(FACE_L(VAL1.IITEM).ENUM)=I
-!                        ENDIF                  
-!                        EXIT
-!                    ENDIF
-!                ENDDO
-!            ELSE
-!                FACE_L(VAL1.IITEM).ELEMENT(FACE_L(VAL1.IITEM).ENUM)=I !ͬ�� =1
-!            ENDIF
-!            
-!                
-!            
-!		ENDDO
-!    END DO    
-!    
-!    
-!ENDSUBROUTINE
+
 
 
