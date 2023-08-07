@@ -96,6 +96,7 @@
 		EDGE(I).NUM=N1
 	end do
 	N1=0
+    mesharea=0.d0
 	do i=1,NELT
 		if(ELT(i).ISDEL) cycle
 		N1=N1+1
@@ -103,6 +104,7 @@
         VEC1(1,:)=NODE(ELT(I).NODE([2,3])).X-NODE(ELT(I).NODE(1)).X
         VEC1(2,:)=NODE(ELT(I).NODE([2,3])).Y-NODE(ELT(I).NODE(1)).Y
         ELT(I).PROPERTY(1)=0.5*ABS(VEC1(1,1)*VEC1(2,2)-VEC1(1,2)*VEC1(2,1)) !AREA
+        mesharea=mesharea+ELT(I).PROPERTY(1)
 	end do
 	ENUMBER=N1
     

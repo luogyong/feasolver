@@ -176,7 +176,7 @@ call initialize_contourplot(CONTOUR_PLOT_VARIABLE)
 
 
 ! initialize view_modifier, receiving the id for it's submenu
-
+PRINT *, 'Make menu...',char_time
 submenuid = view_modifier_init()
 
 ! create the menu
@@ -184,20 +184,26 @@ submenuid = view_modifier_init()
 call make_menu(submenuid)
 
 ! Set the display callback
+PRINT *, 'Shape...',char_time
 call glutreshapefunc(myreshape)
+PRINT *, 'Mouse...',char_time
 call glutMouseFunc(mouse)
+PRINT *, 'Motion...',char_time
 call glutMotionFunc(motion)
+PRINT *, 'SpecialFunc...',char_time
 call glutSpecialFunc(arrows)
+PRINT *, 'display...',char_time
 call glutDisplayFunc(display)
 !glutTimerFunc(33, timerCB, 33);             // redraw only every given millisec
 !//glutIdleFunc(idleCB);                       // redraw whenever system is idle
 !glutReshapeFunc(reshapeCB);
+PRINT *, 'KeyboardFunc...',char_time
 call glutKeyboardFunc(keyboardCB);
 !glutPassiveMotionFunc(mousePassiveMotionCB);
 
 call initGL(POSDATA.MODELR)
 ! Create the image
-
+PRINT *, 'make data...',char_time
 CALL STEPPLOT.UPDATE()
 
 !call DrawSurfaceContour()
@@ -206,7 +212,7 @@ CALL STEPPLOT.UPDATE()
 !call drawgrid()
 
 ! Let glut take over
-
+PRINT *, 'MainLoop...',char_time
 call glutMainLoop
 
 call POSDATA.FREE()

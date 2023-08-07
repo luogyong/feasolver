@@ -174,8 +174,9 @@ subroutine solve_SLD()
 						call  chodec(km,bw,ndof)
 						!STOP_TIME= DCLOCK()
 						!write(99,20) iincs,iiter,STOP_TIME-START_TIME
-					else
+                    else
 						! Factor the matrix.！MKL_DSS_POSITIVE_DEFINITE
+                        
                         error = DSS_FACTOR_REAL( handle, MKL_DSS_POSITIVE_DEFINITE,km)
                         IF (error /= MKL_DSS_SUCCESS) THEN
                             !PRINT *, 'MKL_DSS_POSITIVE_DEFINITE FAILED.TRY MKL_DSS_INDEFINITE OPTION.'

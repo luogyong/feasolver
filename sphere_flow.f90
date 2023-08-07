@@ -559,7 +559,7 @@ ENDSUBROUTINE
 
 SUBROUTINE sphere_flow_element(ielt)
     
-    USE MESHADJ
+    USE MESHADJ,only:SNADJL
     USE solverds
 
     IMPLICIT NONE
@@ -684,7 +684,7 @@ subroutine cal_element_k(ielt,inwell,rw)
     Sb= -Sb
     Si = K1(1)*cofactor1(1,2)**2 + K1(2)*cofactor1(1,3)**2 + K1(3)*cofactor1(1,4)**2 
     alpha1=element(ielt).angle(inwell)
-    element(ielt).fd=alpha1*(Sb-36*Ki*Vol1*rw*alpha1)/(Ki*Si)
+    element(ielt).fd=alpha1*(Sb-36*Ki*Vol1*rw*alpha1)/(Ki*Si) 
     
     !if(solver_control.well_bottom_type==0) then
     !    DO I=1,3

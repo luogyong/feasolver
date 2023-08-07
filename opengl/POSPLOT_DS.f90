@@ -65,7 +65,7 @@ TYPE(SLICE_TYDEF)::SLICE(30)
 INTEGER::NSLICE=0
 
 INTEGER::IVO(3)=0 !FOR VECTOR PAIR LOCATION IN POSDATA.NODALQ
-INTEGER::IEL_STREAMLINE=0 !ÂΩìÂâçÁßØÂàÜÁÇπÊâÄÂú®ÁöÑÂçïÂÖÉ
+INTEGER::IEL_STREAMLINE=0 !µ±«∞ª˝∑÷µ„À˘‘⁄µƒµ•‘™
 INTEGER,PARAMETER::streamline_location_click=1,Plot_streamline_CLICK=2,&
                    Reset_streamline_CLICK=3,Enlarger_StrokeFontSize_CLICK=4,&
                    Smaller_StrokeFontSize_CLICK=5,SHOW_STREAMLINE_NODE_CLICK=6,OUTPUT_SHOWNSTREAMLINE_CLICK=7
@@ -75,23 +75,23 @@ TYPE STREAMLINE_TYDEF
     LOGICAL::SHOW=.TRUE.,ISLOCALSMALL=.FALSE.,ISCOMPATABLE=.TRUE.
     REAL(8)::PTstart(3),SF_SLOPE=HUGE(1.d0),SVEC(2)=0.D0 !SVEC=3D SLOPE SLIDE SURFACE DIRECTION 
     REAL(8),ALLOCATABLE::V(:,:),VAL(:,:)
-    REAL(8),ALLOCATABLE::PARA_SFCAL(:,:) !SIGN,SIGT,RAD1,SIGTA,SEG_LENGTH,C,PHI,SFR,DCOS(3) !ÂêéÈù¢‰∏â‰∏™‰∏∫ÊªëÂä®Èù¢ÊñπÂêëÁü¢Èáè	
-    INTEGER,ALLOCATABLE::IEL(:) !ÊµÅÁ∫ø‰∏äÊØè‰∏™ËäÇÁÇπÊâÄÂú®ÁöÑÂçïÂÖÉÂè∑
-    REAL(8),ALLOCATABLE::SLIDE_STRIP(:,:,:) !‰ª•ÊµÅÁ∫øÂíåÁ¨¨‰∫å‰∏ªÂ∫îÂäõÊñπÂêëÁ∫øÁîüÊàêÁöÑÁîüÊàêÁöÑÊªëÂä®Èù¢Ôºà‰∏âÁª¥ÊªëÂù°ÔºâÔºåslide_strip‰∏∫ÊªëÂä®Èù¢‰∏§‰æßËæπÁ∫øÁöÑÂùêÊ†á,Êää‰∏§ËæπÁ∫øÂØπÂ∫îÁöÑËäÇÁÇπËøûËµ∑Êù•,Âç≥‰∏∫‰∏Ä‰∏™ÂõõËæπÂΩ¢ÊªëÂä®Èù¢.
+    REAL(8),ALLOCATABLE::PARA_SFCAL(:,:) !SIGN,SIGT,RAD1,SIGTA,SEG_LENGTH,C,PHI,SFR,DCOS(3) !∫Û√Ê»˝∏ˆŒ™ª¨∂Ø√Ê∑ΩœÚ ∏¡ø	
+    INTEGER,ALLOCATABLE::IEL(:) !¡˜œﬂ…œ√ø∏ˆΩ⁄µ„À˘‘⁄µƒµ•‘™∫≈
+    REAL(8),ALLOCATABLE::SLIDE_STRIP(:,:,:) !“‘¡˜œﬂ∫Õµ⁄∂˛÷˜”¶¡¶∑ΩœÚœﬂ…˙≥…µƒ…˙≥…µƒª¨∂Ø√Ê£®»˝Œ¨ª¨∆¬£©,slide_stripŒ™ª¨∂Ø√Ê¡Ω≤‡±ﬂœﬂµƒ◊¯±Í,∞—¡Ω±ﬂœﬂ∂‘”¶µƒΩ⁄µ„¡¨∆¿¥,º¥Œ™“ª∏ˆÀƒ±ﬂ–Œª¨∂Ø√Ê.
 CONTAINS
     PROCEDURE::GET_SLIDE_STRIP=>CAL_SLIDE_STRIP
 ENDTYPE
 INTEGER::MAXNSTREAMLINE=0
 TYPE(STREAMLINE_TYDEF),ALLOCATABLE::STREAMLINE(:)
 INTEGER,ALLOCATABLE::SF_SLOPE(:)
-INTEGER::NSTREAMLINE=0,NINPUTSLIP=0,INPUTSLIP(100)=0
+INTEGER::NSTREAMLINE=0,NINPUTSLIP=0,INPUTSLIP(1000)=0
 LOGICAL::IS_JUST_SHOW_TOP_TEN_SLOPE=.FALSE.,IS_JUST_SHOW_THE_MINIMAL_ONE_SLOPE=.FALSE.,&
         IS_SHOW_ALL_SLOPE=.TRUE.,SLOPE_CHECK_ADMISSIBILITY=.TRUE.
 REAL(8),ALLOCATABLE::SLOPESURFACE(:,:)
 
 TYPE STREAMLINENODE_IN_TET_TYDEF
     INTEGER::NNODE=0
-    INTEGER,ALLOCATABLE::NODE(:) !ÂçïÊï∞Ôºåistreaamline,ÂèåÊï∞ÔºåiNODE
+    INTEGER,ALLOCATABLE::NODE(:) !µ• ˝,istreaamline,À´ ˝,iNODE
 CONTAINS
     PROCEDURE::ENLARGE_NODE=>TET2SN_ENLARGE_NODE
 ENDTYPE
@@ -247,7 +247,7 @@ LOGICAL::ISSTREAMLINESLOPE=.FALSE.,IsFilterLocalMinimalMode=.false.,isProbeState
 TYPE TIMESTEPINFO_TYDEF
     INTEGER::ISTEP=1,NSTEP=1
     REAL(8),ALLOCATABLE::TIME(:)
-	!INTEGER,ALLOCATABLE::CALSTEP(:) !ÂΩìÂâçÊ≠•ÂØπÂ∫îÁöÑËÆ°ÁÆóÊ≠•ÔºåÊ≥®ÊÑèÔºåËÆ°ÁÆóÊ≠•‰∏éÁªòÂõæÊ≠•ÂæÄÂæÄ‰∏ç‰∏ÄËá¥„ÄÇ
+	!INTEGER,ALLOCATABLE::CALSTEP(:) !µ±«∞≤Ω∂‘”¶µƒº∆À„≤Ω,◊¢“‚,º∆À„≤Ω”ÎªÊÕº≤ΩÕ˘Õ˘≤ª“ª÷¬°£
     LOGICAL::ISSHOWN=.TRUE.
 	REAL(8)::VSCALE(NVECTORPAIR)=1.0D0,VMIN(NVECTORPAIR),VMAX(NVECTORPAIR)
     CHARACTER(256)::INFO=''
@@ -277,8 +277,8 @@ INTEGER::NODALID_SHOW=-1,ELEMENTID_SHOW=-2
     contains
 
     SUBROUTINE CAL_SLIDE_STRIP(this,WIDTH)
-    !ËÆ°ÁÆó3DËæπÂù°ÊªëÂä®Â∏¶
-    !ÊªëÂä®Èù¢Áî±ÊµÅÁ∫øÊñπÂêëÂíåÁ¨¨‰∫å‰∏ªÂ∫îÂäõÊñπÂêëÁ°ÆÂÆö(Ëøë‰ºº)
+    !º∆À„3D±ﬂ∆¬ª¨∂Ø¥¯
+    !ª¨∂Ø√Ê”…¡˜œﬂ∑ΩœÚ∫Õµ⁄∂˛÷˜”¶¡¶∑ΩœÚ»∑∂®(Ω¸À∆)
     !
         USE SolverMath,ONLY:CS_VECTOR
         IMPLICIT NONE
@@ -298,12 +298,12 @@ INTEGER::NODALID_SHOW=-1,ELEMENTID_SHOW=-2
         !     IF(I<THIS.NV) THEN
         !         DX1=THIS.V(:,I+1)-THIS.V(:,I)
         !         DX1=DX1/NORM2(DX1)
-        !         !DIR2:Á¨¨‰∫å‰∏ªÂ∫îÂäõÊñπÂêë
+        !         !DIR2:µ⁄∂˛÷˜”¶¡¶∑ΩœÚ
         !         DIR2=CS_VECTOR(THIS.PARA_SFCAL(9:11,I),DX1,.true.)                
         !     ENDIF
-        !     !dir1Áõ∏ÈÇªÊªëÂä®Èù¢‰∫§Á∫øÂêëÈáè
+        !     !dir1œ‡¡⁄ª¨∂Ø√ÊΩªœﬂœÚ¡ø
         !     IF(I==1.OR.I==THIS.NV) THEN 
-        !         !ÂÅáÂÆöÁ¨¨‰∏Ä‰∏™‰∫§Á∫ø‰∏∫zÂπ≥Èù¢‰∏éÁ¨¨‰∏Ä‰∏™ÊªëÂä®Èù¢ÁöÑ‰∫§Á∫ø
+        !         !ºŸ∂®µ⁄“ª∏ˆΩªœﬂŒ™z∆Ω√Ê”Îµ⁄“ª∏ˆª¨∂Ø√ÊµƒΩªœﬂ
         !         DIR1=CS_VECTOR([0.,0.,1.0],THIS.PARA_SFCAL(9:11,I),.true.) 
         !     ELSE
         !         T1=DOT_PRODUCT(THIS.PARA_SFCAL(9:11,I),THIS.PARA_SFCAL(9:11,I-1))
@@ -314,13 +314,13 @@ INTEGER::NODALID_SHOW=-1,ELEMENTID_SHOW=-2
         !         ENDIF              
         !     ENDIF
 
-        !     T1=DOT_PRODUCT(DIR2,DIR1) !‰ª§Êù°Â∏¶ÁöÑÂÆΩÂ∫¶Ëøë‰ººÁõ∏Á≠â
+        !     T1=DOT_PRODUCT(DIR2,DIR1) !¡ÓÃı¥¯µƒøÌ∂»Ω¸À∆œ‡µ»
         !     W2=W1/ABS(T1)
         !     DX2=DIR1*W2
 
-        !     !‰∏ãÈù¢ÁöÑËøêÁÆóÊòØ‰∏∫‰∫Ü‰øùËØÅÂõõËæπÂΩ¢ÁöÑÂØπËæπ‰∏çÁõ∏‰∫§
+        !     !œ¬√Êµƒ‘ÀÀ„ «Œ™¡À±£÷§Àƒ±ﬂ–Œµƒ∂‘±ﬂ≤ªœ‡Ωª
         !     IF(I>1) THEN
-        !         !Áõ∏ÈÇªÂØπËæπÁöÑÊñπÂêëÁöÑÊñπÂêëÂ∫îËØ•‰∏ÄËá¥
+        !         !œ‡¡⁄∂‘±ﬂµƒ∑ΩœÚµƒ∑ΩœÚ”¶∏√“ª÷¬
         !         DIR1=THIS.SLIDE_STRIP(:,I-1,1)-THIS.V(:,I-1)
         !         T1=DOT_PRODUCT(DIR1,DX2)
         !         IF(T1>0.D0) THEN
@@ -340,9 +340,9 @@ INTEGER::NODALID_SHOW=-1,ELEMENTID_SHOW=-2
             DX2=THIS.VAL([POSDATA.IXPS2,POSDATA.IYPS2,POSDATA.IZPS2],I)
             DX2=DX2/NORM2(DX2)
 
-            !ÊµÅÁ∫øÊªëÊßΩ‰∏éÂù°Ë°®Èù¢ÁöÑ‰∫§Á∫ø
+            !¡˜œﬂª¨≤€”Î∆¬±Ì√ÊµƒΩªœﬂ
             IF(I==1.OR.I==THIS.NV) THEN 
-                !ÂÅáÂÆöÁ¨¨‰∏Ä‰∏™‰∫§Á∫ø‰∏∫zÂπ≥Èù¢‰∏éÁ¨¨‰∏Ä‰∏™ÊªëÂä®Èù¢ÁöÑ‰∫§Á∫ø
+                !ºŸ∂®µ⁄“ª∏ˆΩªœﬂŒ™z∆Ω√Ê”Îµ⁄“ª∏ˆª¨∂Ø√ÊµƒΩªœﬂ
                 N1=this.iel(i)
                 N2=COUNT(tet(n1).adjelt(1:TET(N1).NF)==0)
                 N3=0
@@ -372,10 +372,10 @@ INTEGER::NODALID_SHOW=-1,ELEMENTID_SHOW=-2
 
             ENDIF 
 
-            !‰∏ãÈù¢ÁöÑËøêÁÆóÊòØ‰∏∫‰∫Ü‰øùËØÅÂõõËæπÂΩ¢ÁöÑÂØπËæπ‰∏çÁõ∏‰∫§
+            !œ¬√Êµƒ‘ÀÀ„ «Œ™¡À±£÷§Àƒ±ﬂ–Œµƒ∂‘±ﬂ≤ªœ‡Ωª
             T1=W1
             IF(I>1) THEN
-                !Áõ∏ÈÇªÂØπËæπÁöÑÊñπÂêëÂ∫îËØ•‰∏ÄËá¥
+                !œ‡¡⁄∂‘±ﬂµƒ∑ΩœÚ”¶∏√“ª÷¬
                 DIR1=THIS.SLIDE_STRIP(:,I-1,1)-THIS.SLIDE_STRIP(:,I-1,2)
                 T1=DOT_PRODUCT(DIR1,DX2)
                 IF(T1>0.D0) THEN
@@ -790,7 +790,7 @@ SUBROUTINE STEP_INITIALIZE(STEPINFO,ISTEP,NSTEP,TIME)
     POSDATA.miny=minval(POSDATA.NODE.COORD(2));POSDATA.maxy=maxval(POSDATA.NODE.COORD(2))
     POSDATA.minz=minval(POSDATA.NODE.COORD(3));POSDATA.maxz=maxval(POSDATA.NODE.COORD(3))
     POSDATA.MODELR=((POSDATA.minx-POSDATA.maxx)**2+(POSDATA.miny-POSDATA.maxy)**2+(POSDATA.minz-POSDATA.maxz)**2)**0.5/2.0
-    !‰∫åÁª¥Ê®°ÂûãÊúâÊó∂‰ºöËæìÂá∫z,ËøôÊó∂ÊâÄÊúâÁöÑzÁõ∏Á≠âÔºå‰ª§POSDATA.NDIM=2
+    !∂˛Œ¨ƒ£–Õ”– ±ª· ‰≥ˆz,’‚ ±À˘”–µƒzœ‡µ»,¡ÓPOSDATA.NDIM=2
     
     if(abs(POSDATA.minz-POSDATA.maxz)<1.e-6) POSDATA.NDIM=2
 
@@ -1122,9 +1122,10 @@ subroutine slope_handler(selection)
     !INTEGER,EXTERNAL::POINTlOC_BC
     real(8)::AR2D1(2,2000),AR2D2(2,2000)
     INTEGER::unit,NAR1=100,NTOREAD1=100,NSET1=10,IERR
-    INTEGER::NREADIN1,NSETREADIN1,NNODE1,EF
-    REAL(8)::AR1(100),DT1,FA1,FM1
+    INTEGER::NREADIN1,NSETREADIN1,NNODE1,EF,FLAG1
+    REAL(8)::AR1(100),DT1,FA1,FM1,PT1(3)
     CHARACTER(32)::SET1(10)
+    CHARACTER(512)::HELPSTRING
     REAL(IWP),ALLOCATABLE::NODE1(:,:)
     
     select case (selection)
@@ -1211,82 +1212,126 @@ subroutine slope_handler(selection)
         CALL STREAMLINE_PLOT()
         
     CASE(ReadSlipSurface_slope_click)
+      helpstring=' ‰»Î∏Ò Ω:\n &
+            & 0) nslip, [flag1]  &
+            & // nslip=∂¡»Îµƒª¨ª° ˝°£ flag1:=1,±Ì æΩˆ ‰»Îª¨ª°µƒ“ª∏ˆΩ⁄µ„,∆‰À¸Ω⁄µ„”…ª˝∑÷»∑∂®; =0,∂¡»Îª¨ª°…œµƒÀ˘”–Ω⁄µ„,ª¨ª°≤ª‘ŸΩ¯––ª˝∑÷»∑∂®(ƒ¨»œ) \n  &
+            & // »Áπ˚(flag==1) ‘Ú∞¥ 1£© \n &
+            & 1) x, y, [z]      //√ø––Œ™“ª∏ˆª¨ª°…œµƒ“ª∏ˆΩ⁄µ„◊¯±Í,π≤nlip––°£\n &
+            & // ∑Ò‘Ú  “¿¥Œ ‰»Î∞¥ 1.0£©∫Õ 1.1£©,π≤nslip◊È°£\n &
+            & 1.0) nnode, [dx]   //nnode=√øª¨ª°…œΩ⁄µ„ ˝°£dx: »Áπ˚¥Û”⁄0,‘Úµ± ‰»ÎΩ⁄µ„œ‡¡⁄º‰æ‡¥Û”⁄dx ±,∂‘∆‰◊ˆΩ¯“ª≤Ωµƒœ∏∑÷,dxŒ™œ∏∑÷∫Ûµƒº‰æ‡°£\n &
+            & 1.1) x,y,[z]   //π≤nnode–– \n'C
+
+        WRITE(*,'(A)') HELPSTRING 
+
         EF=0
         open(10,file='',status='old',iostat=EF)
         IF(EF/=0) RETURN
-        READ(10,*) NSLIP1
-        DO K=1,NSLIP1
-			IF(NSTREAMLINE+1>MAXNSTREAMLINE) CALL ENLARGE_STREAMLINE()
-            NSTREAMLINE=NSTREAMLINE+1
-            CALL strtoint(10,AR1,NAR1,NREADIN1,NTOREAD1,SET1,NSET1,NSETREADIN1)
-            N1=INT(AR1(1));AR2D1=0.d0;AR2D2=0.d0
-            DO I=1,N1            
-                READ(10,*,IOSTAT=IERR) AR2D1(:,I)
-                IF (IERR > 0) THEN
-                    WRITE(*,*) 'Check input.  Something was wrong,N=',I
-                    CLOSE(10)
-                    RETURN
-                ELSE IF (IERR < 0) THEN
-                    WRITE(*,*)  'END_OF_FILE.,N=',I
-                    CLOSE(10)
-                    RETURN
+        CALL strtoint(10,AR1,NAR1,NREADIN1,NTOREAD1,SET1,NSET1,NSETREADIN1)
+        NSLIP1=INT(AR1(1))
+        IF(NREADIN1>1) THEN
+            FLAG1=INT(AR1(2))
+        ELSE
+            FLAG1=0 !THE STREAMLINE NODE IS INPUT AND NO NEED TO INTEGRATE IN
+        ENDIF
+        !
+        IF(FLAG1/=1) THEN
+            DO K=1,NSLIP1
+                IF(NSTREAMLINE+1>MAXNSTREAMLINE) CALL ENLARGE_STREAMLINE()
+                NSTREAMLINE=NSTREAMLINE+1
+                CALL strtoint(10,AR1,NAR1,NREADIN1,NTOREAD1,SET1,NSET1,NSETREADIN1)
+                N1=INT(AR1(1));AR2D1=0.d0;AR2D2=0.d0
+                DO I=1,N1            
+                    READ(10,*,IOSTAT=IERR) AR2D1(:,I)
+                    IF (IERR > 0) THEN
+                        WRITE(*,*) 'Check input.  Something was wrong,N=',I
+                        CLOSE(10)
+                        RETURN
+                    ELSE IF (IERR < 0) THEN
+                        WRITE(*,*)  'END_OF_FILE.,N=',I
+                        CLOSE(10)
+                        RETURN
+                    ENDIF
+                ENDDO
+                IF(NREADIN1>1.AND.AR1(2)>1.D-7) THEN
+                    DT1=AR1(2) !Ω¯“ª≤Ωœ∏∑÷
+                    N2=0
+                    DO I=1,N1-1
+                        CALL EQUDIVIDE(AR2D1(:,I),AR2D1(:,I+1),DT1,NODE1,NNODE1)
+                        !GET RID OFF THE REPEATED NODES
+                        IF(I>1) then
+                            OFFSET1=1 
+                        ELSE
+                            OFFSET1=0
+                        ENDIF
+                        IF(N2+NNODE1-OFFSET1>2000) THEN
+                            STOP 'OVERSIZE.SUB=slope_handler'                        
+                        ENDIF
+                        AR2D2(:,N2+1:N2+NNODE1-OFFSET1)=NODE1(:,1+OFFSET1:NNODE1)
+                        N2=N2+NNODE1-OFFSET1                    
+                    ENDDO  
+                    STREAMLINE(NSTREAMLINE).NV=N2                
+                ELSE
+                    STREAMLINE(NSTREAMLINE).NV=N1
+                    AR2D2(:,1:N1)=AR2D1(:,1:N1)
+                ENDIF
+                
+                
+                IF(ALLOCATED(STREAMLINE(NSTREAMLINE).V)) DEALLOCATE(STREAMLINE(NSTREAMLINE).V)                
+                ALLOCATE(STREAMLINE(NSTREAMLINE).V(3,STREAMLINE(NSTREAMLINE).NV))
+                IF(ALLOCATED(STREAMLINE(NSTREAMLINE).VAL)) DEALLOCATE(STREAMLINE(NSTREAMLINE).VAL)
+                ALLOCATE(STREAMLINE(NSTREAMLINE).VAL(1:POSDATA.NVAR,STREAMLINE(NSTREAMLINE).NV))
+                STREAMLINE(NSTREAMLINE).VAL=0.D0
+                STREAMLINE(NSTREAMLINE).V(3,:)=0.d0
+                N3=0
+                DO J=1,STREAMLINE(NSTREAMLINE).NV
+                    !READ(10,*) STREAMLINE(NSTREAMLINE).V(1:2,J)
+                    STREAMLINE(NSTREAMLINE).V(1:2,J)=AR2D2(:,J)
+                    IEL1=POINTlOC_BC(STREAMLINE(NSTREAMLINE).V(:,j),TRYIEL1)
+                    TRYIEL1=IEL1
+                    IF(IEL1>0) THEN ! ‰»Îµƒª¨œﬂÕ∑Œ≤ø…ƒ‹‘⁄«¯”ÚÕ‚,»•µÙ°£
+                        N3=N3+1
+                        call getval(STREAMLINE(NSTREAMLINE).V(:,J),iel1,STREAMLINE(NSTREAMLINE).VAL(:,N3))
+                        IF(J/=N3) STREAMLINE(NSTREAMLINE).V(:,N3)=STREAMLINE(NSTREAMLINE).V(:,J)
+                    ENDIF
+                ENDDO
+                STREAMLINE(NSTREAMLINE).NV=N3
+                CALL slopestability_streamline(NSTREAMLINE)
+                STREAMLINE(NSTREAMLINE).ISINPUTSLIP=1
+                isShowReadinSlip=.TRUE.
+                STREAMLINE(NSTREAMLINE).SHOW=.TRUE.
+                NINPUTSLIP=NINPUTSLIP+1
+                INPUTSLIP(NINPUTSLIP)=NSTREAMLINE
+                
+                !CALL POLYLINE_FOS_CAL(STREAMLINE(NSTREAMLINE).V(1:2,:),STREAMLINE(NSTREAMLINE).NV,0.5,FM1,FA1)
+                !!
+                !PRINT *, "FM1,FA1,FOS=",FM1,FA1,FA1/FM1
+                
+            ENDDO
+                
+        ELSE
+            DO I=1,NSLIP1
+                READ(10,*) PT1(1:POSDATA.NDIM)
+                N1=POINTlOC_BC(PT1,0)
+                IF(N1<1.OR.N1>NTET) THEN
+                    !”…”⁄∂¡»Îµƒ ˝æ›ø…ƒ‹¥Ê‘⁄ŒÛ≤Ó,µº÷¬µ„¥¶”⁄ƒ£–ÕÕ‚,¥À ±¡Óz=z-0.005,∆ÛÕºΩ´µ„¿≠»Îƒ£–Õƒ⁄(ºŸ∂® ‰»Îµƒµ„¥¶”⁄ƒ£–Õµƒ…œ±Ì√Ê)
+                    PT1(POSDATA.NDIM)=PT1(POSDATA.NDIM)-0.005
+                    N1=POINTlOC_BC(PT1,0)
+                ENDIF
+                
+                IF(N1>0.AND.N1<=NTET) THEN
+                    call gen_new_streamline(PT1)
+                    NINPUTSLIP=NINPUTSLIP+1
+                    INPUTSLIP(NINPUTSLIP)=NSTREAMLINE
+                    STREAMLINE(nstreamline).isinputslip=1
+                    isShowReadinSlip=.TRUE.
+                    STREAMLINE(NSTREAMLINE).SHOW=.TRUE.                    
+                ELSE
+                    PRINT *, 'THE INPUT POINT(I) SEEMS TO OUTSIDE THE MODEL ZONE. I= ', I
                 ENDIF
             ENDDO
-            IF(NREADIN1>1.AND.AR1(2)>1.D-7) THEN
-                DT1=AR1(2)
-                N2=0
-                DO I=1,N1-1
-                    CALL EQUDIVIDE(AR2D1(:,I),AR2D1(:,I+1),DT1,NODE1,NNODE1)
-                    !GET RID OFF THE REPEATED NODES
-                    IF(I>1) then
-                        OFFSET1=1 
-                    ELSE
-                        OFFSET1=0
-                    ENDIF
-                    IF(N2+NNODE1-OFFSET1>2000) THEN
-                        STOP 'OVERSIZE.SUB=slope_handler'                        
-                    ENDIF
-                    AR2D2(:,N2+1:N2+NNODE1-OFFSET1)=NODE1(:,1+OFFSET1:NNODE1)
-                    N2=N2+NNODE1-OFFSET1                    
-                ENDDO  
-                 STREAMLINE(NSTREAMLINE).NV=N2                
-            ELSE
-                STREAMLINE(NSTREAMLINE).NV=N1
-                AR2D2(:,1:N1)=AR2D1(:,1:N1)
-            ENDIF
             
-            
-            IF(ALLOCATED(STREAMLINE(NSTREAMLINE).V)) DEALLOCATE(STREAMLINE(NSTREAMLINE).V)                
-            ALLOCATE(STREAMLINE(NSTREAMLINE).V(3,STREAMLINE(NSTREAMLINE).NV))
-            IF(ALLOCATED(STREAMLINE(NSTREAMLINE).VAL)) DEALLOCATE(STREAMLINE(NSTREAMLINE).VAL)
-            ALLOCATE(STREAMLINE(NSTREAMLINE).VAL(1:POSDATA.NVAR,STREAMLINE(NSTREAMLINE).NV))
-            STREAMLINE(NSTREAMLINE).VAL=0.D0
-            STREAMLINE(NSTREAMLINE).V(3,:)=0.d0
-            N3=0
-            DO J=1,STREAMLINE(NSTREAMLINE).NV
-                !READ(10,*) STREAMLINE(NSTREAMLINE).V(1:2,J)
-                STREAMLINE(NSTREAMLINE).V(1:2,J)=AR2D2(:,J)
-                IEL1=POINTlOC_BC(STREAMLINE(NSTREAMLINE).V(:,j),TRYIEL1)
-                TRYIEL1=IEL1
-                IF(IEL1>0) THEN !ËæìÂÖ•ÁöÑÊªëÁ∫øÂ§¥Â∞æÂèØËÉΩÂú®Âå∫ÂüüÂ§ñÔºåÂéªÊéâ„ÄÇ
-                    N3=N3+1
-                    call getval(STREAMLINE(NSTREAMLINE).V(:,J),iel1,STREAMLINE(NSTREAMLINE).VAL(:,N3))
-                    IF(J/=N3) STREAMLINE(NSTREAMLINE).V(:,N3)=STREAMLINE(NSTREAMLINE).V(:,J)
-                ENDIF
-            ENDDO
-            STREAMLINE(NSTREAMLINE).NV=N3
-            CALL slopestability_streamline(NSTREAMLINE)
-            STREAMLINE(NSTREAMLINE).ISINPUTSLIP=1
-            isShowReadinSlip=.TRUE.
-            STREAMLINE(NSTREAMLINE).SHOW=.TRUE.
-            NINPUTSLIP=NINPUTSLIP+1
-            INPUTSLIP(NINPUTSLIP)=NSTREAMLINE
-            
-            !CALL POLYLINE_FOS_CAL(STREAMLINE(NSTREAMLINE).V(1:2,:),STREAMLINE(NSTREAMLINE).NV,0.5,FM1,FA1)
-            !!
-            !PRINT *, "FM1,FA1,FOS=",FM1,FA1,FA1/FM1
-            
-        ENDDO
+        ENDIF        
+        PRINT *,'INPUT DONE!'
         
         CALL STREAMLINE_PLOT()
         close(10)
@@ -2000,8 +2045,8 @@ SUBROUTINE OUT_SHOWN_STREAMLINE(FILE,OUTID,INFO)
     
 10  FORMAT('ILINE',1X,'  INODE',1X,22X,'FOS',1X,<POSDATA.NVAR>(A24,1X),&
         15X,'SLIPSEG_SN',14X,'SLIPSEG_TAU',5X,'SLIPSEG_ANGLE_IN_RAD',13X,'SLIPSEG_TAUF',&
-        14X,'SLIPSEG_LEN',16X,'SLIPSEG_C',14X,'SLIPSEG_PHI',14X,'SLIPSEG_SFR',5X,'//DATE=',A8,',TIME=',A8)
-20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR+9>(EN24.15,1X))
+        14X,'SLIPSEG_LEN',16X,'SLIPSEG_C',14X,'SLIPSEG_PHI',14X,'SLIPSEG_SFR',12X,'SLIPFACE_COS1',12X,'SLIPFACE_COS2',12X,'SLIPFACE_COS3',5X'//DATE=',A8,',TIME=',A8)
+20  FORMAT(I5,1X,I7,1X,<POSDATA.NVAR+12>(EN24.15,1X))
          
 30  FORMAT(I5,1X,I7,1X,<POSDATA.NDIM>(EN24.15,1X),'*THE POINT IS OUT OF MODEL ZONE.*')
 

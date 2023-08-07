@@ -843,7 +843,7 @@ end subroutine
             endif
                 
         enddo
-        nvppc=n1
+        !nvppc=n1
         
         close(unit)    
 10      format('Custom output format: %',A1,' is not supported yet.')

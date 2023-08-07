@@ -15,11 +15,13 @@ module meshDS
                     poly3d=1,&
                     ismerged=1,&
                     iscompounded=0,&
-                    ISMESHSIZE=1
+                    ISMESHSIZE=1,&
+                    isgendem=0
+                    
     integer,parameter:: ET_PRM=63,&
                     ET_TET=43,Linear=1,Membrance=0
     logical::ismeminpdone=.false.
-    real(8)::um
+    real(8)::um,mesharea=0.d0
     
 	parameter(maxstk=2000,um=1e15)
     
@@ -226,10 +228,13 @@ module meshDS
 	integer::nedge=0
 
 	type adjlist_tydef
-		integer::count=0,ipt1=0 !the number of adjacent node 
+		integer::count=0,ipt1=0,nelt=0 !the number of adjacent node 
 		integer,pointer::node(:)=>null() !adjacent node
 		integer,pointer::edge(:)=>null() !adjacent edge
-        !integer,pointer::elt(:)=>null() !adjacent element
+        integer,allocatable::elt(:),subid(:) !adjacent element
+    contains
+        procedure::epush=>adjlist_elt_push
+        procedure::sort=>adjlist_sort
  	end type
 	type(adjlist_tydef),allocatable::adjlist(:) !adjacent table for nodes
 
@@ -377,6 +382,71 @@ module meshDS
     
     contains
     
+    subroutine adjlist_elt_push(self,ielt,inode)
+        implicit none
+        class(adjlist_tydef)::self
+        integer,intent(in)::ielt,inode
+
+        self.nelt=self.nelt+1
+        if(self.nelt>size(self.elt)) then
+            call ENLARGE_AR(self.elt,5)
+            call ENLARGE_AR(self.subid,5)
+        endif
+        self.elt(self.nelt)=ielt
+        self.subid(self.nelt)=inode
+    endsubroutine
+
+    subroutine adjlist_sort(self,thisnode)
+    !sort node edge and element from -pi to pi.
+        implicit none
+        class(adjlist_tydef)::self
+        integer,intent(in)::thisnode
+        real(8)::ar1(self.count),x(2),t1
+        integer::i,e1(2),e2(2),order(self.count),ia1(self.count),ia2(self.count)
+        do i=1,self.count
+            x(1)=node(self.node(i)).x-node(thisnode).x
+            x(2)=node(self.node(i)).y-node(thisnode).y
+            ar1(i)=atan(x(2),x(1))
+        enddo
+        order=[1:self.count]
+        call quick_sort(ar1,order)
+        ia1=self.node(1:self.count)
+        self.node(1:self.count)=ia1(order)
+        ia1=self.edge(1:self.count)
+        self.edge(1:self.count)=ia1(order)
+
+        !set elt
+        ia2=-1
+        e1=edge(self.edge(1)).E
+        if(any(e1==-1)) then
+            ia2(1)=maxval(e1)
+            !如果该单元是否在该边的右边,则该边为边界（只有一个单元）
+            x(1)=sum(node(elt(ia2(1)).node(1:3)).x)/3-node(thisnode).x
+            x(2)=sum(node(elt(ia2(1)).node(1:3)).y)/3-node(thisnode).Y
+            t1=atan(x(2),x(1))
+            x(1)=node(self.node(1)).x-node(thisnode).x
+            x(2)=node(self.node(1)).y-node(thisnode).y
+            if(t1<atan(x(2),x(1))) ia2(1)=-1
+        else
+            e2=edge(self.edge(2)).E
+            if(any(e2-e1(1)==0)) then
+                ia2(1)=e1(1)
+            else
+                ia2(1)=e1(2)
+            endif
+        endif
+        do i=2,self.count
+            e2=edge(self.edge(i)).E
+            if(e2(1)==ia2(i-1)) then
+                ia2(i)=e2(2)
+            else
+                ia2(i)=e2(1)
+            endif
+        enddo        
+        self.elt=pack(ia2,ia2>0)
+        self.nelt=size(self.elt)
+    endsubroutine
+
     FUNCTION GET_VALUE_NODE(DAR,ILOC,ATTRIBUTE,IAT) RESULT(RA)
         IMPLICIT NONE
         TYPE(point_tydef),INTENT(IN)::DAR(:)
@@ -1581,8 +1651,8 @@ subroutine plane_imp_line_par_int_3d ( a, b, c, d, x0, y0, z0, f, g, h, &
 !
 !  The line and the plane may be parallel.
 !
-!  if ( abs ( denom ) < tol * norm1 * norm2 ) then
-  if ( abs ( denom ) < 1.d-8 ) then !modified by lgy 
+  if ( abs ( denom ) < tol * norm1 * norm2 ) then
+  !if ( abs ( denom ) < 1.d-8 ) then !modified by lgy 
     if ( a * x0 + b * y0 + c * z0 + d == 0.0D+00 ) then
       intersect = 2
       p(1) = x0
@@ -1675,6 +1745,6 @@ subroutine plane_exp2imp_3d ( p1, p2, p3, a, b, c, d )
   d = - p2(1) * a - p2(2) * b - p2(3) * c
 
   return
-end  
-  
+end
+
 end module

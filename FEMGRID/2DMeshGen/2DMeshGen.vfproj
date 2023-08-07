@@ -25,7 +25,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug|x64">
-				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" HeapArrays="0" F2003Semantics="true" FPS4Filenames="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtQuickWinDebug"/>
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" HeapArrays="0" F2003Semantics="true" FPS4Filenames="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtQuickWinDebug" UseMkl="mklParallel"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemWindows"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -35,7 +35,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|x64">
-				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc" SuppressStartupBanner="true" HeapArrays="0" FPS4Filenames="true" RuntimeLibrary="rtQuickWin"/>
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc /fpp" SuppressStartupBanner="true" HeapArrays="0" FPS4Filenames="true" RuntimeLibrary="rtQuickWin" UseMkl="mklParallel"/>
 				<Tool Name="VFLinkerTool" SuppressStartupBanner="true" SubSystem="subSystemWindows"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -52,9 +52,11 @@
 		<File RelativePath="..\6&amp;15_noded_trinagle.f90"/>
 		<File RelativePath=".\BC_HANDLE.f90"/>
 		<File RelativePath=".\CutOffWall.f90"/>
+		<File RelativePath=".\DemDiscGen.f90"/>
 		<File RelativePath="..\limitanalysisGrid.f90"/>
 		<File RelativePath="..\out_geomodel_to_gmsh.f90"/>
 		<File RelativePath="..\PrismElement.f90"/>
+		<File RelativePath=".\sample_PDF.f90"/>
 		<File RelativePath=".\Structure-model-geo.f90">
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
@@ -84,8 +86,16 @@
 		<File RelativePath="..\mc40.for"/>
 		<File RelativePath="..\mc40dependency.for"/>
 		<File RelativePath="..\mc49.for"/></Filter>
+		<File RelativePath="..\..\..\..\..\github\fmin\src\fmin_module.F90">
+			<FileConfiguration Name="Release|x64">
+				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="fpp"/></FileConfiguration>
+			<FileConfiguration Name="Debug|x64">
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc /fpp"/></FileConfiguration></File>
 		<File RelativePath="..\mod_functional.f90"/>
 		<File RelativePath="..\mod_interfaces.f90"/>
+		<File RelativePath="..\..\..\..\..\github\nlesolver-fortran\src\nlesolver_module.F90">
+			<FileConfiguration Name="Debug|x64">
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/assume:noold_maxminloc /fpp"/></FileConfiguration></File>
 		<File RelativePath="..\..\Module\quicksort.f90"/></Filter>
 		<File RelativePath="..\readme.dat"/></Filter></Files>
 	<Globals/></VisualStudioProject>

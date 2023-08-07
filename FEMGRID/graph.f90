@@ -2,7 +2,7 @@ subroutine graph
 	USE DFLIB
 	use meshDS
 	use ds_t
-    use geomodel
+    use geomodel    
 	implicit none
 	LOGICAL statusmode
 	TYPE (windowconfig) myscreen
@@ -18,7 +18,7 @@ subroutine graph
 					 check_enum,check_EZONE,penaltyelementshow, &
 					 DISCONTINUITIES,offset,gen_6_noded_triangle, &
 					 gen_15_noded_triangle,Generate_3D_MODEL, &
-					 Check_Edge					 
+					 Check_Edge,gen_dem_particle					 
 	integer(4)::oldcolor,event,ix,iy,res,result
 	integer(4)::iunit, ievent, ikeystate, ixpos, iypos
 	!common i4
@@ -51,6 +51,7 @@ subroutine graph
     result = INSERTMENUQQ (4, 4, $MENUENABLED, 'Generate gmsh volume model'c, out_volume_to_gmsh2)
     result = INSERTMENUQQ (4, 5, $MENUENABLED, 'Output Elevation at nodes'c, out_z_at_node)
     result = INSERTMENUQQ (4, 6, $MENUENABLED, 'Output Elevation at element center'c, out_z_at_center)
+    result = INSERTMENUQQ (4, 7, $MENUENABLED, 'Generate 2D DEM particle'c, gen_dem_particle)
     !result = INSERTMENUQQ (4, 5, $MENUENABLED, 'Generate tet element'c, Generate_tet_element)
 	result = INSERTMENUQQ (6, 0, $MENUCHECKED, 'Control'c, nul)
 	result = INSERTMENUQQ (6, 1, $MENUENABLED, 'display&all'c, displayall)
@@ -158,10 +159,14 @@ subroutine graph
 
     END
 
+    
+    
+    
    SUBROUTINE elementgraph(iunit, ievent, ikeystate, ixpos, iypos)
       use meshDS
       use ds_t
 	  USE DFLIB
+      use packgen2d
 	  implicit none
       integer(4)          oldcolor,iunit, ievent, ikeystate, ixpos, iypos
 	  !external,real displayinfo
@@ -284,8 +289,11 @@ subroutine graph
 	      oldcolor=setcolorrgb(#ff00)
 	      status=RECTANGLE_w( $GBORDER,winxul, winyul,winxlr , winylr)
 		
-	  end if
+      end if
 
+      call  particle2D.plot()
+      
+      
  	 oldcolor=setcolorrgb(#0000ff)
 	 result = INITIALIZEFONTS()
      result = SETFONT('t''Arial Narrow''h18w10p')
@@ -525,11 +533,24 @@ subroutine graph
 		 end do
 
 
-	  end do
+      end do
 
+      
 
     end	subroutine
 
+    subroutine gen_dem_particle()
+        use packgen2d
+        implicit none       
+        
+
+        call  particle2D.gen_particle()
+        
+        
+
+    endsubroutine
+    
+    
     subroutine displaysubstructure()
 	   use ds_t
 	   implicit none	

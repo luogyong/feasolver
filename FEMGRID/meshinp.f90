@@ -196,6 +196,7 @@ enddo
      use CutoffWall
      use geomodel,only:blo,nblo
      use triangle_io,only:libtriangle
+     use sample_pdf
 	 implicit none
 	 integer::i,j,k,j1
 	
@@ -234,7 +235,11 @@ enddo
 	 term=trim(term)
 	
 	 select case(term)
-        case('vol_pg')
+     case('pdf_sample','sample')
+        call example_pdf.readin(unit)
+        if(example_pdf.isout/=0) call example_pdf.output()
+        
+    case('vol_pg')
             print *,'Reading vol_pg zone data...'
             call skipcomment(unit)
             read(unit,*) nvol_pg
@@ -356,7 +361,7 @@ enddo
 		   print *,'Reading POINT data'
 		   oldcolor = SETTEXTCOLOR(INT2(10))
 		   write(*,'(A1024)') '\n Point的输入格式为:\n &
-           &    0) Point[,soillayer=#,inpmethod=0|1|2,zorder=0|1,isnorefined=0|1|-1|-a],poly3d=0|1|,ismerged=0|1,iscompounded=0|1,ismeshsize=0|1 \n  &
+           &    0) Point[,soillayer=#,inpmethod=0|1|2,zorder=0|1,isnorefined=0|1|-1|-a],poly3d=0|1|,ismerged=0|1,iscompounded=0|1,ismeshsize=0|1,isgendem=0!1 \n  &
            &    1) 点数(inpn);\n &
            &    2) 序号(num),坐标(x),坐标(y),[elevation(1:soillayer+1)][,meshsize]. 共inpn行.\n &
            &    Notes: \n &
@@ -371,7 +376,8 @@ enddo
            &        i) poly3d=0,不输出tetgen的poly文件;=1,输出facetpoly文件。\n &
            &        j) ismerged=0,不合并小网格;=1,合并小网格\n &
            &        k) iscompounded,=0,gmsh options.\n &   
-		   &        l) ismeshsize,是否输出单元尺度大小到geo文件中,N0Y1,.\n &    
+		   &        l) ismeshsize,是否输出单元尺度大小到geo文件中,N0Y1.\n &    
+		   &        l) isgendem,是否根据网格生成离散元颗粒.N0Y1\n &                   
            &'C
 		   oldcolor = SETTEXTCOLOR(INT2(15))
             do i=1, pro_num

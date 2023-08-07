@@ -54,7 +54,7 @@ subroutine readin()
 	END DO
 	
 	if(nnode<1.or.nel<1) then
-        print *, "NO MESH DATA.[NNODE,NEL]=",NNODE,NEL
+        print *, "NO GMSH MESH DATA.[NNODE,NEL]=",NNODE,NEL
         stop
     endif
 
@@ -212,7 +212,7 @@ subroutine kwcommand(term,unit)
         strL1=11
         write(*, 20) "ENDHELPFILE" 
     
-    CASE('reliefwell2d','rw2d')
+    CASE('reliefwell2d','rw2d','ps3d')
         print *, 'READING reliefwell2d DATA...'
         call skipcomment(unit)
         read(unit,*) nrwell
@@ -226,7 +226,7 @@ subroutine kwcommand(term,unit)
             reliefwell(i).hu=ar(4)
 			reliefwell(i).hd=ar(5)
         enddo
-    CASE("endreliefwell2d","endrw2d")
+    CASE("endreliefwell2d","endrw2d","endps3d")
         strL1=7
         write(*, 20) "ENDRW2D"        
     CASE('cut_off_wall_material','cow_mat','cowmat')
@@ -1252,10 +1252,7 @@ subroutine Tosolver()
     DO I=1,NWELLBORE
         CALL WELLBORE(I).OUTQNODE(UNIT)
     ENDDO
-
-	DO I=1,NCOPYFILE
-		CALL DO_COPYFILE(COPYFILE(I),UNIT)			
-	END DO
+    
 	IF(NRWELL>0) THEN
 		N1=SUM(PHYSICALGROUP(reliefwell.IPG).NEL)
 		WRITE(UNIT,190) N1
@@ -1265,7 +1262,12 @@ subroutine Tosolver()
 				reliefwell(I).RW,reliefwell(I).HW,reliefwell(I).HU,reliefwell(I).HD
 			ENDDO
 		ENDDO
-	ENDIF
+    ENDIF
+    
+	DO I=1,NCOPYFILE
+		CALL DO_COPYFILE(COPYFILE(I),UNIT)			
+	END DO
+
 	
 	
 100 FORMAT(A<ITEM>)	

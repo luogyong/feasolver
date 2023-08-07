@@ -524,7 +524,7 @@ module triangle_io
 30      FORMAT(I7,1X,<2+N1>(F15.7,1X),2(I3,1X))
 31      FORMAT(I7,1X,<2>(F15.7,1X),<N1>('-999.0',1X),2(I3,1X)) 
 32      FORMAT(I7,1X,<2+N1+1>(F15.7,1X),2(I3,1X))
-33      FORMAT(I7,1X,<3>(F15.7,1X),<N1>('-999.0',1X),2(I3,1X))         
+33      FORMAT(I7,1X,<3>(F15.7,1X),2(I3,1X))         
 40      FORMAT(I7,1X,'1')  
 41      FORMAT(4(I7,1X)) 
 50      FORMAT(I7,2(F15.7,1X))
