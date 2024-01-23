@@ -388,7 +388,7 @@ subroutine graph
 
 		 select case(mod(elt(ept).zn,15))
 		   case(1)
-              oldcolor=setcolorrgb($HIRED)
+              oldcolor=setcolorrgb($HIWHITE)
 		   case(2)
               oldcolor=setcolorrgb($HIGREEN)
 		   case(3)
@@ -400,7 +400,7 @@ subroutine graph
 		   case(6)
               oldcolor=setcolorrgb($HIMAGENTA)
 		   case(7)
-              oldcolor=setcolorrgb($HIWHITE)
+              oldcolor=setcolorrgb($HIRED)
 		   case(8)
 			  oldcolor=setcolorrgb($Logray)
 		   case(9)

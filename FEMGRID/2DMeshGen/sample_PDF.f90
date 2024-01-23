@@ -18,13 +18,13 @@ module sample_pdf
         character(1024):: helpstring= &
             &"pdf_sample的功能是实现按照某分布进行取样. \n &
             & pdf_sample的输入格式为: \n &
-            & pdf_sample,pdf=I,nsample=I[,nprob=I,isout=I] \n &
+            & pdf_sample,pdf=I[,nsample=I,nprob=I,isout=I] \n &
             & <parameters> \n &
             & NOTE: \n &
             & 0)pdf=0,均匀分布,对应的参数行数据parameters=[minv,maxv],共1行. \n &
             &   pdf=1,正态分布,对应的参数行数据parameters=[minv,maxv,mean,std],共1行. \n &
             &   pdf=2,一般的分布,对应的参数行数据parameters=[rangediv(nprob+1),prob(nprob)],分2行输入,rangediv及prob各1行. \n &
-            & 2)nsample--要采用的样本数;\n & 
+            & 2)nsample--要采用的样本数,当isout=1是输入;\n & 
             & 3)nprob--概率分布区间的个数，仅当pdf=2时输入;\n & 
             & 4)minv--生成样本的最小值;\n & 
             & 5)maxv--生成样本的最大值;\n & 

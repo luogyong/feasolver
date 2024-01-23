@@ -16,7 +16,7 @@ module meshDS
                     ismerged=1,&
                     iscompounded=0,&
                     ISMESHSIZE=1,&
-                    isgendem=0
+                    isrefinedbysample=0
                     
     integer,parameter:: ET_PRM=63,&
                     ET_TET=43,Linear=1,Membrance=0
@@ -27,7 +27,8 @@ module meshDS
     
     INTERFACE ENLARGE_AR
         MODULE PROCEDURE I_ENLARGE_AR,R_ENLARGE_AR,NODE_ENLARGE_AR,ELEMENT_ENLARGE_AR,&
-                         edge_enlarge_ar,ADJLIST_ENLARGE_AR,AR2D_ENLARGE_AR,AR2D_ENLARGE_AR2
+                         edge_enlarge_ar,ADJLIST_ENLARGE_AR,AR2D_ENLARGE_AR,AR2D_ENLARGE_AR2,&
+                         AR2D_ENLARGE_AR3
     END INTERFACE 
 
 	type point_tydef
@@ -135,7 +136,11 @@ module meshDS
     type ar2d_tydef2
         integer::nnum=0
         integer,allocatable::node(:),edge(:)
-    endtype    
+    endtype 
+    type ar2d_tydef3
+        integer::nnum=0
+        integer,allocatable::node(:)
+    endtype     
     TYPE ZONE_LAYGER_VOLUME_TYDEF
         INTEGER::NVOL=0        
         type(ar2d_tydef),allocatable::bface(:)        
@@ -143,7 +148,7 @@ module meshDS
 	type zone_tydef
 	   integer::num,k,OutGmshType=1,iElevation=1 !OutGmshType=1 Physical Volume only; =2 Physical Surface only; =3, both;if OutGmshType=2/3, iElevation指定输出哪个高程的面。       
 	   real(8),allocatable::point(:,:)
-	   real(8)::xmin=1e15,ymin=1e15,xmax=-1e15,ymax=-1e15
+	   real(8)::xmin=1e15,ymin=1e15,xmax=-1e15,ymax=-1e15,earea=-1.0
 	   integer,allocatable::item(:),trie3n(:),Dise4n(:), trie6n(:),trie15n(:)
 	   integer::nitem=0,ntrie3n=0,ndise4n=0,ntrie6n=0,ntrie15n=0  !restriction:nitem=ntrie3n+ndise4n
 	   integer,allocatable::bedge(:),bnode(:),mat(:),cp(:) !boundary edges id(point to edge),mat=每层土的材料号
@@ -228,10 +233,14 @@ module meshDS
 	integer::nedge=0
 
 	type adjlist_tydef
-		integer::count=0,ipt1=0,nelt=0 !the number of adjacent node 
+		integer::count=0,isbad=0,nelt=0 !the number of adjacent node !isbad=for disc-gen only. isbad=1 means  
 		integer,pointer::node(:)=>null() !adjacent node
 		integer,pointer::edge(:)=>null() !adjacent edge
         integer,allocatable::elt(:),subid(:) !adjacent element
+        integer,allocatable::estat(:) 
+        !estat:
+        !for disc-gen,if isbad=1 and estat(i)=1 and ,the particle inside the ith element is out of the ring.  
+        !if isbad=1 and estat(i)=-1, the particle is seperated from its next particle.
     contains
         procedure::epush=>adjlist_elt_push
         procedure::sort=>adjlist_sort
@@ -401,7 +410,7 @@ module meshDS
         implicit none
         class(adjlist_tydef)::self
         integer,intent(in)::thisnode
-        real(8)::ar1(self.count),x(2),t1
+        real(8)::ar1(self.count),x(2),t1,t2
         integer::i,e1(2),e2(2),order(self.count),ia1(self.count),ia2(self.count)
         do i=1,self.count
             x(1)=node(self.node(i)).x-node(thisnode).x
@@ -419,14 +428,24 @@ module meshDS
         ia2=-1
         e1=edge(self.edge(1)).E
         if(any(e1==-1)) then
+            
             ia2(1)=maxval(e1)
-            !如果该单元是否在该边的右边,则该边为边界（只有一个单元）
-            x(1)=sum(node(elt(ia2(1)).node(1:3)).x)/3-node(thisnode).x
-            x(2)=sum(node(elt(ia2(1)).node(1:3)).y)/3-node(thisnode).Y
-            t1=atan(x(2),x(1))
-            x(1)=node(self.node(1)).x-node(thisnode).x
-            x(2)=node(self.node(1)).y-node(thisnode).y
-            if(t1<atan(x(2),x(1))) ia2(1)=-1
+            !假定节点为逆时针分布
+            i=minloc(abs(elt(ia2(1)).node(1:3)-thisnode),dim=1)
+            i=mod(mod(i,3)+1,3)+1
+            if(elt(ia2(1)).edge(i)/=self.edge(2)) then
+                ia2(1)=-1
+            endif
+            
+            !!如果该单元在该边的右边,则该边为边界（只有一个单元）
+            !x(1)=sum(node(elt(ia2(1)).node(1:3)).x)/3-node(thisnode).x
+            !x(2)=sum(node(elt(ia2(1)).node(1:3)).y)/3-node(thisnode).Y
+            !t1=atan(x(2),x(1))
+            !x(1)=node(self.node(1)).x-node(thisnode).x
+            !x(2)=node(self.node(1)).y-node(thisnode).y
+            !t2=atan(x(2),x(1))
+            !if(t2<0.d0) t2=t2+8.0*atan(1.d0)
+            !if(t1<t2) ia2(1)=-1
         else
             e2=edge(self.edge(2)).E
             if(any(e2-e1(1)==0)) then
@@ -435,6 +454,13 @@ module meshDS
                 ia2(1)=e1(2)
             endif
         endif
+        self.nelt=0
+        if(ia2(1)>0) then
+            !self.nelt=self.nelt+1
+            call self.epush(ia2(1),minloc(abs(elt(ia2(1)).node(1:3)-thisnode),dim=1))
+            !self.subid(self.nelt)=minloc(elt(ia2(1)).node(1:3)-thisnode,dim=1)
+            !self.elt(self.nelt)=ia2(1)
+        endif
         do i=2,self.count
             e2=edge(self.edge(i)).E
             if(e2(1)==ia2(i-1)) then
@@ -442,9 +468,15 @@ module meshDS
             else
                 ia2(i)=e2(1)
             endif
+            if(ia2(i)>0) then
+                call self.epush(ia2(i),minloc(abs(elt(ia2(i)).node(1:3)-thisnode),dim=1))
+                !self.nelt=self.nelt+1
+                !self.subid(self.nelt)=minloc(elt(ia2(i)).node(1:3)-thisnode,dim=1)
+                !self.elt(self.nelt)=ia2(i)
+            endif
         enddo        
-        self.elt=pack(ia2,ia2>0)
-        self.nelt=size(self.elt)
+        !self.elt=pack(ia2,ia2>0)
+        !self.nelt=j
     endsubroutine
 
     FUNCTION GET_VALUE_NODE(DAR,ILOC,ATTRIBUTE,IAT) RESULT(RA)
@@ -556,7 +588,7 @@ module meshDS
 		 string=adjustL(string)
 		 strL=len_trim(string)
 		 if(strL==0) cycle
-
+         if(string(1:1)=='#'.or.string(1:1)=='/') cycle
 
 		 if(string(1:2)/='//') then
 			
@@ -764,7 +796,18 @@ ENDSUBROUTINE
         AVAL=[AVAL,VAL1]
         DEALLOCATE(VAL1)
     END SUBROUTINE    
-    
+    SUBROUTINE AR2D_ENLARGE_AR3(AVAL,DSTEP)
+        TYPE(ar2d_tydef3),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
+        INTEGER,INTENT(IN)::DSTEP
+        TYPE(ar2d_tydef3),ALLOCATABLE::VAL1(:)
+        INTEGER::LB1=0,UB1=0
+        
+        
+        !LB1=LBOUND(AVAL,DIM=1);UB1=UBOUND(AVAL,DIM=1)
+        ALLOCATE(VAL1(dstep))
+        AVAL=[AVAL,VAL1]
+        DEALLOCATE(VAL1)
+    END SUBROUTINE     
     SUBROUTINE ADJLIST_ENLARGE_AR(AVAL,DSTEP)
         TYPE(ADJLIST_tydef),ALLOCATABLE,INTENT(INOUT)::AVAL(:)
         INTEGER,INTENT(IN)::DSTEP
@@ -1746,5 +1789,190 @@ subroutine plane_exp2imp_3d ( p1, p2, p3, a, b, c, d )
 
   return
 end
+
+!translate all the characters in term into lowcase character string
+subroutine lowcase(term)
+ use dflib
+ implicit none
+ integer i,in,nA,nZ,nc,nd
+ character(1)::ch
+ character(*)::term
+ 
+ 
+ term=adjustl(trim(term))
+ nA=ichar('A')
+ nZ=ichar('Z')
+ nd=ichar('A')-ichar('a')
+ in=len_trim(term)
+ do i=1,in
+	 ch=term(i:i)
+	 nc=ichar(ch)
+	 if(nc>=nA.and.nc<=nZ) then
+		 term(i:i)=char(nc-nd)
+	 end if
+ end do
+end subroutine
+
+subroutine skipcomment(unit)
+ implicit none
+ integer,intent(in)::unit
+ integer::i,ef,strL
+ character(512) string
+ 
+ do while(.true.)
+	 read(unit,'(a512)',iostat=ef) string
+	 if(ef<0) then
+		 print *, 'file ended unexpected. sub strtoint()'
+		 stop
+	 end if
+
+	 string=adjustL(string)
+	 strL=len_trim(string)
+
+	 do i=1,strL !remove 'Tab'
+		 if(string(i:i)/=char(9)) exit
+	 end do
+	 string=string(i:strL)
+	 string=adjustl(string)
+	 strL=len_trim(string)
+	 if(strL==0) cycle
+
+	 if(string(1:1)/='/') then
+		 backspace(unit)
+		 exit
+	 end if
+ end do
+ 
+ end subroutine
+
+ !FUNCTION is_numeric(string)
+ !    USE ieee_arithmetic
+ !    IMPLICIT NONE
+ !    CHARACTER(len=*), INTENT(IN) :: string
+ !    LOGICAL :: is_numeric
+ !    REAL :: x
+ !    INTEGER :: e
+ !    x = FOR_S_NAN
+ !    READ(string,'(F15.0)',IOSTAT=e) x
+ !    is_numeric = ((e == 0) .and. (.NOT. ISNAN(X)))
+ !END FUNCTION is_numeric
+
+subroutine translatetoproperty(term)
+
+!**************************************************************************************************************
+!Get a keyword and related property values from a control line (<256)
+!input variables:
+!term, store control data line content.
+!ouput variables:
+!property,pro_num
+!mudulus used:
+!None
+!Subroutine called:
+!None
+!Programmer:LUO Guanyong
+!Last updated: 2008,03,20
+
+!Example: 
+!term='element, num=10,type=2,material=1,set=3'
+!after processed,the following data will be returned:
+!term='element'
+!property(1).name=num
+!property(1).value=1
+!.....
+!**************************************************************************************************************
+
+ implicit none
+ integer::i
+ character(len=*)::term
+ integer::ns,ne,nc,e
+ character(1024)::string(11),keyword
+ 
+ term=adjustl(term)
+ ns=1
+ ne=0
+ nc=0
+ do while(len_trim(term)>0) 
+	 nc=nc+1
+	 if(nc>11) then
+		 print *, 'nc>11,subroutine translatetoproperty()'
+		 stop
+	 end if
+	 ne=index(term,',')
+	 if(ne>0.and.len_trim(term)>1) then
+		 string(nc)=term(ns:ne-1)
+		 string(nc)=adjustL(string(nc))
+	 else 
+	 !no commas in the end
+		 ne=min(len_trim(term),len(string(nc)))
+		 string(nc)=term(ns:ne)
+		 string(nc)=adjustL(string(nc))
+	 end if
+	 term=term(ne+1:len_trim(term))
+	 term=adjustL(term)		
+ end do
+
+ term=string(1)
+ pro_num=nc-1
+ do i=2,nc
+	 ne=index(string(i),'=')
+	 property(i-1).name=string(i)(1:ne-1)
+	 call lowcase(property(i-1).name)
+	 property(i-1).cvalue=trim(adjustl(string(i)(ne+1:len_trim(string(i)))))
+	 !通过第一个字母是否是数字判断此字符串是否为数字
+	 !if(is_numeric(property(i-1).cvalue)) then
+	 !    read(trim(property(i-1).cvalue),*) property(i-1).value
+	 !endif
+	 if(verify(trim(property(i-1).cvalue),'0123456789.eE-+')==0)then
+		 read(string(i)(ne+1:len_trim(string(i))),*,IOSTAT=e) property(i-1).value
+	 endif
+ end do
+
+ end subroutine
+
+ 
+!unit：文件号，
+!ITYPE:=0，能读文件。>0表示keyword中关键字的个数,仅读取keyword中各关键字的字段内容。
+
+subroutine read_execute(unit,ITYPE,keyword)
+ 
+   implicit none
+   integer::i,unit,ef,ITYPE
+   character(len=2096)::term
+   character(len=*)::keyword
+   character(1)::ch
+
+   ef=0
+   do while(ef==0)
+	  read(unit,'(A)',iostat=ef) term	
+	  if(ef<0) exit
+	  term=adjustl(term)
+	  if(len_trim(term)==0) cycle
+	  
+	  do i=1,len_trim(term) !remove 'Tab'
+		 if(term(i:i)==char(9)) then
+			 term(i:i)=char(32)
+		 endif
+	 end do
+	 term=adjustl(term)
+	  if(len_trim(term)==0) cycle		
+	  write(ch,'(a1)') term
+	  if(ch/='/') then
+		 backspace(unit)
+		 read(unit,'(A)') term
+		 
+		 call translatetoproperty(term)
+		 call lowcase(term)
+		 if(itype>0) then
+			if(index(keyword,trim(term))==0) cycle
+		 end if
+				 
+		 
+		 term=adjustl(trim(term))
+		 call command(term,unit) 	
+	  end if
+   end do 	
+
+
+end subroutine
 
 end module

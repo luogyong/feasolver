@@ -216,10 +216,14 @@
 #define REAL double
 #endif /* not SINGLE */
 
+typedef int bool;
+#define true 1
+#define false 0
+
 /* If yours is not a Unix system, define the NO_TIMER compiler switch to     */
 /*   remove the Unix-specific timing code.                                   */
 
-/* #define NO_TIMER */
+#define NO_TIMER 
 
 /* To insert lots of self-checks for internal errors, define the SELF_CHECK  */
 /*   symbol.  This will slow down the program significantly.  It is best to  */
@@ -227,7 +231,7 @@
 /*   write "#define SELF_CHECK" below.  If you are modifying this code, I    */
 /*   recommend you turn self-checks on until your work is debugged.          */
 
-/* #define SELF_CHECK */
+/*#define SELF_CHECK */
 
 /* To compile Triangle as a callable object library (triangle.o), define the */
 /*   TRILIBRARY symbol.  Read the file triangle.h for details on how to call */
@@ -350,7 +354,7 @@
 #include <string.h>
 #include <math.h>
 #ifndef NO_TIMER
-#include <sys/time.h>
+#include <time.h>
 #endif /* not NO_TIMER */
 #ifdef CPU86
 #include <float.h>
@@ -1329,6 +1333,25 @@ int minus1mod3[3] = {2, 0, 1};
   ((triangle *) (vx))[m->vertex2triindex] = value
 
 
+double *real_allocate(size_t n){
+	return malloc(n*sizeof(double));
+}
+
+int *int_allocate(size_t n){
+	return malloc(n*sizeof(int));
+}
+
+void real_deallocate(double *ptr)
+{
+	free(ptr);
+}
+
+void int_deallocate(int *ptr)
+{
+	free(ptr);
+}
+
+
 double* r8mat_solve_2d(double a[], double b[], double* det)
 
 /******************************************************************************/
@@ -1544,7 +1567,7 @@ REAL area;                                      /* The area of the triangle. */
   /* Find the square of the length of the longest edge. */
   //maxlen = (dalen > oalen) ? dalen : oalen;
   //maxlen = (odlen > maxlen) ? odlen : maxlen;
-   if (osize<fmax(oalen, odlen) || dsize<fmax(dalen, odlen) || asize<fmax(oalen, dalen)) {
+   if (osize<0.9*max(oalen, odlen) || dsize<0.9*max(dalen, odlen) || asize<0.9*max(oalen, dalen)) {
     return 1;
   } else {
     return 0;
@@ -1652,10 +1675,10 @@ void syntax()
 #ifndef CDT_ONLY
   printf("    -D  Conforming Delaunay:  all triangles are truly Delaunay.\n");
 #endif /* not CDT_ONLY */
-/*
+
   printf("    -w  Weighted Delaunay triangulation.\n");
   printf("    -W  Regular triangulation (lower hull of a height field).\n");
-*/
+
   printf("    -j  Jettison unused vertices from output .node file.\n");
   printf("    -e  Generates an edge list.\n");
   printf("    -v  Generates a Voronoi diagram.\n");
@@ -6782,6 +6805,186 @@ int offcenter;
   /*   Calculate the xi and eta coordinates of the circumcenter.     */
   *xi = (yao * dx - xao * dy) * (2.0 * denominator);
   *eta = (xdo * dy - ydo * dx) * (2.0 * denominator);
+}
+
+
+//============================================================================//
+//                                                                            //
+// lu_decmp()    Compute the LU decomposition of a matrix.                    //
+//                                                                            //
+// Compute the LU decomposition of a (non-singular) square matrix A using     //
+// partial pivoting and implicit row exchanges.  The result is:               //
+//     A = P * L * U,                                                         //
+// where P is a permutation matrix, L is unit lower triangular, and U is      //
+// upper triangular.  The factored form of A is used in combination with      //
+// 'lu_solve()' to solve linear equations: Ax = b, or invert a matrix.        //
+//                                                                            //
+// The inputs are a square matrix 'lu[N..n+N-1][N..n+N-1]', it's size is 'n'. //
+// On output, 'lu' is replaced by the LU decomposition of a rowwise permuta-  //
+// tion of itself, 'ps[N..n+N-1]' is an output vector that records the row    //
+// permutation effected by the partial pivoting, effectively,  'ps' array     //
+// tells the user what the permutation matrix P is; 'd' is output as +1/-1    //
+// depending on whether the number of row interchanges was even or odd,       //
+// respectively.                                                              //
+//                                                                            //
+// Return true if the LU decomposition is successfully computed, otherwise,   //
+// return false in case that A is a singular matrix.                          //
+//                                                                            //
+//============================================================================//
+
+bool lu_decmp(REAL lu[3][3], int n, int* ps, REAL* d, int NN)
+{
+    REAL scales[3];
+    REAL pivot, biggest, mult, tempf;
+    int pivotindex = 0;
+    int i, j, k;
+
+    *d = 1.0;                                      // No row interchanges yet.
+
+    for (i = NN; i < n + NN; i++) {                             // For each row.
+        // Find the largest element in each row for row equilibration
+        biggest = 0.0;
+        for (j = NN; j < n + NN; j++)
+            if (biggest < (tempf = fabs(lu[i][j])))
+                biggest = tempf;
+        if (biggest != 0.0)
+            scales[i] = 1.0 / biggest;
+        else {
+            scales[i] = 0.0;
+            return false;                            // Zero row: singular matrix.
+        }
+        ps[i] = i;                                 // Initialize pivot sequence.
+    }
+
+    for (k = NN; k < n + NN - 1; k++) {                      // For each column.
+        // Find the largest element in each column to pivot around.
+        biggest = 0.0;
+        for (i = k; i < n + NN; i++) {
+            if (biggest < (tempf = fabs(lu[ps[i]][k]) * scales[ps[i]])) {
+                biggest = tempf;
+                pivotindex = i;
+            }
+        }
+        if (biggest == 0.0) {
+            return false;                         // Zero column: singular matrix.
+        }
+        if (pivotindex != k) {                         // Update pivot sequence.
+            j = ps[k];
+            ps[k] = ps[pivotindex];
+            ps[pivotindex] = j;
+            *d = -(*d);                          // ...and change the parity of d.
+        }
+
+        // Pivot, eliminating an extra variable  each time
+        pivot = lu[ps[k]][k];
+        for (i = k + 1; i < n + NN; i++) {
+            lu[ps[i]][k] = mult = lu[ps[i]][k] / pivot;
+            if (mult != 0.0) {
+                for (j = k + 1; j < n + NN; j++)
+                    lu[ps[i]][j] -= mult * lu[ps[k]][j];
+            }
+        }
+    }
+
+    // (lu[ps[n + NN - 1]][n + NN - 1] == 0.0) ==> A is singular.
+    return lu[ps[n + NN - 1]][n + NN - 1] != 0.0;
+}
+
+//============================================================================//
+//                                                                            //
+// lu_solve()    Solves the linear equation:  Ax = b,  after the matrix A     //
+//               has been decomposed into the lower and upper triangular      //
+//               matrices L and U, where A = LU.                              //
+//                                                                            //
+// 'lu[NN..n+NN-1][NN..n+NN-1]' is input, not as the matrix 'A' but rather as     //
+// its LU decomposition, computed by the routine 'lu_decmp'; 'ps[NN..n+NN-1]'   //
+// is input as the permutation vector returned by 'lu_decmp';  'b[NN..n+NN-1]'  //
+// is input as the right-hand side vector, and returns with the solution      //
+// vector. 'lu', 'n', and 'ps' are not modified by this routine and can be    //
+// left in place for successive calls with different right-hand sides 'b'.    //
+//                                                                            //
+//============================================================================//
+
+void lu_solve(REAL lu[3][3], int n, int* ps, REAL* b, int NN)
+{
+    int i, j;
+    REAL X[3], dot;
+
+    for (i = NN; i < n + NN; i++) X[i] = 0.0;
+
+    // Vector reduction using U triangular matrix.
+    for (i = NN; i < n + NN; i++) {
+        dot = 0.0;
+        for (j = NN; j < i + NN; j++)
+            dot += lu[ps[i]][j] * X[j];
+        X[i] = b[ps[i]] - dot;
+    }
+
+    // Back substitution, in L triangular matrix.
+    for (i = n + NN - 1; i >= NN; i--) {
+        dot = 0.0;
+        for (j = i + 1; j < n + NN; j++)
+            dot += lu[ps[i]][j] * X[j];
+        X[i] = (X[i] - dot) / lu[ps[i]][i];
+    }
+
+    for (i = NN; i < n + NN; i++) b[i] = X[i];
+}
+
+
+
+//============================================================================//
+// add by lgy. refer:bool tetgenmesh::orthosphere                                                                            //
+// orthocircle()    Calulcate the orthocircle of four weighted points.        //
+//                                                                            //
+// A weighted point (p, P^2) can be interpreted as a circel centered at the   //
+// point 'p' with a radius 'P'. The 'height' of 'p' is pheight = p[0]^2 +     //
+// p[1]^2 + p[2]^2 - P^2.                                                     //
+//                                                                            //
+//============================================================================//
+
+bool orthocircle(REAL* pa, REAL* pb, REAL* pc,
+    REAL  aheight, REAL bheight, REAL cheight,
+    REAL* orthocent, REAL* radius)
+{
+    REAL A[3][3], rhs[3], D;
+    int indx[3];
+
+    // Set the coefficient matrix A (3 x 3).
+    A[0][0] = 1.0; A[0][1] = pa[0]; A[0][2] = pa[1]; //A[0][3] = pa[2];
+    A[1][0] = 1.0; A[1][1] = pb[0]; A[1][2] = pb[1]; //A[1][3] = pb[2];
+    A[2][0] = 1.0; A[2][1] = pc[0]; A[2][2] = pc[1]; //A[2][3] = pc[2];
+    //A[3][0] = 1.0; A[3][1] = pd[0]; A[3][2] = pd[1]; A[3][3] = pd[2];
+
+    // Set the right hand side vector (3 x 1).
+    rhs[0] = 0.5 * aheight;
+    rhs[1] = 0.5 * bheight;
+    rhs[2] = 0.5 * cheight;
+    //rhs[3] = 0.5 * dheight;
+
+    // Solve the 4 by 4 equations use LU decomposition with partial pivoting
+    //   and backward and forward substitute..
+    if (!lu_decmp(A, 3, indx, &D, 0)) {
+        if (radius != (REAL*)NULL) *radius = 0.0;
+        return false;
+    }
+    lu_solve(A, 3, indx, rhs, 0);
+
+    if (orthocent != (REAL*)NULL) {
+        orthocent[0] = rhs[1];
+        orthocent[1] = rhs[2];
+        //orthocent[2] = rhs[3];
+    }
+    if (radius != (REAL*)NULL) {
+        // rhs[0] = - rheight / 2;
+        // rheight  = - 2 * rhs[0];
+        //          =  r[0]^2 + r[1]^2 + r[2]^2 - radius^2
+        // radius^2 = r[0]^2 + r[1]^2 + r[2]^2 -rheight
+        //          = r[0]^2 + r[1]^2 + r[2]^2 + 2 * rhs[0]
+        *radius = sqrt(rhs[1] * rhs[1] + rhs[2] * rhs[2]    //+ rhs[3] * rhs[3]
+            + 2.0 * rhs[0]);
+    }
+    return true;
 }
 
 /**                                                                         **/
@@ -15204,6 +15407,7 @@ char **argv;
   vertex torg, tdest, tapex;
   REAL circumcenter[2];
   REAL xi, eta;
+  REAL pa[2], pb[2], pc[2], aheight, bheight, cheight, radius;
   long vnodenumber, vedgenumber;
   int p1, p2;
   int i;
@@ -15250,7 +15454,26 @@ char **argv;
     org(triangleloop, torg);
     dest(triangleloop, tdest);
     apex(triangleloop, tapex);
-    findcircumcenter(m, b, torg, tdest, tapex, circumcenter, &xi, &eta, 0);
+    if (b->weighted == 0) {
+        findcircumcenter(m, b, torg, tdest, tapex, circumcenter, &xi, &eta, 0);
+    } else {
+        
+        pa[0] = torg[0]; pa[1] = torg[1]; 
+        pb[0] = tdest[0]; pb[1] = tdest[1]; 
+        pc[0] = tapex[0]; pc[1] = tapex[1]; 
+        if (b->weighted == 1) {
+            aheight = torg[0] * torg[0] + torg[1] * torg[1] - torg[2];
+            bheight = tdest[0] * tdest[0] + tdest[1] * tdest[1] - tdest[2];
+            cheight = tapex[0] * tapex[0] + tapex[1] * tapex[1] - tapex[2];
+        } else {
+            aheight = torg[2];
+            bheight = tdest[2];
+            cheight = tapex[2];        
+        }
+
+        orthocircle(pa, pb, pc, aheight, bheight, cheight, circumcenter, &radius);
+
+    }
 #ifdef TRILIBRARY
     /* X and y coordinates. */
     plist[coordindex++] = circumcenter[0];

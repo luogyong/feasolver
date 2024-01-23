@@ -852,16 +852,17 @@ subroutine rayintcyl(raybase,raycos,base,axis,radius,isint,in,out,botplane,toppl
   
     end function     
     
-    SUBROUTINE GEN_CORDINATE_SYSTEM(ORG,G2L,XV,YV,ZV)
-        !GIVEN ONE OR TWO AXIS,SET UP A LOCAL SYSTEM: ORIGIN=ORG
+    SUBROUTINE GEN_CORDINATE_SYSTEM(G2L,XV,YV,ZV)
+        !GIVEN ONE OR TWO AXIS,SET UP A LOCAL SYSTEM
         !RETURN THE G2L MATRIX
         IMPLICIT NONE
-        REAL(8),INTENT(IN)::ORG(3)
+        !REAL(8),INTENT(IN)::ORG(3)
         REAL(8),INTENT(IN),OPTIONAL::XV(3),YV(3),ZV(3)
         REAL(8),INTENT(OUT)::G2L(3,3)
         REAL(8)::D1,T1,XV1(3),ZV1(3)        
         INTEGER::IAXIS(3)=0,AX1,AX2,AX3
-
+        
+        IAXIS=0
         IF(PRESENT(ZV)) THEN
             T1=NORM2(ZV)                
             IF(ABS(T1)>1.E-7) THEN
@@ -883,25 +884,29 @@ subroutine rayintcyl(raybase,raycos,base,axis,radius,isint,in,out,botplane,toppl
                 IAXIS(1)=1
             ENDIF
         ENDIF
-
+        IF(ALL(IAXIS>0)) RETURN
 
         IF(COUNT(IAXIS>0)==1) THEN
             AX1=MAXVAL(IAXIS)
             ZV1=G2L(AX1,:)
-            AX2=MINLOC(IAXIS,DIM=1)
-            IAXIS(AX2)=AX2
-            !过ogr1与ZV1垂直的平面方程：Ax+By+Cz+D=0,先求出D,然后假定（x,y,z）任意两个，求第三个。
-            D1=-DOT_PRODUCT(ZV1,ORG) !
-            IF(ABS(ZV1(3))>1E-7) THEN
-                XV1=[ORG(1)+1.0,0.D0,-(D1+ZV1(1)*(ORG(1)+1.0))/ZV1(3)]
-            ELSEIF(ABS(ZV1(2))>1E-7) THEN
-                XV1=[ORG(1)+1.0,-(D1+ZV1(1)*(ORG(1)+1.0))/ZV1(2),0.D0]
-            ELSE
-                XV1=[-(D1+ZV1(2)*(ORG(2)+1.0))/ZV1(1),ORG(2)+1.0,0.D0]
-            ENDIF            
-            XV1=XV1-ORG
-            XV1=XV1/NORM2(XV1)
-            G2L(AX2,:)=XV1
+            AX2=MINLOC(ABS(ZV1),DIM=1)
+            XV1=0.D0
+            XV1(AX2)=1.0D0
+            G2L(AX2,:)=NORMAL_TRIFACE(RESHAPE([0.D0,0.D0,0.D0,ZV1,XV1],[3,3]),.true.)
+            !AX2=MINLOC(IAXIS,DIM=1)
+            !IAXIS(AX2)=AX2
+            !!过ogr1与ZV1垂直的平面方程：Ax+By+Cz+D=0,先求出D,然后假定（x,y,z）任意两个，求第三个。
+            !D1=-DOT_PRODUCT(ZV1,ORG) !
+            !IF(ABS(ZV1(3))>1E-7) THEN
+            !    XV1=[ORG(1)+1.0,0.D0,-(D1+ZV1(1)*(ORG(1)+1.0))/ZV1(3)]
+            !ELSEIF(ABS(ZV1(2))>1E-7) THEN
+            !    XV1=[ORG(1)+1.0,-(D1+ZV1(1)*(ORG(1)+1.0))/ZV1(2),0.D0]
+            !ELSE
+            !    XV1=[-(D1+ZV1(2)*(ORG(2)+1.0))/ZV1(1),ORG(2)+1.0,0.D0]
+            !ENDIF            
+            !XV1=XV1-ORG
+            !XV1=XV1/NORM2(XV1)
+            !G2L(AX2,:)=XV1
         ENDIF
         
         AX3=MINLOC(IAXIS,DIM=1)
@@ -996,7 +1001,7 @@ subroutine rayintcyl(raybase,raycos,base,axis,radius,isint,in,out,botplane,toppl
         ENDDO
         !SET UP LOCAL SYSTEM
         ORG1=0.D0              
-        CALL GEN_CORDINATE_SYSTEM(ORG1,G2L1,ZV=AXIS)
+        CALL GEN_CORDINATE_SYSTEM(G2L1,ZV=AXIS)
         AXIS1=MATMUL(G2L1,AXIS)
         N1=0
         DO I=2,4

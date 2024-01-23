@@ -1193,7 +1193,7 @@ SUBROUTINE PNW_FLOW_RIJ(THIS)
 		if(i==2) t1=1-t1
 		lc1=this.property(4)*t1-this.pfp(5+i)
 		if(lc1>0.d0) then
-			alpha1=(this.pfp(i)-this.property(2))/this.property(2)
+			alpha1=(this.pfp(i)-this.property(2))/(this.property(4)*t1)
 			d1=this.property(2)+this.pfp(5+i)*alpha1			
 			this.property(1)=this.property(1)+hagen_poiseuille_friction(this.mat,lc1,d1,this.pfp(i),node(this.node(i)).cc)
 		endif

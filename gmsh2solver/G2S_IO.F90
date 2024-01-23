@@ -106,6 +106,7 @@ subroutine read_execute(unit,ext)
     case('.vol')
         !call voropp_read(unit)
         call voropp_handle(unit)
+       
     case default 
 	    do while(ef==0)
 		    term=''
@@ -195,6 +196,9 @@ subroutine kwcommand(term,unit)
 	strL1=len_trim(term)
 	
 	select case (term)
+    case('psm','pore_scale_model')
+        print *, 'Reading Pore scale model data...'
+        
 	case('maxadj')
 		print *, 'Reading the MAXADJ ...'
         call skipcomment(unit)

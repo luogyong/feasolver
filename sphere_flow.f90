@@ -612,7 +612,13 @@ SUBROUTINE sphere_flow_element(ielt)
     !统计边长
     SK1=(TPHI1)**2*WR1/SK1
     !SK1=(TPHI1)*WR1/SK1 
-    !IF(solver_control.well_bottom_type==0)  SK1=SK1*0.95  
+    !IF(solver_control.well_bottom_type==0)  SK1=SK1*0.95 
+    
+    !参考:毛昶熙,渗流计算分析与控制,第二版.P340
+    !PI1=4*ATAN(1.D0);L1=1
+    !T1=2*PI1*HK1/(1/WR1-(4*PI1+3)/(3*L1))
+    !SK1=T1
+    
     ELEMENT(IELT).KM(1,1)=1.D0;ELEMENT(IELT).KM(2,2)=1.D0
     ELEMENT(IELT).KM(2,1)=-1.D0;ELEMENT(IELT).KM(1,2)=-1.D0
     ELEMENT(IELT).KM=ELEMENT(IELT).KM*SK1

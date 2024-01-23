@@ -287,6 +287,16 @@ void triangulate(char *, struct triangulateio *, struct triangulateio *,
                  struct triangulateio *);
 void trifree(VOID *memptr);
 
+double *real_allocate(size_t n);
+
+int *int_allocate(size_t n);
+
+void real_deallocate(double *ptr);
+
+void int_deallocate(int *ptr);
+
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,15 +1,18 @@
 module packgen2d
     
     USE meshDS,ONLY:node,nnode,elt,nelt,edge,nedge,adjlist,xmin,xmax,ymin,ymax,xyscale,path_name,mesharea
-    use nlesolver_module, wp => nlesolver_rk
+    use triangle_io,only:triangle_tydef
+    use maximum_inscribed_circle,only:gpolygon_tydef
+    !use nlesolver_module, wp => nlesolver_rk
     USE IFQWIN
+    use quicksort
 
     implicit none
  
     private
     
     public::particle2D
-
+    
     INTEGER(4)::COLOR(32)=[$HIBLUE,$HIGREEN,$HICYAN,$HIRED,$HIMAGENTA,$HIYELLOW,$HIWHITE,&
                            $BLUE,$GREEN,$CYAN,$RED,$MAGENTA,$YELLOW,$WHITE,&
                            $LIGHTBLUE,$LIGHTGREEN,$LIGHTCYAN,$LIGHTRED,$LIGHTMAGENTA,$LIGHTYELLOW,$BRIGHTWHITE,&
@@ -18,9 +21,9 @@ module packgen2d
     
     type particle_tydef
         integer::type=0 !!=3,tangent to 3 cirles; =2,tangent to 2 cirles and 1 line; =1 tangent to 1 cirle and 2 line; =0, tangent to a triangle;
-                        !=4,node fill
+                        !=4,node fill,=5,6,overlap correction
         real(8)::x,y,z=0.0,r
-        integer::nadj=0
+        integer::nadj=0,overlap=0
         integer,allocatable::adj(:)     
     end type
     ! type mesh_tydef
@@ -39,15 +42,257 @@ module packgen2d
         procedure::push=>store_particle
         procedure::gen_particle=>gen_disc_particle
         procedure::plot=>packgen2d_plot
-        procedure::nodefill=>packgen2d_nodefill2
+        procedure::packgen2d_nodefill2
+        procedure::packgen2d_nodefill3
         procedure::output=>packgen2d_output
         procedure::ppndis=>packgen2d_ppndis
         procedure::plinter=>packgen2d_particle_line_intersect
+        procedure::overlaptest=>packgen2d_particle_overlap_test
+        generic::nodefill=>packgen2d_nodefill2,packgen2d_nodefill3
+        
     end type
     
     type(disc_tydef)::particle2D
     
     contains
+    
+    subroutine packgen2d_particle_overlap_test(self)
+    !overlap correction and return the corrected node(badnode)
+    
+        implicit none
+        class(disc_tydef)::self
+        integer::i,j,k,n1,p1,p2,k1,n2,n3,j1,mp1,ka1,count,vn1,n4
+        real(8)::t1,para1(4,3)
+        type(particle_tydef)::par1
+        !logical::ischk1(nnode)
+        
+        !ischk1=.false.
+        !count=0
+        !do while(any(ischk1==.false.))            
+        !    count=count+1
+        !    i=mod(count,nnode)+1
+        !    if(ischk1(i)) cycle
+        !    ischk1(i)=.true.
+        
+        do i=1,nnode    
+            n1=adjlist(i).nelt
+            if(n1<3) cycle
+            !if(i==1798) cycle
+            do k1=1,2
+                !目前，假定只可能和隔一的两个单元发生碰撞
+                !k1==1,检查隔一的，k1==2,检查隔二的。
+                do j=1,n1                    
+                    p1=elt(adjlist(i).elt(j)).kcd                
+                    k=mod(j,n1)+1
+                    k=mod(k,n1)+1
+                    if(k1==2) k=mod(k,n1)+1
+                    if((k>=j.and.k-j<2).or.(k<j.and.k+n1-j<2)) cycle
+                    
+                    p2=elt(adjlist(i).elt(k)).kcd
+                    t1=norm2([self.p(p1).x-self.p(p2).x,self.p(p1).y-self.p(p2).y])
+                    t1=t1-self.p(p1).r-self.p(p2).r
+                    
+                    if(t1<-1.e-4*min(self.p(p1).r,self.p(p2).r)) then
+                        !如果颗粒已经被修正过，再次修正可能会导致再次次重叠，所以p1已经被修正过，则修正p2（假定p2没有被修正过，如果p2也被修正过，则待完善）
+                        adjlist(i).isbad=1
+                        if(.not.allocated(adjlist(i).estat)) then
+                            allocate(adjlist(i).estat(adjlist(i).nelt))
+                            adjlist(i).estat=0
+                        endif
+                        n4=k-1
+                        if(n4<1) n4=n4+n1
+                        adjlist(i).estat(n4)=1
+                            
+                        if(self.p(p1).overlap==0.or.(self.p(p2).type==5.and.self.p(p1).type/=5)) then
+                            
+                            call correction(i,j,.true.)
+                            
+                        elseif(self.p(p2).type/=5) then
+                            
+                            call correction(i,k,.false.)
+                            
+                        else
+                            write(*,*)  'failed to correct the overlapping at inode= ',i,node(i).x,node(i).y
+                        endif
+                        
+                        self.p(p1).overlap=self.p(p1).overlap+1
+                        self.p(p2).overlap=self.p(p2).overlap+1                        
+                    endif
+                enddo
+                
+            enddo
+            
+            if(node(i).isb==2) then
+                
+            endif
+        enddo
+        
+    contains
+    
+    subroutine correction(inode,jelt,isp1)       
+    !isp1=.true.修正p1级与p1相邻的下个颗粒
+    !isp1=.false. 修正p2级与p2相邻的前个颗粒
+        implicit none
+        integer,intent(in)::inode,jelt
+        logical,intent(in)::isp1
+        integer::j1,k1,n2,n3,n4,n5,itype1,nline1,pp1,pp2,nelt1
+        integer::ka1
+        real(8)::para1(4,3)            
+            
+        
+        nelt1=adjlist(inode).nelt
+        itype1=1;nline1=3
+        if(isp1) then
+            pp1=p1;pp2=p2
+        else
+            pp1=p2;pp2=p1
+        endif
+        para1(1:3,1)=[self.p(pp2).x,self.p(pp2).y,self.p(pp2).r]
+        
+        n2=adjlist(inode).subid(jelt)
+        do j1=1,2
+            if(j1==1.and.isp1) then                
+                n2=n2
+            else
+                n2=mod(n2,3)+1
+            endif
+            n3=elt(adjlist(inode).elt(jelt)).adj(n2)
+            
+            if(n3>0)  then
+                n3=elt(n3).kcd
+                itype1=itype1+1
+                para1(1:3,itype1)=[self.p(n3).x,self.p(n3).y,self.p(n3).r]
+            else
+                n5=n2
+                do k1=1,2
+                    if(k1==2) n5=mod(n5,3)+1
+                    n3=elt(adjlist(inode).elt(jelt)).node(n5)
+                    para1(2*k1-1:2*k1,nline1)=[node(n3).x,node(n3).y]                                        
+                enddo
+                nline1=nline1-1
+            endif
+        enddo
+        
+        call find_tangent_circle2(itype1,para1,self.p(pp1))
+        self.p(pp1).type=5
+                            
+                            
+                            
+        !update后，p1下一个颗粒ka1不再于p1相切，更新使其重新与p1相切
+        if(isp1) then
+            ka1=mod(jelt,nelt1)+1
+        else
+            ka1=jelt-1
+            if(ka1<1) ka1=nelt1
+        endif
+        
+        n3=elt(adjlist(inode).elt(ka1)).kcd
+        !如果曾经修改过，不再修改
+        if(self.p(n3).type<5) then
+            
+            itype1=1;nline1=3
+            para1(1:3,1)=[self.p(pp1).x,self.p(pp1).y,self.p(pp1).r]
+            n2=adjlist(inode).subid(ka1)
+            do j1=1,2
+                if(isp1)then
+                    n2=mod(n2,3)+1
+                    if(j1==1) vn1=n2
+                else
+                    if(j1==2) then
+                        n2=mod(n2,3)+1
+                        vn1=mod(n2,3)+1
+                    endif
+                endif
+                !ischk1(elt(adjlist(inode).elt(ka1)).node(n2))=.false. !重新检查
+                n3=elt(adjlist(inode).elt(ka1)).adj(n2)
+                if(n3>0)  then
+                    n3=elt(n3).kcd
+                    itype1=itype1+1
+                    para1(1:3,itype1)=[self.p(n3).x,self.p(n3).y,self.p(n3).r]
+                else
+                    n5=n2
+                    do k1=1,2
+                        if(k1==2) n5=mod(n5,3)+1
+                        n3=elt(adjlist(inode).elt(ka1)).node(n5)
+                        para1(2*k1-1:2*k1,nline1)=[node(n3).x,node(n3).y]                                            
+                    enddo
+                    nline1=nline1-1
+                endif
+            enddo
+            n3=elt(adjlist(inode).elt(ka1)).kcd
+            par1=self.p(n3)
+            call find_tangent_circle2(itype1,para1,self.p(n3))
+            
+            !check overlapping at node vn1
+            n4=elt(adjlist(inode).elt(ka1)).node(vn1)
+            if(isvoilated(n4,n3)) then
+                self.p(n3)=par1
+                adjlist(n4).isbad=1
+                self.p(n3).type=7 !无法修正,
+                if(.not.allocated(adjlist(n4).estat)) then
+                    allocate(adjlist(n4).estat(adjlist(n4).nelt))
+                    adjlist(n4).estat=0
+                endif
+                n5=findloc(adjlist(n4).elt(1:adjlist(n4).nelt),adjlist(inode).elt(ka1),dim=1)
+                adjlist(n4).estat(n5)=-1
+            else
+                self.p(n3).type=6
+            endif
+                                
+            !ischk1(elt(adjlist(inode).elt(ka1)).node(1:3))=.false. !重新检查
+        endif            
+        
+    endsubroutine
+    
+    
+    
+    logical function isvoilated(inode,ip) 
+    !对节点inode周边颗粒ip进行overlap检查,如果该颗粒与其他颗粒都不overlap，return .false.，else return .true.
+        implicit none
+        integer,intent(in)::inode,ip
+        integer::i,j,n1,p1,p2,par1(adjlist(inode).nelt)
+        !logical::isoverlap1(adjlist(inode).nelt,adjlist(inode).nelt)
+        real(8)::t1,xlim1(4,adjlist(inode).nelt)
+            
+        n1=adjlist(inode).nelt
+        par1=elt(adjlist(inode).elt(1:n1)).kcd
+        isvoilated=.false.
+        do i=1,n1
+            xlim1(1,i)=self.p(par1(i)).x-self.p(par1(i)).r
+            xlim1(2,i)=self.p(par1(i)).x+self.p(par1(i)).r
+            xlim1(3,i)=self.p(par1(i)).y-self.p(par1(i)).r
+            xlim1(4,i)=self.p(par1(i)).y+self.p(par1(i)).r
+        enddo    
+        !do i=1,n1-1
+            
+        p1=ip
+        i=minloc(abs(par1-ip),dim=1)  
+        do j=1,n1
+            if(j==i) cycle
+            p2=par1(j)                
+            if(xlim1(1,i)>=xlim1(2,j)) cycle
+            if(xlim1(2,i)<=xlim1(1,j)) cycle
+            if(xlim1(3,i)>=xlim1(4,j)) cycle
+            if(xlim1(4,i)<=xlim1(3,j)) cycle
+                    
+            t1=norm2([self.p(p1).x-self.p(p2).x,self.p(p1).y-self.p(p2).y])
+            t1=t1-self.p(p1).r-self.p(p2).r
+            if(t1<-1.e-4*min(self.p(p1).r,self.p(p2).r)) then
+                !isoverlap1(i,j)=.true.
+                !isoverlap1(j,i)=.true.
+                isvoilated=.true.
+                return
+            endif
+        enddo
+            !enddo
+             
+             
+        
+    endfunction
+     
+    endsubroutine
+    
+
 
     function packgen2d_particle_line_intersect(self,x,ip) result(xi)
     !返回点x与颗粒ip中心的连线与颗粒表面的交点
@@ -93,7 +338,7 @@ module packgen2d
         !write(*,'(A,f7.4)') "the total volume/area is", mesharea
         !write(*,'(A,f7.4)') "the solid volume/area is", area1
         write(*,'(A,f7.4)') "the void ratio is", (mesharea-area1)/area1
-        write(*,'(A,f7.4)') "the porosity is", area1/mesharea
+        write(*,'(A,f7.4)') "the porosity is", (mesharea-area1)/mesharea
         close(10)
     20  format(i,3(1X,e15.7))
     end
@@ -110,12 +355,14 @@ module packgen2d
         
         ia1=0;ia2=-1;ia3=-1
         !在合适的单元（其邻近单元均还没有成内切圆）生成内切圆
-        !ia1(ielt)=n 表示单元ielt的相邻的n的单元已经生成颗粒(圆)
+        !ia1(ielt)=n 表示单元ielt的相邻单元中已有n个单元已经生成颗粒(圆)
         !ia2(ielt)=itype,表示该三角形生成的颗粒方法（种类）,-1，表该三角形内部还没生成颗粒
         !ia3(ielt)=n:表示该单元内部生成的颗粒编号,-1，表该三角形内部还没生成颗粒
         do itype=0,3
             do i=1,nelt
                 if(ia1(i)/=itype.or.elt(i).isdel.or.elt(i).et/=0.or.ia2(i)>-1) cycle
+                !elt(i).kcd 借用其存储该单元内部生成的颗粒编号,-1，表该三角形内部还没生成颗粒
+                elt(i).kcd=-1
 
                 select case(itype)
                 case(0) !0c3l
@@ -204,7 +451,8 @@ module packgen2d
                 call self.push(p)
                 where(elt(i).adj(1:3)>0) ia1(elt(i).adj(1:3))=ia1(elt(i).adj(1:3))+1 
                 ia2(i)=itype
-                ia3(i)=self.np  
+                ia3(i)=self.np
+                elt(i).kcd=self.np
                 !
                 !if(itype==1) then
                 !    call find_tangent_circle2(itype,para1,p)  
@@ -229,43 +477,272 @@ module packgen2d
         do i=1,nnode           
            call adjlist(i).sort(i)
         enddo
-        do i=1,nnode            
-            if(node(i).isb/=2) then
-                call self.nodefill(i,ia3(adjlist(i).elt(1:adjlist(i).nelt)))
-            elseif(adjlist(i).nelt>1) then
-                nseg1=0
-                do j=1,adjlist(i).count
-                    n1=adjlist(i).node(j)
-                    n2=adjlist(i).edge(j)
-                    if(any(edge(n2).e==-1)) then
-                        n3=maxval(edge(n2).e)
-                        n3=ia3(n3) !particle
-                        nseg1=nseg1+1
-                        seg1(:,nseg1)=[node(i).x,node(i).y,node(n1).x,node(n1).y]
-                        !找到切点
-                        pc=[self.p(n3).x,self.p(n3).y]
-                        call segment_point_near_2d ( seg1(1:2,nseg1), seg1(3:4,nseg1), pc, p1 )
-                        seg1(3:4,nseg1)=p1                        
-                    endif   
-                enddo
-                if(nseg1/=2) then
-                    error stop "error. nseg==2 is expected."
-                else
-                !如果2条线段共线，则合并
-                    call segment_point_near_2d ( seg1(3:4,1), seg1(3:4,2), seg1(1:2,1), p1,dist=t1 )
-                    if(abs(t1)<1.d-8) then
-                        nseg1=1
-                        seg1(1:2,1)=seg1(3:4,2)
-                    endif
-                endif
-                call self.nodefill(i,ia3(adjlist(i).elt(1:adjlist(i).nelt)),seg1(:,1:nseg1))
-            endif
+        
+        call self.overlaptest()
+        
+        do i=1,nnode
+            if(adjlist(i).nelt<2) cycle
+            
+            call self.nodefill(i)
+            !if(node(i).isb/=2) then
+            !    call self.nodefill(i,ia3(adjlist(i).elt(1:adjlist(i).nelt)))                
+            !elseif(adjlist(i).nelt>1) then
+            !    nseg1=0
+            !    do j=1,adjlist(i).count
+            !        n1=adjlist(i).node(j)
+            !        n2=adjlist(i).edge(j)
+            !        if(any(edge(n2).e==-1)) then
+            !            n3=maxval(edge(n2).e)
+            !            n3=ia3(n3) !particle
+            !            nseg1=nseg1+1
+            !            seg1(:,nseg1)=[node(i).x,node(i).y,node(n1).x,node(n1).y]
+            !            !找到切点
+            !            pc=[self.p(n3).x,self.p(n3).y]
+            !            call segment_point_near_2d ( seg1(1:2,nseg1), seg1(3:4,nseg1), pc, p1 )
+            !            seg1(3:4,nseg1)=p1                        
+            !        endif   
+            !    enddo
+            !    if(nseg1/=2) then
+            !        error stop "error. nseg==2 is expected."
+            !    else
+            !    !如果2条线段共线，则合并
+            !        call segment_point_near_2d ( seg1(3:4,1), seg1(3:4,2), seg1(1:2,1), p1,dist=t1 )
+            !        if(abs(t1)<1.d-8) then
+            !            nseg1=1
+            !            seg1(1:2,1)=seg1(3:4,2)
+            !        endif
+            !    endif
+            !    call self.nodefill(i,ia3(adjlist(i).elt(1:adjlist(i).nelt)),seg1(:,1:nseg1))
+            !endif
         enddo
         
         call self.output()
 
     endsubroutine
 
+   subroutine packgen2d_nodefill3(self,inode)
+        implicit none
+        class(disc_tydef)::self
+        integer,intent(in)::inode
+        integer::i,j,k,n1,i1,n2
+        integer::nps1=0,npv1=0,pseg1(3,100)
+        real(8)::pv1(2,100),xi(2),para(4,3),v1(4)
+        real(8),allocatable::ar1(:)
+        integer,allocatable::order1(:)
+        type(particle_tydef)::p
+        type(gpolygon_tydef)::poly
+        logical::isout=.false.
+
+
+        call topolygon(inode)
+        call poly.init(pv1(:,1:npv1),pseg1(:,1:nps1))
+        ar1=poly.maxdist();
+        order1=[1:poly.ne]
+        call quick_sort(ar1(4:poly.ne+3),order1)
+        xi(1:2)=ar1(1:2)
+        !call get_centre(xc,dis1)
+
+
+        ! 找出距离xi最近的三个颗粒
+        ! do i=1,np1            
+        !     sdf(1,i)=distance1(xi,i) !借用sdf
+        ! enddo
+        !t1=min_dis(xi,sdf(1,1:np1+nseg1))
+
+        !ips1(1:np1+nseg1)=[1:np1+nseg1]
+        n1=1;i1=3
+        do i=1,3
+            n2=order1(i)
+            if(poly.edge(n2).type==1) then                
+                para(1,n1)=poly.edge(n2).arc(2)
+                para(2,n1)=poly.edge(n2).arc(3)
+                para(3,n1)=poly.edge(n2).arc(1)
+                n1=n1+1
+            else
+                v1=[pv1(:,poly.edge(n2).v(1)),pv1(:,poly.edge(n2).v(2))]
+                !点到直线的距离有可能为负，但find_tangent_circle2算法中假定为正。为确保其为正值，圆心与定义直线两点必须为逆时针分布。
+                if(isacw(xi(1),xi(2),v1(1),v1(2),v1(3),v1(4)))then
+                    para(1:4,i1)=v1
+                else
+                    para(1:4,i1)=v1([3,4,1,2])
+                endif
+                i1=i1-1
+            endif
+        enddo
+
+        
+        !生成与上述三个颗粒相切的颗粒
+        call find_tangent_circle2(i1,para,p)
+        if(p.r>0.d0.and.p.r<1.d0) then
+            p.type=4
+            call self.push(p)  
+        endif
+
+        !if(isout) THEN
+        !    write(12,'(a,2(i3,1x),2(e15.8,1x))') "the center point is at (ip,idiv).and its xy is " ,maxloc1(2),maxloc1(1),xi
+        !    write(12,'(a,3(i3,1x))') "the nearest three particles are " ,ips1(1:3)
+        !    
+        !    close(12)
+        !endif
+
+    contains
+
+    subroutine topolygon(inode)
+        implicit none
+        integer,intent(in)::inode
+        integer::i,j,p1(3),i1,k
+        real(8)::x1(2,3),t1,theta1(3),colin
+        integer::pe1,ne1,pc1,v1(2)
+        
+        nps1=0;npv1=0
+        
+        pseg1(3,:)=-1
+        associate(x=>adjlist(inode))
+            do i=1,x.nelt
+                if(x.isbad==1.and.x.estat(i)==1) cycle
+                
+                pc1=x.elt(i)
+                pc1=elt(pc1).kcd
+            
+                pe1=elt(x.elt(i)).adj(x.subid(i))
+                if(pe1>0.and.x.isbad==1) then
+                    k=i
+                    do while(.true.)
+                        k=k-1
+                        if(k<1) k=k+x.nelt
+                        if(x.estat(k)/=1) then     
+                            pe1=x.elt(k)
+                            exit
+                        endif
+                    enddo
+                endif
+                
+                ne1=elt(x.elt(i)).adj(mod(mod(x.subid(i),3)+1,3)+1)
+                if(ne1>0.and.x.isbad==1) then
+                    k=i
+                    do while(.true.)
+                        k=mod(k,x.nelt)+1
+                        if(x.estat(k)/=1) then     
+                            ne1=x.elt(k)
+                            exit
+                        endif
+                    enddo
+                endif
+                
+                if(pe1>0) then
+                    !假定相邻两球相切
+                    pe1=elt(pe1).kcd
+                    if(x.isbad/=0)  then
+                        t1=norm2([self.p(pc1).x-self.p(pe1).x,self.p(pc1).y-self.p(pe1).y])                        
+                        t1=self.p(pc1).r/t1
+                    else
+                        t1=self.p(pc1).r/(self.p(pc1).r+self.p(pe1).r)
+                    endif
+                    x1(1,2)=self.p(pc1).x+(self.p(pe1).x-self.p(pc1).x)*t1
+                    x1(2,2)=self.p(pc1).y+(self.p(pe1).y-self.p(pc1).y)*t1                   
+                    
+                else
+                    v1=edge(elt(x.elt(i)).edge(x.subid(i))).v                    
+                    !找到切点                    
+                    call segment_point_near_2d ( [node(v1(1)).x,node(v1(1)).y], [node(v1(2)).x,node(v1(2)).y], &
+                        [self.p(pc1).x,self.p(pc1).y], x1(:,2) )
+                    npv1=npv1+1
+                    pv1(:,npv1)=[node(inode).x,node(inode).y]
+                    nps1=nps1+1
+                    pseg1(1:2,nps1)=[npv1,npv1+1]
+                endif 
+                npv1=npv1+1
+                pv1(:,npv1)=x1(:,2) 
+                theta1(2)=atan(x1(2,2)-self.p(pc1).y,x1(1,2)-self.p(pc1).x)
+                
+                if(ne1>0) then
+                    !假定相邻两球相切
+                    ne1=elt(ne1).kcd
+                    if(x.isbad/=0)  then
+                        t1=norm2([self.p(pc1).x-self.p(ne1).x,self.p(pc1).y-self.p(ne1).y])                        
+                        t1=self.p(pc1).r/t1
+                    else
+                        t1=self.p(pc1).r/(self.p(pc1).r+self.p(ne1).r)
+                    endif
+                    x1(1,1)=self.p(pc1).x+(self.p(ne1).x-self.p(pc1).x)*t1
+                    x1(2,1)=self.p(pc1).y+(self.p(ne1).y-self.p(pc1).y)*t1
+                    theta1(1)=atan(x1(2,1)-self.p(pc1).y,x1(1,1)-self.p(pc1).x) 
+                else
+                    v1=edge(elt(x.elt(i)).edge(mod(mod(x.subid(i),3)+1,3)+1)).v                    
+                    !找到切点                    
+                    call segment_point_near_2d ( [node(v1(1)).x,node(v1(1)).y], [node(v1(2)).x,node(v1(2)).y], &
+                        [self.p(pc1).x,self.p(pc1).y], x1(:,1) )
+                endif
+                theta1(1)=atan(x1(2,1)-self.p(pc1).y,x1(1,1)-self.p(pc1).x) 
+                !midpoint of arc
+                if(theta1(2)<theta1(1)) theta1(2)=theta1(2)+8.*atan(1.d0)
+                theta1(3)=(theta1(1)+theta1(2))/2
+                x1(:,3)=[self.p(pc1).x,self.p(pc1).y]+self.p(pc1).r*[cos(theta1(3)),sin(theta1(3))]                
+                npv1=npv1+1
+                pv1(:,npv1)=x1(:,3)
+                
+                nps1=nps1+1
+                pseg1(:,nps1)=[npv1-1,npv1+1,npv1] !arc
+                
+                if(ne1<=0) then
+                    npv1=npv1+1
+                    pv1(:,npv1)=x1(:,1) 
+                    nps1=nps1+1
+                    pseg1(1:2,nps1)=[npv1,npv1+1]
+                else
+                    if(x.isbad==1.and.x.estat(i)==-1) then
+                        !x.elt(i)中的颗粒与下颗粒分离，生成线段
+                        npv1=npv1+1
+                        pv1(:,npv1)=x1(:,1)
+                        nps1=nps1+1
+                        pseg1(1:2,nps1)=[npv1,npv1+1]
+                    endif
+                endif
+                
+                
+                
+                
+                
+            enddo
+            
+            where(pseg1(:,1:nps1)>npv1) pseg1(:,1:nps1)=1
+            
+            !检查相邻两线段是否共线，如果是，则合并之
+            do i=1,nps1
+                if(pseg1(3,i)>0) cycle
+                j=mod(i,nps1)+1
+                if(pseg1(3,j)>0) cycle
+                x1(:,1)=pv1(:,pseg1(1,i))
+                x1(:,2)=pv1(:,pseg1(2,i))
+                x1(:,3)=pv1(:,pseg1(2,j))
+                call points_colin_2d ( x1(:,1), x1(:,2), x1(:,3), colin )
+                if(abs(colin)<1e-7) then
+                    i1=pseg1(2,i)
+                    pseg1(2,i)=pseg1(2,j)
+                    nps1=nps1-1
+                    do j=j,nps1
+                        pseg1(:,j)=pseg1(:,j+1)
+                    enddo
+                    where(pseg1(:,1:nps1)>i1) pseg1(:,1:nps1)=pseg1(:,1:nps1)-1
+                    
+                    npv1=npv1-1
+                    do j=i1,npv1
+                        pv1(:,j)=pv1(:,j+1)
+                    enddo
+                    
+                endif
+            enddo
+            
+        end associate    
+            
+            
+        
+    endsubroutine
+
+   
+    
+    end subroutine    
+    
    subroutine packgen2d_nodefill2(self,inode,ps,seg)
         implicit none
         class(disc_tydef)::self
@@ -442,6 +919,7 @@ module packgen2d
                 para(3,n1)=self.p(ps(ips1(i))).r
                 n1=n1+1
             else 
+                !!点到直线的距离有可能为负，但find_tangent_circle2算法假定为正。为确保其为正值，圆心与定义直线两点必须为逆时针分布。
                 k=ips1(i)-np1
                 if(isacw(xi(1),xi(2),seg(1,k),seg(2,k),seg(3,k),seg(4,k)))then
                     para(1:4,i1)=seg(1:4,k)
@@ -802,11 +1280,15 @@ module packgen2d
         class(disc_tydef)::self
         integer::i
         integer(2)::oldcolor,result
+        oldcolor=setbkcolorrgb($LOGRAY)
         do i=1,self.np            
-            oldcolor=setcolorrgb(color(self.p(i).type+1))         
-            result=ellipse_w($GFILLINTERIOR,self.p(i).x-self.p(i).r,self.p(i).y-self.p(i).r,self.p(i).x+self.p(i).r,self.p(i).y+self.p(i).r)
-            !oldcolor=setcolorrgb(color(self.p(i).type+1))         
-            !result=ellipse_w($GBORDER,self.p(i).x-self.p(i).r,self.p(i).y-self.p(i).r,self.p(i).x+self.p(i).r,self.p(i).y+self.p(i).r)            
+            oldcolor=setcolorrgb(color(self.p(i).type+1)) 
+            if(self.p(i).type>4.or.self.p(i).overlap>0) then
+                result=ellipse_w($GFILLINTERIOR,self.p(i).x-self.p(i).r,self.p(i).y-self.p(i).r,self.p(i).x+self.p(i).r,self.p(i).y+self.p(i).r)
+            !oldcolor=setcolorrgb(color(self.p(i).type+1))      
+            else
+                result=ellipse_w($GBORDER,self.p(i).x-self.p(i).r,self.p(i).y-self.p(i).r,self.p(i).x+self.p(i).r,self.p(i).y+self.p(i).r) 
+            endif
         enddo
    
    
@@ -840,6 +1322,7 @@ module packgen2d
     contains
 
         subroutine solve_p()
+            !点到直线的距离有可能为负，但下面的算法假定为正。为确保其为正值，圆心与定义直线两点必须为逆时针分布。
             implicit none
             real(8)::Ma(2,2),xr(2),xb(2),det,t1
             real(8)::A,B,C,r1(2)
@@ -893,7 +1376,7 @@ module packgen2d
             A = xr(1)**2+xr(2)**2-1
             B = 2*((xb(1)-para(1,1))*xr(1)+(xb(2)-para(2,1))*xr(2)-para(3,1))
             C = xb(1)**2-2*xb(1)*para(1,1)+xb(2)**2-2*xb(2)*para(2,1)-para(3,1)**2+para(1,1)**2+para(2,1)**2
-            IF(ABS(A)>1.D-14) THEN
+            IF(ABS(A)>1.D-14 ) THEN
                 !let A>0
                 if(A<0.0d0) then
                     A=-A;B=-B;C=-C 
@@ -1773,7 +2256,132 @@ end
 
     return
     end
+    
+    subroutine points_colin_2d ( p1, p2, p3, colin )
 
+!*****************************************************************************80
+!
+!! POINTS_COLIN_2D estimates the colinearity of 3 points in 2D.
+!
+!  Discussion:
+!
+!    The estimate of colinearity that is returned is the ratio
+!    of the area of the triangle spanned by the points to the area
+!    of the equilateral triangle with the same perimeter.
+!
+!    This estimate is 1 if the points are maximally noncolinear, 0 if the
+!    points are exactly colinear, and otherwise is closer to 1 or 0 depending
+!    on whether the points are far or close to colinearity.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    17 October 2005
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input, real ( kind = 8 ) P1(2), P2(2), P3(2), the points.
+!
+!    Output, real ( kind = 8 ) COLIN, the colinearity estimate.
+!
+  implicit none
+
+  integer ( kind = 4 ), parameter :: dim_num = 2
+
+  real ( kind = 8 ) area_triangle
+  real ( kind = 8 ) area2
+  real ( kind = 8 ) colin
+  real ( kind = 8 ) p1(dim_num)
+  real ( kind = 8 ) p2(dim_num)
+  real ( kind = 8 ) p3(dim_num)
+  real ( kind = 8 ) perim
+  real ( kind = 8 ) side
+  real ( kind = 8 ) t(dim_num,3)
+
+  t(1:dim_num,1:3) = reshape ( (/ &
+    p1(1:dim_num), p2(1:dim_num), p3(1:dim_num) /), (/ dim_num, 3 /) )
+
+  call triangle_area_2d ( t, area_triangle )
+
+  if ( area_triangle == 0.0D+00 ) then
+
+    colin = 0.0D+00
+
+  else
+
+    perim = sqrt ( sum ( ( p2(1:dim_num) - p1(1:dim_num) )**2 ) ) &
+          + sqrt ( sum ( ( p3(1:dim_num) - p2(1:dim_num) )**2 ) ) &
+          + sqrt ( sum ( ( p1(1:dim_num) - p3(1:dim_num) )**2 ) )
+
+    side = perim / 3.0D+00
+
+    area2 = 0.25D+00 * sqrt ( 3.0D+00 ) * side * side
+
+    colin = abs ( area_triangle ) / area2
+
+  end if
+
+  return
+end
+
+subroutine triangle_area_2d ( t, area )
+
+!*****************************************************************************80
+!
+!! TRIANGLE_AREA_2D computes the area of a triangle in 2D.
+!
+!  Discussion:
+!
+!    If the triangle's vertices are given in counter clockwise order,
+!    the area will be positive.  If the triangle's vertices are given
+!    in clockwise order, the area will be negative!
+!
+!    An earlier version of this routine always returned the absolute
+!    value of the computed area.  I am convinced now that that is
+!    a less useful result!  For instance, by returning the signed 
+!    area of a triangle, it is possible to easily compute the area 
+!    of a nonconvex polygon as the sum of the (possibly negative) 
+!    areas of triangles formed by node 1 and successive pairs of vertices.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    17 October 2005
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input, real ( kind = 8 ) T(2,3), the triangle vertices.
+!
+!    Output, real ( kind = 8 ) AREA, the area of the triangle.
+!
+  implicit none
+
+  integer ( kind = 4 ), parameter :: dim_num = 2
+
+  real ( kind = 8 ) area
+  real ( kind = 8 ) t(dim_num,3)
+
+  area = 0.5D+00 * ( &
+      t(1,1) * ( t(2,2) - t(2,3) ) &
+    + t(1,2) * ( t(2,3) - t(2,1) ) &
+    + t(1,3) * ( t(2,1) - t(2,2) ) )
+
+  return
+end    
     !subroutine find_tangent_circle(itype,para,p,x0)
     !    implicit none
     !    integer,intent(in)::itype  !=3,tangent to 3 cirles; =2,tangent to 2 cirles and 1 line; =1 tangent to 1 cirle and 2 line; =0, tangent to a triangle;

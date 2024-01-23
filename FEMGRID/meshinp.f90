@@ -1,94 +1,94 @@
 
-  subroutine meshinp
-		use meshDS
-		use ds_t
-		use dflib
-        use ifport
-        
-		implicit none
+subroutine meshinp
+	use meshDS
+	use ds_t
+	use dflib
+	use ifport
+	
+	implicit none
 
 
-		integer::i,j,k,k1,n1,n2
-		!integer::a1
-		integer::ef,unit,itype
-		character(256) term,keyword
-		character(1)::ch
-		real(8)::r_t !  Íâ°üÈı½ÇĞÎµÄÄÚ½ÓÔ²°ë¾¶£¬r_t=5*£¨°üº¬±ß½ç¹Ø¼üµãµÄ×îĞ¡Ô²°ë¾¶£©
-		real(8)::x_t,y_t
-		real(8)::t1,t2,t3
-		integer(4)::length,result,msg
-		character(256)::nme
-		CHARACTER(3)        drive
-		CHARACTER(256)      dir
-		CHARACTER(256)      name
-		CHARACTER(256)      ext
-		type(constrainline_tydef) ,allocatable::csl_t(:)
-        type(qwinfo) winfo
+	integer::i,j,k,k1,n1,n2
+	!integer::a1
+	integer::ef,unit,itype
+	character(256) term,keyword
+	character(1)::ch
+	real(8)::r_t !  å¤–åŒ…ä¸‰è§’å½¢çš„å†…æ¥åœ†åŠå¾„ï¼Œr_t=5*ï¼ˆåŒ…å«è¾¹ç•Œå…³é”®ç‚¹çš„æœ€å°åœ†åŠå¾„ï¼‰
+	real(8)::x_t,y_t
+	real(8)::t1,t2,t3
+	integer(4)::length,result,msg
+	character(256)::nme
+	CHARACTER(3)        drive
+	CHARACTER(256)      dir
+	CHARACTER(256)      name
+	CHARACTER(256)      ext
+	type(constrainline_tydef) ,allocatable::csl_t(:)
+	type(qwinfo) winfo
 
-		term="Input Files for Mesh(*.mes),*.mes;Data Files(*.dat),*.dat;All Files(*.*),*.*;"
-		term=trim(term)
-		call setmessageqq(term,QWIN$MSG_FILEOPENDLG)
-        winfo%TYPE = QWIN$MAX
-	    result = SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo)
-        result=SETWSIZEQQ(0, winfo) 
-		term=''
-		open(1,file=' ',status='old' )
-		inquire(1,name=nme)
-		length = SPLITPATHQQ(nme, drive, dir, name, ext)
-        msg = CHDIR(trim(drive)//trim(dir))
-        path_name=trim(drive)//trim(dir)//trim(name)
-        title=trim(name)
-		unit=1
-		itype=0
-		call read_execute(unit,itype,keyword)
+	term="Input Files for Mesh(*.mes),*.mes;Data Files(*.dat),*.dat;All Files(*.*),*.*;"
+	term=trim(term)
+	call setmessageqq(term,QWIN$MSG_FILEOPENDLG)
+	winfo%TYPE = QWIN$MAX
+	result = SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo)
+	result=SETWSIZEQQ(0, winfo) 
+	term=''
+	open(1,file=' ',status='old' )
+	inquire(1,name=nme)
+	length = SPLITPATHQQ(nme, drive, dir, name, ext)
+	msg = CHDIR(trim(drive)//trim(dir))
+	path_name=trim(drive)//trim(dir)//trim(name)
+	title=trim(name)
+	unit=1
+	itype=0
+	call read_execute(unit,itype,keyword)
 
 
+	
+	resultfile=trim(path_name)//'.SINP'		
+
+	checkfile=trim(path_name)//'_check.plot'
+	
+
+	close(1)
+
+	if(.not.allocated(zone)) allocate(zone(0:znum))
+
+
+!æŠŠåœ†å½¢æ§åˆ¶çº¿å’ŒbuildingåŠ å…¥åˆ°æ§åˆ¶çº¿æ•°ä¸­
+
+if(ccln>0) then
+	 allocate(cclincsl(ccln))	
+  allocate(csl_t(cln+ccln))
+  do i=1,ccln
+	ccl(i).r=ccl(i).r/xyscale
+	 j=cln+i
+	cclincsl(i)=j
+	csl_t(j).num=16
+	allocate(csl_t(j).conpoint(3,csl_t(j).num))
+	csl_t(j).flag=1
+	csl_t(j).hole=ccl(i).hole
+	do k=1,inpn
+	   if(arr_t(k).num==ccl(i).point) exit
+	end do
 		
-		resultfile=trim(path_name)//'.SINP'		
-
-		checkfile=trim(path_name)//'_check.plot'
+	t1=2*3.14159/16
+		!t2=((ccl(i).r*cos(t1))**2+(ccl(i).r*sin(t1))**2)**0.5
 		
+	t2=3.14159*2*ccl(i).r/16
+	do k1=1,csl_t(j).num
+	   csl_t(j).conpoint(1,k1)=arr_t(k).x+ccl(i).r*cos(t1*(k1-1))
+	   csl_t(j).conpoint(2,k1)=arr_t(k).y+ccl(i).r*sin(t1*(k1-1))
+	   !call sizecal(csl_t(j).conpoint(1,k1),csl_t(j).conpoint(2,k1),csl_t(j).conpoint(3,k1))
+	   !if(csl_t(j).conpoint(3,k1)>t2) 	
+	   csl_t(j).conpoint(3,k1)=t2	!å¦‚æœå°ºå¯¸å¤§äºè¾¹é•¿ï¼Œå–è¾¹é•¿	
+	end do
+  end do
 
-		close(1)
-
-		if(.not.allocated(zone)) allocate(zone(0:znum))
-
-
- !°ÑÔ²ĞÎ¿ØÖÆÏßºÍbuilding¼ÓÈëµ½¿ØÖÆÏßÊıÖĞ
-   
-   if(ccln>0) then
-   	  allocate(cclincsl(ccln))	
-	  allocate(csl_t(cln+ccln))
-	  do i=1,ccln
-		ccl(i).r=ccl(i).r/xyscale
-	     j=cln+i
-	    cclincsl(i)=j
-	    csl_t(j).num=16
-	    allocate(csl_t(j).conpoint(3,csl_t(j).num))
-		csl_t(j).flag=1
-		csl_t(j).hole=ccl(i).hole
-		do k=1,inpn
-		   if(arr_t(k).num==ccl(i).point) exit
-		end do
-			
-		t1=2*3.14159/16
-			!t2=((ccl(i).r*cos(t1))**2+(ccl(i).r*sin(t1))**2)**0.5
-			
-		t2=3.14159*2*ccl(i).r/16
-		do k1=1,csl_t(j).num
-		   csl_t(j).conpoint(1,k1)=arr_t(k).x+ccl(i).r*cos(t1*(k1-1))
-		   csl_t(j).conpoint(2,k1)=arr_t(k).y+ccl(i).r*sin(t1*(k1-1))
-		   !call sizecal(csl_t(j).conpoint(1,k1),csl_t(j).conpoint(2,k1),csl_t(j).conpoint(3,k1))
-		   !if(csl_t(j).conpoint(3,k1)>t2) 	
-		   csl_t(j).conpoint(3,k1)=t2	!Èç¹û³ß´ç´óÓÚ±ß³¤£¬È¡±ß³¤	
-		end do
-	  end do
-
-	  csl_t(1:cln)=csl(1:cln)
-	  cln=cln+ccln
-	  allocate(csl(cln))
-	  csl(1:cln)=csl_t(1:cln) 
-	  	
+  csl_t(1:cln)=csl(1:cln)
+  cln=cln+ccln
+  allocate(csl(cln))
+  csl(1:cln)=csl_t(1:cln) 
+	  
 !	  if(cln>0) then
 !		 csl_t(1:cln)=csl(1:cln)
 !		 deallocate(csl)
@@ -101,57 +101,57 @@
 !		 csl=csl_t
 !	  end if
 
-      deallocate(csl_t)
+  deallocate(csl_t)
 
-   end if
- !add the boundary to csl(0)
+end if
+!add the boundary to csl(0)
 if(cln>0) then
-	allocate(csl_t(cln))
-	csl_t(1:cln)=csl(1:cln)
-  if(allocated(csl)) deallocate(csl)
-	allocate(csl(0:cln))
-	csl(1:cln)=csl_t(1:cln)
+allocate(csl_t(cln))
+csl_t(1:cln)=csl(1:cln)
+if(allocated(csl)) deallocate(csl)
+allocate(csl(0:cln))
+csl(1:cln)=csl_t(1:cln)
 else
-	allocate(csl(0:cln))
+allocate(csl(0:cln))
 end if
 
 if(keypn>0) then
-	csl(0).num=keypn
-	csl(0).hole=0
-	csl(0).flag=1
-	allocate(csl(0).conpoint(3,keypn))
-	do i=1,keypn
-		csl(0).conpoint(1,i)=node(i).x
-		csl(0).conpoint(2,i)=node(i).y
-		csl(0).conpoint(3,i)=node(i).s
-       
-	end do
-    csl(0).point=kp(1:keypn)
-    
+csl(0).num=keypn
+csl(0).hole=0
+csl(0).flag=1
+allocate(csl(0).conpoint(3,keypn))
+do i=1,keypn
+	csl(0).conpoint(1,i)=node(i).x
+	csl(0).conpoint(2,i)=node(i).y
+	csl(0).conpoint(3,i)=node(i).s
+   
+end do
+csl(0).point=kp(1:keypn)
+
 end if
 
 
 
 
 do i=1,nmgroup
-    if(.not.allocated(zone(model(i).izone).mat)) then
-        allocate(zone(model(i).izone).mat(0:soillayer),zone(model(i).izone).solver_et(0:soillayer),&
-        zone(model(i).izone).name(0:soillayer),zone(model(i).izone).ismodel(0:soillayer))
-    endif
-    zone(model(i).izone).mat(model(i).ilayer)=model(i).mat
-    zone(model(i).izone).solver_et(model(i).ilayer)=model(i).et
-    zone(model(i).izone).name(model(i).ilayer)=model(i).name  
-    zone(model(i).izone).ismodel(model(i).ilayer)=1
+if(.not.allocated(zone(model(i).izone).mat)) then
+	allocate(zone(model(i).izone).mat(0:soillayer),zone(model(i).izone).solver_et(0:soillayer),&
+	zone(model(i).izone).name(0:soillayer),zone(model(i).izone).ismodel(0:soillayer))
+endif
+zone(model(i).izone).mat(model(i).ilayer)=model(i).mat
+zone(model(i).izone).solver_et(model(i).ilayer)=model(i).et
+zone(model(i).izone).name(model(i).ilayer)=model(i).name  
+zone(model(i).izone).ismodel(model(i).ilayer)=1
 enddo
 
 !call write_poly_file()
 
 
-   print *,'Reading data COMPLETED.'
-   !if(znum==0) znum=1
+print *,'Reading data COMPLETED.'
+!if(znum==0) znum=1
 
 
-	!ĞÎ³ÉÍâ°ü´óÈı½ÇĞÎ
+!å½¢æˆå¤–åŒ…å¤§ä¸‰è§’å½¢
 !	  x_t=abs(winxlr-winxul)/2
 !	  y_t=abs(winylr-winyul)/2
 !	  r_t=1.4*max(x_t,y_t)
@@ -165,12 +165,12 @@ enddo
 !	  triangle(1,3)=x_t+(3**0.5)*r_t
 !	  triangle(2,3)=y_t+r_t
 
-	  triangle(1,1)=-10.0
-	  triangle(2,1)=-10.0
-	  triangle(1,2)=10.0
-	  triangle(2,2)=-10.0
-	  triangle(1,3)=0.0
-	  triangle(2,3)=10.0
+  triangle(1,1)=-10.0
+  triangle(2,1)=-10.0
+  triangle(1,2)=10.0
+  triangle(2,2)=-10.0
+  triangle(1,3)=0.0
+  triangle(2,3)=10.0
 
 
 
@@ -184,1308 +184,1127 @@ enddo
 !	 end do
 
 
-  end subroutine
+end subroutine
 
 
 
-  subroutine command(term,unit)
-     use dflib
-	 use meshds
-	 use ds_t
-     use BC_HANDLE
-     use CutoffWall
-     use geomodel,only:blo,nblo
-     use triangle_io,only:libtriangle
-     use sample_pdf
-	 implicit none
-	 integer::i,j,k,j1
+subroutine command(term,unit)
+ use dflib
+ use meshds
+ use ds_t
+ use BC_HANDLE
+ use CutoffWall
+ use geomodel,only:blo,nblo
+ use triangle_io,only:libtriangle
+ use sample_pdf
+ use PoreScaleModel
+ implicit none
+ integer::i,j,k,j1
+
+ integer::nt1,nt2,n1,n2,ef,unit,ni,n3
+ integer(4)::msg,oldcolor
+ character(len=*) term
+ character(len=1024)::string,str1
+ character(1)::ch
+ CHARACTER(3)::SUPNO
+ character(16)::legalC
+ character(16)::noun
+ integer::dnmax,dn     
+ real(8)::t1,t2
+ real(8),allocatable::ar(:),ar1(:)
+ type(arr_tydef)::ts1
+ logical::isall1,iserror1
+ 
+!INTERFACE
+!	SUBROUTINE strtoint(unit,ar,nmax,n1,num_read,isall)
+!		INTEGER:: unit, nmax, n1,num_read
+!		real(8)::ar(nmax)
+!		logical::isall
+!		OPTIONAL::isall
+!	END SUBROUTINE
+!END INTERFACE
+ 
+ 
+ dnmax=300
+ dn=0
+ if(.not.allocated(ar)) allocate(ar(dnmax))
+ ar=0.d0
+ !unit=1
+
+ legalc='.0123456789+-eE*'
+	 
+ term=trim(term)
+
+ select case(term)
+ case('psm')
+	call psmodel.handle(unit)
+    
+ case('pdf_sample','sample')
+	call example_pdf.readin(unit)
+	if(example_pdf.isout/=0) call example_pdf.output()
 	
-	 integer::nt1,nt2,n1,n2,ef,unit,ni,n3
-	 integer(4)::msg,oldcolor
-     character(len=*) term
-     character(len=1024)::string,str1
-	 character(1)::ch
-	 CHARACTER(3)::SUPNO
-	 character(16)::legalC
-	 character(16)::noun
-	 integer::dnmax,dn     
-     real(8)::t1,t2
-     real(8),allocatable::ar(:),ar1(:)
-	 type(arr_tydef)::ts1
-	 logical::isall1,iserror1
+case('vol_pg')
+		print *,'Reading vol_pg zone data...'
+		call skipcomment(unit)
+		read(unit,*) nvol_pg
+		allocate(vol_pg(nvol_pg))
+		if(nvol_pg>0) call vol_pg(1).help(vol_pg(1).helpstring)
+		do i=1,nvol_pg
+			call vol_pg(i).readin(unit)
+		enddo             
+	case('vseg_pg')
+		print *,'Reading vseg_pg Zone data...'
+		call skipcomment(unit)
+		read(unit,*) nvseg_pg
+		allocate(vseg_pg(nvseg_pg))
+		if(nvseg_pg>0) call vseg_pg(1).help(vseg_pg(1).helpstring)
+		do i=1,nvseg_pg
+			call vseg_pg(i).readin(unit)
+		enddo  
 	 
-	!INTERFACE
-	!	SUBROUTINE strtoint(unit,ar,nmax,n1,num_read,isall)
-	!		INTEGER:: unit, nmax, n1,num_read
-	!		real(8)::ar(nmax)
-	!		logical::isall
-	!		OPTIONAL::isall
-	!	END SUBROUTINE
-	!END INTERFACE
+	case('mesh_by_triangle','triangle')
+		call libtriangle.readin(unit)       
 	 
-	 
-	 dnmax=300
-	 dn=0
-	 if(.not.allocated(ar)) allocate(ar(dnmax))
-	 ar=0.d0
-	 !unit=1
+	case('vface_pg')
+		print *,'Reading vface_pg Zone data...'
+		call skipcomment(unit)
+		read(unit,*) nvface_pg
+		allocate(vface_pg(nvface_pg))
+		if(nvface_pg>0) call vface_pg(1).help(vface_pg(1).helpstring)
+		do i=1,nvface_pg
+			call vface_pg(i).readin(unit)
+		enddo 
+	case('node_pg')
+		print *,'Reading node_pg Zone data...'
+		call skipcomment(unit)
+		read(unit,*) nnode_pg
+		allocate(node_pg(nnode_pg))
+		if(nnode_pg>0) call node_pg(1).help(node_pg(1).helpstring)
+		do i=1,nnode_pg
+			call node_pg(i).readin(unit)
+		enddo 
 
-	 legalc='.0123456789+-eE*'
-	 	
-	 term=trim(term)
-	
-	 select case(term)
-     case('pdf_sample','sample')
-        call example_pdf.readin(unit)
-        if(example_pdf.isout/=0) call example_pdf.output()
-        
-    case('vol_pg')
-            print *,'Reading vol_pg zone data...'
-            call skipcomment(unit)
-            read(unit,*) nvol_pg
-            allocate(vol_pg(nvol_pg))
-            if(nvol_pg>0) call vol_pg(1).help(vol_pg(1).helpstring)
-            do i=1,nvol_pg
-                call vol_pg(i).readin(unit)
-            enddo             
-        case('vseg_pg')
-            print *,'Reading vseg_pg Zone data...'
-            call skipcomment(unit)
-            read(unit,*) nvseg_pg
-            allocate(vseg_pg(nvseg_pg))
-            if(nvseg_pg>0) call vseg_pg(1).help(vseg_pg(1).helpstring)
-            do i=1,nvseg_pg
-                call vseg_pg(i).readin(unit)
-            enddo  
-         
-        case('mesh_by_triangle','triangle')
-            call libtriangle.readin(unit)       
-         
-        case('vface_pg')
-            print *,'Reading vface_pg Zone data...'
-            call skipcomment(unit)
-            read(unit,*) nvface_pg
-            allocate(vface_pg(nvface_pg))
-            if(nvface_pg>0) call vface_pg(1).help(vface_pg(1).helpstring)
-            do i=1,nvface_pg
-                call vface_pg(i).readin(unit)
-            enddo 
-		case('node_pg')
-			print *,'Reading node_pg Zone data...'
+
+	case('model')
+	   print *,'Reading model data...'
+	   oldcolor = SETTEXTCOLOR(INT2(10))
+	   write(*,'(A256)') '\n Modelçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)ç»„æ•°(nmgroup);\n 2)[izone,ilayer(0(é»˜è®¤)),MAT(1),SF(0),COUPLESET(-1),ET,NAME]*nmgroup \n'c
+	   oldcolor = SETTEXTCOLOR(INT2(15))
+		do i=1, pro_num
+			select case(property(i).name)
+			case('dimension','dim')
+				modeldimension=int(property(i).value)                                    
+			case default
+				call Err_msg(property(i).name)
+			end select
+		end do           
+	   call skipcomment(unit)
+	   read(unit,*) nmgroup
+	   allocate(model(nmgroup))
+	   do i=1,nmgroup
 			call skipcomment(unit)
-			read(unit,*) nnode_pg
-			allocate(node_pg(nnode_pg))
-			if(nnode_pg>0) call node_pg(1).help(node_pg(1).helpstring)
-			do i=1,nnode_pg
-				call node_pg(i).readin(unit)
-			enddo 
+			read(unit,*) model(i).izone,model(i).ilayer,model(i).mat,model(i).SF,model(i).COUPLESET,model(i).et,model(i).name
+			call lowcase(model(i).et)
+	   enddo
+	case('cow','cowall','cutoffwall')
+		print *,'Reading CutOffWall data...'
+		call skipcomment(unit)
+		read(unit,*) ncow
+		allocate(cowall(ncow))
+		if(ncow>0) call cowall(1).help(cowall(1).helpstring)
+		do i=1,ncow
+			call cowall(i).readin(unit)
+		enddo 
+	case('xzone')
+		print *,'Reading Excavated Zone data...'
+		call skipcomment(unit)
+		read(unit,*) nxzone
+		allocate(xzone(nxzone))
+		if(nxzone>0) call xzone(1).help(xzone(1).helpstring)
+		do i=1,nxzone
+			call xzone(i).readin(unit)
+		enddo             
+	case('zonebc')
+		print *,'Reading ZoneBC data...'
+		call skipcomment(unit)
+		read(unit,*) nzbc
+		allocate(zonebc(nzbc))
+		if(nzbc>0) call zonebc(1).help(zonebc(1).helpstring)
+		do i=1,nzbc
+			!call skipcomment(unit)
+			call zonebc(i).readin(unit)
+			!call zonebc(i).set_bc
+			!call lowcase(model(i).et)
+		enddo       
 
-
-        case('model')
-		   print *,'Reading model data...'
-		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,'(A256)') '\n ModelµÄÊäÈë¸ñÊ½Îª:\n 1)×éÊı(nmgroup);\n 2)[izone,ilayer(0(Ä¬ÈÏ)),MAT(1),SF(0),COUPLESET(-1),ET,NAME]*nmgroup \n'c
-		   oldcolor = SETTEXTCOLOR(INT2(15))
-            do i=1, pro_num
-                select case(property(i).name)
-                case('dimension','dim')
-	                modeldimension=int(property(i).value)                                    
-                case default
-	                call Err_msg(property(i).name)
-                end select
-            end do           
-           call skipcomment(unit)
-           read(unit,*) nmgroup
-           allocate(model(nmgroup))
-           do i=1,nmgroup
-                call skipcomment(unit)
-                read(unit,*) model(i).izone,model(i).ilayer,model(i).mat,model(i).SF,model(i).COUPLESET,model(i).et,model(i).name
-                call lowcase(model(i).et)
-           enddo
-        case('cow','cowall','cutoffwall')
-            print *,'Reading CutOffWall data...'
-            call skipcomment(unit)
-            read(unit,*) ncow
-            allocate(cowall(ncow))
-            if(ncow>0) call cowall(1).help(cowall(1).helpstring)
-            do i=1,ncow
-                call cowall(i).readin(unit)
-            enddo 
-        case('xzone')
-            print *,'Reading Excavated Zone data...'
-            call skipcomment(unit)
-            read(unit,*) nxzone
-            allocate(xzone(nxzone))
-            if(nxzone>0) call xzone(1).help(xzone(1).helpstring)
-            do i=1,nxzone
-                call xzone(i).readin(unit)
-            enddo             
-		case('zonebc')
-            print *,'Reading ZoneBC data...'
-            call skipcomment(unit)
-            read(unit,*) nzbc
-            allocate(zonebc(nzbc))
-            if(nzbc>0) call zonebc(1).help(zonebc(1).helpstring)
-            do i=1,nzbc
-                !call skipcomment(unit)
-                call zonebc(i).readin(unit)
-                !call zonebc(i).set_bc
-                !call lowcase(model(i).et)
-            enddo       
-
-		case('linebc')
-            print *,'Reading LineBC data...'
-            call skipcomment(unit)
-            read(unit,*) nlbc
-            allocate(linebc(nlbc))
-            if(nlbc>0) call linebc(1).help(linebc(1).helpstring)
-            do i=1,nlbc
-                !call skipcomment(unit)
-                call linebc(i).readin(unit)
-                !call zonebc(i).set_bc
-                !call lowcase(model(i).et)
-            enddo    
-            
-        case('blo','booleanobject')
-		    print *,'Reading BOOLEAN OBJECT data'
-            call skipcomment(unit) 
-            read(unit,*) nblo
-            allocate(blo(nblo))
-            if(nblo>0) call blo(1).help(blo(1).helpstring)
-            do i=1,nblo
-                call blo(i).readin(unit,i)
-            enddo 
-            
-	    case('point','p')
+	case('linebc')
+		print *,'Reading LineBC data...'
+		call skipcomment(unit)
+		read(unit,*) nlbc
+		allocate(linebc(nlbc))
+		if(nlbc>0) call linebc(1).help(linebc(1).helpstring)
+		do i=1,nlbc
+			!call skipcomment(unit)
+			call linebc(i).readin(unit)
+			!call zonebc(i).set_bc
+			!call lowcase(model(i).et)
+		enddo    
 		
-		   print *,'Reading POINT data'
-		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,'(A1024)') '\n PointµÄÊäÈë¸ñÊ½Îª:\n &
-           &    0) Point[,soillayer=#,inpmethod=0|1|2,zorder=0|1,isnorefined=0|1|-1|-a],poly3d=0|1|,ismerged=0|1,iscompounded=0|1,ismeshsize=0|1,isgendem=0!1 \n  &
-           &    1) µãÊı(inpn);\n &
-           &    2) ĞòºÅ(num),×ø±ê(x),×ø±ê(y),[elevation(1:soillayer+1)][,meshsize]. ¹²inpnĞĞ.\n &
-           &    Notes: \n &
-           &        a)Zorder,¸ß³ÌÊäÈëË³Ğò£¬=0(Ä¬ÈÏ)±í¸ß³Ìelevation´Óµ×²ãÍùÉÏÊä;=1·´Ö®. \n &
-           &        b)inpmethod,ÍÁ²ã²åÖµ·½·¨,=0±íÄ¤·½³Ì²åÖµ;=1(Ä¬ÈÏ),Èı½ÇĞÎÏß²å;=2±³¾°Íø¸ñÏß²å. \n &
-           &        c)isnorefined,ÊÇ·ñ¼ÓÃÜÍø¸ñ,0=No(Ä¬ÈÏ,Ï¸·Ö£¬ÇÒÓÉÍø¸ñ×î´ó³ß´çÎªÏàÁÚµãµÄ×îĞ¡¾àÀë),1=Yes(²»Ï¸·Ö),-1=NO(Ï¸·Ö£¬³ß´ç°´ÊäÈë,Èç²»ÊäÈë£¬ÔòÍø¸ñ³ß´çÎªÇÒÏàÁÚµãµÄ×î´ó¾àÀë);.\n &
-           &        d£©=-a(/=1),Ï¸·Ö£¬ËùÓĞ½ÚµãµÄÍø¸ñ³ß´ç°´Ä£ĞÍ³¤¶ÈµÄ1/a. \n &    
-           &        e)meshsize=¸Ãµã¸½½üµÄÍø¸ñ´óĞ¡(¿É²»ÊäÈë). \n &
-           &        f)soillayer=Ä£ĞÍµÄÍÁ²ãÊı(Ä¬ÈÏ0) \n &
-           &        g)elevation=¸ÃµãµÄ¸÷ÍÁ²ãÃæ¸ß³Ì(soillayer>0Ê±ÊäÈë) \n &
-           &        h) µ±soillayer>0Ê±£¬×îÍâÈ¦Ä£ĞÍ±ß½çµãÒªÇóÊäÈë¸÷µØ²ã¸ß³Ì£¬ÒòÎªÍâ²å²»¿É¿Ø¡£\n &
-           &        i) poly3d=0,²»Êä³ötetgenµÄpolyÎÄ¼ş;=1,Êä³öfacetpolyÎÄ¼ş¡£\n &
-           &        j) ismerged=0,²»ºÏ²¢Ğ¡Íø¸ñ;=1,ºÏ²¢Ğ¡Íø¸ñ\n &
-           &        k) iscompounded,=0,gmsh options.\n &   
-		   &        l) ismeshsize,ÊÇ·ñÊä³öµ¥Ôª³ß¶È´óĞ¡µ½geoÎÄ¼şÖĞ,N0Y1.\n &    
-		   &        l) isgendem,ÊÇ·ñ¸ù¾İÍø¸ñÉú³ÉÀëÉ¢Ôª¿ÅÁ£.N0Y1\n &                   
-           &'C
-		   oldcolor = SETTEXTCOLOR(INT2(15))
-            do i=1, pro_num
-                select case(property(i).name)
-                case('soillayer')
-	                soillayer=int(property(i).value)
-                    if(soillayer<=0) then
-                        soillayer=0
-                    endif
-				case('isnorefined')
-					isnorefined=int(property(i).value)
-                case('inpmethod')
-                    inpmethod=int(property(i).value)
-                case('zorder')
-                    Zorder=int(property(i).value)
-                case('poly3d')
-                    poly3d=int(property(i).value)
-                case('ismerged')
-                    ismerged=int(property(i).value)
-				case('ismeshsize')
-                    ismerged=int(property(i).value)
-                case('iscompounded')
-                    iscompounded=int(property(i).value)                     
-                case default
-	                call Err_msg(property(i).name)
-                end select
-            end do
-           call skipcomment(unit) 
-		   read(unit,*) inpn
-	       allocate(arr_t(inpn),geology(inpn))
-		   ngeo=inpn
-           iserror1=.false.
-		   do i=1,inpn
-			   call strtoint(unit,ar,dnmax,dn,dnmax)
-			   k=nint(ar(1))
-			   arr_t(k).num=k
-			   arr_t(k).x=ar(2)
-			   arr_t(k).y=ar(3)
-               !µ±soillayer>0Ê±£¬Èç¹ûÒªÍ¬Ê±ÊäÈëµ¥Ôª³ß´ç£¬ÔòÒªÏÈÊäÈë¸ß³ÌĞÅÏ¢,ÔÙÊäÈë³ß´çĞÅÏ¢¡£
-			   if(dn>3) then
-                    n1=dn
-                    if(dn>4.and.soillayer>0) then
-                        arr_t(k).havesoildata=2
-                        allocate(arr_t(k).soildata(0:soillayer))
-                        arr_t(k).soildata=-999.d0
-                        if(zorder==0) then
-                            arr_t(k).soildata=ar(4:4+soillayer)
-                        else
-                            arr_t(k).soildata=ar(4+soillayer:4:-1)
-                        endif
-                        t1=minval(arr_t(k).soildata,abs(arr_t(k).soildata+999.d0)>1.d-6)
-                        if(t1<zmin) zmin=t1
-                        t1=maxval(arr_t(k).soildata,abs(arr_t(k).soildata+999.d0)>1.d-6)
-                        if(t1>zmax) zmax=t1                        
-                        !if(any(arr_t(k).soildata(2:4)-arr_t(k).soildata(1:3))<0.0)
-                        if(all(abs(arr_t(k).soildata+999.0d0)<1.d-6)) then
-                            arr_t(k).havesoildata=0
-                        elseif(any(abs(arr_t(k).soildata+999.0d0)<1.d-6)) then
-                            arr_t(k).havesoildata=1
-                        endif
-                        if(arr_t(k).havesoildata>0) then
-                            ar1=pack(arr_t(k).soildata,abs(arr_t(k).soildata+999.0)>=1.d-6)
-                            if(size(ar1)>1) then
-                                if(any(ar1(2:)-ar1(1:size(ar1)-1)<0.d0)) then
-                                    print *, 'Elevation conflicts in POint i=',k  
-                                    iserror1=.true.
-                                endif
-                            endif
-                        endif
-                        
-                        if(dn<=4+soillayer) n1=0                         
-                        geology(k).isini=1
-						geology(k).node=k
-						allocate(geology(k).elevation(0:soillayer))
-						geology(k).elevation=arr_t(k).soildata
-						
-                    endif
-                    if(n1>0) then
-                       arr_t(k).s=ar(dn)
-				       if(ar(dn)>0) then
-                            arr_t(k).iss=1
-                       else
-                            arr_t(k).s=0.
-                            arr_t(k).iss=0
-                       endif
-                    endif
-			   end if			   	
-           end do
-           
-           if(iserror1) pause
-       	   !read(unit,*) ((arr_t(i).num,arr_t(i).x,arr_t(i).y),i=1,inpn)
+	case('blo','booleanobject')
+		print *,'Reading BOOLEAN OBJECT data'
+		call skipcomment(unit) 
+		read(unit,*) nblo
+		allocate(blo(nblo))
+		if(nblo>0) call blo(1).help(blo(1).helpstring)
+		do i=1,nblo
+			call blo(i).readin(unit,i)
+		enddo 
 		
-		   xmin=arr_t(1).x
-           xmax=arr_t(1).x
-		   ymin=arr_t(1).y
-           ymax=arr_t(1).y	
-           
-	        
-	       do i=2,inpn
-			  if(arr_t(i).x<xmin) xmin=arr_t(i).x
-			  if(arr_t(i).x>xmax) xmax=arr_t(i).x
-			  if(arr_t(i).y<ymin) ymin=arr_t(i).y
-			  if(arr_t(i).y>ymax) ymax=arr_t(i).y
-	       end do
-
-		   !scale
-		   xyscale=max(abs(xmax-xmin),abs(ymax-ymin))
-           
-		  
-               
-		   do i=1,inpn
-				arr_t(i).x=(arr_t(i).x-xmin)/xyscale
-				arr_t(i).y=(arr_t(i).y-ymin)/xyscale
-                
-                if(arr_t(i).havesoildata>0) then
-                    where(abs(arr_t(i).soildata+999.d0)>1.d-6)  arr_t(i).soildata=(arr_t(i).soildata-zmin)/xyscale
-                    geology(i).elevation=arr_t(i).soildata
+	case('point','p')
+	
+	   print *,'Reading POINT data'
+	   oldcolor = SETTEXTCOLOR(INT2(10))
+	   write(*,'(A1024)') '\n Pointçš„è¾“å…¥æ ¼å¼ä¸º:\n &
+	   &    0) Point[,soillayer=#,inpmethod=0|1|2,zorder=0|1,isnorefined=0|1|-1|-a],poly3d=0|1|,ismerged=0|1,iscompounded=0|1,ismeshsize=0|1,isgendem=0!1 \n  &
+	   &    1) ç‚¹æ•°(inpn);\n &
+	   &    2) åºå·(num),åæ ‡(x),åæ ‡(y),[elevation(1:soillayer+1)][,meshsize]. å…±inpnè¡Œ.\n &
+	   &    Notes: \n &
+	   &        a)Zorder,é«˜ç¨‹è¾“å…¥é¡ºåºï¼Œ=0(é»˜è®¤)è¡¨é«˜ç¨‹elevationä»åº•å±‚å¾€ä¸Šè¾“;=1åä¹‹. \n &
+	   &        b)inpmethod,åœŸå±‚æ’å€¼æ–¹æ³•,=0è¡¨è†œæ–¹ç¨‹æ’å€¼;=1(é»˜è®¤),ä¸‰è§’å½¢çº¿æ’;=2èƒŒæ™¯ç½‘æ ¼çº¿æ’. \n &
+	   &        c)isnorefined,æ˜¯å¦åŠ å¯†ç½‘æ ¼,0=No(é»˜è®¤,ç»†åˆ†ï¼Œä¸”ç”±ç½‘æ ¼æœ€å¤§å°ºå¯¸ä¸ºç›¸é‚»ç‚¹çš„æœ€å°è·ç¦»),1=Yes(ä¸ç»†åˆ†),-1=NO(ç»†åˆ†ï¼Œå°ºå¯¸æŒ‰è¾“å…¥,å¦‚ä¸è¾“å…¥ï¼Œåˆ™ç½‘æ ¼å°ºå¯¸ä¸ºä¸”ç›¸é‚»ç‚¹çš„æœ€å¤§è·ç¦»);.\n &
+	   &        dï¼‰=-a(/=1),ç»†åˆ†ï¼Œæ‰€æœ‰èŠ‚ç‚¹çš„ç½‘æ ¼å°ºå¯¸æŒ‰æ¨¡å‹é•¿åº¦çš„1/a. \n &    
+	   &        e)meshsize=è¯¥ç‚¹é™„è¿‘çš„ç½‘æ ¼å¤§å°(å¯ä¸è¾“å…¥). \n &
+	   &        f)soillayer=æ¨¡å‹çš„åœŸå±‚æ•°(é»˜è®¤0) \n &
+	   &        g)elevation=è¯¥ç‚¹çš„å„åœŸå±‚é¢é«˜ç¨‹(soillayer>0æ—¶è¾“å…¥) \n &
+	   &        h) å½“soillayer>0æ—¶ï¼Œæœ€å¤–åœˆæ¨¡å‹è¾¹ç•Œç‚¹è¦æ±‚è¾“å…¥å„åœ°å±‚é«˜ç¨‹ï¼Œå› ä¸ºå¤–æ’ä¸å¯æ§ã€‚\n &
+	   &        i) poly3d=0,ä¸è¾“å‡ºtetgençš„polyæ–‡ä»¶;=1,è¾“å‡ºfacetpolyæ–‡ä»¶ã€‚\n &
+	   &        j) ismerged=0,ä¸åˆå¹¶å°ç½‘æ ¼;=1,åˆå¹¶å°ç½‘æ ¼\n &
+	   &        k) iscompounded,=0,gmsh options.\n &   
+	   &        l) ismeshsize,æ˜¯å¦è¾“å‡ºå•å…ƒå°ºåº¦å¤§å°åˆ°geoæ–‡ä»¶ä¸­,N0Y1.\n &    
+	   &        l) isgendem,æ˜¯å¦æ ¹æ®ç½‘æ ¼ç”Ÿæˆç¦»æ•£å…ƒé¢—ç²’.N0Y1\n &                   
+	   &'C
+	   oldcolor = SETTEXTCOLOR(INT2(15))
+		do i=1, pro_num
+			select case(property(i).name)
+			case('soillayer')
+				soillayer=int(property(i).value)
+				if(soillayer<=0) then
+					soillayer=0
 				endif
-                
-                if(isnorefined<-1) then
-                    arr_t(i).s=1.d0/abs(isnorefined)
-                else
-                    arr_t(i).s=arr_t(i).s/xyscale
-                endif                
-		   end do
-
-		   winyul=0.0
-		   winylr=(ymax-ymin)/xyscale
-		   winxul=0.0
-			winxlr=(xmax-xmin)/xyscale
-		   !ÇóÊäÈëµã¡¡µãÓëµãÖ®¼ä×îĞ¡¾àÀëÈç¹ûµãµÄ³ß´ç´óĞ¡´óÓÚ¸ÃÊıÖµ£¬ÔòÁî¸ÃµãµÄ³ß´çÎª¸ÃÊıÖµ
-		    call merge_duplicated_Point(xyscale)
-		    call minsize()
-			allocate(segindex(inpn,inpn))
-			segindex=0
-			allocate(seg(maxnseg))	   		   
-            
-		case('size point','sp')
-		   print *,'Reading SIZE POINT data'
-		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,*) '\n size pointµÄÊäÈë¸ñÊ½Îª:\n 1)µãÊı(sizepoint);\n 2)µãºÅ,¸Ãµã´óĞ¡(s),¹«²î(d); \n ..... \n ¹²sizepoint¸ö.\n'c
-		   oldcolor = SETTEXTCOLOR(INT2(15))
-		   read(unit,*) sizepoint
-		   allocate(s_p(sizepoint))
-		   i=0
-		   do while(i<sizepoint)
-			  call strtoint(unit,ar,dnmax,dn,dnmax)
-			  do j=1,dn-2
-
-				 k=int(ar(j))
-				 i=i+1
-				 s_p(i).x=arr_t(k).x
-				 s_p(i).y=arr_t(k).y				 
-				 s_p(i).a=ar(dn-1)/xyscale
-				 s_p(i).d=ar(dn)/xyscale
-				 !the sizes at the size point will not be modified.	
-				 arr_t(k).s=s_p(i).a
-				 arr_t(k).iss=1 			
-			  end do
-
-		   end do
-
-           !deallocate(b)
-
-		   do i=1,inpn
-	          if(arr_t(i).iss/=0) cycle
-			  call sizecal(arr_t(i).x,arr_t(i).y,arr_t(i).s)
-			  if(arr_t(i).s>arr_t(i).mins.and.isnorefined==0) arr_t(i).s=arr_t(i).mins
-	       end do
-		   !ÁîÖØºÏµãµÄ³ß´çÏàµÈ,µÈÓÚ´óÕß
-		   do i=1,inpn
-			   do j=i+1,inpn
-					if(abs(arr_t(j).x-arr_t(i).x)>precision)  cycle
-					if(abs(arr_t(j).y-arr_t(i).y)>precision)  cycle
-					if(arr_t(i).s<arr_t(j).s) then
-						arr_t(i).s=arr_t(j).s
+			case('isnorefined')
+				isnorefined=int(property(i).value)
+			case('inpmethod')
+				inpmethod=int(property(i).value)
+			case('zorder')
+				Zorder=int(property(i).value)
+			case('poly3d')
+				poly3d=int(property(i).value)
+			case('ismerged')
+				ismerged=int(property(i).value)
+			case('ismeshsize')
+				ismerged=int(property(i).value)
+			case('iscompounded')
+				iscompounded=int(property(i).value)                     
+			case default
+				call Err_msg(property(i).name)
+			end select
+		end do
+	   call skipcomment(unit) 
+	   read(unit,*) inpn
+	   allocate(arr_t(inpn),geology(inpn))
+	   ngeo=inpn
+	   iserror1=.false.
+	   do i=1,inpn
+		   call strtoint(unit,ar,dnmax,dn,dnmax)
+		   k=nint(ar(1))
+		   arr_t(k).num=k
+		   arr_t(k).x=ar(2)
+		   arr_t(k).y=ar(3)
+		   !å½“soillayer>0æ—¶ï¼Œå¦‚æœè¦åŒæ—¶è¾“å…¥å•å…ƒå°ºå¯¸ï¼Œåˆ™è¦å…ˆè¾“å…¥é«˜ç¨‹ä¿¡æ¯,å†è¾“å…¥å°ºå¯¸ä¿¡æ¯ã€‚
+		   if(dn>3) then
+				n1=dn
+				if(dn>4.and.soillayer>0) then
+					arr_t(k).havesoildata=2
+					allocate(arr_t(k).soildata(0:soillayer))
+					arr_t(k).soildata=-999.d0
+					if(zorder==0) then
+						arr_t(k).soildata=ar(4:4+soillayer)
 					else
-						arr_t(j).s=arr_t(i).s
-					end if
-			   end do
-		   end do
-
-		case('material','mat')
-		   print *,'Reading MATERIAL data'
-		   oldcolor = SETTEXTCOLOR(INT2(10))
-		   write(*,'(a256)') '\n materialµÄÊäÈë¸ñÊ½Îª:\n 1)²ÄÁÏÊı(mnum);\n 2)xÖ÷ÏòÉøÍ¸ÏµÊı(kx),yÖ÷ÏòÉøÍ¸ÏµÊı(ky),ÖüË®ÏµÊı(u),Ö÷ÏòÓë¼¸ºÎ×ø±êµÄ¼Ğ½Ç(angle); \n ..... \n ¹²mnum¸ö.\n'c
-		   oldcolor = SETTEXTCOLOR(INT2(15))
-		   read(unit,*) mnum
-		   allocate(material(mnum))
-		   do i=1,mnum
-			  call strtoint(unit,ar,dnmax,dn,dnmax)
-			  select case(dn)
-				case(1)
-					material(i).kx=ar(1)
-					material(i).ky=ar(1)					
-				case(2)
-					material(i).kx=ar(1)
-					material(i).ky=ar(2)					
-				case(3)
-					material(i).kx=ar(1)
-					material(i).ky=ar(2)
-					material(i).u=ar(3)
-				case(4)
-					material(i).kx=ar(1)
-					material(i).ky=ar(2)
-					material(i).u=ar(3)
-					material(i).angle=ar(4)/180.0*3.1415926
-				case default
-					print *, 'ERROR!, IN SUB COMMAND WHEN READ IN MATERIAL PARAMETER.'
-					PAUSE
-			  end select	
-		      !read(unit,*) material(i).kx,material(i).ky,material(i).u
-		   end do
-
-		case('zone','z')
-		   print *,'Reading ZONE data'
-		   oldcolor = SETTEXTCOLOR(INT2(10))
-           
-		   write(*,*) "\n zoneµÄÊäÈë¸ñÊ½Îª:\n &
-                & 1)ÇøÓòÊı(znum);\n &	
-                & 2) \n &
-                &  (a) ÇøÓò±ß½çµãÊı(num>0)»òÇøÓòÄÚ±Õ»·ÊıµÄ¸ºÊı(num<0)[,OutGmshType,iElevation,mat(1:soillayer)];¡£\n &
-                &  (b) µ±num>0Ê±£¬ÊäÈëÇøÓò±ß½çµãºÅ(num¸ö);µ±num<0Ê±£¬ÊäÈëÇøÓòÄÚ²¿¸÷±Õ»·(ÓÉ¸÷¿ØÖÆÏß¹¹³É×îĞ¡±ÕºÏÇøÓò)ÄÚÈÎÒ»µãµÄµãºÅ). \n &
-                & ..... \n ¹²znum¸ö.\n &
-                & notes: \n &
-                & 1) OutGmshType=1 Physical Volume only; \n &
-                &				 =2 Physical Surface only; \n &
-                &				 =3, both; \n &
-                & if OutGmshType=2/3, iElevationÖ¸¶¨Êä³öÄÄ¸ö¸ß³ÌµÄÃæ(¸ß³ÌÃæµÄ¶¨ÒåÊÇ´ÓĞ¡¸ß³ÌÃæÍù´ó¸ß³ÌÃæ·½Ïò£¨0:soillayer£©)¡£\n &
-                & 2) ÇøÓòÓĞ2ÖÖ¶¨Òå·½·¨: \n &
-                &    2.1) Ò»ÊÇÓÉÇøÓò±ß½çµã¶¨Òå(num>0),ÕâÊ±,Èç¹û´óÇøÓò°üº¬Ğ¡ÇøÓò£¬Ôò°ÑĞ¡ÇøÓò·ÅÇ°. \n &
-                &    2.2) ¶şÊÇÓÉ×é³ÉÇøÓòµÄ¸÷±Õ»·ÄÚÈÎÒ»µãµÄµãºÅ(num<0),¸ÃÇøÓòµÄ±Õ»·ÊıÎª|num|. \n &
-                & 3) ÇøÓò±ß½çÏßÓ¦¸ÃÎª¿ØÖÆÏß,ÒªÓÃCLÊäÈëÏàÓ¦µÄ±ß½ç¡£&
-                & 4£©Ä£ĞÍÓÉ¸÷zoneÄÚµ¥Ôª×é³É£¬²»Êä³ö²»ÔÚÈÎÒ»zoneÄÚµÄµ¥Ôª.\n"C							
-		   oldcolor = SETTEXTCOLOR(INT2(15))
-           call skipcomment(unit)
-		   read(unit,*) znum
-		   noun='zone'
-           allocate(zone(0:znum))
-		   if(znum>0) then			  
-			  do i=1,znum
-				 !call indataerror(i,noun,unit)
-				 call strtoint(unit,ar,dnmax,dn,dnmax)
-                 if(int(ar(1))<0) zone(i).format=1
-                 zone(i).num=abs(int(ar(1)))
-                 if(dn>1) then
-                    zone(i).OutGmshType=int(ar(2))
-                 endif
-                 if(dn>2) then
-                    zone(i).iElevation=int(ar(3))
-                 endif
-                 !if(dn>3) then
-                 !   allocate(zone(i).mat(dn-3))
-                 !   zone(i).mat=int(ar(4:dn))
-                 !else
-                 !   allocate(zone(i).mat(1))
-                 !   zone(i).mat=i
-                 !endif
-				 !read(unit,*) zone(i).num,zone(i).k !//.k is material number.
-
-				 allocate(zone(i).point(2,zone(i).num))
-                 call strtoint(unit,ar,dnmax,dn,zone(i).num)
-
-                 
-                
-                 if(dn==zone(i).num) then
-  
-					 zone(i).cp=int(ar(1:zone(i).num))			 
-				     do j=1,zone(i).num
-				        k=int(ar(j))
-				        zone(i).point(1,j)=arr_t(k).x
-				        zone(i).point(2,j)=arr_t(k).y
-					    if(zone(i).point(1,j)<zone(i).xmin) zone(i).xmin=zone(i).point(1,j)
-					    if(zone(i).point(1,j)>zone(i).xmax) zone(i).xmax=zone(i).point(1,j)
-					    if(zone(i).point(2,j)<zone(i).ymin) zone(i).ymin=zone(i).point(2,j)
-					    if(zone(i).point(2,j)>zone(i).ymax) zone(i).ymax=zone(i).point(2,j)
-                     end do
-                
-                else
-                    print *,'error in input zone(i) boundary data. i=',i
-                    stop
-                endif
-			  end do
-		   end if
+						arr_t(k).soildata=ar(4+soillayer:4:-1)
+					endif
+					t1=minval(arr_t(k).soildata,abs(arr_t(k).soildata+999.d0)>1.d-6)
+					if(t1<zmin) zmin=t1
+					t1=maxval(arr_t(k).soildata,abs(arr_t(k).soildata+999.d0)>1.d-6)
+					if(t1>zmax) zmax=t1                        
+					!if(any(arr_t(k).soildata(2:4)-arr_t(k).soildata(1:3))<0.0)
+					if(all(abs(arr_t(k).soildata+999.0d0)<1.d-6)) then
+						arr_t(k).havesoildata=0
+					elseif(any(abs(arr_t(k).soildata+999.0d0)<1.d-6)) then
+						arr_t(k).havesoildata=1
+					endif
+					if(arr_t(k).havesoildata>0) then
+						ar1=pack(arr_t(k).soildata,abs(arr_t(k).soildata+999.0)>=1.d-6)
+						if(size(ar1)>1) then
+							if(any(ar1(2:)-ar1(1:size(ar1)-1)<0.d0)) then
+								print *, 'Elevation conflicts in POint i=',k  
+								iserror1=.true.
+							endif
+						endif
+					endif
+					
+					if(dn<=4+soillayer) n1=0                         
+					geology(k).isini=1
+					geology(k).node=k
+					allocate(geology(k).elevation(0:soillayer))
+					geology(k).elevation=arr_t(k).soildata
+					
+				endif
+				if(n1>0) then
+				   arr_t(k).s=ar(dn)
+				   if(ar(dn)>0) then
+						arr_t(k).iss=1
+				   else
+						arr_t(k).s=0.
+						arr_t(k).iss=0
+				   endif
+				endif
+		   end if			   	
+	   end do
+	   
+	   if(iserror1) pause
+		  !read(unit,*) ((arr_t(i).num,arr_t(i).x,arr_t(i).y),i=1,inpn)
+	
+	   xmin=arr_t(1).x
+	   xmax=arr_t(1).x
+	   ymin=arr_t(1).y
+	   ymax=arr_t(1).y	
+	   
 		
+	   do i=2,inpn
+		  if(arr_t(i).x<xmin) xmin=arr_t(i).x
+		  if(arr_t(i).x>xmax) xmax=arr_t(i).x
+		  if(arr_t(i).y<ymin) ymin=arr_t(i).y
+		  if(arr_t(i).y>ymax) ymax=arr_t(i).y
+	   end do
 
-            
-		case('control line','cl','controlline')
-			print *,'Reading CONTROL LINE data'
-			oldcolor = SETTEXTCOLOR(INT2(10))
-			write(*,'(a256)') '\n control lineµÄÊäÈë¸ñÊ½Îª:\n 1)¿ØÖÆÊı(cln);\n 2) \n(a) ¿ØÖÆÏß×ø±êÊı(num);ÊÇ·ñ±ÕºÏ(flag:0·ñ1ÊÇ);ÊÇ·ñ¿Õ¶´(hole:0·ñ1ÊÇ). \n(b)µãºÅ(num¸ö). \n ..... \n ¹²cln¸ö.\n'c
-			oldcolor = SETTEXTCOLOR(INT2(15))
-			call skipcomment(unit)
-			read(unit,*) cln
-			if(cln/=0) then
-			   allocate(csl(cln))
-			   noun='control line'
-			   do i=1,cln
-				  !call indataerror(i,noun,unit)
-				  call strtoint(unit,ar,dnmax,dn,dnmax)
-				  csl(i).num=int(ar(1))
-				  if(dn>1) then
-					 csl(i).flag=int(ar(2))
-					 if(dn>2) csl(i).hole=int(ar(3))
-                  endif
-                  
-				  !read(unit,*) csl(i).num,csl(i).flag,csl(i).hole
-				  !if(csl(i).flag==0) csl(i).hole=0
-				  
-				  !if(csl(i).num>100) then
-				 !	write(*,*) '¿ØÖÆÏßµãµÄÊıÄ¿³¬¹ıÏŞÖµ£¨100£©£¡'
-				 !	stop
-				 ! end if
-				  if(allocated(b)) deallocate(b)
-				  allocate(b(csl(i).num))
-				  call strtoint(unit,ar,dnmax,dn,csl(i).num) 
-                  
-				  b(1:dn)=nint(ar(1:dn))
-                  if(b(1)==b(dn)) then !´¦ÀíÊäÈë±ÕºÏ¿ØÖÆÏßÊ±£¬ÊäÈëÊ×Î²½ÚµãÏàÍ¬µÄÇé¿ö
-                      dn=dn-1
-                      csl(i).flag=1
-                  endif
-                  csl(i).num=dn    
-				  csl(i).point=b(1:dn)
-				  !read(unit,*)  b
-				  allocate(csl(i).conpoint(3,csl(i).num))
-				  do j=1,csl(i).num
-					 csl(i).conpoint(1,j)=arr_t(b(j)).x
-					 csl(i).conpoint(2,j)=arr_t(b(j)).y
-					 csl(i).conpoint(3,j)=arr_t(b(j)).s
-					 !call sizecal(csl(i).conpoint(1,j),csl(i).conpoint(2,j),csl(i).conpoint(3,j))
-					 if(csl(i).flag==0.and.j==csl(i).num) exit !²»±ÕºÏ
-					 n1=b(mod(j,csl(i).num)+1)
-					 IF(segindex(b(J),n1)>0) THEN
-						 PRINT *, 'THE SEGGMENT(I,J) IN CONTROL LINE K OVERLAPPED. K,I,J=',I,B(J),N1
-						 PAUSE
-					 ENDIF
-					 nseg=nseg+1
-					 segindex(b(J),n1)=nseg
-					 segindex(n1,b(J))=nseg
-					 !seg(nseg).sv=b(J)
-					 !seg(nseg).ev=n1
-					 !seg(nseg).icl=i
-					 call seg(nseg).setparas(sv=b(j),ev=n1,icl=i)
-					 !if(j==csl(i).num) seg(nseg).ist2h=1 
-				 end do
-			  end do		
-		   end if
-		   if(allocated(b)) deallocate(b)
- 
- !		case('boundary condition','bc')
- !           print *,'Reading BOUNDARY CONDITOIN data'
- !           oldcolor = SETTEXTCOLOR(INT2(10))
- !		   write(*,'(a256)') '\n boundary conditionµÄÊäÈë¸ñÊ½Îª:\n 1)±ß½çµã(hqnum);\n 2) \n(a) ±ß½ç×ø±êÊı(num);ÀàĞÍbt(0:ÏßË®Í·;1,ÏßÁ÷Á¿;2,ÃæË®Í·;3ÃæÁ÷Á¿;3ÃæÁ÷Á¿;4,µãË®Í·;4,µãÁ÷Á¿;);Á¿Öµ(v);×÷ÓÃµÄÍÁ²ãactive()(optional,½öµ±soillayer>1Ê±²ÅÊäÈë,¸öÊıÎªsoillayer/2+1) \n(b)µãºÅ(num¸ö). \n ..... \n ¹²nbc¸ö.\n'c
- !		   oldcolor = SETTEXTCOLOR(INT2(15))		
- !		   read(unit,*) NBC
- !			if(nbc/=0) then
- !				allocate(bc(nbc))
- !				do i=1,nbc!
- !					call strtoint(unit,ar,dnmax,dn,dnmax)
- !					!nt1=dn-3
- !				end do
- !
- !			end if
- 
- 
-		 case('kp','mb','modelboundry','key point','keypoint')
-			print *,'Reading KEY POINT data'
-			oldcolor = SETTEXTCOLOR(INT2(10))
-			write(*,'(a256)') '\n key pointµÄÊäÈë¸ñÊ½Îª:\n 1)µãÊı(keypn);\n 2) ×ø±êºÅ(keypn¸ö). \n'c
-			oldcolor = SETTEXTCOLOR(INT2(15))
-			call skipcomment(unit)
-			read(unit,*) keypn
-			if(allocated(b)) deallocate(b)
-			allocate(b(keypn))
-			!read(unit,*) b
-			call strtoint(unit,ar,dnmax,dn,keypn)
-			b(1:dn)=nint(ar(1:dn))
-			if(b(1)/=b(keypn)) then
-				 n1=keypn+1
-				 allocate(kp1(n1))
-				 kp1(1:keypn)=b
-				 kp1(n1)=b(1)
-			else
-				 n1=keypn
-				 allocate(kp1(n1))
-				 kp1=b
-			endif
-			kp=kp1
-			
+	   !scale
+	   xyscale=max(abs(xmax-xmin),abs(ymax-ymin))
+	   
+	  
 		   
-			do i=1,keypn
-			   allocate(BP)
-			   if(i==1) then
-				 BNhead=>BP
-				 BNpt=>BP
-			   else
-				 BNpt.next=>BP
-				 BNpt=>BP
-				 nullify(BP)
-			   end if
-			   
-				 if(nnode+1>maxnnode) call EnlargeNodeRelative()
-			   nnode=nnode+1
- !			  do j=1 ,inpn
- !		        if(arr_t(j).num==b(i)) exit
- !		      end do
-			   node(nnode).x=arr_t(b(i)).x
-			   node(nnode).y=arr_t(b(i)).y
-			   node(nnode).s=arr_t(b(i)).s
-			   if(.not.allocated(node(nnode).elevation)) then
-                   allocate(node(nnode).elevation(0:soillayer))
-                   node(nnode).elevation=-999.d0
-                endif
-			   if(arr_t(b(i)).havesoildata>0) then
-				 node(nnode).elevation=arr_t(b(i)).soildata
-				 node(nnode).havesoildata=arr_t(b(i)).havesoildata
-			   endif
-			   !call sizecal(node(nnode).x,node(nnode).y,node(nnode).s)
-			   node(nnode).number=nnode
-			   BNpt.npt=>node(nnode)
-				 n1=b(mod(i,keypn)+1)
-				 IF(segindex(b(I),n1)>0) THEN
-					 PRINT *, 'THE SEGGMENT(I,J) IN KP LINE OVERLAPPED. I,J=', B(I),N1
+	   do i=1,inpn
+			arr_t(i).x=(arr_t(i).x-xmin)/xyscale
+			arr_t(i).y=(arr_t(i).y-ymin)/xyscale
+			
+			if(arr_t(i).havesoildata>0) then
+				where(abs(arr_t(i).soildata+999.d0)>1.d-6)  arr_t(i).soildata=(arr_t(i).soildata-zmin)/xyscale
+				geology(i).elevation=arr_t(i).soildata
+			endif
+			
+			if(isnorefined<-1) then
+				arr_t(i).s=1.d0/abs(isnorefined)
+			else
+				arr_t(i).s=arr_t(i).s/xyscale
+			endif                
+	   end do
+
+	   winyul=0.0
+	   winylr=(ymax-ymin)/xyscale
+	   winxul=0.0
+		winxlr=(xmax-xmin)/xyscale
+	   !æ±‚è¾“å…¥ç‚¹ã€€ç‚¹ä¸ç‚¹ä¹‹é—´æœ€å°è·ç¦»å¦‚æœç‚¹çš„å°ºå¯¸å¤§å°å¤§äºè¯¥æ•°å€¼ï¼Œåˆ™ä»¤è¯¥ç‚¹çš„å°ºå¯¸ä¸ºè¯¥æ•°å€¼
+		call merge_duplicated_Point(xyscale)
+		call minsize()
+		allocate(segindex(inpn,inpn))
+		segindex=0
+		allocate(seg(maxnseg))	   		   
+		
+	case('size point','sp')
+	   print *,'Reading SIZE POINT data'
+	   oldcolor = SETTEXTCOLOR(INT2(10))
+	   write(*,*) '\n size pointçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)ç‚¹æ•°(sizepoint);\n 2)ç‚¹å·,è¯¥ç‚¹å¤§å°(s),å…¬å·®(d); \n ..... \n å…±sizepointä¸ª.\n'c
+	   oldcolor = SETTEXTCOLOR(INT2(15))
+	   read(unit,*) sizepoint
+	   allocate(s_p(sizepoint))
+	   i=0
+	   do while(i<sizepoint)
+		  call strtoint(unit,ar,dnmax,dn,dnmax)
+		  do j=1,dn-2
+
+			 k=int(ar(j))
+			 i=i+1
+			 s_p(i).x=arr_t(k).x
+			 s_p(i).y=arr_t(k).y				 
+			 s_p(i).a=ar(dn-1)/xyscale
+			 s_p(i).d=ar(dn)/xyscale
+			 !the sizes at the size point will not be modified.	
+			 arr_t(k).s=s_p(i).a
+			 arr_t(k).iss=1 			
+		  end do
+
+	   end do
+
+	   !deallocate(b)
+
+	   do i=1,inpn
+		  if(arr_t(i).iss/=0) cycle
+		  call sizecal(arr_t(i).x,arr_t(i).y,arr_t(i).s)
+		  if(arr_t(i).s>arr_t(i).mins.and.isnorefined==0) arr_t(i).s=arr_t(i).mins
+	   end do
+	   !ä»¤é‡åˆç‚¹çš„å°ºå¯¸ç›¸ç­‰,ç­‰äºå¤§è€…
+	   do i=1,inpn
+		   do j=i+1,inpn
+				if(abs(arr_t(j).x-arr_t(i).x)>precision)  cycle
+				if(abs(arr_t(j).y-arr_t(i).y)>precision)  cycle
+				if(arr_t(i).s<arr_t(j).s) then
+					arr_t(i).s=arr_t(j).s
+				else
+					arr_t(j).s=arr_t(i).s
+				end if
+		   end do
+	   end do
+
+	case('material','mat')
+	   print *,'Reading MATERIAL data'
+	   oldcolor = SETTEXTCOLOR(INT2(10))
+	   write(*,'(a256)') '\n materialçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)ææ–™æ•°(mnum);\n 2)xä¸»å‘æ¸—é€ç³»æ•°(kx),yä¸»å‘æ¸—é€ç³»æ•°(ky),è´®æ°´ç³»æ•°(u),ä¸»å‘ä¸å‡ ä½•åæ ‡çš„å¤¹è§’(angle); \n ..... \n å…±mnumä¸ª.\n'c
+	   oldcolor = SETTEXTCOLOR(INT2(15))
+	   read(unit,*) mnum
+	   allocate(material(mnum))
+	   do i=1,mnum
+		  call strtoint(unit,ar,dnmax,dn,dnmax)
+		  select case(dn)
+			case(1)
+				material(i).kx=ar(1)
+				material(i).ky=ar(1)					
+			case(2)
+				material(i).kx=ar(1)
+				material(i).ky=ar(2)					
+			case(3)
+				material(i).kx=ar(1)
+				material(i).ky=ar(2)
+				material(i).u=ar(3)
+			case(4)
+				material(i).kx=ar(1)
+				material(i).ky=ar(2)
+				material(i).u=ar(3)
+				material(i).angle=ar(4)/180.0*3.1415926
+			case default
+				print *, 'ERROR!, IN SUB COMMAND WHEN READ IN MATERIAL PARAMETER.'
+				PAUSE
+		  end select	
+		  !read(unit,*) material(i).kx,material(i).ky,material(i).u
+	   end do
+
+	case('zone','z')
+	   print *,'Reading ZONE data'
+	   oldcolor = SETTEXTCOLOR(INT2(10))
+	   
+	   write(*,*) "\n zoneçš„è¾“å…¥æ ¼å¼ä¸º:\n &
+			& 1)åŒºåŸŸæ•°(znum);\n &	
+			& 2) \n &
+			&  (a) åŒºåŸŸè¾¹ç•Œç‚¹æ•°(num>0)æˆ–åŒºåŸŸå†…é—­ç¯æ•°çš„è´Ÿæ•°(num<0)[,OutGmshType,iElevation,mat(1:soillayer)];ã€‚\n &
+			&  (b) å½“num>0æ—¶ï¼Œè¾“å…¥åŒºåŸŸè¾¹ç•Œç‚¹å·(numä¸ª);å½“num<0æ—¶ï¼Œè¾“å…¥åŒºåŸŸå†…éƒ¨å„é—­ç¯(ç”±å„æ§åˆ¶çº¿æ„æˆæœ€å°é—­åˆåŒºåŸŸ)å†…ä»»ä¸€ç‚¹çš„ç‚¹å·). \n &
+			& ..... \n å…±znumä¸ª.\n &
+			& notes: \n &
+			& 1) OutGmshType=1 Physical Volume only; \n &
+			&				 =2 Physical Surface only; \n &
+			&				 =3, both; \n &
+			& if OutGmshType=2/3, iElevationæŒ‡å®šè¾“å‡ºå“ªä¸ªé«˜ç¨‹çš„é¢(é«˜ç¨‹é¢çš„å®šä¹‰æ˜¯ä»å°é«˜ç¨‹é¢å¾€å¤§é«˜ç¨‹é¢æ–¹å‘ï¼ˆ0:soillayerï¼‰)ã€‚\n &
+			& 2) åŒºåŸŸæœ‰2ç§å®šä¹‰æ–¹æ³•: \n &
+			&    2.1) ä¸€æ˜¯ç”±åŒºåŸŸè¾¹ç•Œç‚¹å®šä¹‰(num>0),è¿™æ—¶,å¦‚æœå¤§åŒºåŸŸåŒ…å«å°åŒºåŸŸï¼Œåˆ™æŠŠå°åŒºåŸŸæ”¾å‰. \n &
+			&    2.2) äºŒæ˜¯ç”±ç»„æˆåŒºåŸŸçš„å„é—­ç¯å†…ä»»ä¸€ç‚¹çš„ç‚¹å·(num<0),è¯¥åŒºåŸŸçš„é—­ç¯æ•°ä¸º|num|. \n &
+			& 3) åŒºåŸŸè¾¹ç•Œçº¿åº”è¯¥ä¸ºæ§åˆ¶çº¿,è¦ç”¨CLè¾“å…¥ç›¸åº”çš„è¾¹ç•Œã€‚&
+			& 4ï¼‰æ¨¡å‹ç”±å„zoneå†…å•å…ƒç»„æˆï¼Œä¸è¾“å‡ºä¸åœ¨ä»»ä¸€zoneå†…çš„å•å…ƒ.\n"C							
+	   oldcolor = SETTEXTCOLOR(INT2(15))
+	   call skipcomment(unit)
+	   read(unit,*) znum
+	   noun='zone'
+	   allocate(zone(0:znum))
+	   if(znum>0) then			  
+		  do i=1,znum
+			 !call indataerror(i,noun,unit)
+			 call strtoint(unit,ar,dnmax,dn,dnmax)
+			 if(int(ar(1))<0) zone(i).format=1
+			 zone(i).num=abs(int(ar(1)))
+			 if(dn>1) then
+				zone(i).OutGmshType=int(ar(2))
+			 endif
+			 if(dn>2) then
+				zone(i).iElevation=int(ar(3))
+			 endif
+			 !if(dn>3) then
+			 !   allocate(zone(i).mat(dn-3))
+			 !   zone(i).mat=int(ar(4:dn))
+			 !else
+			 !   allocate(zone(i).mat(1))
+			 !   zone(i).mat=i
+			 !endif
+			 !read(unit,*) zone(i).num,zone(i).k !//.k is material number.
+
+			 allocate(zone(i).point(2,zone(i).num))
+			 call strtoint(unit,ar,dnmax,dn,zone(i).num)
+
+			 
+			
+			 if(dn==zone(i).num) then
+
+				 zone(i).cp=int(ar(1:zone(i).num))			 
+				 do j=1,zone(i).num
+					k=int(ar(j))
+					zone(i).point(1,j)=arr_t(k).x
+					zone(i).point(2,j)=arr_t(k).y
+					if(zone(i).point(1,j)<zone(i).xmin) zone(i).xmin=zone(i).point(1,j)
+					if(zone(i).point(1,j)>zone(i).xmax) zone(i).xmax=zone(i).point(1,j)
+					if(zone(i).point(2,j)<zone(i).ymin) zone(i).ymin=zone(i).point(2,j)
+					if(zone(i).point(2,j)>zone(i).ymax) zone(i).ymax=zone(i).point(2,j)
+				 end do
+			
+			else
+				print *,'error in input zone(i) boundary data. i=',i
+				stop
+			endif
+		  end do
+	   end if
+	
+
+		
+	case('control line','cl','controlline')
+		print *,'Reading CONTROL LINE data'
+		oldcolor = SETTEXTCOLOR(INT2(10))
+		write(*,'(a256)') '\n control lineçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)æ§åˆ¶æ•°(cln);\n 2) \n(a) æ§åˆ¶çº¿åæ ‡æ•°(num);æ˜¯å¦é—­åˆ(flag:0å¦1æ˜¯);æ˜¯å¦ç©ºæ´(hole:0å¦1æ˜¯). \n(b)ç‚¹å·(numä¸ª). \n ..... \n å…±clnä¸ª.\n'c
+		oldcolor = SETTEXTCOLOR(INT2(15))
+		call skipcomment(unit)
+		read(unit,*) cln
+		if(cln/=0) then
+		   allocate(csl(cln))
+		   noun='control line'
+		   do i=1,cln
+			  !call indataerror(i,noun,unit)
+			  call strtoint(unit,ar,dnmax,dn,dnmax)
+			  csl(i).num=int(ar(1))
+			  if(dn>1) then
+				 csl(i).flag=int(ar(2))
+				 if(dn>2) csl(i).hole=int(ar(3))
+			  endif
+			  
+			  !read(unit,*) csl(i).num,csl(i).flag,csl(i).hole
+			  !if(csl(i).flag==0) csl(i).hole=0
+			  
+			  !if(csl(i).num>100) then
+			 !	write(*,*) 'æ§åˆ¶çº¿ç‚¹çš„æ•°ç›®è¶…è¿‡é™å€¼ï¼ˆ100ï¼‰ï¼'
+			 !	stop
+			 ! end if
+			  if(allocated(b)) deallocate(b)
+			  allocate(b(csl(i).num))
+			  call strtoint(unit,ar,dnmax,dn,csl(i).num) 
+			  
+			  b(1:dn)=nint(ar(1:dn))
+			  if(b(1)==b(dn)) then !å¤„ç†è¾“å…¥é—­åˆæ§åˆ¶çº¿æ—¶ï¼Œè¾“å…¥é¦–å°¾èŠ‚ç‚¹ç›¸åŒçš„æƒ…å†µ
+				  dn=dn-1
+				  csl(i).flag=1
+			  endif
+			  csl(i).num=dn    
+			  csl(i).point=b(1:dn)
+			  !read(unit,*)  b
+			  allocate(csl(i).conpoint(3,csl(i).num))
+			  do j=1,csl(i).num
+				 csl(i).conpoint(1,j)=arr_t(b(j)).x
+				 csl(i).conpoint(2,j)=arr_t(b(j)).y
+				 csl(i).conpoint(3,j)=arr_t(b(j)).s
+				 !call sizecal(csl(i).conpoint(1,j),csl(i).conpoint(2,j),csl(i).conpoint(3,j))
+				 if(csl(i).flag==0.and.j==csl(i).num) exit !ä¸é—­åˆ
+				 n1=b(mod(j,csl(i).num)+1)
+				 IF(segindex(b(J),n1)>0) THEN
+					 PRINT *, 'THE SEGGMENT(I,J) IN CONTROL LINE K OVERLAPPED. K,I,J=',I,B(J),N1
 					 PAUSE
 				 ENDIF
 				 nseg=nseg+1
-				 segindex(b(i),n1)=nseg
-				 segindex(n1,b(I))=nseg
-				 !seg(nseg).sv=b(I)
+				 segindex(b(J),n1)=nseg
+				 segindex(n1,b(J))=nseg
+				 !seg(nseg).sv=b(J)
 				 !seg(nseg).ev=n1
-				 !seg(nseg).icl=0
-				 call seg(nseg).setparas(sv=b(i),ev=n1,icl=0)
-				 !if(i==keypn) seg(nseg).ist2h=1			  
-			   
-			end do
-			BNpt.next=>BNhead
-			deallocate(b)
+				 !seg(nseg).icl=i
+				 call seg(nseg).setparas(sv=b(j),ev=n1,icl=i)
+				 !if(j==csl(i).num) seg(nseg).ist2h=1 
+			 end do
+		  end do		
+	   end if
+	   if(allocated(b)) deallocate(b)
+
+!		case('boundary condition','bc')
+!           print *,'Reading BOUNDARY CONDITOIN data'
+!           oldcolor = SETTEXTCOLOR(INT2(10))
+!		   write(*,'(a256)') '\n boundary conditionçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)è¾¹ç•Œç‚¹(hqnum);\n 2) \n(a) è¾¹ç•Œåæ ‡æ•°(num);ç±»å‹bt(0:çº¿æ°´å¤´;1,çº¿æµé‡;2,é¢æ°´å¤´;3é¢æµé‡;3é¢æµé‡;4,ç‚¹æ°´å¤´;4,ç‚¹æµé‡;);é‡å€¼(v);ä½œç”¨çš„åœŸå±‚active()(optional,ä»…å½“soillayer>1æ—¶æ‰è¾“å…¥,ä¸ªæ•°ä¸ºsoillayer/2+1) \n(b)ç‚¹å·(numä¸ª). \n ..... \n å…±nbcä¸ª.\n'c
+!		   oldcolor = SETTEXTCOLOR(INT2(15))		
+!		   read(unit,*) NBC
+!			if(nbc/=0) then
+!				allocate(bc(nbc))
+!				do i=1,nbc!
+!					call strtoint(unit,ar,dnmax,dn,dnmax)
+!					!nt1=dn-3
+!				end do
+!
+!			end if
+
+
+	 case('kp','mb','modelboundry','key point','keypoint')
+		print *,'Reading KEY POINT data'
+		oldcolor = SETTEXTCOLOR(INT2(10))
+		write(*,'(a256)') '\n key pointçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)ç‚¹æ•°(keypn);\n 2) åæ ‡å·(keypnä¸ª). \n'c
+		oldcolor = SETTEXTCOLOR(INT2(15))
+		call skipcomment(unit)
+		read(unit,*) keypn
+		if(allocated(b)) deallocate(b)
+		allocate(b(keypn))
+		!read(unit,*) b
+		call strtoint(unit,ar,dnmax,dn,keypn)
+		b(1:dn)=nint(ar(1:dn))
+		if(b(1)/=b(keypn)) then
+			 n1=keypn+1
+			 allocate(kp1(n1))
+			 kp1(1:keypn)=b
+			 kp1(n1)=b(1)
+		else
+			 n1=keypn
+			 allocate(kp1(n1))
+			 kp1=b
+		endif
+		kp=kp1
+		
+	   
+		do i=1,keypn
+		   allocate(BP)
+		   if(i==1) then
+			 BNhead=>BP
+			 BNpt=>BP
+		   else
+			 BNpt.next=>BP
+			 BNpt=>BP
+			 nullify(BP)
+		   end if
+		   
+			 if(nnode+1>maxnnode) call EnlargeNodeRelative()
+		   nnode=nnode+1
+!			  do j=1 ,inpn
+!		        if(arr_t(j).num==b(i)) exit
+!		      end do
+		   node(nnode).x=arr_t(b(i)).x
+		   node(nnode).y=arr_t(b(i)).y
+		   node(nnode).s=arr_t(b(i)).s
+		   if(.not.allocated(node(nnode).elevation)) then
+			   allocate(node(nnode).elevation(0:soillayer))
+			   node(nnode).elevation=-999.d0
+			endif
+		   if(arr_t(b(i)).havesoildata>0) then
+			 node(nnode).elevation=arr_t(b(i)).soildata
+			 node(nnode).havesoildata=arr_t(b(i)).havesoildata
+		   endif
+		   !call sizecal(node(nnode).x,node(nnode).y,node(nnode).s)
+		   node(nnode).number=nnode
+		   BNpt.npt=>node(nnode)
+			 n1=b(mod(i,keypn)+1)
+			 IF(segindex(b(I),n1)>0) THEN
+				 PRINT *, 'THE SEGGMENT(I,J) IN KP LINE OVERLAPPED. I,J=', B(I),N1
+				 PAUSE
+			 ENDIF
+			 nseg=nseg+1
+			 segindex(b(i),n1)=nseg
+			 segindex(n1,b(I))=nseg
+			 !seg(nseg).sv=b(I)
+			 !seg(nseg).ev=n1
+			 !seg(nseg).icl=0
+			 call seg(nseg).setparas(sv=b(i),ev=n1,icl=0)
+			 !if(i==keypn) seg(nseg).ist2h=1			  
+		   
+		end do
+		BNpt.next=>BNhead
+		deallocate(b)
+
+	!   !å¦‚æœè¯¥ç‚¹çš„å°ºå¯¸å¤§äºç›¸é‚»è¾¹ç•Œç‚¹ä¹‹é—´çš„æœ€å°çš„è·ç¦»ï¼Œä»¥æœ€å°è·ç¦»ä¸ºè¯¥ç‚¹çš„å°ºå¯¸
+	   ! do i=1,nnode
+	!      if(i==nnode) then
+ !            j=1
+		  !else
+			 !j=i+1
+		  !end if
+	   !   if(i==1) then
+			 !k=nnode
+		  !else
+		  !   k=i-1
+		  !end if
+		  !t1=((node(i).x-node(k).x)**2+(node(i).y-node(k).y)**2)**0.5
+		  !t2=((node(i).x-node(j).x)**2+(node(i).y-node(j).y)**2)**0.5
+		  !t1=min(t1,t2)
+		  !if(node(i).s>t1) node(i).s=t1			
+	   ! end do
+
+
+	 case('ccl')
+		print *,'Reading CIRCULAR CONTROL LINE data'
+		oldcolor = SETTEXTCOLOR(INT2(10))
+		write(*,'(a256)') '\n {ccln*{no,ishole,r}} \n'c
+		oldcolor = SETTEXTCOLOR(INT2(15))
+		
+		read(unit,*) ccln
+		if(ccln>0) allocate(ccl(ccln))
+		do i=1,ccln
+			   read(unit,*) ccl(i).point,ccl(i).hole,ccl(i).r
+		end do
+
+	 case('aupoint','ap')
+		print *,'Reading AUXILIARY POINT data'
+	 
+		oldcolor = SETTEXTCOLOR(INT2(10))
+		write(*,'(a256)') '\n aupointçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)è¾…åŠ©ç‚¹çš„ä¸ªæ•°(aupn);\n 2) ç‚¹å·;è¯¥ç‚¹å•å…ƒçš„å¤§å°(s);\n......\n å…±aupnä¸ª \n'c
+		oldcolor = SETTEXTCOLOR(INT2(15))
+		call skipcomment(unit)
+		read(unit,*) aupn
+		if(aupn>0) allocate(aupoint(aupn))
+		 i=0
+		 do while(i<aupn)
+			 call strtoint(unit,ar,dnmax,dn,dnmax)
+			 do j=1,dn-1
+				 i=i+1
+				 aupoint(i).point=nint(ar(j))
+				 aupoint(i).s=ar(dn)				
+			 end do
+		 end do		   
+		!read(unit,*) aupoint
+				 
  
-		!   !Èç¹û¸ÃµãµÄ³ß´ç´óÓÚÏàÁÚ±ß½çµãÖ®¼äµÄ×îĞ¡µÄ¾àÀë£¬ÒÔ×îĞ¡¾àÀëÎª¸ÃµãµÄ³ß´ç
-		   ! do i=1,nnode
-		!      if(i==nnode) then
-	 !            j=1
-			  !else
-				 !j=i+1
-			  !end if
-		   !   if(i==1) then
-				 !k=nnode
-			  !else
-			  !   k=i-1
-			  !end if
-			  !t1=((node(i).x-node(k).x)**2+(node(i).y-node(k).y)**2)**0.5
-			  !t2=((node(i).x-node(j).x)**2+(node(i).y-node(j).y)**2)**0.5
-			  !t1=min(t1,t2)
-			  !if(node(i).s>t1) node(i).s=t1			
-		   ! end do
- 
- 
-		 case('ccl')
-			print *,'Reading CIRCULAR CONTROL LINE data'
-			oldcolor = SETTEXTCOLOR(INT2(10))
-			write(*,'(a256)') '\n {ccln*{no,ishole,r}} \n'c
-			oldcolor = SETTEXTCOLOR(INT2(15))
-			
-			read(unit,*) ccln
-			if(ccln>0) allocate(ccl(ccln))
-			do i=1,ccln
-				   read(unit,*) ccl(i).point,ccl(i).hole,ccl(i).r
-			end do
- 
-		 case('aupoint','ap')
-			print *,'Reading AUXILIARY POINT data'
-		 
-			oldcolor = SETTEXTCOLOR(INT2(10))
-			write(*,'(a256)') '\n aupointµÄÊäÈë¸ñÊ½Îª:\n 1)¸¨ÖúµãµÄ¸öÊı(aupn);\n 2) µãºÅ;¸Ãµãµ¥ÔªµÄ´óĞ¡(s);\n......\n ¹²aupn¸ö \n'c
-			oldcolor = SETTEXTCOLOR(INT2(15))
-			call skipcomment(unit)
-			read(unit,*) aupn
-			if(aupn>0) allocate(aupoint(aupn))
+	 case('ic') 
+		print *, 'Reading INITIAL CONDITION data...'
+		read(unit,*) ic
+	 case('ts','total_step')
+		print *, 'Reading TOTAL STEP data...'
+		READ(UNIT,*) TT
+	 case('str','step-time relation')
+		 PRINT *, 'Reading STEP-TIME RELATION data...'
+		 allocate(str(tt))
+		 i=0
+		 do while(.true.)
+		   call strtoint(unit,ar,dnmax,dn,dnmax)
+		   do j=1,dn-1
+			  i=i+1
+			  str(nint(ar(j)))=ar(dn)				 				
+		   end do
+		   IF(i>tt)  THEN
+			 print *, 'ERROR!,IN SUB command. STR.'
+			 STOP
+		   END IF
+		   if(i==tt)  exit
+		   
+		 end do
+
+	 case('slr','step-load relation')
+		 PRINT *, 'Reading STEP-LOAD RELATION data...'
+		 read(unit,*) slrn
+		 allocate(slr(tt,slrn))
+		 do k=1,slrn
 			 i=0
-			 do while(i<aupn)
+			 do while(.TRUE.)
 				 call strtoint(unit,ar,dnmax,dn,dnmax)
 				 do j=1,dn-1
 					 i=i+1
-					 aupoint(i).point=nint(ar(j))
-					 aupoint(i).s=ar(dn)				
+					 slr(nint(ar(j)),k)=ar(dn)				 				
 				 end do
-			 end do		   
-			!read(unit,*) aupoint
-					 
-	 
-		 case('ic') 
-			print *, 'Reading INITIAL CONDITION data...'
-			read(unit,*) ic
-		 case('ts','total_step')
-			print *, 'Reading TOTAL STEP data...'
-			READ(UNIT,*) TT
-		 case('str','step-time relation')
-			 PRINT *, 'Reading STEP-TIME RELATION data...'
-			 allocate(str(tt))
-			 i=0
-			 do while(.true.)
-			   call strtoint(unit,ar,dnmax,dn,dnmax)
-			   do j=1,dn-1
-				  i=i+1
-				  str(nint(ar(j)))=ar(dn)				 				
-			   end do
-			   IF(i>tt)  THEN
-				 print *, 'ERROR!,IN SUB command. STR.'
-				 STOP
-			   END IF
-			   if(i==tt)  exit
-			   
+				 IF(i>tt)  THEN
+					 print *, 'ERROR!,IN SUB command. SLR.'
+					 STOP
+				 END IF
+				 if(i==tt)  exit
 			 end do
- 
-		 case('slr','step-load relation')
-			 PRINT *, 'Reading STEP-LOAD RELATION data...'
-			 read(unit,*) slrn
-			 allocate(slr(tt,slrn))
-			 do k=1,slrn
-				 i=0
-				 do while(.TRUE.)
-					 call strtoint(unit,ar,dnmax,dn,dnmax)
-					 do j=1,dn-1
-						 i=i+1
-						 slr(nint(ar(j)),k)=ar(dn)				 				
-					 end do
-					 IF(i>tt)  THEN
-						 print *, 'ERROR!,IN SUB command. SLR.'
-						 STOP
-					 END IF
-					 if(i==tt)  exit
-				 end do
-			 end do
-		 case('sor','step-out relation')
-			 PRINT *, 'Reading STEP-OUT RELATION data...'
-			 !read(unit,*) tt
-			 allocate(SOR(tt))
-			 i=0
-			 do while(.true.)
-			   call strtoint(unit,ar,dnmax,dn,dnmax)
-			   do j=1,dn-1
-				  i=i+1
-				  SOR(nint(ar(j)))=NINT(ar(dn))				 				
-			   end do
-			   IF(i>tt)  THEN
-				 print *, 'ERROR!,IN SUB command. SOR.'
-				 STOP
-			   END IF
-			   if(i==tt)  exit
-			   
-			 end do
- 
-			!allocate(meshzone(mzindex).singularplace(meshzone(mzindex).sinn))
-			!read(unit,*) meshzone(mzindex).singularplace		   		   		   	
-		 case('dl','dataline')
-			 print *, 'Reading Data LINE data...'
-			 write(*,'(a256)') '\n DATA LINEµÄÊäÈë¸ñÊ½Îª:\n 1)Ã¿ÌõÊı¾İÊä³öÏß¿ØÖÆÔÚÊäÈëcontrol lineÖĞµÄ±àºÅ(¹²1ĞĞ)\n'c
+		 end do
+	 case('sor','step-out relation')
+		 PRINT *, 'Reading STEP-OUT RELATION data...'
+		 !read(unit,*) tt
+		 allocate(SOR(tt))
+		 i=0
+		 do while(.true.)
+		   call strtoint(unit,ar,dnmax,dn,dnmax)
+		   do j=1,dn-1
+			  i=i+1
+			  SOR(nint(ar(j)))=NINT(ar(dn))				 				
+		   end do
+		   IF(i>tt)  THEN
+			 print *, 'ERROR!,IN SUB command. SOR.'
+			 STOP
+		   END IF
+		   if(i==tt)  exit
+		   
+		 end do
+
+		!allocate(meshzone(mzindex).singularplace(meshzone(mzindex).sinn))
+		!read(unit,*) meshzone(mzindex).singularplace		   		   		   	
+	 case('dl','dataline')
+		 print *, 'Reading Data LINE data...'
+		 write(*,'(a256)') '\n DATA LINEçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)æ¯æ¡æ•°æ®è¾“å‡ºçº¿æ§åˆ¶åœ¨è¾“å…¥control lineä¸­çš„ç¼–å·(å…±1è¡Œ)\n'c
+		 call strtoint(unit,ar,dnmax,dn,dnmax)
+		 dln=dn
+		 allocate(dataline(dln))
+		 dataline=nint(ar(1:dn))
+	 case('iskpm')
+		 print *, 'Reading ISKPM data...'
+		 write(*,'(a64)') '\n ISKPMè¾“å…¥æ ¼å¼ä¸º:\n é™¤0ä»¥å¤–çš„ä»»ä½•æ•´æ•°è¡¨ç¤ºä¸ç”¨è¿›ä¸€æ­¥ç»†åˆ†è¾¹ç•Œ.'c
+		 read(unit,*) iskpm
+	 case('precision')
+		 print *, 'Reading PRECISION data...'
+		 read(unit,*) precision
+	 case('limit grid','limit mesh','lg','lm')
+		 Print *, 'Reading LIMIT GRID data...'
+		 do i=1, pro_num
+			 select case(property(i).name)
+				 case('num')
+					 nislm=int(property(i).value)				
+			 end select
+		 end do
+		 allocate(islm(nislm))
+		 call strtoint(unit,ar,dnmax,dn,dnmax)
+		 islm=nint(ar(1:dn))
+	 case('ninseg') 
+		 print *, 'Reading NODE_IN_SEGMENT data...'
+		 do i=1, pro_num
+			 select case(property(i).name)
+				 case('num')
+					 nninseg=int(property(i).value)
+			 end select
+		 end do
+		 allocate(ninseg(nninseg))
+		 do i=1,nninseg
 			 call strtoint(unit,ar,dnmax,dn,dnmax)
-			 dln=dn
-			 allocate(dataline(dln))
-			 dataline=nint(ar(1:dn))
-		 case('iskpm')
-			 print *, 'Reading ISKPM data...'
-			 write(*,'(a64)') '\n ISKPMÊäÈë¸ñÊ½Îª:\n ³ı0ÒÔÍâµÄÈÎºÎÕûÊı±íÊ¾²»ÓÃ½øÒ»²½Ï¸·Ö±ß½ç.'c
-			 read(unit,*) iskpm
-		 case('precision')
-			 print *, 'Reading PRECISION data...'
-			 read(unit,*) precision
-		 case('limit grid','limit mesh','lg','lm')
-			 Print *, 'Reading LIMIT GRID data...'
+			 ninseg(i).ni=nint(ar(1))
+			 ninseg(i).nj=nint(ar(2))
+			 ninseg(i).v(1,1)=arr_t(ninseg(i).ni).x
+			 ninseg(i).v(1,2)=arr_t(ninseg(i).ni).y
+			 ninseg(i).v(2,1)=arr_t(ninseg(i).nj).x
+			 ninseg(i).v(2,2)=arr_t(ninseg(i).nj).y
+		 end do
+		 case('sm','structure mesh')
+			 print *, 'Reading STRUCTURE_MESH data...'
 			 do i=1, pro_num
 				 select case(property(i).name)
 					 case('num')
-						 nislm=int(property(i).value)				
+						 nsm=int(property(i).value)
+					 case default
+						 call Err_msg(property(i).name)
 				 end select
 			 end do
-			 allocate(islm(nislm))
+			 allocate(structmesh(nsm))
 			 call strtoint(unit,ar,dnmax,dn,dnmax)
-			 islm=nint(ar(1:dn))
-		 case('ninseg') 
-			 print *, 'Reading NODE_IN_SEGMENT data...'
+			 structmesh(1:dn).csl=int(ar(1:dn))
+		 case('elevation')
+			 print *, 'Reading ELEVATOIN data...'
 			 do i=1, pro_num
 				 select case(property(i).name)
-					 case('num')
-						 nninseg=int(property(i).value)
+					 case('layer')
+						 nelevation=int(property(i).value)
+					 case default
+						 call Err_msg(property(i).name)
 				 end select
-			 end do
-			 allocate(ninseg(nninseg))
-			 do i=1,nninseg
-				 call strtoint(unit,ar,dnmax,dn,dnmax)
-				 ninseg(i).ni=nint(ar(1))
-				 ninseg(i).nj=nint(ar(2))
-				 ninseg(i).v(1,1)=arr_t(ninseg(i).ni).x
-				 ninseg(i).v(1,2)=arr_t(ninseg(i).ni).y
-				 ninseg(i).v(2,1)=arr_t(ninseg(i).nj).x
-				 ninseg(i).v(2,2)=arr_t(ninseg(i).nj).y
-			 end do
-			 case('sm','structure mesh')
-				 print *, 'Reading STRUCTURE_MESH data...'
-				 do i=1, pro_num
-					 select case(property(i).name)
-						 case('num')
-							 nsm=int(property(i).value)
-						 case default
-							 call Err_msg(property(i).name)
-					 end select
-				 end do
-				 allocate(structmesh(nsm))
-				 call strtoint(unit,ar,dnmax,dn,dnmax)
-				 structmesh(1:dn).csl=int(ar(1:dn))
-			 case('elevation')
-				 print *, 'Reading ELEVATOIN data...'
-				 do i=1, pro_num
-					 select case(property(i).name)
-						 case('layer')
-							 nelevation=int(property(i).value)
-						 case default
-							 call Err_msg(property(i).name)
-					 end select
-				 end do				
-		 case('membrance interpolation','meminp','meminp2','membranceinterpolation')
- 
-			 print *, 'Reading MEMBRANCE INTERPOLATION data...'
-			 oldcolor = SETTEXTCOLOR(INT2(10))
-			 write(*,'(a256)') 'Membrance InterpolationµÄÊäÈë¸ñÊ½Îª:\n &
-			 &  1)µØÖÊÏßÊı(nmeminp);\n &
-			 &  2) ¿ØÖÆÏßºÅ [,¿ØÖÆµã¸öÊı(>1)(Èç¹û¸ÃÏß²»ÊÇÕûÌõ¿ØÖÆÏß.Èç´ËÊı²»ÊäÈë»ò<2,Ôò2.1)²»ÊäÈë)]. ¹²nmeminp×é¡£ \n &
-			 &  2.1) [¿ØÖÆµãºÅ](Èç¹û¸ÃÏß²»ÊÇÕûÌõ¿ØÖÆÏß.) \n'c
+			 end do				
+	 case('membrance interpolation','meminp','meminp2','membranceinterpolation')
+
+		 print *, 'Reading MEMBRANCE INTERPOLATION data...'
+		 oldcolor = SETTEXTCOLOR(INT2(10))
+		 write(*,'(a256)') 'Membrance Interpolationçš„è¾“å…¥æ ¼å¼ä¸º:\n &
+		 &  1)åœ°è´¨çº¿æ•°(nmeminp);\n &
+		 &  2) æ§åˆ¶çº¿å· [,æ§åˆ¶ç‚¹ä¸ªæ•°(>1)(å¦‚æœè¯¥çº¿ä¸æ˜¯æ•´æ¡æ§åˆ¶çº¿.å¦‚æ­¤æ•°ä¸è¾“å…¥æˆ–<2,åˆ™2.1)ä¸è¾“å…¥)]. å…±nmeminpç»„ã€‚ \n &
+		 &  2.1) [æ§åˆ¶ç‚¹å·](å¦‚æœè¯¥çº¿ä¸æ˜¯æ•´æ¡æ§åˆ¶çº¿.) \n'c
+		 
+		 oldcolor = SETTEXTCOLOR(INT2(15))            
+		 call skipcomment(unit)
+		 read(unit,*) nmeminp2
+		 allocate(meminp2(nmeminp2))
+		 !nmeminp2=nmeminp+nmeminp2
+		 do i=1,nmeminp2
+			 !call skipcomment(unit)
+			 call strtoint(unit,ar,dnmax,dn,dnmax)
+			 if(dn>1.and.int(ar(2))>1) then 
+				 meminp2(i).icl=int(ar(1)) !ä¸ºå±€éƒ¨æ§åˆ¶çº¿
+				 meminp2(i).nnum=int(ar(2))
+				 allocate(meminp2(i).elevation(meminp2(i).nnum,0:soillayer), &
+							 meminp2(i).cp(meminp2(i).nnum))
+				 isall1=.true.
+				 call strtoint(unit,ar,dnmax,dn,meminp2(i).nnum,isall1)
+				 meminp2(i).cp=nint(ar(1:dn))	
+				 do j=1,meminp2(i).nnum
+					 if(arr_t(meminp2(i).cp(j)).havesoildata>0) then
+						 meminp2(i).elevation(j,:)=arr_t(meminp2(i).cp(j)).soildata
+					 else
+						 print *, 'Point i has no soildata. i=',meminp2(i).cp(j)
+						 meminp2(i).elevation(j,:)=-999
+					 endif
+				 end do 
+				 
+			 else
 			 
-			 oldcolor = SETTEXTCOLOR(INT2(15))            
-			 call skipcomment(unit)
-			 read(unit,*) nmeminp2
-			 allocate(meminp2(nmeminp2))
-			 !nmeminp2=nmeminp+nmeminp2
-			 do i=1,nmeminp2
-				 !call skipcomment(unit)
-				 call strtoint(unit,ar,dnmax,dn,dnmax)
-				 if(dn>1.and.int(ar(2))>1) then 
-					 meminp2(i).icl=int(ar(1)) !Îª¾Ö²¿¿ØÖÆÏß
-					 meminp2(i).nnum=int(ar(2))
-					 allocate(meminp2(i).elevation(meminp2(i).nnum,0:soillayer), &
-								 meminp2(i).cp(meminp2(i).nnum))
-					 isall1=.true.
-					 call strtoint(unit,ar,dnmax,dn,meminp2(i).nnum,isall1)
-					 meminp2(i).cp=nint(ar(1:dn))	
-					 do j=1,meminp2(i).nnum
-						 if(arr_t(meminp2(i).cp(j)).havesoildata>0) then
-							 meminp2(i).elevation(j,:)=arr_t(meminp2(i).cp(j)).soildata
+				 meminp2(i).icl=int(ar(1))
+				 if(meminp2(i).icl==0) then
+					 n1=keypn
+					 if(kp1(1)/=kp1(keypn)) n1=keypn+1
+				 else
+					 n1=csl(meminp2(i).icl).num
+					 if(csl(meminp2(i).icl).flag==1.and.(csl(meminp2(i).icl).point(1)/=csl(meminp2(i).icl).point(csl(meminp2(i).icl).num))) then
+						 n1=csl(meminp2(i).icl).num+1
+					 endif
+				 end if
+				 meminp2(i).nnum=n1
+				 allocate(meminp2(i).elevation(n1,0:soillayer),meminp2(i).cp(meminp2(i).nnum)) 
+				 do j=1,n1
+					 if(meminp2(i).icl>0) then
+						 meminp2(i).cp(j)=csl(meminp2(i).icl).point(j)
+						 if(arr_t(csl(meminp2(i).icl).point(j)).havesoildata>0) then
+							 meminp2(i).elevation(j,:)=arr_t(csl(meminp2(i).icl).point(j)).soildata
 						 else
-							 print *, 'Point i has no soildata. i=',meminp2(i).cp(j)
+							 print *, 'Point i has no soildata. i=',csl(meminp2(i).icl).point(j)
 							 meminp2(i).elevation(j,:)=-999
 						 endif
-					 end do 
-					 
-				 else
-				 
-					 meminp2(i).icl=int(ar(1))
-					 if(meminp2(i).icl==0) then
-						 n1=keypn
-						 if(kp1(1)/=kp1(keypn)) n1=keypn+1
-					 else
-						 n1=csl(meminp2(i).icl).num
 						 if(csl(meminp2(i).icl).flag==1.and.(csl(meminp2(i).icl).point(1)/=csl(meminp2(i).icl).point(csl(meminp2(i).icl).num))) then
-							 n1=csl(meminp2(i).icl).num+1
-						 endif
-					 end if
-					 meminp2(i).nnum=n1
-					 allocate(meminp2(i).elevation(n1,0:soillayer),meminp2(i).cp(meminp2(i).nnum)) 
-					 do j=1,n1
-						 if(meminp2(i).icl>0) then
-							 meminp2(i).cp(j)=csl(meminp2(i).icl).point(j)
-							 if(arr_t(csl(meminp2(i).icl).point(j)).havesoildata>0) then
-								 meminp2(i).elevation(j,:)=arr_t(csl(meminp2(i).icl).point(j)).soildata
-							 else
-								 print *, 'Point i has no soildata. i=',csl(meminp2(i).icl).point(j)
-								 meminp2(i).elevation(j,:)=-999
-							 endif
-							 if(csl(meminp2(i).icl).flag==1.and.(csl(meminp2(i).icl).point(1)/=csl(meminp2(i).icl).point(csl(meminp2(i).icl).num))) then
-								 meminp2(i).cp(j)=csl(meminp2(i).icl).point(1)
-							 endif                        
+							 meminp2(i).cp(j)=csl(meminp2(i).icl).point(1)
+						 endif                        
+					 else
+						 meminp2(i).cp(j)=kp1(j)
+						 if(arr_t(kp1(j)).havesoildata>0) then
+							 meminp2(i).elevation(j,:)=arr_t(kp1(j)).soildata
 						 else
-							 meminp2(i).cp(j)=kp1(j)
-							 if(arr_t(kp1(j)).havesoildata>0) then
-								 meminp2(i).elevation(j,:)=arr_t(kp1(j)).soildata
-							 else
-								 print *, 'Point i has no soildata. i=',kp1(j)
-								 meminp2(i).elevation(j,:)=-999
-							 endif
-						 
+							 print *, 'Point i has no soildata. i=',kp1(j)
+							 meminp2(i).elevation(j,:)=-999
 						 endif
-					 end do                    
-				 endif
- 
-			 end do
-			 
-			 !if(nmeminp2>0) IPMethod=1
-		 !case('geology point','gp')
-			!  print *,'Reading GEOLOGY POINT data'
-			!  oldcolor = SETTEXTCOLOR(INT2(10))
-			!  write(*,'(a256)') '\n geology pointµÄÊäÈë¸ñÊ½Îª:\n 1)µãÊı(geon);\n 2) \n×ø±êºÅ;¸ß³Ì(´ÓµØ±íÍùÏÂÊäÈë¹²(0:soillayer)).\n......\n ¹²(geon×é) \n'c
-			!  oldcolor = SETTEXTCOLOR(INT2(15))
-			!  call skipcomment(unit)
-			!  read(unit,*) n2
-		 !
-			!  !allocate(geology(ngeo))
-			!  do i=1,n2
-			!		 !allocate(geology(i).elevation(0:soillayer))
-			!	 call skipcomment(unit)
-			!	 read(unit,*) n1,geology(n1).elevation(0:soillayer)
-			!	 geology(n1).node=n1
-			!	 geology(n1).isini=1
-   !              
-			!  end do
-		 case('soillayer')
-			print *, 'Reading Soil layer number data'
-		 
-			oldcolor = SETTEXTCOLOR(INT2(10))
-			write(*,'(a256)') '\n soillaygerµÄÊäÈë¸ñÊ½Îª:\n 1)ÍÁ²ãÊı(soilayer)\n'c
-			oldcolor = SETTEXTCOLOR(INT2(15))
-			call skipcomment(unit)
-			read(unit,*) soillayer
-		 case('copyfile')
-			 call skipcomment(unit)
-			 read(unit,*) N3
-			 
-			 do i=ncopyfile+1,ncopyfile+n3
-				 call skipcomment(unit)
-				 READ(UNIT,'(A<512>)') copyfile(I)
-			 end do			
-			 ncopyfile=ncopyfile+N3
-		 case default
-		 
-			term="No such key word!  "//trim(term)
-			msg = MESSAGEBOXQQ(term,'Mistake'C,MB$ICONSTOP.OR.MB$OK.OR.MB$DEFBUTTON1)
-			if(msg==MB$IDOK) then
-			  stop
-			end if
- 
-	  end select
- 
- 
-	end subroutine
- 
- 
- 
-   subroutine sizecal(x_t,y_t,s_t)
-	 use meshDS
-	 implicit none
-	 real(8)::x_t,y_t,s_t,a_t,t1
-	 real(8),allocatable::dis_t(:) !¾àÀë£¨µÈ²îÊıÁĞÖ®ºÍ£©
-	 real(8),allocatable::sa_t(:) ! ¸÷µãÇóµÄ²½³¤
-	 real(8),allocatable::n_t(:)  !²½Êı£¨µÈ²îÊıÁĞÏîÊı£©
-	 integer::i
- 
-	 
-	 allocate(dis_t(sizepoint))
-	 allocate(sa_t(sizepoint))
-	 allocate(n_t(sizepoint))
-	 
-	 t1=0
-	 s_t=0
-	 
-	 do i=1, sizepoint
-	 
-		dis_t(i)=((x_t-s_p(i).x)**2+(y_t-s_p(i).y)**2)**0.5
-	 
-		if(abs(dis_t(i))<1e-7.or.abs(s_p(i).d)<1e-7)  then
-		   if(abs(dis_t(i))<1e-7) dis_t(i)=1e-10
-		   sa_t(i)=s_p(i).a
-		   t1=t1+(1/dis_t(i))**2
-		   cycle
-		end if
- 
-		a_t=((2*s_p(i).a-s_p(i).d)**2+8*s_p(i).d*dis_t(i))**0.5
-		n_t(i)=(s_p(i).d-2*s_p(i).a+a_t)/(2*s_p(i).d)
-		sa_t(i)=s_p(i).a+(n_t(i)-1)*s_p(i).d
-		t1=t1+(1/dis_t(i))**2
-	 end do
- 
-	 do i=1,sizepoint
-		s_t=s_t+(1/dis_t(i))**2/t1*sa_t(i)
-	 end do
- 
-	 deallocate(dis_t)
-	 deallocate(sa_t)
-	 deallocate(n_t)
- 
-   end subroutine
-	 
-	 !¿ØÖÆ¸÷ÊäÈëµã×î´óµÄµ¥Ôª³ß´çÎªÁ½ÊäÈëµãÖ®¼ä¾àÀë
-   subroutine minsize()
-	  use meshds
-	  use ds_t
-	  implicit none
-	  integer::i,j
-	  real(8)::t1
-	 
-	  do i=1,inpn
-		  do j=i+1,inpn
-			 if(j==i) cycle
-			 t1=((arr_t(i).x-arr_t(j).x)**2+(arr_t(i).y-arr_t(j).y)**2)
-			 if(t1<precision) cycle !ÈçºÎÁ½¸öµãÖ®¼äµÄ¾àÀëÌ«Ğ¡£¬ÎªÍø¸ñ»®·Ö·½±ã¼Æ£¬ÈÏÎªÕâÁ½¸öµãÊÇÖØºÏµã£¬ÔÚ´ËÌø¹ı
-			 t1=t1**0.5
-			 if(t1<arr_t(i).mins) arr_t(i).mins=t1 !×î´óµÄµ¥Ôª³ß´çÎªÁ½ÊäÈëµãÖ®¼ä¾àÀëµÄÒ»°ë¡£
-			 if(t1<arr_t(j).mins) arr_t(j).mins=t1 !×î´óµÄµ¥Ôª³ß´çÎªÁ½ÊäÈëµãÖ®¼ä¾àÀëµÄÒ»°ë¡£
-			 if(t1>arr_t(i).maxs) arr_t(i).maxs=t1 !×î´óµÄµ¥Ôª³ß´çÎªÁ½ÊäÈëµãÖ®¼ä¾àÀëµÄÒ»°ë¡£
-			 if(t1>arr_t(j).maxs) arr_t(j).maxs=t1 !×î´óµÄµ¥Ôª³ß´çÎªÁ½ÊäÈëµãÖ®¼ä¾àÀëµÄÒ»°ë¡£            
-			 
-		  end do
-		  if(ARR_T(I).iss==0) then            
-			 if(isnorefined==-1) then
-				 ARR_T(I).S=arr_t(I).maxs
-			 elseif(isnorefined<-1) then
-				 ARR_T(I).S=1.d0/abs(isnorefined)
-			 else
-				 ARR_T(I).S=arr_t(I).mins
-			 endif            
-		 endif
-	  end do
- 
-   end subroutine
- 
- 
- 
-	subroutine indataerror(n1,noun,unit)
-	   use dflib
-	   implicit none
-	   integer::n1,ef,unit
-	   integer(4)::msg
-	   character(256)::str1
-	   character(16)::noun
-	   character(64)::str2
-	   character(16)::legalC
-	   character(5)::ch
-	 
-	   legalc='.0123456789+-eE*'
-	   write(ch,'(i5)') n1-1
-	   write(str2,'(a64)') trim(noun)//' number is wrong.have read in numbers is'//trim(ch)//'.Please Check.'
-	   do while(.true.)				
-		  read(unit,'(a256)',iostat=ef) str1					
-		  if(ef<0) then
-			 msg = MESSAGEBOXQQ(trim(str2),'Mistake'C,MB$ICONSTOP.OR.MB$OK.OR.MB$DEFBUTTON1)
-			 if(msg==MB$IDOK) then
-			   stop
-			 end if
-		  end if
-		  str1=adjustL(str1)
-		  if(len_trim(str1)==0) cycle
-		  if(str1(1:1)/='/') then
-			 if(index(legalC,str1(1:1))==0) then
-				msg = MESSAGEBOXQQ(trim(str2),'Mistake'C,MB$ICONSTOP.OR.MB$OK.OR.MB$DEFBUTTON1)
-				if(msg==MB$IDOK) then
-				   stop
-				end if
-			 end if
-			 backspace(unit)
-			 exit
-		 end if
-	   end do
- 
-	end subroutine
- 
- 
-	!unit£ºÎÄ¼şºÅ£¬
-	!ITYPE:=0£¬ÄÜ¶ÁÎÄ¼ş¡£>0±íÊ¾keywordÖĞ¹Ø¼ü×ÖµÄ¸öÊı,½ö¶ÁÈ¡keywordÖĞ¸÷¹Ø¼ü×ÖµÄ×Ö¶ÎÄÚÈİ¡£
-  
-	subroutine read_execute(unit,ITYPE,keyword)
-	 
-	   implicit none
-	   integer::i,unit,ef,ITYPE
-	   character(len=2096)::term
-	   character(len=*)::keyword
-	   character(1)::ch
- 
-	   ef=0
-	   do while(ef==0)
-		  read(unit,'(A)',iostat=ef) term	
-		  if(ef<0) exit
-		  term=adjustl(term)
-		  if(len_trim(term)==0) cycle
-		  
-		  do i=1,len_trim(term) !remove 'Tab'
-			 if(term(i:i)==char(9)) then
-				 term(i:i)=char(32)
-			 endif
-		 end do
-		 term=adjustl(term)
-		  if(len_trim(term)==0) cycle		
-		  write(ch,'(a1)') term
-		  if(ch/='/') then
-			 backspace(unit)
-			 read(unit,'(A)') term
-			 
-			 call translatetoproperty(term)
-			 call lowcase(term)
-			 if(itype>0) then
-				if(index(keyword,trim(term))==0) cycle
-			 end if
 					 
-			 
-			 term=adjustl(trim(term))
-			 call command(term,unit) 	
-		  end if
-	   end do 	
- 
- 
-	end subroutine
- 
- !translate all the characters in term into lowcase character string
- subroutine lowcase(term)
-	 use dflib
-	 implicit none
-	 integer i,in,nA,nZ,nc,nd
-	 character(1)::ch
-	 character(*)::term
-	 
-	 
-	 term=adjustl(trim(term))
-	 nA=ichar('A')
-	 nZ=ichar('Z')
-	 nd=ichar('A')-ichar('a')
-	 in=len_trim(term)
-	 do i=1,in
-		 ch=term(i:i)
-		 nc=ichar(ch)
-		 if(nc>=nA.and.nc<=nZ) then
-			 term(i:i)=char(nc-nd)
-		 end if
-	 end do
- end subroutine
- 
- subroutine skipcomment(unit)
-	 implicit none
-	 integer,intent(in)::unit
-	 integer::i,ef,strL
-	 character(512) string
-	 
-	 do while(.true.)
-		 read(unit,'(a512)',iostat=ef) string
-		 if(ef<0) then
-			 print *, 'file ended unexpected. sub strtoint()'
-			 stop
-		 end if
- 
-		 string=adjustL(string)
-		 strL=len_trim(string)
- 
-		 do i=1,strL !remove 'Tab'
-			 if(string(i:i)/=char(9)) exit
+					 endif
+				 end do                    
+			 endif
+
 		 end do
-		 string=string(i:strL)
-		 string=adjustl(string)
-		 strL=len_trim(string)
-		 if(strL==0) cycle
+		 
+		 !if(nmeminp2>0) IPMethod=1
+	 !case('geology point','gp')
+		!  print *,'Reading GEOLOGY POINT data'
+		!  oldcolor = SETTEXTCOLOR(INT2(10))
+		!  write(*,'(a256)') '\n geology pointçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)ç‚¹æ•°(geon);\n 2) \nåæ ‡å·;é«˜ç¨‹(ä»åœ°è¡¨å¾€ä¸‹è¾“å…¥å…±(0:soillayer)).\n......\n å…±(geonç»„) \n'c
+		!  oldcolor = SETTEXTCOLOR(INT2(15))
+		!  call skipcomment(unit)
+		!  read(unit,*) n2
+	 !
+		!  !allocate(geology(ngeo))
+		!  do i=1,n2
+		!		 !allocate(geology(i).elevation(0:soillayer))
+		!	 call skipcomment(unit)
+		!	 read(unit,*) n1,geology(n1).elevation(0:soillayer)
+		!	 geology(n1).node=n1
+		!	 geology(n1).isini=1
+!              
+		!  end do
+	 case('soillayer')
+		print *, 'Reading Soil layer number data'
+	 
+		oldcolor = SETTEXTCOLOR(INT2(10))
+		write(*,'(a256)') '\n soillaygerçš„è¾“å…¥æ ¼å¼ä¸º:\n 1)åœŸå±‚æ•°(soilayer)\n'c
+		oldcolor = SETTEXTCOLOR(INT2(15))
+		call skipcomment(unit)
+		read(unit,*) soillayer
+	 case('copyfile')
+		 call skipcomment(unit)
+		 read(unit,*) N3
+		 
+		 do i=ncopyfile+1,ncopyfile+n3
+			 call skipcomment(unit)
+			 READ(UNIT,'(A<512>)') copyfile(I)
+		 end do			
+		 ncopyfile=ncopyfile+N3
+	 case default
+	 
+		term="No such key word!  "//trim(term)
+		msg = MESSAGEBOXQQ(term,'Mistake'C,MB$ICONSTOP.OR.MB$OK.OR.MB$DEFBUTTON1)
+		if(msg==MB$IDOK) then
+		  stop
+		end if
+
+  end select
+
+
+end subroutine
+
+
+
+subroutine sizecal(x_t,y_t,s_t)
+ use meshDS
+ implicit none
+ real(8)::x_t,y_t,s_t,a_t,t1
+ real(8),allocatable::dis_t(:) !è·ç¦»ï¼ˆç­‰å·®æ•°åˆ—ä¹‹å’Œï¼‰
+ real(8),allocatable::sa_t(:) ! å„ç‚¹æ±‚çš„æ­¥é•¿
+ real(8),allocatable::n_t(:)  !æ­¥æ•°ï¼ˆç­‰å·®æ•°åˆ—é¡¹æ•°ï¼‰
+ integer::i
+
  
-		 if(string(1:1)/='/') then
-			 backspace(unit)
-			 exit
+ allocate(dis_t(sizepoint))
+ allocate(sa_t(sizepoint))
+ allocate(n_t(sizepoint))
+ 
+ t1=0
+ s_t=0
+ 
+ do i=1, sizepoint
+ 
+	dis_t(i)=((x_t-s_p(i).x)**2+(y_t-s_p(i).y)**2)**0.5
+ 
+	if(abs(dis_t(i))<1e-7.or.abs(s_p(i).d)<1e-7)  then
+	   if(abs(dis_t(i))<1e-7) dis_t(i)=1e-10
+	   sa_t(i)=s_p(i).a
+	   t1=t1+(1/dis_t(i))**2
+	   cycle
+	end if
+
+	a_t=((2*s_p(i).a-s_p(i).d)**2+8*s_p(i).d*dis_t(i))**0.5
+	n_t(i)=(s_p(i).d-2*s_p(i).a+a_t)/(2*s_p(i).d)
+	sa_t(i)=s_p(i).a+(n_t(i)-1)*s_p(i).d
+	t1=t1+(1/dis_t(i))**2
+ end do
+
+ do i=1,sizepoint
+	s_t=s_t+(1/dis_t(i))**2/t1*sa_t(i)
+ end do
+
+ deallocate(dis_t)
+ deallocate(sa_t)
+ deallocate(n_t)
+
+end subroutine
+ 
+ !æ§åˆ¶å„è¾“å…¥ç‚¹æœ€å¤§çš„å•å…ƒå°ºå¯¸ä¸ºä¸¤è¾“å…¥ç‚¹ä¹‹é—´è·ç¦»
+subroutine minsize()
+  use meshds
+  use ds_t
+  implicit none
+  integer::i,j
+  real(8)::t1
+ 
+  do i=1,inpn
+	  do j=i+1,inpn
+		 if(j==i) cycle
+		 t1=((arr_t(i).x-arr_t(j).x)**2+(arr_t(i).y-arr_t(j).y)**2)
+		 if(t1<precision) cycle !å¦‚ä½•ä¸¤ä¸ªç‚¹ä¹‹é—´çš„è·ç¦»å¤ªå°ï¼Œä¸ºç½‘æ ¼åˆ’åˆ†æ–¹ä¾¿è®¡ï¼Œè®¤ä¸ºè¿™ä¸¤ä¸ªç‚¹æ˜¯é‡åˆç‚¹ï¼Œåœ¨æ­¤è·³è¿‡
+		 t1=t1**0.5
+		 if(t1<arr_t(i).mins) arr_t(i).mins=t1 !æœ€å¤§çš„å•å…ƒå°ºå¯¸ä¸ºä¸¤è¾“å…¥ç‚¹ä¹‹é—´è·ç¦»çš„ä¸€åŠã€‚
+		 if(t1<arr_t(j).mins) arr_t(j).mins=t1 !æœ€å¤§çš„å•å…ƒå°ºå¯¸ä¸ºä¸¤è¾“å…¥ç‚¹ä¹‹é—´è·ç¦»çš„ä¸€åŠã€‚
+		 if(t1>arr_t(i).maxs) arr_t(i).maxs=t1 !æœ€å¤§çš„å•å…ƒå°ºå¯¸ä¸ºä¸¤è¾“å…¥ç‚¹ä¹‹é—´è·ç¦»çš„ä¸€åŠã€‚
+		 if(t1>arr_t(j).maxs) arr_t(j).maxs=t1 !æœ€å¤§çš„å•å…ƒå°ºå¯¸ä¸ºä¸¤è¾“å…¥ç‚¹ä¹‹é—´è·ç¦»çš„ä¸€åŠã€‚            
+		 
+	  end do
+	  if(ARR_T(I).iss==0) then            
+		 if(isnorefined==-1) then
+			 ARR_T(I).S=arr_t(I).maxs
+		 elseif(isnorefined<-1) then
+			 ARR_T(I).S=1.d0/abs(isnorefined)
+		 else
+			 ARR_T(I).S=arr_t(I).mins
+		 endif            
+	 endif
+  end do
+
+end subroutine
+
+
+
+subroutine indataerror(n1,noun,unit)
+   use dflib
+   implicit none
+   integer::n1,ef,unit
+   integer(4)::msg
+   character(256)::str1
+   character(16)::noun
+   character(64)::str2
+   character(16)::legalC
+   character(5)::ch
+ 
+   legalc='.0123456789+-eE*'
+   write(ch,'(i5)') n1-1
+   write(str2,'(a64)') trim(noun)//' number is wrong.have read in numbers is'//trim(ch)//'.Please Check.'
+   do while(.true.)				
+	  read(unit,'(a256)',iostat=ef) str1					
+	  if(ef<0) then
+		 msg = MESSAGEBOXQQ(trim(str2),'Mistake'C,MB$ICONSTOP.OR.MB$OK.OR.MB$DEFBUTTON1)
+		 if(msg==MB$IDOK) then
+		   stop
 		 end if
-	 end do
-	 
-	 end subroutine
- 
-	 !FUNCTION is_numeric(string)
-	 !    USE ieee_arithmetic
-	 !    IMPLICIT NONE
-	 !    CHARACTER(len=*), INTENT(IN) :: string
-	 !    LOGICAL :: is_numeric
-	 !    REAL :: x
-	 !    INTEGER :: e
-	 !    x = FOR_S_NAN
-	 !    READ(string,'(F15.0)',IOSTAT=e) x
-	 !    is_numeric = ((e == 0) .and. (.NOT. ISNAN(X)))
-	 !END FUNCTION is_numeric
- 
- subroutine translatetoproperty(term)
- 
- !**************************************************************************************************************
- !Get a keyword and related property values from a control line (<256)
- !input variables:
- !term, store control data line content.
- !ouput variables:
- !property,pro_num
- !mudulus used:
- !None
- !Subroutine called:
- !None
- !Programmer:LUO Guanyong
- !Last updated: 2008,03,20
- 
- !Example: 
- !term='element, num=10,type=2,material=1,set=3'
- !after processed,the following data will be returned:
- !term='element'
- !property(1).name=num
- !property(1).value=1
- !.....
- !**************************************************************************************************************
-	 use meshds
-	 implicit none
-	 integer::i
-	 character(len=*)::term
-	 integer::ns,ne,nc,e
-	 character(1024)::string(11),keyword
-	 
-	 term=adjustl(term)
-	 ns=1
-	 ne=0
-	 nc=0
-	 do while(len_trim(term)>0) 
-		 nc=nc+1
-		 if(nc>11) then
-			 print *, 'nc>11,subroutine translatetoproperty()'
-			 stop
+	  end if
+	  str1=adjustL(str1)
+	  if(len_trim(str1)==0) cycle
+	  if(str1(1:1)/='/') then
+		 if(index(legalC,str1(1:1))==0) then
+			msg = MESSAGEBOXQQ(trim(str2),'Mistake'C,MB$ICONSTOP.OR.MB$OK.OR.MB$DEFBUTTON1)
+			if(msg==MB$IDOK) then
+			   stop
+			end if
 		 end if
-		 ne=index(term,',')
-		 if(ne>0.and.len_trim(term)>1) then
-			 string(nc)=term(ns:ne-1)
-			 string(nc)=adjustL(string(nc))
-		 else 
-		 !no commas in the end
-			 ne=min(len_trim(term),len(string(nc)))
-			 string(nc)=term(ns:ne)
-			 string(nc)=adjustL(string(nc))
-		 end if
-		 term=term(ne+1:len_trim(term))
-		 term=adjustL(term)		
-	 end do
+		 backspace(unit)
+		 exit
+	 end if
+   end do
+
+end subroutine
+
+
+
+
+
+!elarge Array Node size by increment of 10000
+!Set Array Adjlist size equel to the size of Node
+!Set Array Edge size equel to 3*Nnode+1+cln-2,according to
+!Euler equation node+element-edge=2-boundary(including innner boundary)
+Subroutine EnlargeNodeRelative()
+ use meshds
+ implicit none
+ integer::i,nc1
+ type(point_tydef),allocatable::node1(:)
+ type(adjlist_tydef),allocatable::adjlist1(:)
+ type(edge_tydef),allocatable::edge1(:)
+ real(8),allocatable::elevation1(:,:),nlayer1(:,:)
  
-	 term=string(1)
-	 pro_num=nc-1
-	 do i=2,nc
-		 ne=index(string(i),'=')
-		 property(i-1).name=string(i)(1:ne-1)
-		 call lowcase(property(i-1).name)
-		 property(i-1).cvalue=trim(adjustl(string(i)(ne+1:len_trim(string(i)))))
-		 !Í¨¹ıµÚÒ»¸ö×ÖÄ¸ÊÇ·ñÊÇÊı×ÖÅĞ¶Ï´Ë×Ö·û´®ÊÇ·ñÎªÊı×Ö
-		 !if(is_numeric(property(i-1).cvalue)) then
-		 !    read(trim(property(i-1).cvalue),*) property(i-1).value
-		 !endif
-		 if(verify(trim(property(i-1).cvalue),'0123456789.eE-+')==0)then
-			 read(string(i)(ne+1:len_trim(string(i))),*,IOSTAT=e) property(i-1).value
-		 endif
-	 end do
+ allocate(node1(-3:nnode))
+ node1=node
+ deallocate(node)	
+ maxnnode=maxnnode+10000
+ allocate(node(-3:maxnnode))
+ node(-3:nnode)=node1
+ deallocate(node1)
  
-	 end subroutine
+ !enlarge adjlist as it must keep in the same size with node
+ allocate(adjlist1(nnode))
+ do i=1,nnode
+	 nc1=size(adjlist(i).node)
+	 allocate(adjlist1(i).node(nc1), &
+		 adjlist1(i).edge(nc1))
+	 adjlist1(i).count=adjlist(i).count
+	 adjlist1(i).node=adjlist(i).node
+	 adjlist1(i).edge=adjlist(i).edge
+ end do
  
-	 
+ deallocate(adjlist)
+ allocate(adjlist(maxnnode))
+ do i=1,nnode
+	 nc1=size(adjlist1(i).node)
+	 allocate(adjlist(i).node(nc1), &
+		 adjlist(i).edge(nc1))
+	 adjlist(i).count=adjlist1(i).count
+	 adjlist(i).node=adjlist1(i).node
+	 adjlist(i).edge=adjlist1(i).edge
+ end do	
+ deallocate(adjlist1)
  
+ !if(allocated(elevation))then
+ !	nc1=size(elevation,dim=1)
+ !	allocate(elevation1(nc1,nnode),nlayer1(nc1,nnode))
+ !	elevation1=elevation(:,1:nnode)
+ !	nlayer1=nlayer(:,1:nnode)
+ !	deallocate(elevation,nlayer)
+ !	allocate(elevation(nc1,maxnnode),nlayer(nc1,maxnnode))
+ !	elevation(:,1:nnode)=elevation1
+ !	nlayer(:,1:nnode)=nlayer1
+ !!allocate
+ !end if
  
+!	allocate(edge(3*nnode+cln-2))	
  
- !elarge Array Node size by increment of 10000
- !Set Array Adjlist size equel to the size of Node
- !Set Array Edge size equel to 3*Nnode+1+cln-2,according to
- !Euler equation node+element-edge=2-boundary(including innner boundary)
- Subroutine EnlargeNodeRelative()
-	 use meshds
-	 implicit none
-	 integer::i,nc1
-	 type(point_tydef),allocatable::node1(:)
-	 type(adjlist_tydef),allocatable::adjlist1(:)
-	 type(edge_tydef),allocatable::edge1(:)
-	 real(8),allocatable::elevation1(:,:),nlayer1(:,:)
-	 
-	 allocate(node1(-3:nnode))
-	 node1=node
-	 deallocate(node)	
-	 maxnnode=maxnnode+10000
-	 allocate(node(-3:maxnnode))
-	 node(-3:nnode)=node1
-	 deallocate(node1)
-	 
-	 !enlarge adjlist as it must keep in the same size with node
-	 allocate(adjlist1(nnode))
-	 do i=1,nnode
-		 nc1=size(adjlist(i).node)
-		 allocate(adjlist1(i).node(nc1), &
-			 adjlist1(i).edge(nc1))
-		 adjlist1(i).count=adjlist(i).count
-		 adjlist1(i).node=adjlist(i).node
-		 adjlist1(i).edge=adjlist(i).edge
-	 end do
-	 
-	 deallocate(adjlist)
-	 allocate(adjlist(maxnnode))
-	 do i=1,nnode
-		 nc1=size(adjlist1(i).node)
-		 allocate(adjlist(i).node(nc1), &
-			 adjlist(i).edge(nc1))
-		 adjlist(i).count=adjlist1(i).count
-		 adjlist(i).node=adjlist1(i).node
-		 adjlist(i).edge=adjlist1(i).edge
-	 end do	
-	 deallocate(adjlist1)
-	 
-	 !if(allocated(elevation))then
-	 !	nc1=size(elevation,dim=1)
-	 !	allocate(elevation1(nc1,nnode),nlayer1(nc1,nnode))
-	 !	elevation1=elevation(:,1:nnode)
-	 !	nlayer1=nlayer(:,1:nnode)
-	 !	deallocate(elevation,nlayer)
-	 !	allocate(elevation(nc1,maxnnode),nlayer(nc1,maxnnode))
-	 !	elevation(:,1:nnode)=elevation1
-	 !	nlayer(:,1:nnode)=nlayer1
-	 !!allocate
-	 !end if
-	 
- !	allocate(edge(3*nnode+cln-2))	
-	 
- End subroutine
+End subroutine

@@ -705,7 +705,8 @@ SUBROUTINE GEN_ZEROTHICKNESS_ELEMENT()
 	DO I=1,nphgp
 		IPGROUP1=PHGPNUM(I)
 		CALL LOWCASE(physicalgroup(IPGROUP1).ET,LEN_TRIM(physicalgroup(IPGROUP1).ET))
-		IF(physicalgroup(IPGROUP1).ET=='zt4_spg'.OR.physicalgroup(IPGROUP1).ET=='zt6_spg') THEN
+		IF(physicalgroup(IPGROUP1).ET=='zt4_spg'.OR.physicalgroup(IPGROUP1).ET=='zt6_spg'.or. & 
+           physicalgroup(IPGROUP1).ET=='zt4_spg2'.OR.physicalgroup(IPGROUP1).ET=='zt6_spg2') THEN
 			
 			!IF(.NOT.EDGE_TBL.IS_INIT) CALL SETUP_EDGE_TBL()
 			!IF(physicalgroup(IPGROUP1).NDIM/=1) STOP "DIMENSION ERROR.ERRORS IN SUB GEN_ZEROTHICKNESS_ELEMENT()."
@@ -780,7 +781,7 @@ SUBROUTINE GEN_ZEROTHICKNESS_ELEMENT()
 			!	ENDDO
 			!ENDDO
 			!REORDER NODAL NUMBER zt4_spg
-			IF(physicalgroup(IPGROUP1).ET=='zt4_spg') THEN
+			IF(physicalgroup(IPGROUP1).ET=='zt4_spg'.or.physicalgroup(IPGROUP1).ET=='zt4_spg2') THEN
 				DO J=1,physicalgroup(IPGROUP1).NEL
 					N2=ELEMENT(physicalgroup(IPGROUP1).ELEMENT(J)).NODE(3)
 					ELEMENT(physicalgroup(IPGROUP1).ELEMENT(J)).NODE(3)=ELEMENT(physicalgroup(IPGROUP1).ELEMENT(J)).NODE(4)

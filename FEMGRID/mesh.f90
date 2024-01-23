@@ -49,6 +49,12 @@
 			    if(isnorefined<1) then
 				    print *, 'Control lines have been repaired in the initial mesh. Begin to refine the initial mesh, please warit¡­: ', char_time
 				    call InsertPoint()
+                    !if(isrefinedbysample) then
+                    !    example_pdf.nval=nnode
+                    !    node(1:nnode).s=example_pdf.sample()
+                    !    
+                    !    call InsertPoint()
+                    !endif
 				    call TIME(char_time)
 				    print *, 'Refine mesh completed. Begin to repair control lines again, please wait¡­: ', char_time
 				    iflag=1

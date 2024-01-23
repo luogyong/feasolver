@@ -6,6 +6,8 @@ module tetgen_io
     public::read_tetgen_file,tetgen_to_tecplot,element_tg,nelt_tg
     
     private
+    
+    
     integer::nnode_tg=0,ndim_tg=0,nelt_tg=0,nve_tg=0,nvf_tg=0,nvc_tg=0,nvnode_tg=0,nface_tg=0,nedge_tg=0,nneigh_tg=0
     integer::order=1
     character(512)::tec_title,filepath
@@ -16,6 +18,7 @@ module tetgen_io
     
     integer,parameter::zcylinder=1
     real(8)::eps=1.d-6
+    
     
     type::tetgen_node_tydef
         integer::na=0,marker=0,surfin=0,a1=0,uid=0      
@@ -60,9 +63,6 @@ module tetgen_io
     
 
     integer,allocatable::t2e(:,:),t2f(:,:),f2e(:,:)
-    
-   
-    
     
     
     !аз╫с╠М
@@ -113,7 +113,8 @@ module tetgen_io
     END INTERFACE 
     
     contains
-    
+  
+   
     subroutine find_duplicated_node(node1)
     !remove duplicated node and stored in uvertex
         type(tetgen_node_tydef)::node1(:)
@@ -561,7 +562,7 @@ module tetgen_io
 10  format('Title="',a<len_trim(tec_title)+5>,'"')
 20  format('Variables="X","Y","Z",',<natr1>('"ATR',i<incount(i)>,'","Rn"')) 
 21  format('Variables="X","Y","Z","Rn"')   
-    30  format('Zone,T=Voro,zonetype=FEPOLYHEDRON,N=',I7,',E=',I7,',datapacking=BLOCK,Faces=',i7, &
+30  format('Zone,T=Voro,zonetype=FEPOLYHEDRON,N=',I7,',E=',I7,',datapacking=BLOCK,Faces=',i7, &
         ',VARLOCATION=(',A,'=CELLCENTERED)',',TOTALNUMFACENODES=',i7, &
         ',NUMCONNECTEDBOUNDARYFACES=0,TOTALNUMBOUNDARYCONNECTIONS=0',2X,A) 
 40  format(<nc1>(E24.16,1X),i7)

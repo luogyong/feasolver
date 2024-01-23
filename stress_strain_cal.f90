@@ -793,13 +793,17 @@ subroutine calangle(ienum)
 
         case(tet4,tet10)
             
-            do i=1,4
-                IA1(1)=I;IA1(2)=MOD(IA1(1),4)+1;IA1(3)=MOD(IA1(2),4)+1;IA1(4)=MOD(IA1(3),4)+1
-                do j=1,4
-                    ar1(:,j)=node(element(ienum).node(IA1(j))).coord
-                enddo
-                element(ienum).angle(i)=solidangle(AR1(:,1:4))            
+            !do i=1,4
+            !    IA1(1)=I;IA1(2)=MOD(IA1(1),4)+1;IA1(3)=MOD(IA1(2),4)+1;IA1(4)=MOD(IA1(3),4)+1
+            !    do j=1,4
+            !        ar1(:,j)=node(element(ienum).node(IA1(j))).coord
+            !    enddo
+            !    element(ienum).angle(i)=solidangle(AR1(:,1:4))            
+            !enddo
+            do j=1,4
+				ar1(:,j)=node(element(ienum).node(j)).coord
             enddo
+            call tetrahedron_solid_angles_3d(ar1(:,1:4),element(ienum).angle(1:4))
             
             IF(ELEMENT(IENUM).NNUM>4) THEN
                 do i=1,4
@@ -836,7 +840,8 @@ subroutine calangle(ienum)
                         ar1(:,j)=node(element(ienum).node(IA2D2(j,i))).coord
                     ENDIF
                 enddo
-                element(ienum).angle(i)=solidangle(AR1(:,1:4))            
+                call tetrahedron_solid_angles_3d(ar1(:,1:4),vangle(1:4))
+                element(ienum).angle(i)=vangle(1)            
             enddo
             
             IF(ELEMENT(IENUM).NNUM>6) THEN

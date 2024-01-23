@@ -256,52 +256,52 @@ SUBROUTINE EQUDIVIDE(X1,X2,DT,NODE,NNODE)
 ENDSUBROUTINE
 
 
-
-   !计算四面体的其中的一个顶点（第一个）ar(:,1)的立体角，以angle返回。    
-	real(8) function solidangle(ar)
-	   implicit none
-	   
-	   real(8),intent(in)::ar(3,4)
-       integer::i
-       real(8)::br(3,3),t1,v1
-	   real(8)::cosA,cosB,cosC,A,B,C,p
-	   !br存储由ar形成三个向量，同时化为单位向量
-	   do i=1,3
-	      br(:,i)=ar(:,i+1)-ar(:,1) 
-		  t1=(br(1,i)**2+br(2,i)**2+br(3,i)**2)**0.5
-		  if(t1<1e-10) then
-		     print *, 'sub solid angle,the distance between two vertex is 0.'
-		     stop
-		  end if
-		  br(:,i)=br(:,i)/t1
-       end do
-	   
-       !求br中第一、二向量所组成的夹角
-       cosA=br(1,1)*br(1,2)+br(2,1)*br(2,2)+br(3,1)*br(3,2)
-       cosB=br(1,1)*br(1,3)+br(2,1)*br(2,3)+br(3,1)*br(3,3)
-	   cosC=br(1,3)*br(1,2)+br(2,3)*br(2,2)+br(3,3)*br(3,2)
-	   !因为三个向量都化为了单位向量。
-       A=dacos(cosA)
-       B=dacos(cosB)
-	   C=dacos(cosC)
-       p=(A+B+C)/2
-	   t1=(sin(p)*sin(p-A)*sin(p-B)*sin(p-C))**0.5/(2*cos(A/2)*cos(B/2)*cos(C/2))
-       solidangle=2*dasin(t1)
-       
-!	   !求第一、二向量所组成三角形的面积
-!       s=sin(A)/2
-!	   !求四面体的体积:abs(v1)/6
-!	   call dt(br,v1)
-!	   v1=abs(v1)/6
-!	   !求高h
-!       h=3*v1/s
-!	   !三角形球面的面积s
-!	   s=1*h*A/2
-       !s=A+B+C-3.1415926536
-	   !立体角，球面度
-       !angle=s/4/3.1415926536
-       !solidangle=s
-	end function
+!
+!   !计算四面体的其中的一个顶点（第一个）ar(:,1)的立体角，以angle返回。    
+!	real(8) function solidangle(ar)
+!	   implicit none
+!	   
+!	   real(8),intent(in)::ar(3,4)
+!       integer::i
+!       real(8)::br(3,3),t1,v1
+!	   real(8)::cosA,cosB,cosC,A,B,C,p
+!	   !br存储由ar形成三个向量，同时化为单位向量
+!	   do i=1,3
+!	      br(:,i)=ar(:,i+1)-ar(:,1) 
+!		  t1=(br(1,i)**2+br(2,i)**2+br(3,i)**2)**0.5
+!		  if(t1<1e-10) then
+!		     print *, 'sub solid angle,the distance between two vertex is 0.'
+!		     stop
+!		  end if
+!		  br(:,i)=br(:,i)/t1
+!       end do
+!	   
+!       !求br中第一、二向量所组成的夹角
+!       cosA=br(1,1)*br(1,2)+br(2,1)*br(2,2)+br(3,1)*br(3,2)
+!       cosB=br(1,1)*br(1,3)+br(2,1)*br(2,3)+br(3,1)*br(3,3)
+!	   cosC=br(1,3)*br(1,2)+br(2,3)*br(2,2)+br(3,3)*br(3,2)
+!	   !因为三个向量都化为了单位向量。
+!       A=dacos(cosA)
+!       B=dacos(cosB)
+!	   C=dacos(cosC)
+!       p=(A+B+C)/2
+!	   t1=(sin(p)*sin(p-A)*sin(p-B)*sin(p-C))**0.5/(2*cos(A/2)*cos(B/2)*cos(C/2))
+!       solidangle=2*dasin(t1)
+!       
+!!	   !求第一、二向量所组成三角形的面积
+!!       s=sin(A)/2
+!!	   !求四面体的体积:abs(v1)/6
+!!	   call dt(br,v1)
+!!	   v1=abs(v1)/6
+!!	   !求高h
+!!       h=3*v1/s
+!!	   !三角形球面的面积s
+!!	   s=1*h*A/2
+!       !s=A+B+C-3.1415926536
+!	   !立体角，球面度
+!       !angle=s/4/3.1415926536
+!       !solidangle=s
+!	end function
 
     function NORMAL_TRIFACE(V) result (Normal)
 
@@ -458,6 +458,207 @@ real(8) function tet_shape_factor(xy,ifactor)
 
 
 endfunction
+
+   
+    subroutine tetrahedron_solid_angles_3d ( tetra, angle )
+
+    !*****************************************************************************80
+    !
+    !! TETRAHEDRON_SOLID_ANGLES_3D computes solid angles of a tetrahedron.
+    !
+    !  Licensing:
+    !
+    !    This code is distributed under the GNU LGPL license. 
+    !
+    !  Modified:
+    !
+    !    07 July 2009
+    !
+    !  Author:
+    !
+    !    John Burkardt
+    !
+    !  Parameters:
+    !
+    !    Input, real ( kind = 8 ) TETRA(3,4), the vertices of the tetrahedron.
+    !
+    !    Output, real ( kind = 8 ) ANGLE(4), the solid angles.
+    !
+      implicit none
+
+      real ( kind = 8 ) angle(4)
+      real ( kind = 8 ) dihedral_angle(6)
+      real ( kind = 8 ), parameter :: r8_pi = 3.141592653589793D+00
+      real ( kind = 8 ) tetra(3,4)
+      
+
+      call tetrahedron_dihedral_angles_3d ( tetra, dihedral_angle )
+
+      angle(1) = dihedral_angle(1) + dihedral_angle(2) + dihedral_angle(3) - r8_pi
+      angle(2) = dihedral_angle(1) + dihedral_angle(4) + dihedral_angle(5) - r8_pi
+      angle(3) = dihedral_angle(2) + dihedral_angle(4) + dihedral_angle(6) - r8_pi
+      angle(4) = dihedral_angle(3) + dihedral_angle(5) + dihedral_angle(6) - r8_pi
+
+      return
+    end    
+    
+    subroutine tetrahedron_dihedral_angles_3d ( tetra, angle )
+
+    !*****************************************************************************80
+    !
+    !! TETRAHEDRON_DIHEDRAL_ANGLES_3D computes dihedral angles of a tetrahedron.
+    !
+    !  Licensing:
+    !
+    !    This code is distributed under the GNU LGPL license. 
+    !
+    !  Modified:
+    !
+    !    07 July 2009
+    !
+    !  Author:
+    !
+    !    John Burkardt
+    !
+    !  Parameters:
+    !
+    !    Input, real ( kind = 8 ) TETRA(3,4), the vertices of the tetrahedron,
+    !    which can be labeled as A, B, C and D.
+    !
+    !    Output, real ( kind = 8 ) ANGLE(6), the dihedral angles along the
+    !    axes AB, AC, AD, BC, BD and CD, respectively.
+    !
+      implicit none
+
+      real ( kind = 8 ) ab(3)
+      real ( kind = 8 ) abc_normal(3)
+      real ( kind = 8 ) abd_normal(3)
+      real ( kind = 8 ) ac(3)
+      real ( kind = 8 ) acd_normal(3)
+      real ( kind = 8 ) ad(3)
+      real ( kind = 8 ) angle(6)
+      real ( kind = 8 ) bc(3)
+      real ( kind = 8 ) bcd_normal(3)
+      real ( kind = 8 ) bd(3)
+      real ( kind = 8 ), parameter :: r8_pi = 3.141592653589793D+00
+      real ( kind = 8 ) tetra(3,4)
+
+      ab(1:3) = tetra(1:3,2) - tetra(1:3,1)
+      ac(1:3) = tetra(1:3,3) - tetra(1:3,1)
+      ad(1:3) = tetra(1:3,4) - tetra(1:3,1)
+      bc(1:3) = tetra(1:3,3) - tetra(1:3,2)
+      bd(1:3) = tetra(1:3,4) - tetra(1:3,2)
+ 
+      call r8vec_cross_product_3d ( ac, ab, abc_normal )
+      call r8vec_cross_product_3d ( ab, ad, abd_normal )
+      call r8vec_cross_product_3d ( ad, ac, acd_normal )
+      call r8vec_cross_product_3d ( bc, bd, bcd_normal )
+
+      call r8vec_angle_3d ( abc_normal, abd_normal, angle(1) )
+      call r8vec_angle_3d ( abc_normal, acd_normal, angle(2) )
+      call r8vec_angle_3d ( abd_normal, acd_normal, angle(3) )
+      call r8vec_angle_3d ( abc_normal, bcd_normal, angle(4) )
+      call r8vec_angle_3d ( abd_normal, bcd_normal, angle(5) )
+      call r8vec_angle_3d ( acd_normal, bcd_normal, angle(6) )
+
+      angle(1:6) = r8_pi - angle(1:6)
+
+      return
+    end
+    
+    subroutine r8vec_cross_product_3d ( v1, v2, v3 )
+
+    !*****************************************************************************80
+    !
+    !! R8VEC_CROSS_PRODUCT_3D computes the cross product of two vectors in 3D.
+    !
+    !  Discussion:
+    !
+    !    The cross product in 3D can be regarded as the determinant of the
+    !    symbolic matrix:
+    !
+    !          |  i  j  k |
+    !      det | x1 y1 z1 |
+    !          | x2 y2 z2 |
+    !
+    !      = ( y1 * z2 - z1 * y2 ) * i
+    !      + ( z1 * x2 - x1 * z2 ) * j
+    !      + ( x1 * y2 - y1 * x2 ) * k
+    !
+    !  Licensing:
+    !
+    !    This code is distributed under the GNU LGPL license. 
+    !
+    !  Modified:
+    !
+    !    07 August 2005
+    !
+    !  Author:
+    !
+    !    John Burkardt
+    !
+    !  Parameters:
+    !
+    !    Input, real ( kind = 8 ) V1(3), V2(3), the two vectors.
+    !
+    !    Output, real ( kind = 8 ) V3(3), the cross product vector.
+    !
+      implicit none
+
+      real ( kind = 8 ) v1(3)
+      real ( kind = 8 ) v2(3)
+      real ( kind = 8 ) v3(3)
+
+      v3(1) = v1(2) * v2(3) - v1(3) * v2(2)
+      v3(2) = v1(3) * v2(1) - v1(1) * v2(3)
+      v3(3) = v1(1) * v2(2) - v1(2) * v2(1)
+
+      return
+    end
+    
+    subroutine r8vec_angle_3d ( u, v, angle )
+
+    !*****************************************************************************80
+    !
+    !! R8VEC_ANGLE_3D computes the angle between two vectors in 3D.
+    !
+    !  Modified:
+    !
+    !    07 July 2009
+    !
+    !  Author:
+    !
+    !    John Burkardt
+    !
+    !  Parameters:
+    !
+    !    Input, real ( kind = 8 ) U(3), V(3), the vectors.
+    !
+    !    Output, real ( kind = 8 ) ANGLE, the angle between the two vectors.
+    !
+      implicit none
+
+      real ( kind = 8 ) angle
+      real ( kind = 8 ) angle_cos
+      !real ( kind = 8 ) acos
+      real ( kind = 8 ) u(3)
+      real ( kind = 8 ) u_norm
+      real ( kind = 8 ) uv_dot
+      real ( kind = 8 ) v(3)
+      real ( kind = 8 ) v_norm
+
+      uv_dot = dot_product ( u(1:3), v(1:3) )
+
+      u_norm = sqrt ( dot_product ( u(1:3), u(1:3) ) )
+
+      v_norm = sqrt ( dot_product ( v(1:3), v(1:3) ) )
+
+      angle_cos = uv_dot / u_norm / v_norm
+
+      angle = acos ( angle_cos )
+
+      return
+    end
 
 
 end module

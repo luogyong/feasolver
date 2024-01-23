@@ -42,8 +42,9 @@ type(cutoffwall_type),allocatable::cowall(:)
 integer::ncow=0
 
 type xzone_tydef
-    integer::izone,isx=1,ncutf=0,iplane=0 !iplane：截平面类型,=0,水平面；=1,斜截面
-    real(8)::te,PE(4) !PE为截平面方程的系数A/B/C/D（AX+BY+CZ+D=0）
+    integer::izone,isx=1,ncutf=0,iplane=0 !iplane：截平面类型,=0,水平面；=1,斜截面;=2,下半球面
+    real(8)::te,PE(4)=0.d0 !iplane=1时,PE为截平面方程的系数A/B/C/D（AX+BY+CZ+D=0）
+                      !iplane=2,pe为下半球面的球心坐标及半径
     integer,allocatable::cutface(:) !if isx==1,facets on the cut face,isx==2,cutedge around the cut face.
     character(1024)::helpstring= &
         &"xzone的作用是实现切割和开挖。如isx==1(默认),则将处于izone内部的高于te的土体挖掉,==0仅仅进行切割；==2仅对zone的边界线进行切割\n &
@@ -325,7 +326,11 @@ integer::nvol_pg=0
         THIS.te=(ar(2)-zmin)/xyscale
         if(dn>2) THIS.isx=int(ar(3))
         if(dn>3) THIS.iplane=int(ar(4))
-        iF(THIS.iplane==1) then
+        if(this.iplane==0) then
+            this.pe(3)=1.0d0
+            this.pe(4)=-this.te
+
+        elseif(THIS.iplane==1) then
             if(dn>=13) then
                 ar([5,8,11])=(ar([5,8,11])-xmin)/xyscale
                 ar([6,9,12])=(ar([6,9,12])-ymin)/xyscale
@@ -335,7 +340,14 @@ integer::nvol_pg=0
                 print *, 'input numbers should be >= 13 .but it is ',dn
                 error stop 'xzone_readin '
             endif
-            
+        elseif(this.iplane==2) then
+            if(dn>=8) then
+                this.pe(1:3)=(ar(5:7)-[xmin,ymin,zmin])/xyscale
+                this.pe(4)=ar(8)/xyscale
+            else
+                print *, 'input numbers should be >= 8 .but it is ',dn
+                error stop 'xzone_readin2 '
+            endif    
         endif
     endsubroutine    
     function xzone_xy2z(this,xy) result(z)
@@ -352,6 +364,8 @@ integer::nvol_pg=0
                 print *, 'Plane parameter C should not equel 0.'
                 error stop
             endif
+        elseif(this.iplane==2) then
+            z=(this.pe(4)**2-(this.pe(1)-xy(1))**2-(this.pe(2)-xy(2))**2)**0.5-abs(this.pe(3))
         else
             print *, 'No such cut plane type=,',this.iplane
             error stop
@@ -363,13 +377,34 @@ integer::nvol_pg=0
         class(xzone_tydef)::this
         real(8),intent(in)::p1(3),p2(3)
         integer::istate
-        real(8)::ip(3),v1(3),t,tol1=1.0d-8
+        real(8)::ip(3),v1(3),t,tol1=1.0d-8,v2(3),d1,thc
         
         v1=p2-p1
-        call plane_imp_line_par_int_3d ( this.pe(1), this.pe(2), this.pe(3), this.pe(4), &
-            p1(1), p1(2), p1(3), v1(1), v1(2), v1(3), &
-            istate, ip ,t)
-        if(t>1.0d0+tol1.or.t<-tol1) istate=0
+        if(this.iplane<2) then            
+            call plane_imp_line_par_int_3d ( this.pe(1), this.pe(2), this.pe(3), this.pe(4), &
+                p1(1), p1(2), p1(3), v1(1), v1(2), v1(3), &
+                istate, ip ,t)
+            if(t>1.0d0+tol1.or.t<-tol1) istate=0
+        else
+
+            !not OK yet!
+            
+            ! istate=0
+            ! v1=v1/norm2(v1)
+            ! v2=this.pe(1:3)-p1
+            ! t=dot_product(v2,v1)
+            ! d1=dot_product(v2,v2)-t**2 !d**2
+            ! d1=this.pe(4)**2-d1
+            ! if(d1>=0.d0) then
+            !     thc=sqrt(d1)
+            !     ip=(t-thc)*v1+p1
+            !     if(ip(3)<=this.pe(3)) istat=istate+1
+            !     ip=(t+thc)*v1+p1
+            !     if(ip(3)<=this.pe(3)) istat=istate+1
+            ! endif
+
+        endif
+
 
         
         

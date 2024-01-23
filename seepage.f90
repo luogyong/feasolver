@@ -459,14 +459,19 @@ SUBROUTINE ZT_SPG_INI2(IELT)
     !把防渗墙临空面上的节点设为出溢边界
     if(.not.allocated(ispf)) then
         allocate(ispf(nnum,2))
-        ispf=0
+        ispf=-1
     endif    
     N2=ELEMENT(IELT).NNUM/2
     DO I=1,2
         N1=(I-1)*N2
         IF(AELT1(I)==IELT) THEN
-            ISPF(ELEMENT(IELT).NODE(N1+1:N1+N2),1)=ELEMENT(IELT).NODE(N1+1:N1+N2)
-            ISPF(ELEMENT(IELT).NODE(N1+1:N1+N2),2)=ELEMENT(IELT).SF
+            WHERE(ISPF(ELEMENT(IELT).NODE(N1+1:N1+N2),1)==-1) 
+                ISPF(ELEMENT(IELT).NODE(N1+1:N1+N2),1)=ELEMENT(IELT).NODE(N1+1:N1+N2)
+                ISPF(ELEMENT(IELT).NODE(N1+1:N1+N2),2)=ELEMENT(IELT).SF
+            END WHERE
+        ELSE !FIXED 
+            ISPF(ELEMENT(IELT).NODE(N1+1:N1+N2),1)=0
+            ISPF(ELEMENT(IELT).NODE(N1+1:N1+N2),2)=0
         ENDIF
     ENDDO
 
