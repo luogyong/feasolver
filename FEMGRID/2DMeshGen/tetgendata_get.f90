@@ -59,7 +59,7 @@ module tetgendata
         type(tetgen_node_tydef),allocatable::node(:),vnode(:)
         type(tetgen_element_tydef),allocatable::edge(:),face(:),elt(:), vface(:),&
                 vedge(:),vcell(:),neigh(:)
-        integer,allocatable::t2e(:,:),t2f(:,:),f2e(:,:)
+        integer,allocatable::t2e(:,:),t2f(:,:),f2e(:,:),t2t(:,:) !t2t为单元的邻接单元,相当于neigh
         type(adjlist_tydef),allocatable::nadjlist(:),eadjlist(:),vnadjlist(:) !nodal,and edge list
         character(512)::file
     contains
@@ -276,6 +276,10 @@ module tetgendata
         enddo    
         print *,'Done in readin tetgen data.begin to setup adjacent table.'
         call self.setadjlist()
+        allocate(self.t2t(4,self.nelt)) 
+        do i=1,self.nelt
+            self.t2t(:,i)=self.neigh(i).node(1:4)
+        enddo
         print *, 'Done in adjacent table setup.'
     
     end subroutine

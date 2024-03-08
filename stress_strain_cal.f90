@@ -457,13 +457,15 @@ subroutine E2N_stress_strain(ISTEP,isubts)
                     IF(ELEMENT(I).ET==PIPE2.OR.ELEMENT(I).ET==POREFLOW) CYCLE
                     !recover the head value at the nodes along the wellbore
                     IF(ELEMENT(I).ET==WELLBORE.OR.ELEMENT(I).ET==WELLBORE_SPGFACE) THEN
-                        TDISP(NODE(ELEMENT(I).NODE(4)).DOF(4))=TDISP(NODE(ELEMENT(I).NODE(1)).DOF(4))
-                        TDISP(NODE(ELEMENT(I).NODE(3)).DOF(4))=TDISP(NODE(ELEMENT(I).NODE(2)).DOF(4))
+						if(solver_control.iswellheadrecover) then
+							TDISP(NODE(ELEMENT(I).NODE(4)).DOF(4))=TDISP(NODE(ELEMENT(I).NODE(1)).DOF(4))
+							TDISP(NODE(ELEMENT(I).NODE(3)).DOF(4))=TDISP(NODE(ELEMENT(I).NODE(2)).DOF(4))
+                        endif
                         CYCLE
                     ENDIF
                         
                     IF(ELEMENT(I).ET==SPHFLOW.OR.ELEMENT(I).ET==SEMI_SPHFLOW) THEN
-                        TDISP(ELEMENT(I).G(2))=TDISP(ELEMENT(I).G(1))
+                        if(solver_control.iswellheadrecover) TDISP(ELEMENT(I).G(2))=TDISP(ELEMENT(I).G(1))
                         CYCLE
                     ENDIF
                     

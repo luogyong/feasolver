@@ -111,15 +111,15 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
         ENDDO
         qwellnode(i).QA=SUM(abs(qwellnode(i).QAN(1,:)))
         qwellnode(i).QN=SUM(abs(qwellnode(i).QAN(2,:)))
-        if(qwellnode(i).QA>qwellnode(i).QN.and.iiter==1) THEN
-            t1=qwellnode(i).QA/qwellnode(i).QN*2
-            do j=1,size(qwellnode(i).element)
-                n1=qwellnode(i).element(j)
-                !if(t1>element(n1).fqw) 
-                element(n1).fqw=element(n1).fqw*t1 
-                element(n1).km=element(n1).km*t1 !前面已经乘了element(n1).fqw
-            enddo
-        ENDIF
+        !if(qwellnode(i).QA>qwellnode(i).QN.and.iiter==1) THEN
+        !    t1=qwellnode(i).QA/qwellnode(i).QN*2
+        !    do j=1,size(qwellnode(i).element)
+        !        n1=qwellnode(i).element(j)
+        !        !if(t1>element(n1).fqw) 
+        !        element(n1).fqw=element(n1).fqw*t1 
+        !        element(n1).km=element(n1).km*t1 !前面已经乘了element(n1).fqw
+        !    enddo
+        !ENDIF
     enddo
     
 		

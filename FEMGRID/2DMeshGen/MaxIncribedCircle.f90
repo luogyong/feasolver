@@ -1,4 +1,5 @@
 module maximum_inscribed_circle
+    !use tetgendata,only:tetgendata_tydef
     implicit none
     
     public:: gpolygon_tydef,polygon_contains_point_2d,circle_exp2imp_2d
@@ -10,11 +11,12 @@ module maximum_inscribed_circle
 
 
     type cell_tydef        
-        real(8)::xc(2) !center
+        real(8),allocatable::xc(:) !center
         real(8)::h  !half cell size
         real(8)::dist  !polygon distance
         real(8)::priority !polygon distance potential
         logical::isinside=.false. !Is the cell totally inside the polygon
+        real(8),allocatable::tet(:,:) !cell的坐标及颗粒半径
     endtype  
     
     type queue
@@ -27,9 +29,9 @@ module maximum_inscribed_circle
     end type
     
     
-    type vertex_tydef
-        real(8)::x(2)
-    endtype
+    !type vertex_tydef
+    !    real(8)::x(2)
+    !endtype
     
     type edge_tydef
         integer::type=0 !0：line;1:arc
@@ -39,11 +41,21 @@ module maximum_inscribed_circle
         !theta(1) is not necessary responding to v(1).
     endtype
     type gpolygon_tydef
-        integer::nv=0,ne=0 !节点数
-        real(8),allocatable::vertex(:,:) !节点坐标,注意一个圆弧用三点定义（两端点及圆弧上一个内部点）。
-        real(8),allocatable::dist(:) !存储最近一次调用p2ploy_dist时，点与每条边的距离。
-        type(edge_tydef),allocatable::edge(:)        
+        integer::nv=0,ne=0,dim=2,fstype=0,numProbes=0 !节点数,边数，dim=3时表求多球的最大内接圆;fstype,解空间定义,=1,由triangle定义;=2,由tet定义;=0,原版本，由线段及圆弧定义(仅二维)
+        !!fstype>0 此时假定只求与多球/圆相切的最大球/圆,没有考虑边或面约束的情况。当dim=2,且fstype==0时,考虑了边的约束情况.
+        real(8),allocatable::vertex(:,:) !dim=2时，节点坐标,注意一个圆弧用三点定义（两端点及圆弧上一个内部点）。for fstype=0,vertex(2,nv);for fstype>0,vertex(self.dim+1,nv),x,y,[z],r
+        real(8),allocatable::dist(:) !dim=2时，存储最近一次调用p2ploy_dist时，点与每条边的距离。
+        real(8)::box(2,3),xopt(4)=-1.d10 
+        !box,xmin,xmax,ymin,ymax,zmin,zmax
+        !xopt(4)=(x,y,[z,]maxdis) !最大的距离的位置及大小
+        integer,allocatable::fsmesh(:,:) !当fstype>0时,组成feasible空间的网格(三角形或四面体)的下标，指向vertex.
+        !logical::isonface=.false. !only for dim=3,if it is .true.,the feasible space is on the faces,or is inside the tets.
+        !real(8),allocatable::tetnode(:,:) !only for dim=3 
+        !integer,allocatable::tet(:,:) !only for dim=3 
+        type(edge_tydef),allocatable::edge(:)  !only for dim=2.      
         type(queue)::cellQueue
+        !type(tetgendata_tydef)::tetmesh !only for dim=3.
+        
     contains
         procedure::init=>poly_initialize
         procedure::pipoly=>Point_in_Poly_test
@@ -52,6 +64,7 @@ module maximum_inscribed_circle
         procedure::getcentroid=>get_polygon_centroid
         procedure::maxdist=>maximum_distancetopolygon !点至多边形的最大距离
         !procedure::mic=>max_incribed_circle() !多边形的最大内圆坐标及半径
+        
     end type
 
   
@@ -69,53 +82,111 @@ module maximum_inscribed_circle
     !    
     !endfunction
     
-    function maximum_distancetopolygon(self,precision,debug) result(ar)
+    function maximum_distancetopolygon(self,precision,debug,start,maxiter) result(ar)
         implicit none
         class(gpolygon_tydef)::self
-        real(8),intent(in),optional::precision
+        real(8),intent(in),optional::precision,start(self.dim)
         logical,intent(in),optional::debug
-        real(8)::ar(3+self.ne) !坐标和半径及其与每条边的距离
-        real(8)::h,cellsize,xmin,xmax,ymin,ymax,p(2),dist,priority,x,y
-        real(8)::maxdist=-1e10,op(2),precision1,minh1
+        real(8),allocatable::ar(:) !坐标和半径及其与每条边的距离
+        integer,intent(in),optional::maxiter
+        real(8)::h,cellsize,xmin,xmax,ymin,ymax,p(self.dim),dist,priority,x,y,z,zmax,zmin
+        real(8)::precision1,minh1,p1(self.dim,4*(self.dim-1)),pt2(3,6)
         type(cell_tydef)::cell
-        integer::numProbes=0,insidestate1
+        integer::insidestate1,i,j,k,n1,maxProbes
         logical::debug1
+        real(8)::tri(self.dim+1,4)
+        real(8),allocatable::xa(:,:),pa(:,:)
+        integer,allocatable::node(:,:)
+        real(8),allocatable::ha(:)
         
-        maxdist=-1e10
-        numProbes=0;debug1=.false.
+        debug1=.false.
         if(present(debug)) debug1=debug
+        if(self.fstype==0) then
+            allocate(ar(3+self.ne))
+        else
+            allocate(ar(self.dim+1+self.nv))
+        endif
         
+        maxProbes=10000
+        if(present(maxiter)) maxProbes=maxiter
         
-        xmax=maxval(self.vertex(1,:))
-        xmin=minval(self.vertex(1,:))
-        ymax=maxval(self.vertex(2,:))
-        ymin=minval(self.vertex(2,:))
-        cellsize=min(xmax-xmin,ymax-ymin)
-        h = cellSize / 2;
-        minh1=h;
-        
-        ! cover polygon with initial cells
-        do x=xmin,xmax-cellsize*0.001,cellsize
-            do y=ymin,ymax-cellsize*0.001,cellsize
-                p=[x+h,y+h]
-                call cellcal_and_push(p,h,.true.,0)               
-            enddo
-        enddo
+        if(self.fstype==0) then
+            xmax=self.box(2,1)
+            xmin=self.box(1,1)
+            ymax=self.box(2,2)
+            ymin=self.box(1,2)
+ 
+            cellsize=min(xmax-xmin,ymax-ymin)
+            if(self.dim==3)  then
+                zmax=self.box(2,3)
+                zmin=self.box(1,3)
+                cellsize=min(cellsize,zmax-zmin)
+            endif
+        else
+            
+        endif
 
         ! take centroid as the first best guess
         
         p=self.getcentroid()
         call cellcal_and_push(p,0.d0,.false.) 
-        ! second guess: bounding box centroid
-        p=[(xmin+xmax)/2.0,(ymin+ymax)/2.0]
-        call cellcal_and_push(p,0.d0,.false.) 
+        ! second guess: bounding box centroid,for dim=3,centroid is box centroid.        
+        if(self.fstype==0) then
+            p=[(xmin+xmax)/2.0,(ymin+ymax)/2.0]
+            call cellcal_and_push(p,0.d0,.false.) 
+        endif
+        
+        if(present(start)) then
+            call cellcal_and_push(start,0.d0,.false.) 
+        endif
+        
+        
+        ! cover polygon with initial cells
+        if(self.fstype==0) then
+            h = cellSize / 2;
+            minh1=h;
+            do x=xmin,xmax-cellsize*0.001,cellsize
+                do y=ymin,ymax-cellsize*0.001,cellsize
+                    p=[x+h,y+h]
+                    call cellcal_and_push(p,h,.true.,0)               
+                enddo
+            enddo
+        else
+            h=1e10
+            do i=1,size(self.fsmesh,dim=2)
+                n1=0
+                do j=1,4
+                    if(self.fsmesh(j,i)<1) cycle
+                    n1=n1+1
+                    tri(:,n1)=self.vertex(:,self.fsmesh(j,i))
+                enddo
+                call tet_decomposition(tri(:,1:n1),xa,node,pa,ha,.true.)
+                do j=1,size(pa,dim=2)
+                    if(ha(j)<=0.d0) cycle !
+                    do k=1,n1
+                        tri(:,k)=xa(:,node(k,j))
+                    enddo
+                    call cellcal_and_push(pa(1:self.dim,j),ha(j),.true.,0,tri(:,1:n1))
+                    if(ha(j)<h) h=ha(j)
+                enddo
+            enddo
+            cellsize=h
+            minh1=h
+        endif
+   
 
         if(present(precision)) then
             precision1=precision
         else
-            precision1=cellsize*0.01
+            
+            if(self.fstype==0) then
+                precision1=cellsize*0.01
+            else
+                precision1=minval(self.vertex(self.dim+1,:))*0.01
+                if(abs(precision1)<1e-7) precision1=cellsize*0.01
+            endif
         endif
-        do while (self.cellQueue.n>0) 
+        do while (self.cellQueue.n>0.and.self.numProbes<maxProbes) 
             ! pick the most promising cell from the queue
             cell = self.cellQueue.top();
             ! update the best cell if we found a better one
@@ -125,7 +196,7 @@ module maximum_inscribed_circle
             !endif
 
             ! do not drill down further if there's no chance of a better solution
-            if (cell.priority <= maxdist+precision1) cycle;
+            if (cell.priority <= self.xopt(self.dim+1)+precision1) cycle;
                        
             ! split the cell into four cells
             if(cell.isinside) then
@@ -133,38 +204,65 @@ module maximum_inscribed_circle
             else
                 insidestate1=0
             endif
+            if(self.fstype==0) then
+                h = cell.h / 2;
+                if(h<minh1) minh1=h
+                p=cell.xc
+                !if(self.dim==2) then
+                p1=reshape([p-h,p(1)+h,p(2)-h,p+h,p(1)-h,p(2)+h],([2,4]))
+                !else
+                !    p1=reshape([p-h,p(1)+h,p(2:3)-h,p(1:2)+h,p(3)-h,p(1)-h,p(2)+h,p(3)-h,&
+                !    p(1:2)-h,p(3)+h,p(1)+h,p(2)-h,p(3)+h,p+h,p(1)-h,p(2)+h,p(3)+h],[3,8])
+                !endif
+                do i=1,4
+                    call cellcal_and_push(p1(:,i),h,.true.,insidestate1)
+                enddo
+            else
+                call tet_decomposition(cell.tet,xa,node,pa,ha,.true.)
+                n1=size(node,dim=1)
+                do j=1,size(pa,dim=2)
+                    if(ha(j)<=0.d0) cycle
+                    do k=1,n1
+                        tri(:,k)=xa(:,node(k,j))
+                    enddo
+                    call cellcal_and_push(pa(1:self.dim,j),ha(j),.true.,insidestate1,tri(:,1:n1))
+                    if(ha(j)<minh1) minh1=ha(j)
+                enddo 
             
-            h = cell.h / 2;
-            if(h<minh1) minh1=h
-            p=[cell.xc(1) - h, cell.xc(2) - h]
-            call cellcal_and_push(p,h,.true.,insidestate1)
-            p=[cell.xc(1) + h, cell.xc(2) - h]
-            call cellcal_and_push(p,h,.true.,insidestate1)
-            p=[cell.xc(1) + h, cell.xc(2) + h]
-            call cellcal_and_push(p,h,.true.,insidestate1)
-            p=[cell.xc(1) - h, cell.xc(2) + h]
-            call cellcal_and_push(p,h,.true.,insidestate1)
+            endif
+         
             
         end do
-
-        if (debug1) then
-            print *, "num probes and minimum_grid_size: ",numProbes,2*minh1 
-            print *, "best distance and location: " , maxdist,op
+        
+        ar=[self.xopt(self.dim+1),self.dist]
+        
+        if(self.cellQueue.n>0.and.self.numProbes>maxProbes) then
+            print *,'Not converged.Exceed the maxProbes:',maxProbes
+            debug1=.true.
         endif
-
-        !ar=[op,maxdist]
-    
+        if (debug1) then
+            print *, "num probes and h: ",self.numProbes,minh1 
+            print *, "best distance and location: " ,  self.xopt(self.dim+1),self.xopt(:self.dim)
+        endif
+        
+        
+        if(allocated(xa)) deallocate(xa)
+        if(allocated(pa)) deallocate(pa)
+        if(allocated(node)) deallocate(node)
+        if(allocated(ha)) deallocate(ha)
         
     contains
     
-    subroutine cellcal_and_push(p,h,ispush,insidestate)
+    subroutine cellcal_and_push(p,h,ispush,insidestate,tet)
         implicit none
-        real(8),intent(in)::p(2),h
+        real(8),intent(in)::p(self.dim),h
         logical,intent(in),optional::ispush
+        real(8),intent(in),optional::tet(:,:)
         integer,optional::insidestate  !0,unknown,to be check. -1,ouside; 1, inside.      
-        real(8)::dist,priority,p1(2,4)
+        real(8)::dist,priority,p1(self.dim,4),t1
         logical::ispush1,isinside1
-        integer::i,insidestate1
+        integer::i,insidestate1,n1,n2
+
         
         if(present(ispush)) then
             ispush1=ispush
@@ -177,54 +275,236 @@ module maximum_inscribed_circle
             insidestate1=0
         endif
         
-        
-        
-        numProbes=numProbes+1
-        dist=self.p2ploy_dist(p,insidestate1) 
-        if(dist>maxdist) then
-            maxdist=dist
-            op=p
-            ar=[op,dist,self.dist]
-        endif
+        dist=self.p2ploy_dist(p,insidestate1)
+        !call caldist(p,dist,insidestate1)
+
 
         
         if(ispush1) then
             
-            !check if the cell is inside the polygon
+            !check if the cell is totally inside the polygon
             if(insidestate1==-1) then
                 isinside1=.false.
             elseif(insidestate1==1) then
                 isinside1=.true.
             else
                 if(dist>0.0d0) then
-                    p1=reshape([p-h,p(1)+h,p(2)-h,p+h,p(1)-h,p(2)+h],([2,4]))
-                    do i=1,4
-                        isinside1=self.pipoly(p1(:,i))
-                        if(.not.isinside1) exit
-                    enddo
+                    !假定当角点都处于内部时，该cell的所有点都处于内部，但poly为非凸时，不一定成立
+                    if(self.fstype==0) then
+                        p1=reshape([p-h,p(1)+h,p(2)-h,p+h,p(1)-h,p(2)+h],([2,4]))
+                        n2=0
+                        do i=1,4
+                            isinside1=self.pipoly(p1(:,i))
+                            if(.not.isinside1) then
+                                n2=n2+1
+                            endif                                
+                        enddo
+                        if(n2==4) then
+                            return !所有节点都不在解空间内，不push
+                        else
+                            isinside1=.false.
+                        endif
+                    else
+                    !    p1=reshape([p-h,p(1)+h,p(2:3)-h,p(1:2)+h,p(3)-h,p(1)-h,p(2)+h,p(3)-h,&
+                    !    p(1:2)-h,p(3)+h,p(1)+h,p(2)-h,p(3)+h,p+h,p(1)-h,p(2)+h,p(3)+h],[3,8])
+                        n2=0
+                        n1=size(tet,dim=2)
+                        do i=1,n1
+                            isinside1=self.pipoly(tet(1:self.dim,i))
+                            if(.not.isinside1) then
+                                n2=n2+1
+                            endif   
+                        enddo
+                        if(n2==n1) then
+                            return !所有节点都不在解空间内，不push
+                        else
+                            isinside1=.false.
+                        endif
+                    endif
+                    
                 else
                     isinside1=.false.
                 endif
             endif
-        
-            priority=dist+h*2**0.5
-            if(priority>maxdist) call self%cellqueue%push(priority,p,h,dist,isinside1)
+            
+            if(self.fstype==0) then
+                t1=real(self.dim)**0.5
+            else
+                t1=1.d0            
+            endif
+            priority=dist+h*t1
+            if(priority>self.xopt(self.dim+1)) then
+                if(present(tet)) then
+                    call self%cellqueue%push(priority,p,h,dist,isinside1,tet)
+                else
+                    call self%cellqueue%push(priority,p,h,dist,isinside1)
+                endif
+            endif
         endif
     
     end subroutine
     
+    subroutine tet_decomposition(tri,x,node,p,h,isdiv)
+        !给定一个三角形或西面体，将其等分为4个三角形或8个四面体
+        !返回节点坐标x,各单元的节点编号node和形心坐标p，及单元特征长度h(为形心到节点距离减去节点半径的最大值）
+        implicit none
+        real(8),intent(in)::tri(:,:)
+        real(8),allocatable,intent(out)::x(:,:),p(:,:)
+        integer,allocatable,intent(out)::node(:,:)
+        real(8),allocatable,intent(out)::h(:)
+        logical,intent(in),optional::isdiv
+        integer::i,j,n1,n2,ia1(2,6),n3
+        logical::istri,isdiv1
+        integer::insidestate1
+        real(8)::dist1
+        isdiv1=.true.
+        if(present(isdiv)) isdiv1=isdiv
+        
+        if(allocated(x)) deallocate(x)
+        if(allocated(p)) deallocate(p)
+        if(allocated(node)) deallocate(node)
+        if(allocated(h)) deallocate(h)
+        
+        if(.not.isdiv1) then
+            !如果不剖分，则返回形心和特征长度h
+            n1=size(tri,dim=2)
+            allocate(p(self.dim,1),h(1),node(n1,1))
+            x=tri;node(:,1)=[1:n1]
+            p(:,1)=sum(tri(1:self.dim,:),dim=2)/(self.dim+1)
+            !单元特征长度h(为形心到节点距离减去节点半径的最大值）
+            h(1)=maxval(norm2(tri(:self.dim,:)-spread(p(:,1),2,self.dim+1),dim=1)-tri(self.dim+1,:))
+            !h(1)=norm2(tri(1:self.dim,1)-p(:,1))-tri(self.dim+1,1)
+            !do j=2,self.dim+1
+            !    h(1)=max(h(1),norm2(tri(:self.dim,j)-p(:,1))-tri(self.dim+1,j))
+            !enddo
+            return
+        endif
+        
+        if(size(tri,dim=2)==3) then
+            istri=.true.
+            allocate(x(self.dim+1,6),p(self.dim,4),node(3,4))
+            ia1(:,1:3)=reshape([1,2,2,3,3,1],[2,3])
+            node(:,1)=[1,4,6]
+            node(:,2)=[4,5,6]
+            node(:,3)=[4,2,5]
+            node(:,4)=[6,5,3]
+            n1=4;n2=3;n3=3
+        else
+            allocate(x(self.dim+1,10),p(self.dim,8),node(4,8))
+            ia1=reshape([1,2,2,3,3,1,1,4,2,4,3,4],[2,6])
+            node(:,1)=[1,5,7,8]
+            node(:,2)=[5,2,6,9]
+            node(:,3)=[6,3,7,10]
+            node(:,4)=[8,9,10,4]
+            node(:,5)=[5,6,7,9]
+            node(:,6)=[6,10,7,9]
+            node(:,7)=[7,10,8,9]
+            node(:,8)=[5,7,8,9]            
+            n1=8;n2=4;n3=6
+            istri=.false.
+        endif
+        
+        x(:,1:n2)=tri
+            
+        do i=1,n3
+            x(:self.dim,i+n2)=(tri(:self.dim,ia1(1,i))+tri(:self.dim,ia1(2,i)))/2.0
+                
+            x(self.dim+1,i+n2)=max(maxval(tri(self.dim+1,ia1(:,i)))-norm2(tri(:self.dim,ia1(1,i))-tri(:self.dim,ia1(2,i)))/2.0,0.d0) 
+            !中间节点非颗粒所在节点,令颗粒半径为两端节点半径的最大值减去两端节点距离的一半,同时满足>=0
+            if(x(self.dim+1,i+n2)>0.d0) then
+                insidestate1=-1
+            else
+                insidestate1=1
+            endif
+            dist1=self.p2ploy_dist(x(:self.dim,i+n2),insidestate1)
+        enddo
+        
+        allocate(h(n1))
+        do i=1,n1
+            !形心
+            p(:,i)=sum(x(:self.dim,node(:,i)),dim=2)/n2
+            !单元特征长度h(为形心到节点距离减去节点半径的最大值）
+            if(n2==4.or.i==1) then
+                h(i)=maxval(norm2(x(:self.dim,node(:n2,i))-spread(p(:,i),2,n2),dim=1)-x(self.dim+1,node(:n2,i)))
+            else
+                h(i)=h(1) !三角形每个小三角形全等
+            endif
+            !h(i)=norm2(x(:self.dim,node(1,i))-p(:,i))-x(self.dim+1,node(1,i))
+            !do j=2,n2
+            !    h(i)=max(h(i),norm2(x(:self.dim,node(j,i))-p(:,i))-x(self.dim+1,node(j,i)))
+            !enddo
+            
+        enddo
+        
+        
+        
+    endsubroutine
+    
+    !subroutine function caldist(p,dist,insidestate1)
+    !    implicit none
+    !    real(8),intent(in)::p
+    !    real(8),intent(out)::dist
+    !    
+    !    numProbes=numProbes+1
+    !    caldist=self.p2ploy_dist(p,insidestate1) 
+    !    if(caldist>maxdist) then
+    !        maxdist=caldist
+    !        op=p
+    !        ar=[op,dist,self.dist]
+    !    endif
+    !
+    !endsubroutine
+    
     endfunction
     
-    subroutine poly_initialize(self,v,seg)
+
+    
+    subroutine poly_initialize(self,v,seg,dim,fstype,fsmesh)
         implicit none
         class(gpolygon_tydef)::self
         real(8),intent(in)::v(:,:)
-        integer,intent(in),optional::seg(:,:) !seg(3,)=[iv1,iv2,iv3],iv3 is for arc difine. it is a point inside the arc. if iv3<=0 then ,the edge is a segment. 
-        integer::n1,i
+        integer,intent(in),optional::seg(:,:),dim,fstype,fsmesh(:,:) 
+        !tet_fs,dim==3时，输入组成feasible空间的四面体单元的下标(isonface=.false.)。
+        !type(tetgendata_tydef),intent(in),optional::tetmesh
+        !logical,optional::isonface !解空间是否在三角面上,此时,tet_fs为三角面的下标
+        !seg(3,)=[iv1,iv2,iv3],iv3 is for arc difine. it is a point inside the arc. if iv3<=0 then ,the edge is a segment. 
+        !dim=3时,seg不输入
+        integer::n1,i,j,k,dim1
         real(8)::t1
         
+        dim1=2 !by default
+        if(present(dim)) dim1=dim
+        self.dim=dim1
         self.nv=size(v,dim=2);
         self.vertex=v;
+        
+       if(present(fstype)) then
+            self.fstype=fstype              
+        endif
+        if(present(fsmesh)) then
+            self.fsmesh=fsmesh
+        elseif(self.fstype>0) then
+            error stop 'fsmesh is needed when fstype>0.'                
+        endif
+         
+        
+
+        self.box(1,1:dim1)=self.vertex(1:dim1,1)
+        self.box(2,1:dim1)=self.vertex(1:dim1,1)
+        do i=2,self.nv
+            do j=1,dim1
+                t1=self.vertex(j,i)
+                if(self.box(1,j)>t1) self.box(1,j)=t1
+                if(self.box(2,j)<t1) self.box(2,j)=t1
+            enddo
+        enddo
+        
+        
+        
+        if(self.fstype>0) then
+            if(.not.allocated(self.dist)) allocate(self.dist(self.nv))
+            return !dim=3 三维多球系统没有边界，默认其边界为boundingbox.
+        endif
         
         if(.not.present(seg)) then
             !此时假定多边形为v1.v2,...,vn,v1
@@ -242,8 +522,8 @@ module maximum_inscribed_circle
         self.ne=size(seg,dim=2) 
         
         
-        allocate(self.edge(self.ne),self.dist(self.ne))
-        
+        if(.not.allocated(self.edge)) allocate(self.edge(self.ne))
+        if(.not.allocated(self.dist)) allocate(self.dist(self.ne))
         do i=1,self.ne
             self.edge(i).v=seg(1:2,i)
             if(seg(3,i)<=0) then
@@ -309,15 +589,29 @@ module maximum_inscribed_circle
         
         implicit none
         class(gpolygon_tydef)::self
-        real(8),intent(in)::ray(2)
+        real(8),intent(in)::ray(self.dim)
         integer::iedge
         logical::inside
         integer::i
         real(8)::p1(2),p2(2),xints,xmin,xmax,ymin,ymax,p(2,2),ti(2),theta1,t1
-        integer::int_num
+        integer::int_num,tet_index, face, step_num,tet_start
         logical::tof1
+
         
         inside=.false.
+        
+        if(self.fstype>0) then
+            
+            !do i=1,self.dim
+            !    if(ray(i)<=self.box(1,i).or.ray(i)>=self.box(2,i)) return                
+            !enddo
+            do i=1,self.nv
+                t1=norm2(self.vertex(1:self.dim,i)-ray)-self.vertex(self.dim+1,i)
+                if(t1<=0.d0) return
+            enddo
+            inside=.true.
+            return
+        endif
         
         do i=1,self.nv
             !on the vertex, inside=.true. //add by lgy
@@ -416,29 +710,49 @@ module maximum_inscribed_circle
     function point_to_polygon_distance(self,p,insidestate) result(h)
         implicit none
         class(gpolygon_tydef)::self
-        real(kind=8), intent(in) :: p(2)
+        real(kind=8), intent(in) :: p(self.dim)
         integer,optional::insidestate !0=to be check.-1=ouside;1= inside
         integer :: i, j
         real(kind=8) :: h
         integer::insidestate1        
-        
-        
-        h = 1e10
-        do i = 1, self.ne
-            self.dist(i)=self.p2e_dist(p,i)
-            h = min(h,self.dist(i))
-        end do
         
         if(present(insidestate)) then
             insidestate1=insidestate
         else
             insidestate1=0
         endif
+        
+        h = 1e10
+        if(self.fstype==0) then 
+            do i = 1, self.ne
+                self.dist(i)=self.p2e_dist(p,i)
+                h = min(h,self.dist(i))
+            end do
+        else
+            !fstype>0 此时假定只求与多球/圆相切的最大球/圆,没有考虑边或面约束的情况。
+            do i=1,self.nv
+                self.dist(i)=norm2(self.vertex(1:self.dim,i)-p)-self.vertex(self.dim+1,i)
+                if(self.dist(i)<0.d0) then
+                    insidestate1=-1
+                    !self.dist(i)=-self.dist(i)
+                endif
+                h=min(h,self.dist(i))
+            enddo
+        endif
+        
+        
             
         if(insidestate1==0) then
-            if(.not.self.pipoly(p)) h=-h;
+            if(.not.self.pipoly(p)) then
+                if(h>0.d0) h=-h;
+            endif
         elseif(insidestate1==-1) then
-            h=-h
+            if(h>0.d0) h=-h
+        endif
+        
+        self.numprobes=self.numprobes+1
+        if(h>self.xopt(self.dim+1)) then            
+            self.xopt(:)=[p,h]
         endif
         
     end function point_to_polygon_distance
@@ -495,11 +809,12 @@ module maximum_inscribed_circle
         call this%siftdown(1)
     end function
 
-    subroutine enqueue(this, priority, xc,h,dist,isinside)
+    subroutine enqueue(this, priority, xc,h,dist,isinside,tet)
         implicit none
         class(queue), intent(inout) :: this
-        real(8),intent(in)          :: priority,xc(2),h,dist
+        real(8),intent(in)          :: priority,xc(:),h,dist
         logical,optional::isinside
+        real(8),optional::tet(:,:)
         type(cell_tydef)                  :: x
         type(cell_tydef), allocatable     :: tmp(:)
         integer                     :: i
@@ -508,7 +823,8 @@ module maximum_inscribed_circle
         x%xc = xc
         x.h=h
         x.dist=dist
-        x.isinside=isinside
+        if(present(isinside)) x.isinside=isinside
+        if(present(tet)) x.tet=tet
         
         this%n = this%n +1  
         if (.not.allocated(this%buf)) allocate(this%buf(1))
@@ -530,10 +846,26 @@ module maximum_inscribed_circle
     !if the polygon has arc edge, the result is Approximately
         implicit none
         class(gpolygon_tydef)::self
-        real(8)::cent(2)
+        real(8)::cent(self.dim),dist1,t1,cent1(self.dim)
+        integer::i,n1,j
         
-        call polygon_centroid_2d (self.nv, self.vertex, cent )
-        
+        if(self.fstype==0) then
+            call polygon_centroid_2d (self.nv, self.vertex, cent )
+        else
+            t1=-1e10
+            do j=1,size(self.fsmesh,dim=2)
+                                   
+                n1=3
+                if(self.fsmesh(4,j)>0) n1=4
+                cent1=sum(self.vertex(:self.dim,self.fsmesh(1:n1,j)),dim=2)/n1
+                
+                dist1=self.p2ploy_dist(cent)
+                if(dist1>t1) then
+                    cent=cent1
+                    t1=dist1
+                endif
+            enddo
+        endif
     endfunction
     
     
@@ -1325,5 +1657,385 @@ function r8_modp ( x, y )
 
   return
 end
+
+    
+    subroutine tet_mesh_search_delaunay ( node_num, node_xyz, tet_order, &
+      tet_num, tet_node, tet_neighbor, p, tet_index, face, step_num,tet_start )
+
+    !*****************************************************************************80
+    !
+    !! TET_MESH_SEARCH_DELAUNAY searches a Delaunay tet mesh for a point.
+    !
+    !  Discussion:
+    !
+    !    The algorithm "walks" from one tetrahedron to its neighboring tetrahedron,
+    !    and so on, until a tetrahedron is found containing point P, or P is found
+    !    to be outside the convex hull.
+    !
+    !    The algorithm computes the barycentric coordinates of the point with
+    !    respect to the current tetrahedron.  If all 4 quantities are positive,
+    !    the point is contained in the tetrahedron.  If the I-th coordinate is
+    !    negative, then P lies on the far side of edge I, which is opposite
+    !    from vertex I.  This gives a hint as to where to search next.
+    !
+    !    For a Delaunay tet mesh, the search is guaranteed to terminate.
+    !    For other meshes, a cycle may occur.
+    !
+    !    Note the surprising fact that, even for a Delaunay tet mesh of
+    !    a set of nodes, the nearest node to P need not be one of the
+    !    vertices of the tetrahedron containing P.
+    !
+    !    The code can be called for tet meshes of any order, but only
+    !    the first 4 nodes in each tetrahedron are considered.  Thus, if
+    !    higher order tetrahedrons are used, and the extra nodes are intended
+    !    to give the tetrahedron a polygonal shape, these will have no effect,
+    !    and the results obtained here might be misleading.
+    !
+    !  Licensing:
+    !
+    !    This code is distributed under the GNU LGPL license.
+    !
+    !  Modified:
+    !
+    !    17 August 2009
+    !
+    !  Author:
+    !
+    !    John Burkardt.
+    !
+    !  Reference:
+    !
+    !    Barry Joe,
+    !    GEOMPACK - a software package for the generation of meshes
+    !    using geometric algorithms,
+    !    Advances in Engineering Software,
+    !    Volume 13, pages 325-331, 1991.
+    !
+    !  Parameters:
+    !
+    !    Input, integer ( kind = 4 ) NODE_NUM, the number of nodes.
+    !
+    !    Input, real ( kind = 8 ) NODE_XYZ(3,NODE_NUM), the coordinates of 
+    !    the nodes.
+    !
+    !    Input, integer ( kind = 4 ) TET_ORDER, the order of the tetrahedrons.
+    !
+    !    Input, integer ( kind = 4 ) TET_NUM, the number of tetrahedrons.
+    !
+    !    Input, integer ( kind = 4 ) TET_NODE(TET_ORDER,TET_NUM),
+    !    the nodes that make up each tetrahedron.
+    !
+    !    Input, integer ( kind = 4 ) TET_NEIGHBOR(4,TET_NUM), the 
+    !    tetrahedron neighbor list.
+    !
+    !    Input, real ( kind = 8 ) P(3), the coordinates of a point.
+    !
+    !    Output, integer ( kind = 4 ) TET_INDEX, the index of the tetrahedron 
+    !    where the search ended.  If a cycle occurred, then TET_INDEX = -1.
+    !
+    !    Output, integer ( kind = 4 ) FACE, indicates the position of the point P in
+    !    face TET_INDEX:
+    !    0, the interior or boundary of the tetrahedron;
+    !    -1, outside the convex hull of the tet mesh, past face 1;
+    !    -2, outside the convex hull of the tet mesh, past face 2;
+    !    -3, outside the convex hull of the tet mesh, past face 3.
+    !    -4, outside the convex hull of the tet mesh, past face 4.
+    !
+    !    Output, integer ( kind = 4 ) STEP_NUM, the number of steps taken.
+    !
+      implicit none
+
+      integer ( kind = 4 ), parameter :: dim_num = 3
+      integer ( kind = 4 ) node_num
+      integer ( kind = 4 ) tet_num
+      integer ( kind = 4 ) tet_order
+
+      real ( kind = 8 ) alpha(dim_num+1)
+      integer ( kind = 4 ) face
+      real ( kind = 8 ) node_xyz(dim_num,node_num)
+      real ( kind = 8 ) p(dim_num)
+      integer ( kind = 4 ) step_num
+      integer ( kind = 4 ) tet_node(tet_order,tet_num)
+      integer ( kind = 4 ) tet_index
+      integer ( kind = 4 ), save :: tet_index_save = -1
+      integer ( kind = 4 ) tet_neighbor(dim_num+1,tet_num)
+      integer,optional::tet_start
+    !
+    !  If possible, start with the previous successful value of TET_INDEX.
+    !
+           
+      if ( tet_index_save < 1 .or. tet_num < tet_index_save ) then
+        tet_index = ( tet_num + 1 ) / 2
+      else
+        tet_index = tet_index_save
+      end if
+      if(present(tet_start)) then
+        if(tet_start>0.and.tet_start<tet_num)  tet_index=tet_start
+      endif
+
+      step_num = -1
+      face = 0
+
+      do
+
+        step_num = step_num + 1
+
+        if ( tet_num < step_num ) then
+          write ( *, '(a)' ) ' '
+          write ( *, '(a)' ) 'TET_MESH_SEARCH_DELAUNAY - Fatal error!'
+          write ( *, '(a)' ) '  The algorithm seems to be cycling.'
+          tet_index = -1
+          face = -1
+          stop 1
+        end if
+
+        call tetrahedron_barycentric ( node_xyz(1:3,tet_node(1:4,tet_index)), &
+          p(1:3), alpha )
+    !
+    !  If the barycentric coordinates are all positive, then the point
+    !  is inside the tetrahedron and we're done.
+    !
+        if ( 0.0D+00 <= alpha(1) .and. &
+             0.0D+00 <= alpha(2) .and. &
+             0.0D+00 <= alpha(3) .and. &
+             0.0D+00 <= alpha(4) ) then
+          exit
+        end if
+    !
+    !  At least one barycentric coordinate is negative.
+    !
+    !  If there is a negative barycentric coordinate for which there exists an
+    !  opposing tetrahedron neighbor closer to the point, move to that tetrahedron.
+    !
+        if ( alpha(1) < 0.0D+00 .and. 0 < tet_neighbor(1,tet_index) ) then
+          tet_index = tet_neighbor(1,tet_index)
+          cycle
+        else if ( alpha(2) < 0.0D+00 .and. &
+          0 < tet_neighbor(2,tet_index) ) then
+          tet_index = tet_neighbor(2,tet_index)
+          cycle
+        else if ( alpha(3) < 0.0D+00 .and. &
+          0 < tet_neighbor(3,tet_index) ) then
+          tet_index = tet_neighbor(3,tet_index)
+          cycle
+        else if ( alpha(4) < 0.0D+00 .and. &
+          0 < tet_neighbor(4,tet_index) ) then
+          tet_index = tet_neighbor(4,tet_index)
+          cycle
+        end if
+    !
+    !  All negative barycentric coordinates correspond to vertices opposite
+    !  faces on the convex hull.
+    !
+    !  Note the face and exit.
+    !
+        if ( alpha(1) < 0.0D+00 ) then
+          face = -1
+          exit
+        else if ( alpha(2) < 0.0D+00 ) then
+          face = -2
+          exit
+        else if ( alpha(3) < 0.0D+00 ) then
+          face = -3
+          exit
+        else if ( alpha(4) < 0.0D+00 ) then
+          face = -4
+          exit
+        end if
+
+      end do
+
+      tet_index_save = tet_index
+
+      return
+    end
+
+    subroutine tetrahedron_barycentric ( tetra, p, c )
+
+!*****************************************************************************80
+!
+!! TETRAHEDRON_BARYCENTRIC: barycentric coordinates of a point.
+!
+!  Discussion:
+!
+!    The barycentric coordinates of a point P with respect to
+!    a tetrahedron are a set of four values C(1:4), each associated
+!    with a vertex of the tetrahedron.  The values must sum to 1.
+!    If all the values are between 0 and 1, the point is contained
+!    within the tetrahedron.
+!
+!    The barycentric coordinate of point P related to vertex A can be
+!    interpreted as the ratio of the volume of the tetrahedron with 
+!    vertex A replaced by vertex P to the volume of the original 
+!    tetrahedron.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    12 August 2005
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input, real ( kind = 8 ) TETRA(3,4) the tetrahedron vertices.
+!
+!    Input, real ( kind = 8 ) P(3), the point to be checked.
+!
+!    Output, real ( kind = 8 ) C(4), the barycentric coordinates of P with
+!    respect to the tetrahedron.
+!
+  implicit none
+
+  integer ( kind = 4 ), parameter :: dim_num = 3
+  integer ( kind = 4 ), parameter :: rhs_num = 1
+
+  real ( kind = 8 ) a(dim_num,dim_num+rhs_num)
+  real ( kind = 8 ) c(dim_num+1)
+  integer ( kind = 4 ) i
+  integer ( kind = 4 ) info
+  real ( kind = 8 ) p(dim_num)
+  real ( kind = 8 ) tetra(dim_num,4)
+!
+!  Set up the linear system
+!
+!    ( X2-X1  X3-X1  X4-X1 ) C2    X - X1
+!    ( Y2-Y1  Y3-Y1  Y4-Y1 ) C3  = Y - Y1
+!    ( Z2-Z1  Z3-Z1  Z4-Z1 ) C4    Z - Z1
+!
+!  which is satisfied by the barycentric coordinates of P.
+!
+  a(1:dim_num,1:3) = tetra(1:dim_num,2:4)
+  a(1:dim_num,4) = p(1:dim_num)
+
+  do i = 1, dim_num
+    a(i,1:4) = a(i,1:4) - tetra(i,1)
+  end do
+!
+!  Solve the linear system.
+!
+  call r8mat_solve ( dim_num, rhs_num, a, info )
+
+  if ( info /= 0 ) then
+    write ( *, '(a)' ) ' '
+    write ( *, '(a)' ) 'TETRAHEDRON_BARYCENTRIC - Fatal error!'
+    write ( *, '(a)' ) '  The linear system is singular.'
+    write ( *, '(a)' ) '  The input data does not form a proper tetrahedron.'
+    stop 1
+  end if
+
+  c(2:4) = a(1:dim_num,4)
+
+  c(1) = 1.0D+00 - sum ( c(2:4) )
+
+  return
+end
+
+subroutine r8mat_solve ( n, rhs_num, a, info )
+
+!*****************************************************************************80
+!
+!! R8MAT_SOLVE uses Gauss-Jordan elimination to solve an N by N linear system.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    06 August 2009
+!
+!  Author:
+!
+!    John Burkardt
+!
+!  Parameters:
+!
+!    Input, integer ( kind = 4 ) N, the order of the matrix.
+!
+!    Input, integer ( kind = 4 ) RHS_NUM, the number of right hand sides.  
+!    RHS_NUM must be at least 0.
+!
+!    Input/output, real ( kind = 8 ) A(N,N+RHS_NUM), contains in rows and
+!    columns 1 to N the coefficient matrix, and in columns N+1 through
+!    N+rhs_num, the right hand sides.  On output, the coefficient matrix
+!    area has been destroyed, while the right hand sides have
+!    been overwritten with the corresponding solutions.
+!
+!    Output, integer ( kind = 4 ) INFO, singularity flag.
+!    0, the matrix was not singular, the solutions were computed;
+!    J, factorization failed on step J, and the solutions could not
+!    be computed.
+!
+  implicit none
+
+  integer ( kind = 4 ) n
+  integer ( kind = 4 ) rhs_num
+
+  real ( kind = 8 ) a(n,n+rhs_num)
+  real ( kind = 8 ) apivot
+  real ( kind = 8 ) factor
+  integer ( kind = 4 ) i
+  integer ( kind = 4 ) info
+  integer ( kind = 4 ) ipivot
+  integer ( kind = 4 ) j
+  real ( kind = 8 ) t(n+rhs_num)
+
+  info = 0
+
+  do j = 1, n
+!
+!  Choose a pivot row.
+!
+    ipivot = j
+    apivot = a(j,j)
+
+    do i = j + 1, n
+      if ( abs ( apivot ) < abs ( a(i,j) ) ) then
+        apivot = a(i,j)
+        ipivot = i
+      end if
+    end do
+
+    if ( apivot == 0.0D+00 ) then
+      info = j
+      return
+    end if
+!
+!  The pivot row moves into the J-th row.
+!
+    if ( ipivot /= j ) then
+      t(       1:n+rhs_num) = a(ipivot,1:n+rhs_num)
+      a(ipivot,1:n+rhs_num) = a(j,     1:n+rhs_num)
+      a(j,     1:n+rhs_num) = t(       1:n+rhs_num)
+    end if
+!
+!  A(J,J) becomes 1.
+!
+    a(j,j) = 1.0D+00
+    a(j,j+1:n+rhs_num) = a(j,j+1:n+rhs_num) / apivot
+!
+!  A(I,J) becomes 0.
+!
+    do i = 1, n
+
+      if ( i /= j ) then
+        factor = a(i,j)
+        a(i,j) = 0.0D+00
+        a(i,j+1:n+rhs_num) = a(i,j+1:n+rhs_num) - factor * a(j,j+1:n+rhs_num)
+      end if
+
+    end do
+
+  end do
+
+  return
+end
+
 end module
     

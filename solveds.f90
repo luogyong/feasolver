@@ -45,6 +45,7 @@ module solverds
 		integer::isactive=1 !1Y0N。-1,COUPLEELEMET,不进行计算，仅输出上一步的结果作为本步的结果。
         INTEGER::SF=0 !STEP FUNCTION .FACTOR=0,DEATICE;FACTOR=1,ACTIVE
 		integer::sign=1 !for soilspring element .sign=1, Pa,Po,Pp,Pw=+; sign=-1, pa,po,pp,pw=-.
+        !in sub wellbore_element(),借用其指示是否已经计算
 					!for pe_ssp2d,ngp=i指向smnp(i).		
 		integer::nd ! the dimension of the strain-stress matrix
 		integer::id  !element id number in the set
@@ -64,7 +65,7 @@ module solverds
 		! x-axis is along the bar and the positive direction is from node 1 to node 2
 		! y and z is defined by user but must be consistent with right hand rule.
 		!and be consistent with Iy and Iz.
-		real(kind=DPN)::property(6)=0.0D0,cc=0.d0  !for spg problem and iniflux is used, property(3)=low lamda,property(2)=up lamda
+		real(kind=DPN)::property(6)=0.0D0,ww=0.d0  !for spg problem and iniflux is used, property(3)=low lamda,property(2)=up lamda,对于井周的渗流单元，property(6)=井筒面积
         !for wellbore element, property(1), element frictional resistance,(2) and (3) are geometrical resistance; (4) acceralated resistantce; (5)=WELL SKIN RESISTANCE , property(6) surround angle.
         !fore sphflow and semi_sphflow property(1)= geometrical resistance.for semi_sphflow,property(4-6)=domain direction vector
         !for pipe2/poreflow  element,property(1), element frictional resistance,(2)D2, throat diameter(for poreflow),(3) D1,(4)=Length of the throat.(5)=length of clogging volume,(6)K of the clogging volume
@@ -294,6 +295,8 @@ module solverds
 		integer::pnw_clogging=0 !if>0
 		integer::well_bottom_type=0 !=0,平底井(默认);<>0,井底为半球底
         !integer::well_bottom_method=0 !=0,解析单元法(非迭代,默认);=1,迭代
+        integer::isdebug=0
+        logical::iswellheadrecover=.true.
     contains
         procedure::unit_factor=>unit_scaling_factor
         procedure::get_g=>get_gravity

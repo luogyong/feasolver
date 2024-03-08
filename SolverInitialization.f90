@@ -17,11 +17,11 @@ subroutine Initialization()
     USE SolverMath
     !USE MESHGEO
 	implicit none
-	integer::i,j,k,nj,p,j1,j2,iset1
+	integer::i,j,k,nj,p,j1,j2,iset1,i1
 	integer::n1,n2,n3,n4
 	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord1(3,4)=0,trans1(12,12)=0,c1(3,3)=0,b2(3),c2(3),R1,R2,R3,R4,G1,t2
 	real(kind=DPN)::km1(6,6)=0.d0
-	integer::dof1(MNDOF)
+	integer::dof1(MNDOF),elt1(enum)
 	character(64)::ermsg=''
 	
 !	byte,allocatable::bar(:,:)
@@ -29,16 +29,24 @@ subroutine Initialization()
 	rpi=pi()
 
 	!open(2,file='fea_dug.dat',status='replace')
-    
+    j1=0;j2=enum+1
     do i=1,enum
         do k=1,ndimension
 		    element(i).bbox(1,k)=MINVAL(NODE(element(i).node).COORD(K))
             element(i).bbox(2,k)=MAXVAL(NODE(element(i).node).COORD(K))
         enddo
+        !wellbore的初始化对其他单元有依赖，放在最后
+        if(any([pipe2,wellbore,WELLBORE_SPGFACE]-element(i).et==0)) then
+			j2=j2-1
+            elt1(j2)=i
+        else
+			j1=j1+1
+			elt1(j1)=i
+        endif
     ENDDO
 	
-	do i=1,enum
-
+	do i1=1,enum
+		i=elt1(i1)
         
 		select case(element(i).et)
 			case(CONDUCT1D) !activated dof is 4
@@ -773,7 +781,11 @@ subroutine Initialization()
                 ENDIF
                 
                 if(element(i).et==WELLBORE.or.element(i).et==WELLBORE_SPGFACE) then
-                    CALL INI_WELLBORE(I)                   
+					IF(SOLVER_CONTROL.WELLMETHOD/=4) THEN
+						CALL INI_WELLBORE(I)      
+                    ELSE
+						CALL wellbore_element(I)
+                    ENDIF
                 ELSE
                     !ALLOCATE(ELEMENT(I).KM(2,2))
                     ELEMENT(I).KM=1.D0

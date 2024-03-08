@@ -1,6 +1,8 @@
 module PoreScaleModel
     use meshds,only:strtoint,property,pro_num,Err_msg,path_name,title,ENLARGE_AR,adjlist_tydef,addadjlist
     use tetgendata,only:tetgendata_tydef
+    use maximum_inscribed_circle,only:gpolygon_tydef
+    use quicksort
     implicit none
     
     public::PSM_tydef,psmodel
@@ -78,7 +80,7 @@ module PoreScaleModel
     !endtype
     
     type PSM_tydef
-        integer::nnode=0,nelt=0,mtype=3,nbc,np,ismerged=2 !mtype=模型类型，nbc=边界数，np为模型内的颗粒数(不含边界球)
+        integer::nnode=0,nelt=0,mtype=3,nbc,np,ismerged=2,mis_method=1 !mtype=模型类型，nbc=边界数，np为模型内的颗粒数(不含边界球)
         real(8)::box(6),gamma=0.25,alpha=0.1 !model box=[xmin,xmax,ymin,ymax,zmin,zmax]
         !gamma=pore与pore合并规则3的参数,即两者重叠距离与小者直径之比的限值，当实际值大于gamma时，合并。
         !alpha=pore合并规则0的参数,当喉的等效直径与相邻pore的正交球心的距离之比,但实际值小于alpha时，合并.
@@ -118,7 +120,8 @@ module PoreScaleModel
             &   4）gamma--孔合并规则3参数，当两孔之间的距离/小孔直径之比小于gamma时，两孔合并。默认为0.25 \n &
             &   5）alpha--孔合并规则0参数，当正交球心重合或正交球心距离相对于喉面的等效半径之比小于alpha时,，两孔合并。默认为0.1 \n &
             &   6）ismerged--合并等级。-1，不合并；i(0<=i<=3), 按所有不大于i的规则进行合并，比如i==1,则依次按规则0和1进行合并. \n &
-            &      i越大，合并越多，有可能出现过度合并的情况(合并后，出现颗粒周边的孔都被合并掉，颗粒出现在孔内部情况)。默认:2 \n &     
+            &      i越大，合并越多，有可能出现过度合并的情况(合并后，出现颗粒周边的孔都被合并掉，颗粒出现在孔内部情况)。默认:2 \n &
+            &  7) mis_method--最大内切球的计算方法. 0=grid搜索，1=单纯形1(默认)，2=单纯形2。 \n &
             & "C 
     contains
         procedure,nopass::help=>write_help
@@ -133,6 +136,7 @@ module PoreScaleModel
         procedure::pore_merge_handle=>psm_pore_merge_update
         procedure::throat_merge=>psm_throat_merge
         procedure::throat_max_radius=>psm_calculate_merged_throat_radius
+        procedure::update_pore_center=>cal_merged_pore_center
     endtype
     type(PSM_tydef)::psmodel
     
@@ -192,7 +196,8 @@ module PoreScaleModel
                 t2=norm2(tet.vnode(tfi(i).tet(1)).x-tet.vnode(tfi(i).tet(2)).x)
                 if(t2/t1<=self.alpha) then
                     nc1=nc1+1
-                    call self.pore_merge_handle(ipore1(1),ipore1(2))
+                    !此规则仅仅取决于tet单元本身的性质，可以先不更新pore的信息 
+                    call self.pore_merge_handle(ipore1(1),ipore1(2),.false.)
                 endif
                 
                 
@@ -212,13 +217,21 @@ module PoreScaleModel
                 tof1=pore(tfi(i).tet(1)).shpfun(tfi(i).subid(1))<=1.d-7
                 if(tof1.or.pore(tfi(i).tet(2)).shpfun(tfi(i).subid(2))<=1.d-7)then
                     nc1=nc1+1
-                    call self.pore_merge_handle(ipore1(1),ipore1(2))
+                    !此规则仅仅取决于tet单元本身的性质，可以先不更新pore的信息
+                    call self.pore_merge_handle(ipore1(1),ipore1(2),.false.)
                 endif
                 
                 
             enddo  
             
-            print *, 'By Criterion 0B, Merged pores: ',nc1            
+            print *, 'By Criterion 0B, Merged pores: ',nc1 
+            !update pore info
+            !前面没有更新pore的中心信息，在此更新
+            do i=1,tet.nelt
+                if(pore(i).ntet>1) then
+                    call self.update_pore_center(i)
+                endif
+            enddo
                  
             if(self.ismerged<1) return
             !criterion 1
@@ -362,6 +375,8 @@ module PoreScaleModel
                     tfi(iface).state=2 !不再合并两边的孔
                     !cycle
                 endif 
+                !如果两边孔的尺寸均大于该面喉的尺寸，不合并
+                !if(minval(pore(mpore).x(4))>tfi(iface).xi(4)) tfi(iface).state=2
                 
                 if(mpore(2)<mpore(1)) then
                     n1=mpore(1);mpore(1)=mpore(2);mpore(2)=n1
@@ -373,15 +388,21 @@ module PoreScaleModel
         
     end subroutine
     
-    subroutine psm_pore_merge_update(self,ip,jp)
+    subroutine psm_pore_merge_update(self,ip,jp,iscalcentre)
         !merge jp into ip
         implicit none
         class(PSM_tydef)::self
         integer,intent(in)::ip,jp
+        logical,optional::iscalcentre
+        logical::iscalcentre1
         integer::i,j,k,p1,n1
         logical::isinside
-        integer::n,  konvge, kcount,icount, numres, ifault
-        real(8)::start(4), xmin(4), ynewlo, reqmin, step(4),xlim1(2,4)
+
+        if(present(iscalcentre)) then
+            iscalcentre1=iscalcentre
+        else
+            iscalcentre1=.true.
+        endif
         
         do k=1,self.pore(jp).ntet
             p1=self.pore(jp).tet(k)
@@ -419,36 +440,106 @@ module PoreScaleModel
         self.pore(ip).pa=self.pore(ip).pa+self.pore(jp).pa
         self.pore(jp).marker=-1
         
+        if(iscalcentre1) call self.update_pore_center(ip)
+        
+    endsubroutine
+    
+    
+    subroutine cal_merged_pore_center(self,ip)
+        implicit none
+        class(PSM_tydef)::self
+        integer,intent(in)::ip
+        type(gpolygon_tydef)::misphere
+        integer::i,j,k,p1,n1,errcode,ng2l1(self.np+6),n2
+        logical::isinside
+        integer::n,  konvge, kcount,icount, numres, ifault,node1(4)
+        real(8)::start(4), xmin(4), ynewlo, reqmin, step(4),xlim1(2,4)
+        real(8),allocatable::particle1(:,:),ar1(:)
+        integer,allocatable::order1(:),fsmesh(:,:)
+        
         !update pore info
-        n=4;
-        start=(self.pore(ip).x+self.pore(jp).x)/2.0
-        xlim1(1,:)=1e10;xlim1(2,:)=-1e10
-        do i=1,self.pore(ip).np
-            n1=self.pore(ip).particle(i)
-            do j=1,4
-                if(xlim1(1,j)>self.particle(n1).x(j)) xlim1(1,j)=self.particle(n1).x(j)
-                if(xlim1(2,j)<self.particle(n1).x(j)) xlim1(2,j)=self.particle(n1).x(j)
-            enddo        
-        enddo
-        reqmin=xlim1(1,4)*1.e-4
-        xlim1(1,4)=0.d0;xlim1(2,4)=norm2(xlim1(1,1:3)-xlim1(2,1:3))/2.0
-        !step=(xlim1(2,:)-xlim1(1,:))
-        !step(4)=norm2(step(1:3))/10
-        !step(1:3)=step(1:3)/10
-        !reqmin=minval(self.particle(1:self.pore(ip).np).x(4))*1.e-4
+        if(self.mis_method==0) then
+            allocate(particle1(4,self.pore(ip).np))
+            ng2l1=0
+            do i=1,self.pore(ip).np
+                particle1(:,i)=self.particle(self.pore(ip).particle(i)).x
+                ng2l1(self.pore(ip).particle(i))=i
+            enddo
+            if(allocated(fsmesh)) deallocate(fsmesh)
+            n1=self.pore(ip).ntet
+            allocate(fsmesh(4,n1))
+            do i=1,n1
+                n2=self.pore(ip).tet(i)
+                fsmesh(:,i)=ng2l1(self.tetgendata.elt(n2).node(1:4))
+                if(all(self.pore(n2).shpfun>=0.d0)) start=self.pore(n2).vx
+            enddo
+            call misphere.init(particle1,dim=3,fstype=2,fsmesh=fsmesh)
+            ar1=misphere.maxdist(start=start(1:3));
+            order1=[1:self.pore(ip).np]
+            call quick_sort(ar1(5:self.pore(ip).np+4),order1)
+            
+            call find_tangent_sphere(4,particle1(:,[order1(1:4)]),self.pore(ip).x,errcode)
+            !xi(1:2)=ar1(1:2)
+            
+            deallocate(particle1,ar1,order1)
+        else
+            konvge=10;kcount=10000;
+            !if(self.mis_method==1) then
+                n=4;
+                !start=self.pore(ip).x
+                xlim1(1,:)=1e10;xlim1(2,:)=-1e10
+                do i=1,self.pore(ip).np
+                    n1=self.pore(ip).particle(i)
+                    if(n1>self.np) cycle
+                    do j=1,4
+                        if(xlim1(1,j)>self.particle(n1).x(j)) xlim1(1,j)=self.particle(n1).x(j)
+                        if(xlim1(2,j)<self.particle(n1).x(j)) xlim1(2,j)=self.particle(n1).x(j)
+                    enddo        
+                enddo
+                reqmin=xlim1(1,4)*1.e-4
+                xlim1(1,4)=0.d0;xlim1(2,4)=norm2(xlim1(1,1:3)-xlim1(2,1:3))
+                start=(xlim1(2,:)-xlim1(1,:))/2.0
+                !do i=1,self.pore(ip).ntet
+                !    
+                !enddo
+                !step=(xlim1(2,:)-xlim1(1,:))
+                !step(4)=norm2(step(1:3))/10
+                !step(1:3)=step(1:3)/10
+                !reqmin=minval(self.particle(1:self.pore(ip).np).x(4))*1.e-4
+                !step=xlim1(2,4)
+                step=start(n)
                 
-        step=start(n)
-        konvge=10;kcount=10000;
-        call nelmin ( fn, n, start, xmin, ynewlo, reqmin, step, konvge, kcount, &
-      icount, numres, ifault )
-        self.pore(ip).x=xmin 
+                call nelmin ( fn, n, start, xmin, ynewlo, reqmin, step, konvge, kcount, &
+          icount, numres, ifault )
+                self.pore(ip).x=xmin 
+            
+            !else
+            !    n=3
+            !    do i=1,n1
+            !        n2=self.pore(ip).tet(i)
+            !        if(all(self.pore(n2).shpfun>=0.d0)) then
+            !            start=self.pore(n2).vx
+            !        else
+            !            node1=self.tetgendata.elt(n2).node(1:4)
+            !            do j=1,3
+            !                start(j)=sum(self.tetgendata.node(node1).x(j))/4
+            !            enddo
+            !        endif
+            !        
+            !    enddo
+            !    
+            !endif
+            
+            
+            
+            
         
-        if(ifault==1) then
-            print *,'REQMIN, N, or KONVGE has an illegal value.'
-        elseif(ifault==2) then
-            print *,'iteration terminated because KCOUNT was exceeded without convergence.'
+            if(ifault==1) then
+                print *,'REQMIN, N, or KONVGE has an illegal value.'
+            elseif(ifault==2) then
+                print *,'iteration terminated because KCOUNT was exceeded without convergence.'
+            endif
         endif
-        
     contains
         real(8) function fn(x)
             implicit none
@@ -458,21 +549,23 @@ module PoreScaleModel
             
             !t2=1.d0 
             !if(.not.isfeasible(x)) then
-            !    t2=1.d6
-            !else
-            !    t2=1.d0                
+            !    fn=1.d6
+            !    return
             !endif
             fn=0.d0
             do i=1,self.pore(ip).np
+                t2=1.d0
                 p1=self.pore(ip).particle(i)
-                t1=norm2(x(1:3)-self.particle(p1).x(1:3))-x(4)-self.particle(p1).x(4)
-                if(t1<-reqmin.or.x(4)<=0.d0) then  
-                    t1=1.d6*abs(t1)
-                    !return
-                else
-                    t1=abs(t1)
-                endif
-                fn=fn+t1    
+                t1=norm2(x(1:3)-self.particle(p1).x(1:3))-self.particle(p1).x(4)
+                if(t1<-reqmin) t2=1.d6
+                t1=t1-x(4)
+                !if(t1<-reqmin.or.x(4)<=0.d0) then  
+                !    t1=1.d3*abs(t1)
+                !    !return
+                !else
+                !    t1=abs(t1)
+                !endif
+                fn=fn+abs(t1)*t2    
             enddo
             !fn=fn*t2
         endfunction
@@ -482,20 +575,30 @@ module PoreScaleModel
             implicit none
             real(8),intent(in)::x(*)
             integer::j,k
+            real(8)::t1
             !real(8)::oplane
             
             isfeasible=.true.
             
-            if(x(4)<=0.d0) then
-                isfeasible=.false.
-                return
-            endif
+            !if(x(4)<=0.d0) then
+            !    isfeasible=.false.
+            !    return
+            !endif
             do j=1,4
                 if(x(j)<xlim1(1,j).or.x(j)>xlim1(2,j)) then
                     isfeasible=.false.
                     return
                 endif
             enddo
+            do j=1,self.pore(ip).np
+                p1=self.pore(ip).particle(j)
+                t1=norm2(x(1:3)-self.particle(p1).x(1:3))-self.particle(p1).x(4)
+                if(t1<-reqmin) then  
+                    isfeasible=.false.
+                    return                   
+                endif                    
+            enddo
+            
             !oplane=1.d0
             !do j=1,self.elt(i).nface
             !    k=self.elt(i).face(j)
@@ -507,8 +610,8 @@ module PoreScaleModel
             !endif
             
         end function
-    endsubroutine
     
+    endsubroutine
    
     subroutine psm_throat_merge(self,ielt,jelt)
         !check merge criterions and if they are satisfied,merge them
@@ -677,21 +780,24 @@ module PoreScaleModel
             !    t2=1.d6
             !endif
             do j=1,np1
-                t1=norm2(x(1:3)-self.particle(p1(j)).x(1:3))-x(4)-self.particle(p1(j)).x(4)
-                if(t1<-reqmin.or.x(4)<=0.d0) then  
-                    t1=1.d6*abs(t1)
-                    !isvc1=.true.
-                    !return
-                else
-                    t1=abs(t1)
-                endif
-                fn=fn+t1
+                t2=1.d0
+                t1=norm2(x(1:3)-self.particle(p1(j)).x(1:3))-self.particle(p1(j)).x(4)
+                if(t1<-reqmin) t2=1.d6
+                t1=t1-x(4)
+                !if(t1<-reqmin.or.x(4)<=0.d0) then  
+                !    t1=1.d6*abs(t1)
+                !    !isvc1=.true.
+                !    !return
+                !else
+                !    t1=abs(t1)
+                !endif
+                fn=fn+abs(t1)*t2
             enddo
-            
+                       
             
             !if(.not.isvc1) then
             vcon1=1.d0
-            do j=1,self.elt(i).nface
+            do j=1,self.elt(i).nface !!!! i is a "global" variable
                 k=self.elt(i).face(j)
                 vcon1=vcon1*(dot_product(self.tetfaceinfo(k).pe(1:3),x(1:3))+self.tetfaceinfo(k).pe(4))
             enddo
@@ -837,6 +943,8 @@ module PoreScaleModel
                 self.alpha=property(i).value                
             case('ismerged')
                 self.ismerged=int(property(i).value)
+            case('mis_method')
+                self.mis_method=int(property(i).value)
             case default
                 call Err_msg(property(i).name)
             end select
@@ -1468,7 +1576,7 @@ module PoreScaleModel
     end subroutine	     
     
     
-    subroutine find_tangent_sphere(itype,para,p)
+    subroutine find_tangent_sphere(itype,para,p,err)
     !计算与四面体四个顶点球相切的球心及半径
         implicit none
         integer,intent(in)::itype  
@@ -1480,8 +1588,10 @@ module PoreScaleModel
         REAL(8),intent(in)::para(:,:) !sphere=x,y,z,r; plane= [xa,ya,za,xb,yb,zb,xc,yc,zc],tet={(x1,y1,z1),(x2,y2,z2),(x3,y3,z3),(x4,y4,z4)}
         !input requierement:the normals of the plane should point to the center. (right hand rule)
         real(8),intent(out)::p(4) !x,y,z,r
+        integer,optional::err
         real(8)::t(2,3),r,pc(3)
         
+        if(present(err)) err=0
         select case(itype)
           case(0) !0s4p
             !t(1,:)=para(1,:)
@@ -1528,7 +1638,13 @@ module PoreScaleModel
             
             !det=Ma(1,1)*Ma(2,2)-Ma(2,1)*Ma(1,2)
             if(abs(det)<1.d-14) then
-                error stop "4 spheres coplane. sub=find_tangent_sphere"
+                print *, "4 spheres coplane. sub=find_tangent_sphere"
+                if(present(err)) then
+                    err=-1
+                    return
+                else
+                    error stop 
+                endif
             endif
             !
             !Ma=Ma/det
@@ -3414,6 +3530,7 @@ module PoreScaleModel
         shpfun(3) = (d00 * d21 - d01 * d20) * denom;
         shpfun(1) = 1.0d0 - shpfun(2)  - shpfun(3) ;
     end    
+
     
 end module
     

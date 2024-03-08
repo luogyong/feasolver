@@ -2,12 +2,13 @@ SUBROUTINE WELL_GEO_INI(IS_ONLY_SNADJL)
     USE MESHADJ,ONLY:SEDGE,NSEDGE,SNADJL,GETGMSHET,ELTTYPE, &                        
                         Setup_Solver_MESHTOPO,SETUP_NODE2ELEMENT_ADJL_SOLVER
     USE solverds,ONLY:isIniSEdge,NODE,ELEMENT,NDIMENSION,NQWNODE,QWELLNODE,WELLBORE,WELLBORE_SPGFACE,PIPE2,POREFLOW,ENUM,QWAN,NNUM, &
-                IS_WELL_GEO_INI
+                IS_WELL_GEO_INI,spg,material
     IMPLICIT NONE
     LOGICAL,INTENT(IN)::IS_ONLY_SNADJL
-    INTEGER I,J,K,N1,N2,N3,N4,A1(2),A2(200)
+    INTEGER I,J,K,N1,N2,N3,N4,A1(2),A2(200),v1,v2
     INTEGER,ALLOCATABLE::IELT1(:),ielt2(:)
-    REAL(8)::XYLMT(2,3)
+    REAL(8)::XYLMT(2,3),wr1,area1
+    logical::isp1
     
     IF(.NOT.isIniSEdge) THEN
         if(.not.IS_ONLY_SNADJL) then
@@ -60,6 +61,88 @@ SUBROUTINE WELL_GEO_INI(IS_ONLY_SNADJL)
     ENDDO
 
     ALLOCATE(QWAN(2,NNUM)) 
+    
+    !借用sign
+    element.sign=0
+    !initialize weights
+    !!假定井足够远，每个单元只属于一个井
+    !do i=1,enum
+    !    if(element(i).et==wellbore.or.element(i).et==WELLBORE_SPGFACE) then
+    !        n1=abs(element(i).edge(3)) !命名iedge为第三边3-4
+    !        wr1=material(element(i).mat).property(1)
+    !        !统计以井流单元为边的单元数
+    !        do j=1,sedge(n1).enum
+    !            n2=sedge(n1).element(j)
+    !            n3=getgmshet(element(n2).et)
+    !            if(elttype(n3).dim==3.and.element(n2).ec==spg) then
+    !                !v1=minloc(abs(element(n2).node-sedge(n1).v(1)),dim=1)
+    !                !v2=minloc(abs(element(n2).node-element(i).node(4)),dim=1)
+    !                element(n2).property(6)=1.0d0 !weights
+    !                !call wellbore_cal_element_k(n2,v1,wr1,sedge(n1).v(1),sedge(n1).v(2),area1,isp1)
+    !                
+    !            
+    !                element(n2).sign=-i !井轴附属单元(2个节点在井轴上的四面体单元)
+    !                
+    !                !if(.not.allocated(element(n2).angle)) call calangle(n2)
+    !            endif
+    !        enddo
+    !        
+    !        do j=1,2
+    !            do k=1,snadjl(sedge(n1).v(j)).enum
+    !                n2=snadjl(sedge(n1).v(j)).element(k)
+    !                if(element(n2).sign<0) cycle !跳过井轴附属单元
+    !                n3=getgmshet(element(n2).et)
+    !                if(elttype(n3).dim==3.and.element(n2).ec==spg) then
+    !                    element(n2).sign=element(n2).sign+1
+    !                    element(n2).property(6)=1.0d0/element(n2).sign
+    !                endif
+    !            enddo
+    !        enddo
+    !        
+    !        
+    !        
+    !    endif
+    !enddo    
+    !!total weights
+    !do i=1,enum
+    !    if(element(i).et==wellbore.or.element(i).et==WELLBORE_SPGFACE) then
+    !        n1=abs(element(i).edge(3)) !命名iedge为第三边3-4
+    !        element(i).ww=0.0d0
+    !        do j=1,2
+    !            do k=1,snadjl(sedge(n1).v(j)).enum
+    !                n2=snadjl(sedge(n1).v(j)).element(k)
+    !                if(element(n2).sign==0) cycle
+    !                if(element(n2).sign<0.and.element(n2).sign/=-i) cycle 
+    !                if(j==2.and.element(n2).sign==-i) cycle !只计算一次
+    !                element(i).ww=element(i).ww+element(n2).property(6)
+    !            enddo
+    !        enddo
+    !    endif
+    !enddo     
+    
+    
+    do i=1,enum
+        if(element(i).et==wellbore.or.element(i).et==WELLBORE_SPGFACE) then
+            n1=abs(element(i).edge(3)) !命名iedge为第三边3-4
+            wr1=material(element(i).mat).property(1)
+            !统计以井流单元为边的单元数
+            do j=1,sedge(n1).enum
+                n2=sedge(n1).element(j)
+                n3=getgmshet(element(n2).et)
+                if(elttype(n3).dim==3.and.element(n2).ec==spg) then
+                    v1=minloc(abs(element(n2).node-sedge(n1).v(1)),dim=1)
+                    !v2=minloc(abs(element(n2).node-element(i).node(4)),dim=1)
+                    !element(n2).property(6)=1.0 !weights
+                    call wellbore_cal_element_k(n2,v1,wr1,sedge(n1).v(1),sedge(n1).v(2),area1,isp1)
+                    element(n2).property(6)=area1
+                
+                    element(n2).sign=-i !井轴附属单元(2个节点在井轴上的四面体单元)
+                    
+                    if(.not.allocated(element(n2).angle)) call calangle(n2)
+                endif
+            enddo
+        endif    
+    enddo
            
     IS_WELL_GEO_INI=.TRUE.
 
@@ -77,7 +160,7 @@ SUBROUTINE INI_WELLBORE(IELT)
     USE SolverMath
     USE IFPORT
     IMPLICIT NONE
-    INTEGER,INTENT(IN)::IELTl
+    INTEGER,INTENT(IN)::IELT
     INTEGER::I,J,K,IELT1,IEDGE1,GMET1,SUBID1,AF1(2),N1,NADJL1(200),N2,N3,K1,N4
     REAL(8)::AV1(3,2),AR1(3,3),ZV1(3),YV1(3),XV1(3),D1,T1,T2,RDIS1(200),HK1,PHI1,TPHI1,WR1,L1,&
         ORG1(3),AREA1,XYLMT(2,3),SR1,try1,try2,TRY0
@@ -1277,6 +1360,613 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
     ENDDO
     ENDSUBROUTINE
     
+   
+ subroutine wellbore_element(ielt)
+    
+    use meshadj,only:sedge,nsedge,snadjl,getgmshet,elttype,sface,nsface
+    use solverds
+    use solvermath
+    use ifport
+    implicit none
+    integer,intent(in)::ielt
+    integer::i,j,k,ielt1,iedge1,gmet1,subid1,af1(2),n1,nadjl1(200),n2,n3,k1,n4
+    real(8)::d1,t1,t2,hk(2),tphi,wr1,area,sk,L1
+    logical::isp1
+    
+    if(.not.IS_WELL_GEO_INI) CALL WELL_GEO_INI(.false.)
+    iedge1=abs(element(ielt).edge(3)) !命名iedge为第三边3-4
+    if(element(ielt).istopo>0) iedge1=abs(element(ielt).edge(5))
+    n1=0
+    wr1=material(element(ielt).mat).property(1)
+    L1=NORM2(NODE(SEDGE(IEDGE1).V(1)).COORD-NODE(SEDGE(IEDGE1).V(2)).COORD)
+    if(sedge(iedge1).enum<2) then
+        print *, "no elements surrounding the wellbore element i. i=",ielt
+        print *, "try to embed the well line into the correspoinding volume."
+        stop
+    endif
+
+    tphi=0
+    sk=0
+   
+    !open(66,file='test.txt',status='replace')
+    !借用sign
+    !where(element.sign>0)  element.sign=0 
+    n1=0
+    do i=1,2
+        do j=1,snadjl(sedge(iedge1).v(i)).enum
+            ielt1=snadjl(sedge(iedge1).v(i)).element(j)!与第三边3-4邻接的单元
+            if(ielt1<1)  cycle
+            if(element(ielt1).et==wellbore.or.element(ielt1).et==pipe2 &
+            .or.element(ielt1).et==wellbore_spgface) cycle !itself excluded
+            if(element(ielt1).et==sphflow.or.element(ielt1).et==semi_sphflow) cycle !itself excluded
+            if(element(ielt1).ec/=spg) cycle
+            
+            !if(element(ielt1).sign>0) cycle
+            
+            !if(element(ielt1).sign/=0.and.element(ielt1).sign/=ielt) cycle !井轴单元(2个节点在井轴上的单元)
+            !if(i==2.and.element(ielt1).sign==ielt) cycle !每个单元只计算一次            
+            
+            
+            if(element(ielt1).sign==0) then
+                call wellbore_cal_element_k(ielt1,snadjl(sedge(iedge1).v(i)).subid(j),wr1,sedge(iedge1).v(i),sedge(iedge1).v(mod(i,2)+1),area,isp1)
+                element(ielt1).property(6)=area
+                
+                if(isp1) then 
+                    !should not be here
+                    print *, 'unexpected error in sub=wellbore_element' !在sub=WELL_GEO_INI已经计算
+                    stop
+                    !element(ielt1).sign=2
+                else
+                    element(ielt1).sign=1
+                endif
+                
+            elseif(element(ielt1).sign==-ielt) then
+                if(i==2) cycle !只考虑一次
+            elseif(element(ielt1).sign<0.and.element(ielt1).sign/=-ielt) then
+                cycle !跳过其他井轴上的单元
+            endif
+            
+            
+            
+            n1=n1+1
+            
+            !tphi=tphi+area
+            tphi=tphi+element(ielt1).property(6)
+            sk=sk+element(ielt1).fd   
+        
+            
+                !write(66,*) i,'tphi=', tphi,'area=', area,'sk=', sk,'fd=',element(ielt1).fd
+                !write(66,*)'-------------------------------------------------------------------------------' 
+                
+        enddo    
+    enddo
+ 
+    
+    !sk=tphi**2.d0/sk!单刚
+    !sk(2)=tphi(2)**2/sk(2)
+    !sk(2)=sk(1)
+    element(ielt).property(2:3)=2.0*sk/(tphi**2)  !阻力,并联阻力加倍
+    !element(ielt).property(2:3)=2.0*sk/(2*pi()*wr1*L1*n1) 
+    !井损
+    IF(ABS(MATERIAL(ELEMENT(IELT).MAT).PROPERTY(7))>1E-12) THEN
+        t1=2.0*PI()*WR1*L1/2.0
+        ELEMENT(IELT).PROPERTY(5)=MATERIAL(ELEMENT(IELT).MAT).PROPERTY(7)/t1
+        ELEMENT(IELT).PROPERTY(2:3)=ELEMENT(IELT).PROPERTY(2:3)+ELEMENT(IELT).PROPERTY(5)
+        !ELEMENT(IELT).PROPERTY(2:3)=ELEMENT(IELT).PROPERTY(2:3)
+    ELSE
+        ELEMENT(IELT).PROPERTY(5)=0.D0
+    ENDIF
+    
+    !element(ielt).property(3)=1/sk(2)
+    element(ielt).km=km_wellbore(1./element(ielt).property(1),1./element(ielt).property(2),1./element(ielt).property(3))!单刚
+    endsubroutine   
+
+        
+!    subroutine wellbore_cal_element_k2(ielt,inwell,rw,v1,v2,wq,isp1)
+!!目前仅适用于各向同性的土体
+!    use solverds
+!    use solvermath
+!    implicit none
+!    integer,intent(in)::ielt,inwell,v1,v2
+!    real(8),intent(in)::rw
+!    integer::node1(4),i,j
+!    real(8)::cofactor1(4,4),vol1,r(4),beta,sb,si,k1(3),ki,xscale1,t1,r1,mi,wq,xy1(3,4)
+!    logical::isp1,iscalbyK1
+!    real(8)::km1(element(ielt).ndof,element(ielt).ndof),ar1(1:10),t2,t3,alpha1(4)
+!    integer::n1,ia1(2)
+!    
+!    !call wellbore_area(ielt,v1,v2,rw,area,xy1,isp1)
+!    !select case(inwell)
+!    !case(1)
+!    !    node1=[1,2,3,4]        
+!    !case(2)
+!    !    node1=[2,3,1,4]
+!    !case(3)
+!    !    node1=[3,4,1,2]
+!    !case(4)
+!    !    node1=[4,1,3,2]
+!    !end select
+!    k1=material(element(ielt).mat).property(1:3)
+!    xscale1=(k1(3)/k1(1))**0.5 !!assume kx=ky.
+!    !水平各向异性的处理,kx=ky/=kz,按沙金煊调整x和y轴的方法进行处理(沙金煊. 各向异性土渗流的转化问题[j]. 水利水运科学研究, 1987, (01): 15-28.)
+!    ki=(k1(1)*k1(2))**0.5
+!
+!    
+!    do i=2,4!计算每个边的模长r
+!        r(i)=((xy1(1,i)*xscale1)**2 + (xy1(2,i)*xscale1)**2)**0.5
+!        if(r(i)==0) then
+!            r(i)=rw
+!        end if
+!        
+!    enddo
+!   
+!    km1=element(ielt).km
+!    ia1=[v1,v2]   
+!    alpha1(2:4)=-rw/(ki)*log(r(2:4)/rw) !!! -,解析解的流量正负与数值解相反????
+!    do i=1,2
+!        n1=minloc(abs(element(ielt).node(1:element(ielt).nnum)-ia1(i)),dim=1)
+!        if(n1/=i) then
+!            !交换列            
+!            ar1(:element(ielt).ndof)=km1(:,i)
+!            km1(:,i)=km1(:,n1)
+!            km1(:,n1)=ar1(:element(ielt).ndof)
+!            !交换行
+!            ar1(:element(ielt).ndof)=km1(i,:)
+!            km1(i,:)=km1(n1,:)
+!            km1(n1,:)=ar1(:element(ielt).ndof)
+!        endif
+!        if(.not.isp1) exit
+!    enddo
+!        
+!    if(isp1) then !2个节点都在井轴上
+!        !area=area/2.0
+!        !t1=(area-dot_product(km1(1,3:4),r(3:4))) 
+!        !t2=km1(1,1)+Km1(1,2) 
+!        !if(abs(t2)<1.d-8)  t2=km1(1,1)*1.d-4
+!        t1=area-(km1(1,3)+km1(2,3))*alpha1(3)-(km1(1,4)+km1(2,4))*alpha1(4)
+!        t2=km1(1,1)+Km1(1,2)+km1(2,1)+Km1(2,2)
+!        !t3=1.0d0
+!        !area=area/2.0
+!    else
+!        !if(v1==3) area=area/2.0
+!        t1=(area-dot_product(km1(1,2:4),alpha1(2:4)))
+!        t2=km1(1,1)
+!        !t3=1.d0
+!    endif
+!    if(abs(t2)>1.d-8) then 
+!        !element(ielt).fd=-t3*area*(t1/t2)
+!        element(ielt).fd=-(t1/t2)
+!    else
+!        element(ielt).fd=0.d0
+!    endif
+!
+!    !write(66,*)'r(1-4)=',r,'v=', vol1,'bi=',cofactor1(1,2),'sb=',sb,'si=',si
+!endsubroutine     
+    
+    subroutine wellbore_cal_element_k(ielt,inwell,rw,v1,v2,area,isp1)
+!目前仅适用于各向同性的土体
+    use solverds
+    use solvermath
+    implicit none
+    integer,intent(in)::ielt,inwell,v1,v2
+    real(8),intent(in)::rw
+    integer::node1(4),i,j
+    real(8)::cofactor1(4,4),vol1,r(4),beta,sb,si,k1(3),ki,xscale1,t1,r1,mi,area,xy1(3,4)
+    logical::isp1,iscalbyK1
+    real(8)::km1(element(ielt).ndof,element(ielt).ndof),ar1(1:10),t2,t3,alpha1(4)
+    integer::n1,ia1(2)
+    
+    call wellbore_area(ielt,v1,v2,rw,area,xy1,isp1)
+    !select case(inwell)
+    !case(1)
+    !    node1=[1,2,3,4]        
+    !case(2)
+    !    node1=[2,3,1,4]
+    !case(3)
+    !    node1=[3,4,1,2]
+    !case(4)
+    !    node1=[4,1,3,2]
+    !end select
+    k1=material(element(ielt).mat).property(1:3)
+    xscale1=(k1(3)/k1(1))**0.5 !!assume kx=ky.
+    !水平各向异性的处理,kx=ky/=kz,按沙金煊调整x和y轴的方法进行处理(沙金煊. 各向异性土渗流的转化问题[j]. 水利水运科学研究, 1987, (01): 15-28.)
+    ki=(k1(1)*k1(2))**0.5
+
+    
+    do i=2,4!计算每个边的模长r
+        r(i)=((xy1(1,i)*xscale1)**2 + (xy1(2,i)*xscale1)**2)**0.5
+        if(r(i)==0) then
+            r(i)=rw
+        end if
+        
+    enddo
+    iscalbyK1=.true.
+    if(iscalbyK1) then
+        km1=element(ielt).km
+        ia1=[v1,v2]   
+        alpha1(2:4)=-rw/(ki)*log(r(2:4)/rw) !!! -,解析解的流量正负与数值解相反????
+        do i=1,2
+            n1=minloc(abs(element(ielt).node(1:element(ielt).nnum)-ia1(i)),dim=1)
+            if(n1/=i) then
+                !交换列            
+                ar1(:element(ielt).ndof)=km1(:,i)
+                km1(:,i)=km1(:,n1)
+                km1(:,n1)=ar1(:element(ielt).ndof)
+                !交换行
+                ar1(:element(ielt).ndof)=km1(i,:)
+                km1(i,:)=km1(n1,:)
+                km1(n1,:)=ar1(:element(ielt).ndof)
+            endif
+            if(.not.isp1) exit
+        enddo
+        
+        if(isp1) then !2个节点都在井轴上
+            !area=area/2.0
+            !t1=(area-dot_product(km1(1,3:4),r(3:4))) 
+            !t2=km1(1,1)+Km1(1,2) 
+            !if(abs(t2)<1.d-8)  t2=km1(1,1)*1.d-4
+            t1=(area-(km1(1,3)+km1(2,3))*alpha1(3)-(km1(1,4)+km1(2,4))*alpha1(4))*area
+            t2=km1(1,1)+Km1(1,2)+km1(2,1)+Km1(2,2)
+            !t3=1.0d0
+            !area=area/2.0
+        else
+            !if(v1==3) area=area/2.0
+            t1=(area-dot_product(km1(1,2:4),alpha1(2:4)))*area
+            t2=km1(1,1)
+            !t3=1.d0
+        endif
+        if(abs(t2)>1.d-8) then 
+            !element(ielt).fd=-t3*area*(t1/t2)
+            element(ielt).fd=-(t1/t2)
+        else
+            element(ielt).fd=0.d0
+        endif
+    else
+        do j=1,4        
+            do i=1,4
+                cofactor1(i,j)=tet_shape_factor(xy1,j*10+i)
+            enddo
+        enddo
+        vol1=tet_shape_factor(xy1,0)
+        if (isp1==.true.) then 
+            sb= &
+            log(r(3)/rw)*(k1(1)*(cofactor1(1,2)+cofactor1(2,2))*cofactor1(3,2) + k1(2)*(cofactor1(1,3)+cofactor1(2,3))*cofactor1(3,3) + k1(3)*(cofactor1(1,4)+cofactor1(2,4))*cofactor1(3,4)) + &
+            log(r(4)/rw)*(k1(1)*(cofactor1(1,2)+cofactor1(2,2))*cofactor1(4,2) + k1(2)*(cofactor1(1,3)+cofactor1(2,3))*cofactor1(4,3) + k1(3)*(cofactor1(1,4)+cofactor1(2,4))*cofactor1(4,4)) 
+            sb= -sb
+            si = k1(1)*(cofactor1(1,2)+cofactor1(2,2))**2 + k1(2)*(cofactor1(1,3)+cofactor1(2,3))**2 + k1(3)*(cofactor1(1,4)+cofactor1(2,4))**2
+            mi=norm2(node(v1).coord-node(v2).coord)            
+            element(ielt).fd=area*(sb*rw-36*area*ki*vol1)/(ki*si) 
+            !area=area/2.0
+        else
+            sb= &
+            log(r(2)/rw)*(k1(1)*cofactor1(1,2)*cofactor1(2,2) + k1(2)*cofactor1(1,3)*cofactor1(2,3) + k1(3)*cofactor1(1,4)*cofactor1(2,4)) + &
+            log(r(3)/rw)*(k1(1)*cofactor1(1,2)*cofactor1(3,2) + k1(2)*cofactor1(1,3)*cofactor1(3,3) + k1(3)*cofactor1(1,4)*cofactor1(3,4)) + &
+            log(r(4)/rw)*(k1(1)*cofactor1(1,2)*cofactor1(4,2) + k1(2)*cofactor1(1,3)*cofactor1(4,3) + k1(3)*cofactor1(1,4)*cofactor1(4,4)) 
+            sb= -sb
+            si = k1(1)*cofactor1(1,2)**2 + k1(2)*cofactor1(1,3)**2 + k1(3)*cofactor1(1,4)**2 
+            mi=norm2(node(v1).coord-node(v2).coord)
+            element(ielt).fd=area*(sb*rw-36*area*ki*vol1)/(ki*si) 
+        end if
+    endif
+    
+    !write(66,*)'r(1-4)=',r,'v=', vol1,'bi=',cofactor1(1,2),'sb=',sb,'si=',si
+endsubroutine     
+   
+    subroutine wellbore_area(ielt,v1,v2,wr,area,xy1,isp1)
+    !求以v1为其中一个节点的四面体单元ielt的面与半径为wr,轴线为v1-v2的圆柱面的交线所围成的柱面面积(v1-v2范围内的面积)。
+    !假定：1)单元ielt的其中一个(v1)或2个(v1,v2)节点落在圆柱轴线v1-v2上.
+    !算法：1）先求出各边与圆柱面的交点，然后数值积分，数值积分区域的边界由三角面与圆柱面的交线确定
+        use solverds,only:node,element
+        use geometricalgorithm
+        implicit none
+        integer,intent(in)::ielt,v1,v2
+        real(8),intent(in)::wr
+        real(8),intent(out)::area,xy1(3,4)
+        real(8)::axis(3),ip1(3,4),g2l1(3,3),org1(3),t1,t2,t3,s0,s1,xy(3,4),p1(3),p2(3),p3(3),p4(3),p5(3),d1,d2,r(3,3),a(3,3),b(3,3),x1,y1,z1
+       integer::i,j,k,node1(4),i1
+        logical::isp1
+      
+      
+
+        node1=pack([1:4],element(ielt).node(1:4)==v1,[0,0,0,0])!出来的是[v1,v1,v1,v1]
+        node1(2:4)=pack([1:4],element(ielt).node(1:4)/=v1)!然后再把后三个覆盖掉
+        isp1=.false.
+        do i=1,4
+            xy(:,i)=node(element(ielt).node(i)).coord
+        if(all( xy(:,i)==node(v2).coord)) then!判断是否有列与v2相同
+            isp1=.true.!棱在轴线上判断isp1真
+             node1(2:4)=i!把v2放第二位
+             node1(3:4)=pack([1:4],element(ielt).node(1:4)/=v1.and.element(ielt).node(1:4)/=v2)!把其余两点放第三四位，此时1是v1位置，i是v2位置
+        endif
+        enddo
+       
+!write(66,*)'xy=',xy
+!write(66,*)'v1=',node(v1).coord
+!write(66,*) 'v2=',node(v2).coord
+!write(66,*) 'node1=',node1
+!write(66,*)' ' 
+        axis=node(v2).coord-node(v1).coord!轴线向量
+        do i=1,4
+            xy1(:,i)=xy(:,node1(i))-node(v1).coord!以v1为原点用三行四列矩阵存储各个点相对值,排第一是v1，第二是v2
+        enddo
+!write(66,*)'xy1=',xy1
+        !!set up local system
+        !org1=node(v1).coord               
+        !call gen_cordinate_system(org1,g2l1,zv=axis)
+        !axis=matmul(g2l1,axis)
+        !do i=2,4
+        !   xy1(:,i)=matmul(g2l1,xy1(:,i)) !将坐标标准化
+        !   if(isp1.and.i==2) cycle
+        !   !若还有点在轴线上跳过该点
+        !   t1=norm2(xy1(1:2,i))!2次范数求与原点直线距离
+        !   if(t1<wr) then
+        !       print *, 'node(i) is inside the wellbore,i=',element(ielt).node(node1(i))
+        !       !error stop
+        !   endif
+        !end do  !以上循环只是将坐标标准化顺便判断是否有点在圆柱外（准备工作已完成）
+        !s1=  xy1(1,1)
+        if (axis(2)==0.and.axis(3)==0) then!向量就在x轴上，绕y轴旋转90°
+        r = reshape((/0.0, 0.0, 1.0, 0.0, 1.0, 0.0,-1.0,0.0, 0.0/),(/3, 3/))
+    else
+        x1=axis(1)
+        y1=axis(2)
+        z1=axis(3)
+   a = reshape((/1.0_8, 0.0_8, 0.0_8, 0.0_8, z1/sqrt(y1**2+z1**2), -y1/sqrt(y1**2+z1**2),0.0_8, y1/sqrt(y1**2+z1**2), z1/sqrt(y1**2+z1**2)/),(/3, 3/))
+    b=reshape((/sqrt(y1**2+z1**2)/sqrt(x1**2+y1**2+z1**2), -x1/sqrt(x1**2+y1**2+z1**2), 0.0_8, x1/sqrt(x1**2+y1**2+z1**2), sqrt(y1**2+z1**2)/sqrt(x1**2+y1**2+z1**2), 0.0_8, 0.0_8, 0.0_8, 1.0_8/),(/3, 3/))
+    r=MATMUL(a, b)!如果点不在x轴上则绕xz轴旋转至z轴
+        endif
+        axis=matmul(r,axis)
+        do i=2,4
+           xy1(:,i)=matmul(r,xy1(:,i)) !将坐标标准化
+           if(isp1.and.i==2) cycle
+           !若还有点在轴线上跳过该点
+           t1=norm2(xy1(1:2,i))!2次范数求与原点直线距离
+           if(t1<wr) then
+               print *, 'node(i) is inside the wellbore,i=',element(ielt).node(node1(i))
+               !error stop
+           endif
+        end do  !以上循环只是将坐标标准化顺便判断是否有点在圆柱外（准备工作已完成）
+ 
+  !write(66,*)'xy1=',xy1
+  !write(66,*)' ' 
+       
+  if(isp1==.false.)then!开始计算点在轴线上情况的面积
+        do i=2,4
+            ip1(:,i-1)=xy1(:,i)*wr/norm2(xy1(1:2,i))
+            ip1(2,i-1)=atan2(ip1(2,i-1),ip1(1,i-1))
+            ip1(1,i-1)=wr
+             !坐标系变换为柱坐标只需要除二次范数乘半径即可保证点落在圆柱面上（相似三角形），第一行r第二行角度（要替换）第三行高度（不用替换）
+        end do
+            i=minloc(ip1(2,1:3),dim=1) !找角最小的位置赋值给i
+            k=maxloc(ip1(2,1:3),dim=1) !找角最大的位置赋值给k
+            do i1=1,3
+                if(i1/=i.and.i1/=k) then
+                    j=i1!赋值j为角度中间值位置
+                    exit
+                endif
+            enddo
+            !o-i-j plane equation
+            p1=normal_triface(reshape([0.d0,0.d0,0.d0,ip1(1,i)*cos(ip1(2,i)),ip1(1,i)*sin(ip1(2,i)),ip1(3,i),&
+            ip1(1,j)*cos(ip1(2,j)),ip1(1,j)*sin(ip1(2,j)),ip1(3,j)],([3,3])),.true.)
+            !o-j-k plane equation
+            p2=normal_triface(reshape([0.d0,0.d0,0.d0,ip1(1,j)*cos(ip1(2,j)),ip1(1,j)*sin(ip1(2,j)),ip1(3,j),&
+            ip1(1,k)*cos(ip1(2,k)),ip1(1,k)*sin(ip1(2,k)),ip1(3,k)],([3,3])),.true.)
+            !o-i-k plane equation
+            p3=normal_triface(reshape([0.d0,0.d0,0.d0,ip1(1,i)*cos(ip1(2,i)),ip1(1,i)*sin(ip1(2,i)),ip1(3,i),&
+            ip1(1,k)*cos(ip1(2,k)),ip1(1,k)*sin(ip1(2,k)),ip1(3,k)],([3,3])),.true.)!三角曲面矩阵0,0,0，最小角xyz，最大角xyz对应的法向量
+            !p1=normal_triface(reshape([node(v1).coord,xy1(:,2),xy1(:,3)],([3,3])),.true.)
+            !p2=normal_triface(reshape([node(v1).coord,xy1(:,3),xy1(:,4)],([3,3])),.true.)
+            !p3=normal_triface(reshape([node(v1).coord,xy1(:,2),xy1(:,4)],([3,3])),.true.)最好不用直角坐标系求法向量因为没法判断极坐标角度大小
+        !确定积分上下限sita        
+        t1=ip1(2,i)!最小值
+        t2=ip1(2,j)!中间值
+        t3=ip1(2,k)!最大值    
+        if(t2-t1<PI) then
+            s0=t1;s1=t2
+        else
+            s0=t2;s1=t1+2*PI
+        endif
+        if (p1(3)*p3(3)==0) then
+        t1=0
+        else
+        t1=((p1(1)*(sin(s1)-sin(s0))+p1(2)*(cos(s0)-cos(s1)))/-p1(3))-((p3(1)*(sin(s1)-sin(s0))+p3(2)*(cos(s0)-cos(s1)))/-p3(3))
+        end if
+        if(t3-t2<PI) then
+            s0=t2;s1=t3
+        else
+            s0=t3;s1=t2+2*PI
+        endif
+        if (p2(3)*p3(3)==0) then
+        t2=0
+        else
+        t2=((p2(1)*(sin(s1)-sin(s0))+p2(2)*(cos(s0)-cos(s1)))/-p2(3))-((p3(1)*(sin(s1)-sin(s0))+p3(2)*(cos(s0)-cos(s1)))/-p3(3))
+        end if
+        area=wr**2*(abs(t1)+abs(t2))
+        
+        
+    else!开始计算棱在轴线上情况的面积
+        do i=3,4
+            ip1(:,i-2)=xy1(:,i)*wr/norm2(xy1(1:2,i))
+            ip1(2,i-2)=atan2(ip1(2,i-2),ip1(1,i-2))
+            ip1(1,i-2)=wr
+             !坐标系变换为柱坐标，第一行r第二行角度（要替换）第三行高度（不用替换,但高度发生了比例变化）
+        end do
+         i=minloc(ip1(2,1:2),dim=1) !找角最小的位置赋值给i
+         k=maxloc(ip1(2,1:2),dim=1) !找角最大的位置赋值给k
+         !o-i-k plane equation
+         !p4=normal_triface(reshape([0.d0,0.d0,0.d0,ip1(1,i)*cos(ip1(2,i)),ip1(1,i)*sin(ip1(2,i)),ip1(3,i),&
+         !ip1(1,k)*cos(ip1(2,k)),ip1(1,k)*sin(ip1(2,k)),ip1(3,k)],([3,3])),.true.)
+        p4=normal_triface(reshape([xy1(:,1),xy1(:,3),xy1(:,4)],([3,3])),.true.)
+         !v2-i-k plane equation
+         p5=normal_triface(reshape([xy1(:,2),xy1(:,3),xy1(:,4)],([3,3])),.true.)
+        !确定积分上下限sita        
+        t1=max(ip1(2,1),ip1(2,2))
+        t2=min(ip1(2,1),ip1(2,2))        
+        if(t1-t2<PI) then
+            s0=t2;s1=t1
+        else
+            s0=t1;s1=t2+2*PI
+        endif
+       d1=-dot_product(p4,xy1(:,3))
+       d2=-dot_product(p5,xy1(:,3))
+        area=wr*abs(((wr*p4(1)*(sin(s1)-sin(s0))+wr*p4(2)*(cos(s0)-cos(s1))+d1*(s1-s0))/-p4(3))-((wr*p5(1)*(sin(s1)-sin(s0))+wr*p5(2)*(cos(s0)-cos(s1))+d2*(s1-s0))/-p5(3)))
+         
+ endif
+!write(66,*)'p1=', p1
+!write(66,*)'p2=', p2
+!write(66,*)'p3=',p3
+!write(66,*)'p4=',p4
+!write(66,*)'p5=',p5
+!write(66,*)'isp1=',isp1
+!write(66,*)'S=',area
+!write(66,*)' ' 
+    endsubroutine  
+
+SUBROUTINE WELLBORE_Q_K_UPDATE_ANALYTICAL(STEPDIS,IEL,ISTEP,IITER)
+    USE solverds
+    USE MESHGEO,ONLY:SNADJL,GETVAL_SOLVER
+    USE SolverMath,ONLY:Nint_gauss
+    IMPLICIT NONE
+    INTEGER,INTENT(IN)::IEL,ISTEP,IITER
+    REAL(8),INTENT(IN)::STEPDIS(NDOF)
+    INTEGER::I,J,K,I0,IN1,IN2,IN3,N1,N2,IEL1,IP1,MODEL1,II1,NDOF1,ET1,ANODE1,isok
+    INTEGER,ALLOCATABLE::NSP1(:),NSP2(:)
+    REAL(8)::H1,X1(3),R1,Q1(4),PI1,LAMDA1,K1,DIS1,DH1,A1(5),NHEAD1(5),KM1(5,5),HZ1,RA1,X2(3),&
+    W1,TW1,RE1,VA1,QR1,FD1,L1,D1,QA1,VR1,AREA1,g1,FACC1,REW1,cf1,QN1(5),KX1,KY1,KZ1,SITA1(3),LP1,&
+    KR1,XC1(3),VW1(3),T1,C1,B1,PO1,VS1,DIS2,H2,CF2
+    REAL(8)::SPH1(200),NHEAD2(10,1),f1,scale1,Ru1,rwu1,rw1,val1
+    LOGICAL::ISO1=.FALSE.,ISIN1=.FALSE.
+    COMPLEX(8)::Z1,U1
+    
+    
+    NDOF1=ELEMENT(IEL).NDOF;ET1=ELEMENT(IEL).ET
+    NHEAD1(1:NDOF1)=STEPDIS(ELEMENT(IEL).G)
+    PI1=PI(); 
+    
+    X2=NODE(ELEMENT(IEL).NODE(1)).COORD-NODE(ELEMENT(IEL).NODE(2)).COORD
+    DIS1=NORM2(X2)/2.0 !half length of the wellbore
+    VW1=X2/DIS1/2.0 !wellbore unit vection    
+    rw1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(1)
+    if(isporeflow) rw1=element(iel).property(2)/2.0
+    FD1=ELEMENT(IEL).PROPERTY(1)
+    FACC1=0.0D0;REW1=0.D0
+        
+    MODEL1=INT(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(6))
+ 
+    
+    IF(ET1/=WELLBORE_SPGFACE.and.model1/=4) THEN
+        L1=2*DIS1
+        D1=2*rw1
+        AREA1=PI1*D1**2/4.0
+        QA1=ABS((NHEAD1(1)-NHEAD1(2))*ELEMENT(IEL).KM(1,1))
+        VA1=QA1/AREA1
+        !if(ABS(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(5))<1.E-7) THEN
+        !    g1=73156608000.00 
+        !else
+        !    g1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(5)
+        !endif
+        g1=solver_control.get_g()    
+        !ACCELERATION LOSS.
+        RE1=Re_W(VA1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
+        if(isporeflow>0) ELEMENT(IEL).PROPERTY(3)=RE1
+        IF(ELEMENT(IEL).ET==WELLBORE) THEN
+            QR1=(NHEAD1(3)-NHEAD1(2))*ELEMENT(IEL).KM(3,3)+(NHEAD1(4)-NHEAD1(1))*ELEMENT(IEL).KM(4,4)
+            FACC1=QR1/(G1*AREA1**2)
+            IF(MODEL1==1.AND.ABS(QR1)>1.E-7) THEN
+            ! Siwoń, Z. (1987), Solutions for Lateral Inflow in Perforated Conduits, Journal of Hydraulic Engineering, 113(9), 1117-1132.
+                PO1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(9)
+                B1=10/(1000*PO1)**4.2+4/10**7                
+                C1=1.05+1./(1.235+B1*(QA1/QR1*4*L1*PO1/D1)**2)
+            ELSE
+                C1=2.0
+            ENDIF
+            FACC1=C1*FACC1
+        ELSE
+            QR1=0.D0
+        ENDIF
+        
+        IF(MODEL1==3) THEN
+            FD1=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(8)
+        ELSE
+            !IF(ABS(MATERIAL(ELEMENT(IEL).MAT).PROPERTY(4))<1.D-7) THEN
+            !    CF1=1./24./3600. !to m/s
+            !ELSE
+            !    CF1=1.0D0
+            !ENDIF
+            !time to s 
+            VR1=QR1/(L1*PI1*D1)
+            REW1=Re_W(VR1,D1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(2))
+            FD1=FD_PF(RE1,MATERIAL(ELEMENT(IEL).MAT).PROPERTY(3),REW=REW1,POROSITY=MATERIAL(ELEMENT(IEL).MAT).PROPERTY(9),MODEL=MODEL1) 
+        ENDIF
+        
+        FD1=FD1*L1*QA1/(2*D1*G1*AREA1**2)
+        IF(RE1<2260.AND.MODEL1==0)  FD1=ELEMENT(IEL).FD !PIPE-FLOW
+        
+          
+    END IF 
+    
+    ELEMENT(IEL).PROPERTY(1)=FD1;ELEMENT(IEL).PROPERTY(4)=FACC1; 
+    
+    IF(ABS(FD1)<1E-15) THEN
+        FD1=1.D-15
+    ENDIF
+    
+    
+    A1(1)=1./(FACC1+FD1)
+    IF(A1(1)<0.D0) A1(1)=1./FD1    
+
+    
+    IF(ET1==PIPE2) THEN
+        KM1(1,1)=A1(1);KM1(2,2)=A1(1);KM1(1,2)=-A1(1);KM1(2,1)=-A1(1)
+    ELSE
+        !WRITE(99,10) 
+        QN1(1:NDOF1)=MATMUL(ELEMENT(IEL).KM,NHEAD1(1:NDOF1))
+        QWAN(2,ELEMENT(IEL).NODE(1:NDOF1))=QWAN(2,ELEMENT(IEL).NODE(1:NDOF1))+QN1(1:NDOF1)
+        A1(2:3)=1.0/(ELEMENT(IEL).PROPERTY(2:3))
+        
+        
+        IF(ANY(ISNAN(A1(1:3)))) THEN
+            PRINT *, 'NAN'
+            STOP "ERRORS IN WELLBORE_Q_K_UPDATE_SPMETHOD."
+        ENDIF
+        
+        KM1(1:NDOF1,1:NDOF1)=KM_WELLBORE(A1(1),A1(2),A1(3))
+        KM1(1:NDOF1,1:NDOF1)=(ELEMENT(IEL).KM+KM1(1:NDOF1,1:NDOF1))*0.5
+    ENDIF
+    
+    
+    IF(.NOT.ALLOCATED(ELEMENT(IEL).FLUX)) ALLOCATE(ELEMENT(IEL).FLUX(ELEMENT(IEL).NNUM))
+    
+    ELEMENT(IEL).FLUX=MATMUL(KM1(1:ELEMENT(IEL).NDOF,1:ELEMENT(IEL).NDOF),NHEAD1(1:ELEMENT(IEL).NDOF))
+    
+    ELEMENT(IEL).KM=KM1(1:ELEMENT(IEL).NDOF,1:ELEMENT(IEL).NDOF)
+    !if(solver_control.bfgm==continuum.or.solver_control.bfgm==consistent) then
+    !          							
+    !end if
+
+10  FORMAT("ISTEP,IITER,IEL,NODE1,P1,XG,YG,ZG,XL,YL,ZL,RA,HA,HW,Qunit,WGT   //WELLBORE INFO")
+20  FORMAT(5I7,11F15.7)
+    
+    contains
+
+    real(8) function fun_lnkr(sita)
+
+    real(8),intent(in)::sita
+    !real(8)::kx,ky
+
+    !kx=fparas(1);ky=fparas(2)
+
+    fun_lnkr=log(kx1*ky1/(kx1*(sin(sita))**2+ky1*(cos(sita))**2))
+    
+    !IF(ISNAN(fun_lnkr)) THEN
+    !    PRINT *,'NAN'
+    !ENDIF
+    !fun_lnkr=exp(sita)
+
+
+    endfunction
+    
+END SUBROUTINE    
     ! SUBROUTINE wellbore_area(IELT,V1,V2,WR,AREA)
     ! !求以V1为其中一个节点的四面体单元IELT的面与半径为WR,轴线为V1-V2的圆柱面的交线所围成的柱面面积(v1-v2范围内的面积)。
     ! !假定：1)单元ielt的其中一个(v1)或2个(v1,v2)节点落在圆柱轴线V1-V2上.

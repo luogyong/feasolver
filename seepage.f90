@@ -12,13 +12,23 @@ SUBROUTINE SPG_Q_UPDATE(STEPDIS,bload,HHEAD,INIHEAD,DT,nbload,ienum,iiter,istep,
     SELECT CASE(ELEMENT(IENUM).ET)
         
     CASE(PIPE2,WELLBORE,WELLBORE_SPGFACE)
-        if(solver_control.wellmethod==0) then !sample at node
+        SELECT CASE(solver_control.wellmethod) 
+        CASE(0)
             CALL WELLBORE_Q_K_UPDATE3(STEPDIS,IENUM,ISTEP,IITER)
-        elseif(solver_control.wellmethod==1) then !sample at centroid
+        CASE(1)
             CALL WELLBORE_Q_K_UPDATE(STEPDIS,IENUM,ISTEP,IITER)
-        else
-            CALL WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IENUM,ISTEP,IITER)
-        endif
+        CASE(2,3)
+             CALL WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IENUM,ISTEP,IITER)
+        CASE DEFAULT
+            CALL WELLBORE_Q_K_UPDATE_ANALYTICAL(STEPDIS,IENUM,ISTEP,IITER)
+        END SELECT
+        !if(solver_control.wellmethod==0) then !sample at node
+        !    CALL WELLBORE_Q_K_UPDATE3(STEPDIS,IENUM,ISTEP,IITER)
+        !elseif(solver_control.wellmethod==1) then !sample at centroid
+        !    CALL WELLBORE_Q_K_UPDATE(STEPDIS,IENUM,ISTEP,IITER)
+        !else
+        !    CALL WELLBORE_Q_K_UPDATE_SPMETHOD(STEPDIS,IENUM,ISTEP,IITER)
+        !endif
         BLOAD=ELEMENT(IENUM).FLUX 
     CASE(SPHFLOW,SEMI_SPHFLOW)
         SELECT CASE(solver_control.wellmethod) 

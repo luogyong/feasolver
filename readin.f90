@@ -1733,6 +1733,15 @@ subroutine solvercommand(term,unit)
 						solver_control.well_bottom_type=int(property(i).value)  
                     case('slope_guide_direction') 
 						solver_control.slope_guide_direction=int(property(i).value)
+                    case('isdebug')
+						solver_control.isdebug=int(property(i).value)
+                    case('iswellheadrecover','whrecover')
+						!if(int(property(i).value)>0) then
+						!	solver_control.iswellheadrecover=.true.
+						!else
+						!	solver_control.iswellheadrecover=.false.
+      !                  end if
+						solver_control.iswellheadrecover=(int(property(i).value)>0)
 					case default
 						call Err_msg(property(i).name)
 				end select

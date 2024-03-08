@@ -372,7 +372,13 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 	!    t1=t1+(sum(element(i).sita_fin)-sum(element(i).sita_ini))/element(i).ngp*element(i).detjac(1)*sum(ecp(element(i).et).weight)
 	!end do	
 	!WRITE(99,12) T1,Qt,T1/Qt
-	
+    if(solver_control.isdebug>0) then
+		write(99,41)
+		write(99,42)
+		do i=1,enum
+			write(99,40) i,element(i).flux,Tdisp(element(i).g),matmul(element(i).km,Tdisp(element(i).g))
+		enddo
+    endif
 	WRITE(99,21)
 
 10  format(3X,"NODE",5X,"DOF",3X,"TYPE",4X,"INC",4X,"ITER",15X,"X",15X,"Y",15X,"Z",2X,"GENERALIZED_LOADS",1X,"GENERALIZED_DISPLACEMENTS")
@@ -382,7 +388,10 @@ subroutine BC_RHS_OUT(inc,iter,ISUBTS) !输出节点荷载（力、流量）
 21	format("\N******************END THE OUTPUT******************"C)
 30  FORMAT("\N******************WELL INFO***********************"C)
 31  FORMAT(14X,"NO",15X,"X",15X,"Y",15X,"Z",15X,"Q",12X,"HEAD")
-32  FORMAT(I16,5F16.7)    
+32  FORMAT(I16,5F16.7) 
+40  format(i16,1X,12(F16.7,X))
+41	FORMAT("\N*****************ELEMENT FLUX*********************"C)
+42	format(12x,'ielt',15x,'Q1',15x,'Q2',15x,'Q3',15x,'Q4',15x,'H1',15x,'H2',15x,'H3',15x,'H4',13x,'MMQ1',13x,'MMQ2',13x,'MMQ3',13x,'MMQ4')
 end subroutine
 
 
