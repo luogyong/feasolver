@@ -784,7 +784,8 @@ subroutine Initialization()
 					IF(SOLVER_CONTROL.WELLMETHOD/=4) THEN
 						CALL INI_WELLBORE(I)      
                     ELSE
-						CALL wellbore_element(I)
+						if(solver_control.wm4_iteration) CALL INI_WELLBORE(I) 
+						CALL wellbore_element(I,0)
                     ENDIF
                 ELSE
                     !ALLOCATE(ELEMENT(I).KM(2,2))
@@ -978,7 +979,7 @@ subroutine Initialization()
 				!allocate(element(i).g(element(i).ndof))
 				call fepv(i,dof1)
 				call dofbw(i)
-			case(PRM6,PRM15,BAR,tet4,tet10)
+			case(PRM6,PRM15,BAR,tet4,tet10,BRICK8,BRICK20)
 				dof1=0
 				dof1(1)=1
 				dof1(2)=2
@@ -989,7 +990,7 @@ subroutine Initialization()
 			case(CPE3_SPG,CPE6_SPG,CPE4_SPG,CPE8_SPG,CPE4R_SPG,CPE8R_SPG,CPE15_SPG, &
 					 CPS4_SPG,CPS4R_SPG,CPS8_SPG,CPS8R_SPG,CPS6_SPG,CPS15_SPG, &	
 					 CAX3_SPG,CAX4_SPG,CAX4R_SPG,CAX6_SPG,CAX15_SPG,CAX8_SPG,CAX8R_SPG, &
-					 PRM6_SPG,PRM15_SPG,TET4_SPG,TET10_SPG,ZT4_SPG2,ZT6_SPG2)
+					 PRM6_SPG,PRM15_SPG,TET4_SPG,TET10_SPG,ZT4_SPG2,ZT6_SPG2,BRICK8_SPG,BRICK20_SPG)
 				dof1=0
 				dof1(4)=4
 				!allocate(element(i).g(element(i).ndof))

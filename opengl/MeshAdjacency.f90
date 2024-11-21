@@ -76,12 +76,15 @@ SUBROUTINE Setup_Solver_MESHTOPO()
                 ELSE
                     SEDGE(I).ENUM=2
                 ENDIF
-                ALLOCATE(SEDGE(I).ELEMENT(SEDGE(I).ENUM),SEDGE(I).SUBID(SEDGE(I).ENUM),STAT=ERR)
+                ALLOCATE(SEDGE(I).ELEMENT(MAX(SEDGE(I).ENUM,2)),SEDGE(I).SUBID(MAX(SEDGE(I).ENUM,2)),STAT=ERR)
                 DO J=1,SEDGE(I).ENUM
                     SEDGE(I).ELEMENT(J)=E2E1(GEO1((J-1)*2+1,I))
                     SEDGE(I).SUBID(J)=GEO1((J-1)*2+2,I)
                     ELEMENT(SEDGE(I).ELEMENT(J)).EDGE(SEDGE(I).SUBID(J))=I                    
                 ENDDO
+                IF(SEDGE(I).ENUM<2) THEN
+                    SEDGE(I).ELEMENT(2)=0;SEDGE(I).SUBID(2)=0
+                ENDIF
                 IF(ELTTYPE(ET1).NMIDPNT>0) THEN
                     SEDGE(I).NMIDPNT=ELTTYPE(ET1).NMIDPNT
                     SEDGE(I).MIDPNT=ELEMENT(E2E1(GEO1(1,I))).NODE(ELTTYPE(ET1).MIDPNT(:,GEO1(2,I)))
@@ -101,12 +104,15 @@ SUBROUTINE Setup_Solver_MESHTOPO()
                 ELSE
                     SFACE(I).ENUM=2
                 ENDIF
-                ALLOCATE(SFACE(I).ELEMENT(SFACE(I).ENUM),SFACE(I).SUBID(SFACE(I).ENUM),STAT=ERR)
+                ALLOCATE(SFACE(I).ELEMENT(max(SFACE(I).ENUM,2)),SFACE(I).SUBID(max(SFACE(I).ENUM,2)),STAT=ERR)
                 DO J=1,SFACE(I).ENUM
                     SFACE(I).ELEMENT(J)=E2E1(GEO1((J-1)*2+1,I))
                     SFACE(I).SUBID(J)=GEO1((J-1)*2+2,I)
                     ELEMENT(SFACE(I).ELEMENT(J)).FACE(SFACE(I).SUBID(J))=I
                 ENDDO
+                IF(SFACE(I).ENUM<2) THEN
+                    SFACE(I).ELEMENT(2)=0;SFACE(I).SUBID(2)=0
+                ENDIF
 				DO K=1,3
 					SFACE(I).BBOX(1,K)=MINVAL(NODE(SFACE(I).V(1:SFACE(I).SHAPE)).COORD(K))-VTOL
 					SFACE(I).BBOX(2,K)=MAXVAL(NODE(SFACE(I).V(1:SFACE(I).SHAPE)).COORD(K))+VTOL
@@ -191,7 +197,12 @@ SUBROUTINE MESH2EDGE_SOLVER(EDGE1)
             EDGE1(I).ELEMENT(EDGE1(I).ENUM)=E1
             EDGE1(I).SUBID(EDGE1(I).ENUM)=IEDGE1
             IF(.NOT.EDGE1(I).ISINI) THEN
-                EDGE1(I).V=ELEMENT(E1).NODE(ELTTYPE(ET1).EDGE(:,AEDGE1(I).NODE(2)))      
+                EDGE1(I).V=ELEMENT(E1).NODE(ELTTYPE(ET1).EDGE(:,AEDGE1(I).NODE(2))) 
+                IF(ELTTYPE(ET1).NMIDPNT>0) THEN
+                    EDGE1(I).NMIDPNT=ELTTYPE(ET1).NMIDPNT
+                    ALLOCATE(EDGE1(I).MIDPNT(EDGE1(I).NMIDPNT),STAT=ERR)
+                    EDGE1(I).MIDPNT=ELEMENT(E1).NODE(ELTTYPE(ET1).MIDPNT(:,AEDGE1(I).NODE(2)))
+                ENDIF
                 EDGE1(I).ISINI=.TRUE.
             ENDIF
 

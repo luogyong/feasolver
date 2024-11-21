@@ -3,13 +3,16 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 	use solverds
     use voropp,only:voropp_handle
     use PoreNetWork
+    use MESHGEO,only:elttype,ISINI_GMSHET,Initialize_et2numNodes,ET_GMSH_EDGE_FACE,nsface,sface,sedge
 	implicit none
 	integer::iincs,iiter,isubts,file_unit,ieset,file_diagram
 	logical::iscon,isfirstcall,isbarfamily,anybarfamily,isset1
-	integer::i,j,nc,n1,k,k1,iset1,izt1,nout1,nzone1
+	integer::i,j,nc,n1,k,k1,iset1,izt1,nout1,nzone1,nc1,ia1(50)
 	character(1024)::cstring='',tec_vars=''
     character(16)::cword1='',cword2='',cword3=''
 	real(8)::rar(MNDOF),t1
+    logical,allocatable::af1(:)
+    integer,allocatable::ia2(:)
 
 	!
    
@@ -253,11 +256,65 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
 					    case(bar,bar2d,beam,beam2d,ssp2d)
 						    nc=8
 						    write(file_unit,9999) (((element(j).node2(k)-1)*4+k1,k1=1,4),k=1,element(j).nnum)
+                        case(brick20_spg,brick20)
+							!mesh topology
+							if(solver_control.topolyhedron<1) then
+								IF(.NOT.ISINI_GMSHET) THEN
+        
+									CALL Initialize_et2numNodes()
+									CALL ET_GMSH_EDGE_FACE()
+									ISINI_GMSHET=.TRUE.    
+								ENDIF
+								nc=4
+								do k=1,23
+									write(file_unit,9999) element(j).node(Elttype(17).TET(:,k))
+								enddo
+                            
+                            endif
 					    case default
 						    nc=element(j).nnum
 						    write(file_unit,9999) element(j).node(1:nc)
 			    end select
             end do
+            
+            if(solver_control.topolyhedron>0.and.(eset(iset1).et==brick20.or.eset(iset1).et==brick20_spg)) then
+				if(.not.allocated(af1)) allocate(af1(nsface))
+                
+                af1=.false.
+				do j=eset(iset1).enums,eset(iset1).enume
+					af1(element(j).face)=.true.                
+				enddo
+                
+                n1=count(af1==.true.)
+                
+                ia2=pack([1:nsface],af1==.true.)  
+                
+				nc1=20
+				!node count per face
+				write(file_unit,70)
+				write(file_unit,50) 2*sface(ia2).shape
+				!nodes per face
+				write(file_unit,71)
+				do j=1,nsface
+					if(af1(j)) then
+						nc1=0                    
+						do k=1,sface(j).shape
+							nc1=nc1+2
+							ia1(nc1-1)=sface(j).v(k)
+							ia1(nc1)=sedge(abs(sface(j).edge(k))).MIDPNT(1)
+						enddo
+						write(file_unit,51) ia1(:nc1)
+                    endif
+				enddo
+				!left element per face
+                nc1=20
+				write(file_unit,72)
+				write(file_unit,50) (sface(ia2(k)).element(1),k=1,n1)
+				!right element per face
+				write(file_unit,73)
+				write(file_unit,50) (sface(ia2(k)).element(2),k=1,n1)
+            endif
+            
             nzone1=nzone1+1
 		end do			
 		
@@ -278,8 +335,30 @@ subroutine outdata(iincs,iiter,iscon,isfirstcall,isubts)
         call pnw.out2tec(tec_vars,iincs,iiter,isubts)
         call voropp_handle(volfile=volfile)
     endif
-	999 format(<nc>E15.7)
-	9999 format(<nc>(I10,X))
+    
+    if(allocated(af1)) deallocate(af1)
+    if(allocated(ia2)) deallocate(ia2)
+    
+40  format(<nc1>(E24.16,1X),i7)
+41  format(<nc1>(E24.16,','))
+50  format(<nc1>(I7,1X))
+51  format(<nc1>(I7,1X))
+52  format('# faceid:',<nc1>(I7,1X))
+60  format('#node count per face for cell=',i7)
+61  format('#face nodes for cell=',i7)
+62  format('#face left elements for cell=',i7)
+63  format('#face right elements for cell=',i7)
+70  format('#node count per face')
+71  format('#nodes per face')
+72  format('#left elements per face')
+73  format('#right elements per face')
+80  format(i<incount(nc1)>,'*0.')    
+    
+999 format(<nc>E15.7)
+9999 format(<nc>(I10,X))
+    
+    
+    
 end subroutine
 
 SUBROUTINE NODAL_ACTIVE_DOF(INODE,DOFS,ADOFS,NDOFS)
@@ -1213,15 +1292,15 @@ subroutine BlOCKout(file_unit,ISTEP,ISUBTS,ITER)
 			case(ezx)
 				write(file_unit,999)  GET_VALUE_NODE(node,[1:nnum],'e',6)
 			case(pexx)
-				write(file_unit,999)  GET_VALUE_NODE(node,[1:nnum],'pe',6)
+				write(file_unit,999)  GET_VALUE_NODE(node,[1:nnum],'pe',1)
 			case(peyy)
-				write(file_unit,999)  GET_VALUE_NODE(node,[1:nnum],'pe',6)
+				write(file_unit,999)  GET_VALUE_NODE(node,[1:nnum],'pe',2)
 			case(pezz)
-				write(file_unit,999)  GET_VALUE_NODE(node,[1:nnum],'pe',6)
+				write(file_unit,999)  GET_VALUE_NODE(node,[1:nnum],'pe',3)
 			case(pexy)
-				write(file_unit,999)  GET_VALUE_NODE(node,[1:nnum],'pe',6)
+				write(file_unit,999)  GET_VALUE_NODE(node,[1:nnum],'pe',4)
 			case(peyz)
-				write(file_unit,999)  GET_VALUE_NODE(node,[1:nnum],'pe',6)
+				write(file_unit,999)  GET_VALUE_NODE(node,[1:nnum],'pe',5)
 			case(pezx)
 				write(file_unit,999)  GET_VALUE_NODE(node,[1:nnum],'pe',6)
 			case(sigma_mises)
@@ -1253,7 +1332,9 @@ subroutine BlOCKout(file_unit,ISTEP,ISUBTS,ITER)
 			case(kr_spg)
 				write(file_unit,999) node.kr
 			case(mw_spg)
-				write(file_unit,999) node.mw
+				write(file_unit,999) node.mw            
+            case(91,92,93,94,95,96,97)
+				write(file_unit,999) NODALQ(:,i,NNODALQ)
 			case(SFR)
 				do j=1,12
 					write(file_unit,999) GET_VALUE_NODE(node,[1:nnum],'sfr',j)
@@ -1289,12 +1370,13 @@ subroutine BlOCKout(file_unit,ISTEP,ISUBTS,ITER)
     call pointout(FILE_UNIT,ISTEP,ISUBTS,ITER)
     !call out_datapoint(ISTEP,ISUBTS,ITER)
     
-999 format(20E15.7)
-100 format(20I8)		
+999 format(20(E15.7,X))
+100 format(20(I8,X))		
 end subroutine
 
 subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 	use solverds
+    use MESHADJ,only:Setup_Solver_MESHTOPO,nsface,sface
 	implicit none
 	integer::i,j,k,nc,n1,iincs,iiter,isubts,iset1
     real(kind=dpn)::t1=0.d0
@@ -1302,16 +1384,21 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 	character(1024)::cstring='',cstring2='',cstring3=''
 	character(512)::cword1='',cword2='',cword3='',cword4='',cword5='',cword6=''
 	character(512)::cword7='',cword8='',cword9=''
-	
+	logical,allocatable::af1(:)
+    
 	isset1=.false.
 	do i=1,neset
-        
+      
 		
         iset1=esetid(i)
         if(sf(eset(iset1).sf).factor(iincs)==0) cycle
 		nzone_tec=nzone_tec+1
 		write(cword1,*) i
-		
+        
+        IF(SOLVER_CONTROL.TOPOLYHEDRON.AND.(ESET(ISET1).ET==BRICK20.OR.ESET(ISET1).ET==BRICK20_SPG)) THEN
+			ESET(ISET1).STYPE='FEPOLYHEDRON'
+            solver_control.datapacking=.FALSE.
+        ENDIF
 		
 		isbarfamily=eset(iset1).et==bar.or.eset(iset1).et==bar2d.or.eset(iset1).et==beam.or.eset(iset1).et==beam2d.or.eset(iset1).et==ssp2d
 		
@@ -1344,6 +1431,12 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 			!	n1=(eset(iset1).enume-eset(iset1).enums+1)*1                
 			case(tet10,tet10_spg,tet10_cpl)
 				n1=(eset(iset1).enume-eset(iset1).enums+1)*8
+            case(brick20,brick20_spg)
+				if(solver_control.topolyhedron<=0) then
+					n1=(eset(iset1).enume-eset(iset1).enums+1)*23
+                else
+					n1=eset(iset1).enume-eset(iset1).enums+1
+                endif
 			case default
 				n1=eset(iset1).enume-eset(iset1).enums+1
 		end select
@@ -1376,7 +1469,19 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 					//trim(adjustL(cword3))//',ZONETYPE=' &
 					//trim(adjustL(eset(iset1).stype))//',DATAPACKING='//trim(cword4) 		
 		endif
-
+		IF(SOLVER_CONTROL.TOPOLYHEDRON.AND.(ESET(ISET1).ET==BRICK20.OR.ESET(ISET1).ET==BRICK20_SPG)) THEN
+			!统计zone内face的个数
+			IF(.NOT.isIniSEdge)  call Setup_Solver_MESHTOPO()
+            if(.not.allocated(af1)) allocate(af1(nsface))
+            af1=.false.
+			do j=eset(iset1).enums,eset(iset1).enume
+				af1(element(j).face)=.true.                
+            enddo
+            write(cword1,*) count(af1==.true.)
+            n1=2*sum(sface(1:nsface).shape,af1==.true.) !2*,高次单元中间还有节点
+             write(cword2,*) n1
+			eset(iset1).zonetitle=TRIM(ADJUSTL(eset(iset1).zonetitle))//',Faces='//trim(adjustl(cword1))//',TOTALNUMFACENODES='//trim(adjustl(cword2))//',NUMCONNECTEDBOUNDARYFACES=0,TOTALNUMBOUNDARYCONNECTIONS=0'
+        ENDIF
 		if(.NOT.allocated(RTIME)) allocate(rtime(SUM(timestep.nsubts)))
 		if(.NOT.allocated(CALSTEP)) allocate(CALSTEP(SUM(timestep.nsubts)))
         t1=0.d0
@@ -1417,6 +1522,8 @@ subroutine tecplot_zonetitle(iincs,iiter,isfirstcall,isubts)
 		
         if(eset(iset1).et==zt6_spg.OR.eset(iset1).et==zt6_spg2) nzone_tec=nzone_tec+1 !zt6_spg 底面和顶面个输出一个zone,所以加+1
 	end do
+    
+    if(allocated(af1)) deallocate(af1)
 end subroutine
 
 !calculate the transform matrix for a vector from a cartesia system to a cylinder system

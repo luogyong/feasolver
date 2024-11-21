@@ -1,0 +1,488 @@
+[1109/162245.524:WARNING:chrome_browser_cloud_management_controller.cc(87)] Could not create policy manager as CBCM is not enabled.
+[1109/162248.370:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1109/162248.371:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.477:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.477:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.481:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.485:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.487:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.490:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.493:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.497:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.500:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.503:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.506:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.511:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.514:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.517:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.520:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.525:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.955:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162248.986:INFO:CONSOLE(1)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/zigzag.svg'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/vendor-626047.js (1)
+[1109/162248.996:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/no-connection-to-server.192x192.svg'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18 (0)
+[1109/162248.996:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/no-connection-to-server.192x192.svg'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18 (0)
+[1109/162248.996:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/no-connection-to-server.192x192.svg'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18 (0)
+[1109/162251.119:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/analysis_types/GSP_Hotspots.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18 (0)
+[1109/162251.119:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/analysis_types/GSP_UA.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18 (0)
+[1109/162251.119:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/analysis_types/GSP_Mem.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18 (0)
+[1109/162251.119:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/analysis_types/GSP_Threading.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18 (0)
+[1109/162251.119:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/analysis_types/GSP_HPC.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18 (0)
+[1109/162251.119:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/analysis_types/GSP_GO.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18 (0)
+[1109/162315.210:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162315.258:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162315.287:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162315.290:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162315.293:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162315.309:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162315.311:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162315.314:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162315.319:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162315.324:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162315.329:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162315.417:INFO:CONSOLE(1)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/analysis_types/GSP_Hotspots.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/vendor-626047.js (1)
+[1109/162315.418:INFO:CONSOLE(1)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/analysis_types/GSP_UA.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/vendor-626047.js (1)
+[1109/162315.418:INFO:CONSOLE(1)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/analysis_types/GSP_Mem.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/vendor-626047.js (1)
+[1109/162315.419:INFO:CONSOLE(1)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/analysis_types/GSP_Threading.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/vendor-626047.js (1)
+[1109/162315.419:INFO:CONSOLE(1)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/analysis_types/GSP_HPC.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/vendor-626047.js (1)
+[1109/162315.420:INFO:CONSOLE(1)] "Mixed Content: The page at 'https://127.0.0.1:65516/extension-ui/Session-1-1699518168283?passphrase=a945c9c2-72d4-ba8b-fb20-6cc4d0161f18' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:65516/assets/analysis_types/GSP_GO.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:65516/vendor-626047.js (1)
+[1109/162325.329:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162325.330:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162325.345:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162328.238:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162328.368:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162328.369:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162328.664:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/162328.664:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1109/234757.832:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1109/234757.832:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1109/234757.832:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1109/234758.063:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1109/234758.065:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1109/234758.341:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1109/234758.342:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1109/234758.845:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/070003.638:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/070003.645:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/070003.647:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/070003.667:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1110/070003.668:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1110/070004.158:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1110/070004.158:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/070004.167:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/070004.194:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/070004.195:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/070004.206:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/070221.500:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/070221.500:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/070221.500:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/070222.005:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/070222.006:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/070222.521:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/070222.521:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/070223.028:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/073828.647:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/073828.655:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/073828.657:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/073829.159:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1110/073829.159:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/073829.160:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/073829.176:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/073829.184:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/073829.195:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/074056.572:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/074056.572:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/074056.572:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/074056.927:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1110/074056.927:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1110/074057.081:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/074057.082:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/074057.586:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/074057.587:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/074058.099:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/082745.658:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/082745.658:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/082745.661:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/082745.682:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1110/082745.688:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1110/082746.162:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1110/082746.162:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/082746.163:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/082746.188:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/082746.188:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/082746.198:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/122828.766:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/122828.766:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/122828.766:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/122829.267:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/122829.267:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/122829.776:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/143903.636:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/143903.636:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/143903.638:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:65516/intel.analyzers.vtune.gui.js (2)
+[1110/143904.143:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1110/143904.145:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/143904.145:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/143904.161:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/143904.163:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/143904.166:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1110/185104.675:ERROR:network_service_instance_impl.cc(541)] Network service crashed, restarting service.
+[1110/185104.708:ERROR:gpu_process_host.cc(942)] GPU process exited unexpectedly: exit_code=1
+[1110/185104.708:WARNING:gpu_process_host.cc(1292)] The GPU process has crashed 1 time(s)
+[1110/185104.886:WARNING:gpu_process_host.cc(965)] Reinitialized the GPU process after a crash. The reported initialization time was 108 ms
+[1201/122144.450:WARNING:chrome_browser_cloud_management_controller.cc(87)] Could not create policy manager as CBCM is not enabled.
+[1201/122146.635:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1201/122146.637:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.785:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.789:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.794:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.798:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.801:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.804:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.807:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.812:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.815:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.818:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.822:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.828:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.831:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.834:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.836:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122146.839:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122147.350:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122147.381:INFO:CONSOLE(1)] "Mixed Content: The page at 'https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:50697/assets/zigzag.svg'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:50697/vendor-626047.js (1)
+[1201/122147.391:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:50697/assets/no-connection-to-server.192x192.svg'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215 (0)
+[1201/122147.391:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:50697/assets/no-connection-to-server.192x192.svg'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215 (0)
+[1201/122147.391:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:50697/assets/no-connection-to-server.192x192.svg'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215 (0)
+[1201/122149.943:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:50697/assets/analysis_types/GSP_Hotspots.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215 (0)
+[1201/122149.943:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:50697/assets/analysis_types/GSP_UA.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215 (0)
+[1201/122149.943:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:50697/assets/analysis_types/GSP_Mem.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215 (0)
+[1201/122149.943:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:50697/assets/analysis_types/GSP_Threading.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215 (0)
+[1201/122149.943:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:50697/assets/analysis_types/GSP_HPC.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215 (0)
+[1201/122149.943:INFO:CONSOLE(0)] "Mixed Content: The page at 'https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215' was loaded over HTTPS, but requested an insecure element 'https://127.0.0.1:50697/assets/analysis_types/GSP_GO.png'. This request was not upgraded to HTTPS because its URL's host is an IP address.", source: https://127.0.0.1:50697/extension-ui/Session-1-1701404506562?passphrase=433d2f74-1072-a5d1-b708-44308ff99215 (0)
+[1201/122155.543:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/122155.546:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/123416.848:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1201/123416.849:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1201/123416.849:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1201/123418.514:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1201/123418.521:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1201/123419.024:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1201/145400.830:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1201/145400.830:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1201/145400.839:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1201/145400.842:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/145400.867:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/145400.869:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/145400.872:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1201/145400.876:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1202/004031.403:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/004031.403:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/004031.403:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/004031.910:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/004031.911:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/070003.704:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/070003.800:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1202/070003.801:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1202/070003.850:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1202/070003.850:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1202/070003.859:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1202/070003.869:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1202/070235.956:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/070235.956:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/070235.956:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/070236.467:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/070236.467:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/070236.982:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/070236.982:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/070237.497:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/070237.498:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/070237.999:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/083312.627:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1202/083312.674:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1202/083312.676:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1202/083312.676:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1202/083312.705:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1202/083312.706:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1202/083312.715:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1204/002437.806:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/002437.807:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/002437.807:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/070003.691:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/070003.698:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1204/070003.699:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1204/070003.716:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1204/070003.719:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1204/070003.725:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1204/070003.728:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1204/070235.872:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/070235.872:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/070235.873:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/070236.372:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/070236.372:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/070236.877:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/082833.632:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/082833.632:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/082833.633:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1204/082834.138:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1204/082834.139:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1204/082834.139:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1204/082834.154:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1204/082834.157:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1204/082834.160:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/090856.225:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/090856.225:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/090856.225:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/090856.739:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/090856.739:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/090856.768:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/090856.772:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/090857.246:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/090857.247:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/090857.752:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/091150.802:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/091150.802:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/091150.807:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1205/091150.811:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/091150.830:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/091150.832:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/091150.836:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/091150.840:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/091623.843:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/091623.846:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/112252.863:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/112252.863:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/112252.863:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/112253.287:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/112253.289:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/112253.372:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/112253.372:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/112253.877:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/112253.879:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/112254.383:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/112254.384:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/114826.811:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/114826.817:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1205/114826.820:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/114826.841:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/114826.842:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/114826.846:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/114826.850:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/114826.870:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/114826.870:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/120637.748:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/120637.752:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/120642.755:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/120642.759:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/122138.253:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/122138.253:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/122138.253:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/122138.551:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/122138.553:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/122138.760:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/122138.761:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/171703.512:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/171703.636:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1205/171703.815:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1205/171704.022:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1205/171704.025:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/171704.025:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/171704.050:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/171704.051:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1205/171704.054:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/002401.843:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/002401.843:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/002401.843:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/002402.164:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1206/002402.168:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1206/070003.686:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1206/070003.694:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/070003.699:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1206/070003.708:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1206/070003.714:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/070003.795:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/070003.799:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/070003.808:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/070003.819:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/070003.819:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/070003.819:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/070003.819:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/072635.486:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/072635.486:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/072635.486:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/072635.996:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/072635.998:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/072636.514:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/072636.515:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/072637.017:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/072637.018:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/072637.528:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/082721.633:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/082721.634:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/082721.636:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/082722.146:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1206/082722.147:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/082722.155:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/082722.172:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/082722.181:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/082722.192:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/121431.795:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/121431.795:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/121431.795:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/121432.273:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1206/121432.280:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1206/121432.286:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/121432.288:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/151601.509:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/151601.817:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1206/151602.034:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1206/151602.036:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/151602.039:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/151602.058:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/151602.061:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/151602.065:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1206/152248.861:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1206/152248.866:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/001334.080:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/001334.080:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/001334.080:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/001335.617:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/070003.660:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/070003.685:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/070003.695:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/070003.705:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1207/070003.706:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/070003.735:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/070003.747:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/070003.757:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/070003.766:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/070220.472:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/070220.472:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/070220.472:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/070220.801:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/070220.813:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/070220.843:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/070220.844:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/070220.980:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/070220.981:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/070221.493:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/082351.634:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/082351.634:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/082351.636:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/082351.663:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/082351.677:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/082352.138:ERROR:cert_verify_proc_builtin.cc(677)] CertVerifyProcBuiltin for 127.0.0.1 failed:
+----- Certificate i=0 (CN=DESKTOP-GK5V6MJ) -----
+ERROR: No matching issuer found
+
+
+[1207/082352.138:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/082352.138:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/082352.167:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/082352.168:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/082352.177:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/082904.124:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/082904.124:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/082904.124:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/082904.407:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/082904.408:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/082918.503:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/082918.505:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/082918.651:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/082918.653:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/082919.007:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/082919.007:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/082919.021:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/082919.025:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/082919.028:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/083932.281:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/083932.281:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/083932.281:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/083932.546:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/083932.560:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/083932.784:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/083932.785:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/083933.288:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/083933.288:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/083933.803:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/083940.533:WARNING:dns_config_service_win.cc(583)] Failed to read DnsConfig.
+[1207/083940.631:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/083940.631:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/083940.633:INFO:CONSOLE(2)] "Failed to send log TypeError: Failed to fetch", source: https://127.0.0.1:50697/intel.analyzers.vtune.gui.js (2)
+[1207/083941.134:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/083941.135:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/083941.160:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/083941.163:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/083941.172:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202
+[1207/083941.181:ERROR:ssl_client_socket_impl.cc(992)] handshake failed; returned -1, SSL error code 1, net_error -202

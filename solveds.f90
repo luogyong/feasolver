@@ -65,7 +65,8 @@ module solverds
 		! x-axis is along the bar and the positive direction is from node 1 to node 2
 		! y and z is defined by user but must be consistent with right hand rule.
 		!and be consistent with Iy and Iz.
-		real(kind=DPN)::property(6)=0.0D0,ww=0.d0  !for spg problem and iniflux is used, property(3)=low lamda,property(2)=up lamda,对于井周的渗流单元，property(6)=井筒面积
+		real(kind=DPN)::property(6)=0.0D0,ww=0.d0  !for spg problem and iniflux is used, property(3)=low lamda,property(2)=up lamda
+        !对于井周的3D渗流实体单元，property(6)=权重流量,property(5)=与该单元相连的井线单元的长度和.
         !for wellbore element, property(1), element frictional resistance,(2) and (3) are geometrical resistance; (4) acceralated resistantce; (5)=WELL SKIN RESISTANCE , property(6) surround angle.
         !fore sphflow and semi_sphflow property(1)= geometrical resistance.for semi_sphflow,property(4-6)=domain direction vector
         !for pipe2/poreflow  element,property(1), element frictional resistance,(2)D2, throat diameter(for poreflow),(3) D1,(4)=Length of the throat.(5)=length of clogging volume,(6)K of the clogging volume
@@ -295,8 +296,11 @@ module solverds
 		integer::pnw_clogging=0 !if>0
 		integer::well_bottom_type=0 !=0,平底井(默认);<>0,井底为半球底
         !integer::well_bottom_method=0 !=0,解析单元法(非迭代,默认);=1,迭代
-        integer::isdebug=0
-        logical::iswellheadrecover=.true.
+        integer::isdebug=0,wm4_weight_method=0
+        logical::iswellheadrecover=.true.,wm4_iteration=.false.
+        !wm4_iteration,是否对权根据计算的流量,进行迭代更新(仅当wm4_weight_method=0时有用)
+        !wm4_weight_method,权重的取值方法,=0,q;=1,solidangle
+        integer::topolyhedron=1 !brick20类的单元后处理是否转化为tetrahedron单元进行处理,>0,按fepolyhedron处理,<=0,转化为tet处理.目前仅能用于处于brick20类单元的情况
     contains
         procedure::unit_factor=>unit_scaling_factor
         procedure::get_g=>get_gravity
@@ -517,6 +521,7 @@ module solverds
 	integer,allocatable::bfgm_step(:)
     integer::mpi_rank = 0, mpi_size = 1, mpi_ierr
     LOGICAL::ISINISEDGE=.FALSE.,ISOUT_WELL_FILE=.FALSE.
+    integer::ww_cal_nc=-1
     INTEGER,ALLOCATABLE::ISPF(:,:) 
     
     INTERFACE
@@ -584,7 +589,16 @@ module solverds
             REAL(8)::PARA(3)
         END FUNCTION
         
-
+		subroutine cal_well_weight(iiter,head)
+			integer,intent(in)::iiter
+			real(8),intent(in),optional::head(*)
+        endsubroutine
+        
+        subroutine wellbore_element(ielt,iiter,head)
+			integer,intent(in)::ielt,iiter
+			real(8),intent(in),optional::head(*)
+        
+        end subroutine
 		
 	END INTERFACE    
    

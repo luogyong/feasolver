@@ -279,7 +279,7 @@ subroutine EL_SFR2(ET)
 	use solverds
 	implicit none
 	integer::et,i,j
-	real(kind=DPN)::localxy1(3,15)=0.0,t1,t2
+	real(kind=DPN)::localxy1(3,20)=0.0,t1,t2,root3
 	
 	if(ecp(et).isini) return
 	
@@ -592,6 +592,72 @@ subroutine EL_SFR2(ET)
 			ecp(et).gp(1,1)=1/4.0
 			ecp(et).gp(2,1)=1/4.0
 			ecp(et).gp(3,1)=1/4.0
+		case(brick8_spg,brick8)
+			ecp(et).nshape=8
+			ecp(et).ndim=3
+			ecp(et).ngp=8
+			ecp(et).nnum=8
+            ecp(et).ShType=brick8
+			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
+								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
+								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp),&
+								ecp(et).expolating_Lshape(ecp(et).ngp,ecp(et).nnum))
+			
+			!ecp(et).weight(1)=8.0d0
+   !
+			!!sample points
+			!ecp(et).gp=0.d0
+			ecp(et).weight=1.0d0
+			root3=1.0D0/sqrt(3.0d0)
+			!sample points
+			ecp(et).gp(:,1)=-root3
+            ecp(et).gp(:,2)=[root3,-root3,-root3]
+            ecp(et).gp(:,3)=[root3,root3,-root3]
+            ecp(et).gp(:,4)=[-root3,root3,-root3]            
+            ecp(et).gp(:,5)=[-root3,-root3,root3]
+            ecp(et).gp(:,6)=[root3,-root3,root3]
+            ecp(et).gp(:,7)=root3
+			ecp(et).gp(:,8)=[-root3,root3,root3]                                 
+                                
+		case(brick20_spg,brick20)
+			ecp(et).nshape=20
+			ecp(et).ndim=3
+			ecp(et).ngp=8
+			ecp(et).nnum=20
+            ecp(et).ShType=brick20
+			allocate(ecp(et).gp(ecp(et).ndim,ecp(et).ngp),ecp(et).weight(ecp(et).ngp), &
+								ecp(et).Lderiv(ecp(et).nshape,ecp(et).ndim,ecp(et).ngp), &
+								ecp(et).Lshape(ecp(et).nshape,ecp(et).ngp),&
+								ecp(et).expolating_Lshape(ecp(et).ngp,ecp(et).nnum))
+
+!refer to gmsh                                
+!Hexahedron:             Hexahedron20:          Hexahedron27:
+!
+!       v
+!4----------3            4----14----3           3----13----2
+!|\     ^   |\           |\         |\          |\         |\
+!| \    |   | \          | 16       | 15        |15    24  | 14
+!|  \   |   |  \        10  \       12 \        9  \ 20    11 \
+!|   8------+---7        |   8----20+---7       |   7----19+---6
+!|   |  +-- |-- | -> u   |   |      |   |       |22 |  26  | 23|
+!1---+---\--2   |        1---+-9----2   |       0---+-8----1   |
+! \  |    \  \  |         \  18      \  19       \ 17    25 \  18
+!  \ |     \  \ |         11 |        13|        10 |  21    12|
+!   \|      w  \|           \|         \|          \|         \|
+!    5----------6            5----17----6           4----16----5
+                                
+			ecp(et).weight=1.0d0
+			root3=1.0D0/sqrt(3.0d0)
+			!sample points
+			ecp(et).gp(:,1)=-root3
+            ecp(et).gp(:,2)=[root3,-root3,-root3]
+            ecp(et).gp(:,3)=[root3,root3,-root3]
+            ecp(et).gp(:,4)=[-root3,root3,-root3]            
+            ecp(et).gp(:,5)=[-root3,-root3,root3]
+            ecp(et).gp(:,6)=[root3,-root3,root3]
+            ecp(et).gp(:,7)=root3
+			ecp(et).gp(:,8)=[-root3,root3,root3]           
+            
 		case(tet10,tet10_spg,tet10_cpl)
 			ecp(et).nshape=10
 			ecp(et).ndim=3
@@ -758,6 +824,62 @@ subroutine EL_SFR2(ET)
 		case(cpe15,CAX15,cpe15_spg,CAX15_SPG,CPE15_CPL,CAX15_CPL)
 			call expolationMatrix15N(ecp(et).expolating_Lshape)
 			call multermxy15N(ecp(et).termval)
+        case(brick20_spg,brick20,brick8_spg,brick8)
+
+!refer to gmsh                                
+!Hexahedron:             Hexahedron20:          Hexahedron27:
+!
+!       v
+!4----------3            4----14----3           3----13----2
+!|\     ^   |\           |\         |\          |\         |\
+!| \    |   | \          | 16       | 15        |15    24  | 14
+!|  \   |   |  \        10  \       12 \        9  \ 20    11 \
+!|   8------+---7        |   8----20+---7       |   7----19+---6
+!|   |  +-- |-- | -> u   |   |      |   |       |22 |  26  | 23|
+!1---+---\--2   |        1---+-9----2   |       0---+-8----1   |
+! \  |    \  \  |         \  18      \  19       \ 17    25 \  18
+!  \ |     \  \ |         11 |        13|        10 |  21    12|
+!   \|      w  \|           \|         \|          \|         \|
+!    5----------6            5----17----6           4----16----5
+        
+        
+        
+            root3=sqrt(3.0d0)			
+			localxy1(:,1)=-root3
+            localxy1(:,2)=[root3,-root3,-root3]
+            localxy1(:,3)=[root3,root3,-root3]
+            localxy1(:,4)=[-root3,root3,-root3]            
+            localxy1(:,5)=[-root3,-root3,root3]
+            localxy1(:,6)=[root3,-root3,root3]
+            localxy1(:,7)=root3
+			localxy1(:,8)=[-root3,root3,root3] 
+            
+            if(ecp(et).nnum>8) then
+				localxy1(:,9)=(localxy1(:,1)+localxy1(:,2))/2.0d0
+				localxy1(:,10)=(localxy1(:,1)+localxy1(:,4))/2.0d0
+				localxy1(:,11)=(localxy1(:,1)+localxy1(:,5))/2.0d0
+            
+				localxy1(:,12)=(localxy1(:,2)+localxy1(:,3))/2.0d0
+				localxy1(:,13)=(localxy1(:,2)+localxy1(:,6))/2.0d0
+            
+				localxy1(:,14)=(localxy1(:,3)+localxy1(:,4))/2.0d0
+				localxy1(:,15)=(localxy1(:,3)+localxy1(:,7))/2.0d0            
+            
+				localxy1(:,16)=(localxy1(:,4)+localxy1(:,8))/2.0d0
+            
+				localxy1(:,17)=(localxy1(:,5)+localxy1(:,6))/2.0d0
+				localxy1(:,18)=(localxy1(:,5)+localxy1(:,8))/2.0d0            
+            
+				localxy1(:,19)=(localxy1(:,6)+localxy1(:,7))/2.0d0
+            
+				localxy1(:,20)=(localxy1(:,7)+localxy1(:,8))/2.0d0
+            endif
+           			
+			do i=1,ecp(et).nnum
+				call shapefunction_cal(brick8,localxy1(1:ecp(et).ndim,i),& 
+						ecp(et).expolating_Lshape(1:ecp(et).ngp,i),ecp(et).ngp,ecp(et).ndim)
+			end do
+            
 		case default
 			print *, 'The algorithm for extrapolation to nodes is not compeleted.'  
 	end select	
@@ -986,7 +1108,63 @@ subroutine shapefunction_cal(et,gp,Ni,Nni,ndim)
 			Ni(7)=4*XI*T1
 			Ni(8)=4*XI*ZTA
 			Ni(9)=4*EDA*ZTA
-			Ni(10)=4*T1*ZTA			
+			Ni(10)=4*T1*ZTA	
+            
+        case(brick8_spg,brick8)
+
+!refer to gmsh                                
+!Hexahedron:             Hexahedron20:          Hexahedron27:
+!
+!       v
+!4----------3            4----14----3           3----13----2
+!|\     ^   |\           |\         |\          |\         |\
+!| \    |   | \          | 16       | 15        |15    24  | 14
+!|  \   |   |  \        10  \       12 \        9  \ 20    11 \
+!|   8------+---7        |   8----20+---7       |   7----19+---6
+!|   |  +-- |-- | -> u   |   |      |   |       |22 |  26  | 23|
+!1---+---\--2   |        1---+-9----2   |       0---+-8----1   |
+! \  |    \  \  |         \  18      \  19       \ 17    25 \  18
+!  \ |     \  \ |         11 |        13|        10 |  21    12|
+!   \|      w  \|           \|         \|          \|         \|
+!    5----------6            5----17----6           4----16----5  
+        
+        Ni(1)=0.125d0*(1.d0-xi)*(1.d0-eda)*(1.d0-zta)
+        Ni(2)=0.125d0*(1.d0+xi)*(1.d0-eda)*(1.d0-zta)
+        Ni(3)=0.125d0*(1.d0+xi)*(1.d0+eda)*(1.d0-zta)
+        Ni(4)=0.125d0*(1.d0-xi)*(1.d0+eda)*(1.d0-zta)
+        Ni(5)=0.125d0*(1.d0-xi)*(1.d0-eda)*(1.d0+zta)
+        Ni(6)=0.125d0*(1.d0+xi)*(1.d0-eda)*(1.d0+zta)
+        Ni(7)=0.125d0*(1.d0+xi)*(1.d0+eda)*(1.d0+zta)
+        Ni(8)=0.125d0*(1.d0-xi)*(1.d0+eda)*(1.d0+zta)
+        
+        case(brick20_spg,brick20)
+        
+        Ni(1)=0.125d0*(1.d0-xi)*(1.d0-eda)*(1.d0-zta)*(-2.0d0-xi-eda-zta)
+        Ni(2)=0.125d0*(1.d0+xi)*(1.d0-eda)*(1.d0-zta)*(-2.0d0+xi-eda-zta)
+        Ni(3)=0.125d0*(1.d0+xi)*(1.d0+eda)*(1.d0-zta)*(-2.0d0+xi+eda-zta)
+        Ni(4)=0.125d0*(1.d0-xi)*(1.d0+eda)*(1.d0-zta)*(-2.0d0-xi+eda-zta)
+        Ni(5)=0.125d0*(1.d0-xi)*(1.d0-eda)*(1.d0+zta)*(-2.0d0-xi-eda+zta)
+        Ni(6)=0.125d0*(1.d0+xi)*(1.d0-eda)*(1.d0+zta)*(-2.0d0+xi-eda+zta)
+        Ni(7)=0.125d0*(1.d0+xi)*(1.d0+eda)*(1.d0+zta)*(-2.0d0+xi+eda+zta)
+        Ni(8)=0.125d0*(1.d0-xi)*(1.d0+eda)*(1.d0+zta)*(-2.0d0-xi+eda+zta)
+		
+        !xi==0的四个中间节点
+        Ni(9)=0.25d0*(1.d0-xi**2)*(1.0d0-eda)*(1.d0-zta)
+        Ni(14)=0.25d0*(1.d0-xi**2)*(1.0d0+eda)*(1.d0-zta)
+        Ni(17)=0.25d0*(1.d0-xi**2)*(1.0d0-eda)*(1.d0+zta)
+        Ni(20)=0.25d0*(1.d0-xi**2)*(1.0d0+eda)*(1.d0+zta)
+        
+        !eda==0的四个中间节点
+        Ni(10)=0.25d0*(1.d0-xi)*(1.0d0-eda**2)*(1.d0-zta)
+        Ni(18)=0.25d0*(1.d0-xi)*(1.0d0-eda**2)*(1.d0+zta)
+        Ni(19)=0.25d0*(1.d0+xi)*(1.0d0-eda**2)*(1.d0+zta)
+        Ni(12)=0.25d0*(1.d0+xi)*(1.0d0-eda**2)*(1.d0-zta) 
+        
+        !zta==0的四个中间节点
+        Ni(11)=0.25d0*(1.d0-xi)*(1.0d0-eda)*(1.d0-zta**2)
+        Ni(13)=0.25d0*(1.d0+xi)*(1.0d0-eda)*(1.d0-zta**2)
+        Ni(15)=0.25d0*(1.d0+xi)*(1.0d0+eda)*(1.d0-zta**2)
+        Ni(16)=0.25d0*(1.d0-xi)*(1.0d0+eda)*(1.d0-zta**2)
 			
 		case default
 			print *, "No such an element type."
@@ -1261,7 +1439,117 @@ subroutine Deri_shapefunction_cal(et,gp,dNi,ndNi,ndim)
 			dNi(7,3)=-4*XI
 			dNi(8,3)=4*XI
 			dNi(9,3)=4*EDA
-			dNi(10,3)=4*T1-4*ZTA			
+			dNi(10,3)=4*T1-4*ZTA	
+            
+        case(brick8_spg,brick8)
+
+!refer to gmsh                                
+!Hexahedron:             Hexahedron20:          Hexahedron27:
+!
+!       v
+!4----------3            4----14----3           3----13----2
+!|\     ^   |\           |\         |\          |\         |\
+!| \    |   | \          | 16       | 15        |15    24  | 14
+!|  \   |   |  \        10  \       12 \        9  \ 20    11 \
+!|   8------+---7        |   8----20+---7       |   7----19+---6
+!|   |  +-- |-- | -> u   |   |      |   |       |22 |  26  | 23|
+!1---+---\--2   |        1---+-9----2   |       0---+-8----1   |
+! \  |    \  \  |         \  18      \  19       \ 17    25 \  18
+!  \ |     \  \ |         11 |        13|        10 |  21    12|
+!   \|      w  \|           \|         \|          \|         \|
+!    5----------6            5----17----6           4----16----5
+        
+        dNi(1,1)=-0.125d0*(1.d0-eda)*(1.d0-zta)
+		dNi(2,1)=0.125d0*(1.d0-eda)*(1.d0-zta)
+		dNi(3,1)=0.125d0*(1.d0+eda)*(1.d0-zta)
+		dNi(4,1)=-0.125d0*(1.d0+eda)*(1.d0-zta)
+		dNi(5,1)=-0.125d0*(1.d0-eda)*(1.d0+zta)
+		dNi(6,1)=0.125d0*(1.d0-eda)*(1.d0+zta)
+		dNi(7,1)=0.125d0*(1.d0+eda)*(1.d0+zta)
+		dNi(8,1)=-0.125d0*(1.d0+eda)*(1.d0+zta)
+
+		dNi(1,2)=-0.125d0*(1.d0-xi)*(1.d0-zta)
+		dNi(2,2)=-0.125d0*(1.d0+xi)*(1.d0-zta)
+		dNi(3,2)=0.125d0*(1.d0+xi)*(1.d0-zta)
+		dNi(4,2)=0.125d0*(1.d0-xi)*(1.d0-zta)
+		dNi(5,2)=-0.125d0*(1.d0-xi)*(1.d0+zta)
+		dNi(6,2)=-0.125d0*(1.d0+xi)*(1.d0+zta)
+		dNi(7,2)=0.125d0*(1.d0+xi)*(1.d0+zta)
+		dNi(8,2)=0.125d0*(1.d0-xi)*(1.d0+zta)
+
+		dNi(1,3)=-0.125d0*(1.d0-xi)*(1.d0-eda)
+		dNi(2,3)=-0.125d0*(1.d0+xi)*(1.d0-eda)
+		dNi(3,3)=-0.125d0*(1.d0+xi)*(1.d0+eda)
+		dNi(4,3)=-0.125d0*(1.d0-xi)*(1.d0+eda)
+		dNi(5,3)=0.125d0*(1.d0-xi)*(1.d0-eda)
+		dNi(6,3)=0.125d0*(1.d0+xi)*(1.d0-eda)
+		dNi(7,3)=0.125d0*(1.d0+xi)*(1.d0+eda)
+		dNi(8,3)=0.125d0*(1.d0-xi)*(1.d0+eda)
+        
+        case(brick20_spg,brick20)
+        
+        dNi(1,1)= -0.125d0*(1.d0-eda)*(1.d0-zta)*(-2.0d0-xi-eda-zta) -0.125d0*(1.d0-xi)*(1.d0-eda)*(1.d0-zta)
+		dNi(2,1)= 0.125d0*(1.d0-eda)*(1.d0-zta)*(-2.0d0+xi-eda-zta)  +0.125d0*(1.d0+xi)*(1.d0-eda)*(1.d0-zta)
+		dNi(3,1)= 0.125d0*(1.d0+eda)*(1.d0-zta)*(-2.0d0+xi+eda-zta)  +0.125d0*(1.d0+xi)*(1.d0+eda)*(1.d0-zta)
+		dNi(4,1)= -0.125d0*(1.d0+eda)*(1.d0-zta)*(-2.0d0-xi+eda-zta) -0.125d0*(1.d0-xi)*(1.d0+eda)*(1.d0-zta)
+		dNi(5,1)= -0.125d0*(1.d0-eda)*(1.d0+zta)*(-2.0d0-xi-eda+zta) -0.125d0*(1.d0-xi)*(1.d0-eda)*(1.d0+zta)
+		dNi(6,1)= 0.125d0*(1.d0-eda)*(1.d0+zta)*(-2.0d0+xi-eda+zta)  +0.125d0*(1.d0+xi)*(1.d0-eda)*(1.d0+zta)
+		dNi(7,1)= 0.125d0*(1.d0+eda)*(1.d0+zta)*(-2.0d0+xi+eda+zta)  +0.125d0*(1.d0+xi)*(1.d0+eda)*(1.d0+zta)
+		dNi(8,1)= -0.125d0*(1.d0+eda)*(1.d0+zta)*(-2.0d0-xi+eda+zta) -0.125d0*(1.d0-xi)*(1.d0+eda)*(1.d0+zta)
+		dNi(9,1)= -0.5d0*xi*(1.0d0-eda)*(1.d0-zta)
+		dNi(14,1)=-0.5d0*xi*(1.0d0+eda)*(1.d0-zta)
+		dNi(17,1)=-0.5d0*xi*(1.0d0-eda)*(1.d0+zta)
+		dNi(20,1)=-0.5d0*xi*(1.0d0+eda)*(1.d0+zta)
+		dNi(10,1)=-0.25d0*(1.0d0-eda**2)*(1.d0-zta)
+		dNi(18,1)=-0.25d0*(1.0d0-eda**2)*(1.d0+zta)
+		dNi(19,1)=0.25d0*(1.0d0-eda**2)*(1.d0+zta)
+		dNi(12,1)=0.25d0*(1.0d0-eda**2)*(1.d0-zta) 
+		dNi(11,1)=-0.25d0*(1.0d0-eda)*(1.d0-zta**2)
+		dNi(13,1)=0.25d0*(1.0d0-eda)*(1.d0-zta**2)
+		dNi(15,1)=0.25d0*(1.0d0+eda)*(1.d0-zta**2)
+		dNi(16,1)=-0.25d0*(1.0d0+eda)*(1.d0-zta**2)
+
+		dNi(1,2)= -0.125d0*(1.d0-xi)*(1.d0-zta)*(-2.0d0-xi-eda-zta)-0.125d0*(1.d0-xi)*(1.d0-eda)*(1.d0-zta)
+		dNi(2,2)= -0.125d0*(1.d0+xi)*(1.d0-zta)*(-2.0d0+xi-eda-zta)-0.125d0*(1.d0+xi)*(1.d0-eda)*(1.d0-zta)
+		dNi(3,2)= 0.125d0*(1.d0+xi)*(1.d0-zta)*(-2.0d0+xi+eda-zta) +0.125d0*(1.d0+xi)*(1.d0+eda)*(1.d0-zta)
+		dNi(4,2)= 0.125d0*(1.d0-xi)*(1.d0-zta)*(-2.0d0-xi+eda-zta) +0.125d0*(1.d0-xi)*(1.d0+eda)*(1.d0-zta)
+		dNi(5,2)= -0.125d0*(1.d0-xi)*(1.d0+zta)*(-2.0d0-xi-eda+zta)-0.125d0*(1.d0-xi)*(1.d0-eda)*(1.d0+zta)
+		dNi(6,2)= -0.125d0*(1.d0+xi)*(1.d0+zta)*(-2.0d0+xi-eda+zta)-0.125d0*(1.d0+xi)*(1.d0-eda)*(1.d0+zta)
+		dNi(7,2)= 0.125d0*(1.d0+xi)*(1.d0+zta)*(-2.0d0+xi+eda+zta) +0.125d0*(1.d0+xi)*(1.d0+eda)*(1.d0+zta)
+		dNi(8,2)= 0.125d0*(1.d0-xi)*(1.d0+zta)*(-2.0d0-xi+eda+zta) +0.125d0*(1.d0-xi)*(1.d0+eda)*(1.d0+zta)
+		dNi(9,2)= -0.25d0*(1.d0-xi**2)*(1.d0-zta)
+		dNi(14,2)=0.25d0*(1.d0-xi**2)*(1.d0-zta)
+		dNi(17,2)=-0.25d0*(1.d0-xi**2)*(1.d0+zta)
+		dNi(20,2)=0.25d0*(1.d0-xi**2)*(1.d0+zta)
+		dNi(10,2)=-0.5d0*eda*(1.d0-xi)*(1.d0-zta)
+		dNi(18,2)=-0.5d0*eda*(1.d0-xi)*(1.d0+zta)
+		dNi(19,2)=-0.5d0*eda*(1.d0+xi)*(1.d0+zta)
+		dNi(12,2)=-0.5d0*eda*(1.d0+xi)*(1.d0-zta) 
+		dNi(11,2)=-0.25d0*(1.d0-xi)*(1.d0-zta**2)
+		dNi(13,2)=-0.25d0*(1.d0+xi)*(1.d0-zta**2)
+		dNi(15,2)=0.25d0*(1.d0+xi)*(1.d0-zta**2)
+		dNi(16,2)=0.25d0*(1.d0-xi)*(1.d0-zta**2)
+
+		dNi(1,3)= -0.125d0*(1.d0-xi)*(1.d0-eda)*(-2.0d0-xi-eda-zta)-0.125d0*(1.d0-xi)*(1.d0-eda)*(1.d0-zta) 
+		dNi(2,3)= -0.125d0*(1.d0+xi)*(1.d0-eda)*(-2.0d0+xi-eda-zta)-0.125d0*(1.d0+xi)*(1.d0-eda)*(1.d0-zta) 
+		dNi(3,3)= -0.125d0*(1.d0+xi)*(1.d0+eda)*(-2.0d0+xi+eda-zta)-0.125d0*(1.d0+xi)*(1.d0+eda)*(1.d0-zta) 
+		dNi(4,3)= -0.125d0*(1.d0-xi)*(1.d0+eda)*(-2.0d0-xi+eda-zta)-0.125d0*(1.d0-xi)*(1.d0+eda)*(1.d0-zta) 
+		dNi(5,3)= 0.125d0*(1.d0-xi)*(1.d0-eda)*(-2.0d0-xi-eda+zta)+0.125d0*(1.d0-xi)*(1.d0-eda)*(1.d0+zta) 
+		dNi(6,3)= 0.125d0*(1.d0+xi)*(1.d0-eda)*(-2.0d0+xi-eda+zta)+0.125d0*(1.d0+xi)*(1.d0-eda)*(1.d0+zta) 
+		dNi(7,3)= 0.125d0*(1.d0+xi)*(1.d0+eda)*(-2.0d0+xi+eda+zta)+0.125d0*(1.d0+xi)*(1.d0+eda)*(1.d0+zta) 
+		dNi(8,3)= 0.125d0*(1.d0-xi)*(1.d0+eda)*(-2.0d0-xi+eda+zta)+0.125d0*(1.d0-xi)*(1.d0+eda)*(1.d0+zta) 
+		dNi(9,3)= -0.25d0*(1.d0-xi**2)*(1.0d0-eda)
+		dNi(14,3)=-0.25d0*(1.d0-xi**2)*(1.0d0+eda)
+		dNi(17,3)=0.25d0*(1.d0-xi**2)*(1.0d0-eda)
+		dNi(20,3)=0.25d0*(1.d0-xi**2)*(1.0d0+eda)
+		dNi(10,3)=-0.25d0*(1.d0-xi)*(1.0d0-eda**2)
+		dNi(18,3)=0.25d0*(1.d0-xi)*(1.0d0-eda**2)
+		dNi(19,3)=0.25d0*(1.d0+xi)*(1.0d0-eda**2)
+		dNi(12,3)=-0.25d0*(1.d0+xi)*(1.0d0-eda**2) 
+		dNi(11,3)=-0.5d0*zta*(1.d0-xi)*(1.0d0-eda)
+		dNi(13,3)=-0.5d0*zta*(1.d0+xi)*(1.0d0-eda)
+		dNi(15,3)=-0.5d0*zta*(1.d0+xi)*(1.0d0+eda)
+		dNi(16,3)=-0.5d0*zta*(1.d0-xi)*(1.0d0+eda)
 		case default
 			print *, "No such element type."
 			stop

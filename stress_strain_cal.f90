@@ -68,7 +68,7 @@ subroutine extrapolation_stress_strain_cal(ienum)
 			end do
 		CASE(CPE6_SPG,CPE8R_SPG,CPE4_SPG,PRM15_SPG,TET10_SPG,CAX6_SPG,CAX8R_SPG,CAX4_SPG,&
 			 CPE6_CPL,CPE8R_CPL,CPE4_CPL,PRM15_CPL,TET10_CPL,CAX6_CPL,CAX8R_CPL,CAX4_CPL,&
-			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4,ZT4_SPG2)
+			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4,ZT4_SPG2,BRICK20_SPG,BRICK8_SPG,BRICK8)
 			do concurrent (i=n1:n2)
 				
 				do CONCURRENT (j=1:ecp(element(ienum).et).ndim)
@@ -626,7 +626,7 @@ subroutine sfr_extrapolation_stress_strain_cal(ienum)
 			end do
 		CASE(CPE6_SPG,CPE8R_SPG,CPE4_SPG,PRM15_SPG,TET10_SPG,CAX6_SPG,CAX8R_SPG,CAX4_SPG,&
 			 CPE6_CPL,CPE8R_CPL,CPE4_CPL,PRM15_CPL,TET10_CPL,CAX6_CPL,CAX8R_CPL,CAX4_CPL,&
-			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4,ZT4_SPG2)
+			 CPE6,CPE8R,CPE4,PRM15,TET10,CAX6,CAX8R,CAX4,ZT4_SPG2,BRICK20,BRICK20_SPG,BRICK8,BRICK8_SPG)
 			do concurrent (i=n1:n2)
 				
 
@@ -740,8 +740,8 @@ subroutine calangle(ienum)
 	use solverds
 	implicit none
 	integer::i,j,IESET1
-	integer::ienum,idim=2,jdim=2,v1,v2,IA1(4),IA2D1(2,10),IA2D2(4,6)
-	real(8)::vec1(2,2)=0.0,angle=0.0,vangle(15)=0.0,ar1(3,10),VN1(3,15)=0
+	integer::ienum,idim=2,jdim=2,v1,v2,IA1(4),IA2D1(2,10),IA2D2(4,8)
+	real(8)::vec1(2,2)=0.0,angle=0.0,vangle(15)=0.0,ar1(3,10),VN1(3,15)=0,DAngle(6)
 	
 	!assume that all element edges are straight lines. such that the angle
 	!of the nodes inside a line equel to pi.
@@ -802,7 +802,7 @@ subroutine calangle(ienum)
             !    enddo
             !    element(ienum).angle(i)=solidangle(AR1(:,1:4))            
             !enddo
-            do j=1,4
+            do j=1,8
 				ar1(:,j)=node(element(ienum).node(j)).coord
             enddo
             call tetrahedron_solid_angles_3d(ar1(:,1:4),element(ienum).angle(1:4))
@@ -822,12 +822,71 @@ subroutine calangle(ienum)
                 ENDDO
             
             ENDIF
+        case(BRICK8,BRICK20)
+
+!refer to gmsh                                
+!Hexahedron:             Hexahedron20:          Hexahedron27:
+!
+!       v
+!4----------3            4----14----3           3----13----2
+!|\     ^   |\           |\         |\          |\         |\
+!| \    |   | \          | 16       | 15        |15    24  | 14
+!|  \   |   |  \        10  \       12 \        9  \ 20    11 \
+!|   8------+---7        |   8----20+---7       |   7----19+---6
+!|   |  +-- |-- | -> u   |   |      |   |       |22 |  26  | 23|
+!1---+---\--2   |        1---+-9----2   |       0---+-8----1   |
+! \  |    \  \  |         \  18      \  19       \ 17    25 \  18
+!  \ |     \  \ |         11 |        13|        10 |  21    12|
+!   \|      w  \|           \|         \|          \|         \|
+!    5----------6            5----17----6           4----16----5
+                    
+            IA2D2(:,1:8)=RESHAPE([1,2,4,5,&
+                           2,1,3,6,&
+                           3,2,4,7,&
+                           4,1,3,8,&
+                           5,1,6,8,&
+                           6,2,5,7,&
+                           7,3,6,8,&
+                           8,4,5,7],([4,8]))
+                           
+            do i=1,8
+                do j=1,4
+                    !IF(ELEMENT(IENUM).ET==ZT6_SPG2) THEN
+                    !    ar1(:,j)=Gnode(:,element(ienum).node(IA2D2(j,i)))
+                    !ELSE
+                        ar1(:,j)=node(element(ienum).node(IA2D2(j,i))).coord
+                    !ENDIF
+                enddo
+                call tetrahedron_solid_angles_3d(ar1(:,1:4),vangle(1:4),DAngle)
+                element(ienum).angle(i)=vangle(1)
+                
+                IF(ELEMENT(IENUM).NNUM>8) THEN
+					SELECT CASE(I)
+						CASE(1)
+							element(ienum).angle(9:11)=Dangle(1:3)
+                        CASE(2)
+							element(ienum).angle(12:13)=Dangle(2:3)
+                        CASE(3)
+							element(ienum).angle(14:15)=Dangle(2:3) 
+                        CASE(4)
+							element(ienum).angle(16)=Dangle(3)
+                        CASE(5)
+							element(ienum).angle(17:18)=Dangle(2:3)
+                        CASE(6)
+							element(ienum).angle(19)=Dangle(3)
+                        CASE(7)
+							element(ienum).angle(20)=Dangle(3)   
+                    END SELECT
+                
+                ENDIF
+            enddo
             
+ 
             
         CASE(PRM6,PRM15)
         
             
-            IA2D2=RESHAPE([1,2,3,4,&
+            IA2D2(:,1:6)=RESHAPE([1,2,3,4,&
                            2,3,1,5,&
                            3,1,2,6,&
                            4,6,5,1,&

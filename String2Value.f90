@@ -312,8 +312,16 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 			value=prm9
 		case('tet4')
 			value=tet4
+		case('brick8')
+			value=brick8
+		case('brick8_spg')
+			value=brick8_spg
+		case('brick20_spg')
+			value=brick20_spg
+		case('brick20')
+			value=brick20
 		case('tet4_spg')
-			value=tet4_spg
+			value=tet4_spg            
 		case('tet4_cpl')
 			value=tet4_cpl
 		case('tet10')

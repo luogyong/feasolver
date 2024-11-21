@@ -36,7 +36,30 @@ TYPE(CM_RGBV_TYDEF)::DefaultRGBV(25)
 INTEGER::nDefaultRGBV=22
 INTEGER::ICOLORMAP=CM_RainBow
 
-CONTAINS
+    CONTAINS
+  
+    
+SUBROUTINE GetValueColori(value,VMIN,VMAX,VCOLOR,iDefaultRGBV,CustomedRGBV)
+    REAL(8),INTENT(IN)::VALUE,VMIN,VMAX   
+    INTEGER::VCOLOR(3)
+    INTEGER,INTENT(IN),OPTIONAL::iDefaultRGBV
+    TYPE(CM_RGBV_TYDEF),INTENT(IN),OPTIONAL::CustomedRGBV
+    INTEGER::IMAP1,I
+    
+    REAL(4)::VCOLOR1(3)
+    IMAP1=CM_Rainbow;
+    IF(PRESENT(iDefaultRGBV)) IMAP1=iDefaultRGBV
+    
+    IF(PRESENT(CustomedRGBV)) THEN
+        CALL GetValueColor(value,VMIN,VMAX,VCOLOR1,IMAP1,CustomedRGBV)
+    ELSE
+        CALL GetValueColor(value,VMIN,VMAX,VCOLOR1,IMAP1)
+    ENDIF
+    
+    VCOLOR=NINT(VCOLOR1*255)
+    
+END SUBROUTINE
+
 
 SUBROUTINE GetValueColor(value,VMIN,VMAX,VCOLOR,iDefaultRGBV,CustomedRGBV)
 !!http://andrewnoske.com/wiki/Code_-_heatmaps_and_color_gradients
@@ -96,6 +119,8 @@ SUBROUTINE GetValueColor(value,VMIN,VMAX,VCOLOR,iDefaultRGBV,CustomedRGBV)
    
 
 ENDSUBROUTINE
+
+
 
 SUBROUTINE DEFAULT_COLORMAP_INITIALIZE()
 	

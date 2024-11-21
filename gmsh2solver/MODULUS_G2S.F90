@@ -425,10 +425,10 @@ module DS_Gmsh2Solver
         CHARACTER(16),PARAMETER::CAR1(3)=["PIPE2","WELLBORE","WELLBORE_SPGFACE"]
         
         !generate four-noded well element
-        ! 1 +-----------+ 2
-        !   |           |
-        ! 4 +           + 3
-        !5-------------------6 !TOPONODE
+        ! 1 +-----(5)------+ 2
+        !   |      |       |
+        ! 4 +     (6)      + 3
+        !5-------------------6 !二次单元才有
         ! Node 1 and 2: Line element simulating well flow along the well.
         ! Element 1-4 and 2-3 : virtual branch element 
         
@@ -437,6 +437,7 @@ module DS_Gmsh2Solver
         NODE.N1=0
         N3=2+SELF.NSPG_FACE
         ALLOCATE(IA1(N3))
+        IA1=0
         IF(SELF.NSPG_FACE>0) THEN
             IA1=[SELF.IGP,SELF.PIPEFLOW,SELF.SPG_FACE]
         ELSE
@@ -449,12 +450,26 @@ module DS_Gmsh2Solver
             
             IF(N1<1) CYCLE
             
-            IF(IJ1==1) THEN
-                PHYSICALGROUP(N1).ET="WELLBORE"
-            ELSEIF(IJ1==2) THEN
-                PHYSICALGROUP(N1).ET="PIPE2"
+            IF(PHYSICALGROUP(N1).ET_GMSH==1) THEN
+                IF(IJ1==1) THEN
+                    PHYSICALGROUP(N1).ET="WELLBORE"
+                ELSEIF(IJ1==2) THEN
+                    PHYSICALGROUP(N1).ET="PIPE2"
+                ELSE
+                    PHYSICALGROUP(N1).ET="WELLBORE_SPGFACE"
+                ENDIF
+            ELSEIF(PHYSICALGROUP(N1).ET_GMSH==8) THEN
+                !三节点的二次单元
+                IF(IJ1==1) THEN
+                    PHYSICALGROUP(N1).ET="WELLBORE3"
+                ELSEIF(IJ1==2) THEN
+                    PHYSICALGROUP(N1).ET="PIPE3"
+                ELSE
+                    PHYSICALGROUP(N1).ET="WELLBORE_SPGFACE3"
+                ENDIF
             ELSE
-                PHYSICALGROUP(N1).ET="WELLBORE_SPGFACE"
+                PRINT *, "NO SUCH ET_GMSH IS EXPECTED. ET_GMSH=",PHYSICALGROUP(N1).ET_GMSH
+                STOP 
             ENDIF
             
             PHYSICALGROUP(N1).ISMODEL=.TRUE.
@@ -471,54 +486,54 @@ module DS_Gmsh2Solver
                 STOP
             ENDIF
             
-            N5=ELEMENT(PHYSICALGROUP(N1).ELEMENT(1)).NNODE-1
-            !对于高次线单元，因wellbore类单元只有2节点的线单元，转化为2节点的线单元
-            N2=0;imethod1=wellh2lmethod !=0,把高次单元生成多个一次单元；=1,去除内部节点，只利用端节点生成1个一次单元
-            IF(N5>1) THEN
-                if(imethod1==0) then
-                    CALL ENLARGE_AR(PHYSICALGROUP(N1).ELEMENT,PHYSICALGROUP(N1).NEL*(N5-1)) 
-                    CALL ENLARGE_AR(ELEMENT,PHYSICALGROUP(N1).NEL*(N5-1))
-                    IF(ALLOCATED(IELT1)) DEALLOCATE(IELT1)
-                    ALLOCATE(IELT1(PHYSICALGROUP(N1).NEL*N5))
-                endif
-                DO J=1,PHYSICALGROUP(N1).NEL
-                    IEL1=PHYSICALGROUP(N1).ELEMENT(J)
-                    NODE1(1:ELEMENT(IEL1).NNODE)=ELEMENT(IEL1).NODE([1,3:ELEMENT(IEL1).NNODE,2]) 
-                    ELEMENT(IEL1).NNODE=2
-                    ELEMENT(IEL1).ET=1
-                    IF(IMETHOD1==0) THEN
-                        !对于由高次线单元分解形成的一次单元，因后面单元拓扑邻接分析时，只分析高次单元的边(即忽略中间节点)，导致由含内部节点的单元的边不体现，
-                        !为解决此问题，输出对应高次单元的端节点，利用此端节点进行拓扑分析。
-                        !略显麻烦。
-                        
-                        ELEMENT(IEL1).TOPONODE=ELEMENT(IEL1).NODE(1:2) 
-                        DO K=1,N5
-                            IF(K<2) THEN
-                                N3=IEL1 !本身，ELEMENT
-                            ELSE
-                                NEL=NEL+1 !新单元
-                                N3=NEL
-                                ELEMENT(N3)=ELEMENT(IEL1)
-                            ENDIF
-                            N2=N2+1
-                            IELT1(N2)=N3
-                            ELEMENT(N3).NODE=NODE1(K:K+1)
-                        
-                        ENDDO
-                    ELSE
-                        ELEMENT(IEL1).NODE=ELEMENT(IEL1).NODE(1:2)
-                    ENDIF
-                    
-                ENDDO
-                IF(IMETHOD1==0) THEN
-                    PHYSICALGROUP(N1).NEL=PHYSICALGROUP(N1).NEL*N5
-                    PHYSICALGROUP(N1).ELEMENT=IELT1
-                    PHYSICALGROUP(N1).istopo=1
-                ENDIF
-                PHYSICALGROUP(N1).ET_GMSH=1
-                
-                
-            ENDIF
+            !N5=ELEMENT(PHYSICALGROUP(N1).ELEMENT(1)).NNODE-1
+            !!对于高次线单元，因wellbore类单元只有2节点的线单元，转化为2节点的线单元
+            !N2=0;imethod1=wellh2lmethod !=0,把高次单元生成多个一次单元；=1,去除内部节点，只利用端节点生成1个一次单元
+            !IF(N5>1) THEN
+            !    if(imethod1==0) then
+            !        CALL ENLARGE_AR(PHYSICALGROUP(N1).ELEMENT,PHYSICALGROUP(N1).NEL*(N5-1)) 
+            !        CALL ENLARGE_AR(ELEMENT,PHYSICALGROUP(N1).NEL*(N5-1))
+            !        IF(ALLOCATED(IELT1)) DEALLOCATE(IELT1)
+            !        ALLOCATE(IELT1(PHYSICALGROUP(N1).NEL*N5))
+            !    endif
+            !    DO J=1,PHYSICALGROUP(N1).NEL
+            !        IEL1=PHYSICALGROUP(N1).ELEMENT(J)
+            !        NODE1(1:ELEMENT(IEL1).NNODE)=ELEMENT(IEL1).NODE([1,3:ELEMENT(IEL1).NNODE,2]) 
+            !        ELEMENT(IEL1).NNODE=2
+            !        ELEMENT(IEL1).ET=1
+            !        IF(IMETHOD1==0) THEN
+            !            !对于由高次线单元分解形成的一次单元，因后面单元拓扑邻接分析时，只分析高次单元的边(即忽略中间节点)，导致由含内部节点的单元的边不体现，
+            !            !为解决此问题，输出对应高次单元的端节点，利用此端节点进行拓扑分析。
+            !            !略显麻烦。
+            !            
+            !            ELEMENT(IEL1).TOPONODE=ELEMENT(IEL1).NODE(1:2) 
+            !            DO K=1,N5
+            !                IF(K<2) THEN
+            !                    N3=IEL1 !本身，ELEMENT
+            !                ELSE
+            !                    NEL=NEL+1 !新单元
+            !                    N3=NEL
+            !                    ELEMENT(N3)=ELEMENT(IEL1)
+            !                ENDIF
+            !                N2=N2+1
+            !                IELT1(N2)=N3
+            !                ELEMENT(N3).NODE=NODE1(K:K+1)
+            !            
+            !            ENDDO
+            !        ELSE
+            !            ELEMENT(IEL1).NODE=ELEMENT(IEL1).NODE(1:2)
+            !        ENDIF
+            !        
+            !    ENDDO
+            !    IF(IMETHOD1==0) THEN
+            !        PHYSICALGROUP(N1).NEL=PHYSICALGROUP(N1).NEL*N5
+            !        PHYSICALGROUP(N1).ELEMENT=IELT1
+            !        PHYSICALGROUP(N1).istopo=1
+            !    ENDIF
+            !    PHYSICALGROUP(N1).ET_GMSH=1
+            !    
+            !    
+            !ENDIF
             
             
             DO J=1,PHYSICALGROUP(N1).NEL
@@ -540,17 +555,22 @@ module DS_Gmsh2Solver
             
                 ELEMENT(IEL1).NODE=NODE(ELEMENT(IEL1).NODE).N1
                 
-                IF(IJ1==2) THEN
-                    PHYSICALGROUP(N1).ET_GMSH=1
+                IF(IJ1/=2) THEN
+                    !PHYSICALGROUP(N1).ET_GMSH=1
                     
-                ELSE
+                !ELSE
                     !滤管井单元,井流出溢面单元              
                     ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE
-                    NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE).N1]
+                    IF(PHYSICALGROUP(N1).ET_GMSH==1) THEN
+                        NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE([2,1])).N1]
+                        PHYSICALGROUP(N1).ET_GMSH=3 !按四节点的四边形单元输出
+                    ELSE
+                        NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE(1:2),NODE(ELEMENT(IEL1).NODE([2,1])).N1,ELEMENT(IEL1).NODE(3),NODE(ELEMENT(IEL1).NODE(3)).N1]
+                        PHYSICALGROUP(N1).ET_GMSH=9 !按六节点-三角形单元输出
+                    ENDIF
                     DEALLOCATE(ELEMENT(IEL1).NODE)
-                    N2=ELEMENT(IEL1).NNODE/2
-                    ALLOCATE(ELEMENT(IEL1).NODE,SOURCE=NODE1([1:N2,ELEMENT(IEL1).NNODE:N2+1:-1]))
-                    PHYSICALGROUP(N1).ET_GMSH=3                
+                    N2=ELEMENT(IEL1).NNODE
+                    ALLOCATE(ELEMENT(IEL1).NODE,SOURCE=NODE1(1:N2))
                 ENDIF
                 
                 !SELECT CASE(IJ1)
@@ -703,7 +723,7 @@ module DS_Gmsh2Solver
             SELF.QNODE(N2,I)=ELEMENT(IEL1).NODE(1)
             IELT1=0
 
-10          DO J=1,SELF.NSPG_FACE
+          DO J=1,SELF.NSPG_FACE
                 N3=SELF.SPG_FACE(J)
                 DO K=1,PHYSICALGROUP(N3).NEL
                     N4=PHYSICALGROUP(N3).ELEMENT(K)
@@ -711,13 +731,21 @@ module DS_Gmsh2Solver
                     IF(ELEMENT(N4).NODE(1)==SELF.QNODE(N2,I)) THEN
                         N2=N2+1
                         SELF.QNODE(N2,I)=ELEMENT(N4).NODE(2)
+                        IF(ELEMENT(N4).NNODE>4) THEN
+                            N2=N2+1
+                            SELF.QNODE(N2,I)=ELEMENT(N4).NODE(5)
+                        ENDIF
                         IELT1(N4)=1
-                        GOTO 10
+                        !GOTO 10
                     ELSEIF(ELEMENT(N4).NODE(2)==SELF.QNODE(N2,I)) THEN
                         N2=N2+1
                         SELF.QNODE(N2,I)=ELEMENT(N4).NODE(1)
+                        IF(ELEMENT(N4).NNODE>4) THEN
+                            N2=N2+1
+                            SELF.QNODE(N2,I)=ELEMENT(N4).NODE(5)
+                        ENDIF
                         IELT1(N4)=1
-                        goto 10
+                        !goto 10
                     ENDIF
                 ENDDO
             ENDDO

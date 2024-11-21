@@ -832,7 +832,7 @@ ENDSUBROUTINE
 subroutine elt_bc_load_translate()
 	use DS_Gmsh2Solver
 	implicit none
-	integer::i,j,k,n1,n2,nc,iar1(5),n3
+	integer::i,j,k,n1,n2,nc,iar1(50),n3
 	real(8)::LAV1,t1
 	integer,allocatable::nodalload1(:),node1(:)
 	real(8),allocatable::load1(:)
@@ -965,9 +965,19 @@ subroutine elt_bc_load_translate()
 		do j=1,physicalgroup(elt_spgface(i).group).nel
 			n1=physicalgroup(elt_spgface(i).group).element(j)
             n3=element(n1).nnode
-            if(elt_spgface(i).iswellcondition>0) n3=element(n1).nnode/2 !井流出溢面单元与井流单元节点结构一样，都是4个节点，只有1-2节点是井壁节点。
+            
+            IF(elt_spgface(i).iswellcondition>0) THEN
+				n3=element(n1).nnode/2 !井流出溢面单元与井流单元节点结构一样，都是4个节点，只有1-2节点是井壁节点。
+                IAR1(1:N3)=ELEMENT(N1).NODE(1:N3)
+				IF(element(n1).NNODE>4) THEN
+					IAR1(N3)=ELEMENT(N1).NODE(5)
+                ENDIF
+            ELSE
+				IAR1(1:N3)=ELEMENT(N1).NODE
+            ENDIF
+            
 			do k=1,n3
-				n2=element(n1).node(k)
+				n2=IAR1(K)
                 if(node(n2).inode<1) then
                     print *, "Warning. 单元模型中没有包含出溢面节点N,请确认GROUPPARAMETER是否有误.N=",n2
                     ERROR STOP

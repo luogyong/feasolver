@@ -5,7 +5,7 @@
 		<Platform Name="x64"/>
 	</Platforms>
 	<Configurations>
-		<Configuration Name="Debug|Win32">
+		<Configuration Name="Debug|Win32" UseCompiler="ifortCompiler">
 			<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Parallelization="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtQuickWinDebug" Interfaces="true"/>
 			<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemWindows"/>
 			<Tool Name="VFResourceCompilerTool"/>
@@ -16,7 +16,7 @@
 			<Tool Name="VFPostBuildEventTool"/>
 			<Tool Name="VFManifestTool" SuppressStartupBanner="true"/>
 		</Configuration>
-		<Configuration Name="Release|Win32">
+		<Configuration Name="Release|Win32" UseCompiler="ifortCompiler">
 			<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" RuntimeLibrary="rtQuickWin"/>
 			<Tool Name="VFLinkerTool" SuppressStartupBanner="true" SubSystem="subSystemWindows"/>
 			<Tool Name="VFResourceCompilerTool"/>
@@ -27,7 +27,7 @@
 			<Tool Name="VFPostBuildEventTool"/>
 			<Tool Name="VFManifestTool" SuppressStartupBanner="true"/>
 		</Configuration>
-		<Configuration Name="Debug|x64">
+		<Configuration Name="Debug|x64" UseCompiler="ifortCompiler">
 			<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" HeapArrays="0" F2003Semantics="true" FPS4Filenames="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtQuickWinDebug" Interfaces="true"/>
 			<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemWindows"/>
 			<Tool Name="VFResourceCompilerTool"/>
@@ -38,7 +38,7 @@
 			<Tool Name="VFPostBuildEventTool"/>
 			<Tool Name="VFManifestTool" SuppressStartupBanner="true"/>
 		</Configuration>
-		<Configuration Name="Release|x64">
+		<Configuration Name="Release|x64" UseCompiler="ifortCompiler">
 			<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" HeapArrays="0" Preprocess="preprocessYes" FPS4Filenames="true" RuntimeLibrary="rtQuickWin"/>
 			<Tool Name="VFLinkerTool" SuppressStartupBanner="true" SubSystem="subSystemWindows"/>
 			<Tool Name="VFResourceCompilerTool"/>
@@ -54,19 +54,21 @@
 		<Filter Name="Header Files" Filter="fi;fd"/>
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
-		<Filter Name="NODE_REORDER">
-		<File RelativePath="..\reorder\mc40.for"/>
-		<File RelativePath="..\reorder\mc40dependency.for"/>
-		<File RelativePath="..\reorder\mc49.for"/></Filter>
-		<File RelativePath=".\G2S_IO.F90"/>
-		<File RelativePath=".\GeometricAlgrithm.f90"/>
-		<File RelativePath=".\INPUTHELP.F90"/>
-		<File RelativePath=".\MODULUS_G2S.F90"/>
-		<File RelativePath=".\modulus_hashtable.f90"/>
-		<File RelativePath=".\MshToSinp.f90"/>
-		<File RelativePath=".\stla_io.f90"/>
-		<File RelativePath=".\tetgen_io.f90"/>
-		<File RelativePath=".\voropp.f90"/></Filter>
+			<Filter Name="NODE_REORDER">
+				<File RelativePath="..\reorder\mc40.for"/>
+				<File RelativePath="..\reorder\mc40dependency.for"/>
+				<File RelativePath="..\reorder\mc49.for"/>
+			</Filter>
+			<File RelativePath=".\G2S_IO.F90"/>
+			<File RelativePath=".\GeometricAlgrithm.f90"/>
+			<File RelativePath=".\INPUTHELP.F90"/>
+			<File RelativePath=".\MODULUS_G2S.F90"/>
+			<File RelativePath=".\modulus_hashtable.f90"/>
+			<File RelativePath=".\MshToSinp.f90"/>
+			<File RelativePath=".\stla_io.f90"/>
+			<File RelativePath=".\tetgen_io.f90"/>
+			<File RelativePath=".\voropp.f90"/>
+		</Filter>
 	</Files>
 	<Globals/>
 </VisualStudioProject>

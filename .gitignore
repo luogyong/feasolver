@@ -43,7 +43,20 @@
 /~$LGYADDIN.xlam
 x64/
 *.bak
-
+*.vtu
+*.geo
+*.node
+*.ele
+*.face
+*.edge
+*.neigh
+*.t2e
+*.t2f
+*.f2e
+*.psm
+*.mes
+*.sinp
+.vs/
 
 
 /FEMGRID/FEMGRID.udb

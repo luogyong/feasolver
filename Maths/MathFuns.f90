@@ -460,7 +460,7 @@ real(8) function tet_shape_factor(xy,ifactor)
 endfunction
 
    
-    subroutine tetrahedron_solid_angles_3d ( tetra, angle )
+    subroutine tetrahedron_solid_angles_3d ( tetra, angle,dangle )
 
     !*****************************************************************************80
     !
@@ -487,6 +487,7 @@ endfunction
       implicit none
 
       real ( kind = 8 ) angle(4)
+      real ( kind = 8 ),optional:: dangle(6)
       real ( kind = 8 ) dihedral_angle(6)
       real ( kind = 8 ), parameter :: r8_pi = 3.141592653589793D+00
       real ( kind = 8 ) tetra(3,4)
@@ -498,7 +499,7 @@ endfunction
       angle(2) = dihedral_angle(1) + dihedral_angle(4) + dihedral_angle(5) - r8_pi
       angle(3) = dihedral_angle(2) + dihedral_angle(4) + dihedral_angle(6) - r8_pi
       angle(4) = dihedral_angle(3) + dihedral_angle(5) + dihedral_angle(6) - r8_pi
-
+      if(present(dangle)) dangle=dihedral_angle
       return
     end    
     
@@ -660,5 +661,129 @@ endfunction
       return
     end
 
+    subroutine line_exp_point_dist_3d ( p1, p2, p, dist,tn )
 
+    !*****************************************************************************80
+    !
+    !! LINE_EXP_POINT_DIST_3D: distance ( explicit line, point ) in 3D.
+    !
+    !  Discussion:
+    !
+    !    The explicit form of a line in 3D is:
+    !
+    !      the line through the points P1 and P2.
+    !
+    !  Licensing:
+    !
+    !    This code is distributed under the GNU LGPL license. 
+    !
+    !  Modified:
+    !
+    !    01 January 2005
+    !
+    !  Author:
+    !
+    !    John Burkardt
+    !
+    !  Parameters:
+    !
+    !    Input, real ( kind = 8 ) P1(3), P2(3), two points on the line.
+    !
+    !    Input, real ( kind = 8 ) P(3), the point whose distance from the line is
+    !    to be measured.
+    !
+    !    Output, real ( kind = 8 ) DIST, the distance from the point to the line.
+    !
+      implicit none
+
+      integer ( kind = 4 ), parameter :: dim_num = 3
+
+      real ( kind = 8 ) bot
+      real ( kind = 8 ) dist
+      !logical ( kind = 4 ) line_exp_is_degenerate_nd
+      real ( kind = 8 ) p(dim_num)
+      real ( kind = 8 ) p1(dim_num)
+      real ( kind = 8 ) p2(dim_num)
+      real ( kind = 8 ) pn(dim_num)
+      real ( kind = 8 ) ,optional::tn
+      real ( kind = 8 ) t
+
+      if ( line_exp_is_degenerate_nd ( dim_num, p1, p2 ) ) then
+
+        pn(1:dim_num) = p1(1:dim_num)
+        if(present(tn)) tn=0.d0
+    !
+    !  (P-P1) dot (P2-P1) = Norm(P-P1) * Norm(P2-P1) * Cos(Theta).
+    !
+    !  (P-P1) dot (P2-P1) / Norm(P-P1)^2 = normalized coordinate T
+    !  of the projection of (P-P1) onto (P2-P1).
+    !
+      else
+
+        bot = sum ( ( p2(1:dim_num) - p1(1:dim_num) )**2 )
+
+        t = sum ( ( p(1:dim_num) - p1(1:dim_num) ) &
+                * ( p2(1:dim_num) - p1(1:dim_num) ) ) / bot
+
+        pn(1:dim_num) = p1(1:dim_num) + t * ( p2(1:dim_num) - p1(1:dim_num) )
+        
+        if(present(tn)) tn=t
+
+      end if
+    !
+    !  Now compute the distance between the projection point and P.
+    !
+      dist = sqrt ( sum ( ( p(1:dim_num) - pn(1:dim_num) )**2 ) )
+      
+
+      return
+    end
+  function line_exp_is_degenerate_nd ( dim_num, p1, p2 )
+
+    !*****************************************************************************80
+    !
+    !! LINE_EXP_IS_DEGENERATE_ND finds if an explicit line is degenerate in ND.
+    !
+    !  Discussion:
+    !
+    !    The explicit form of a line in ND is:
+    !
+    !      the line through the points P1 and P2.
+    !
+    !    An explicit line is degenerate if the two defining points are equal.
+    !
+    !  Licensing:
+    !
+    !    This code is distributed under the GNU LGPL license. 
+    !
+    !  Modified:
+    !
+    !    06 May 2005
+    !
+    !  Author:
+    !
+    !    John Burkardt
+    !
+    !  Parameters:
+    !
+    !    Input, integer ( kind = 4 ) DIM_NUM, the spatial dimension.
+    !
+    !    Input, real ( kind = 8 ) P1(DIM_NUM), P2(DIM_NUM), two points on the line.
+    !
+    !    Output, logical ( kind = 4 ) LINE_EXP_IS_DEGENERATE_ND, is TRUE if the line
+    !    is degenerate.
+    !
+      implicit none
+
+      integer ( kind = 4 ) dim_num
+
+      logical ( kind = 4 ) line_exp_is_degenerate_nd
+      real ( kind = 8 ) p1(dim_num)
+      real ( kind = 8 ) p2(dim_num)
+
+      line_exp_is_degenerate_nd = ( all ( p1(1:dim_num) == p2(1:dim_num) ) )
+
+      return
+    end  
+    
 end module

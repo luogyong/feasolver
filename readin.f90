@@ -1742,6 +1742,23 @@ subroutine solvercommand(term,unit)
 						!	solver_control.iswellheadrecover=.false.
       !                  end if
 						solver_control.iswellheadrecover=(int(property(i).value)>0)
+                    case('wm4_iteration')
+						!if(int(property(i).value)>0) then
+						!	solver_control.iswellheadrecover=.true.
+						!else
+						!	solver_control.iswellheadrecover=.false.
+      !                  end if
+						solver_control.wm4_iteration=(int(property(i).value)>0)         
+                    case('wm4_weight_method')
+						!if(int(property(i).value)>0) then
+						!	solver_control.iswellheadrecover=.true.
+						!else
+						!	solver_control.iswellheadrecover=.false.
+      !                  end if
+						solver_control.wm4_weight_method=int(property(i).value)
+                    case('brick2tet','topolyhedron')
+						solver_control.topolyhedron=int(property(i).value)
+                        
 					case default
 						call Err_msg(property(i).name)
 				end select
@@ -3259,6 +3276,36 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1,eshape1)
 			ec1=C3D;NDOF1=12;nd1=6
 			ENDIF
 			CALL EL_SFR2(ET1)
+        CASE(BRICK8_SPG,BRICK8)
+			nnum1=8
+			!ndof1=4
+			ngp1=8
+			eshape1=308
+			stype='FEBRICK'
+            IF(ET1==BRICK8_SPG) THEN
+				ec1=SPG;NDOF1=8;nd1=3
+			ENDIF
+			IF(ET1==BRICK8) THEN
+				ec1=C3D;NDOF1=24;nd1=6
+			ENDIF
+			CALL EL_SFR2(ET1)
+        CASE(BRICK20_SPG,BRICK20)
+			nnum1=20
+			!ndof1=4
+			ngp1=8
+			eshape1=308
+			if(solver_control.topolyhedron<=0) then
+				stype='FETETRAHEDRON'
+            else
+				stype='FEPOLYHEDRON'
+            endif
+            IF(ET1==BRICK20_SPG) THEN
+				ec1=SPG;NDOF1=20;nd1=3
+			ENDIF
+			IF(ET1==BRICK20) THEN
+				ec1=C3D;NDOF1=60;nd1=6
+			ENDIF
+			CALL EL_SFR2(ET1)            
 		case(tet10_spg,TET10,TET10_CPL)
 			nnum1=10
 			!ndof1=10

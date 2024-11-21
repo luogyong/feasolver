@@ -37,6 +37,7 @@
 	integer,parameter::PRM9=26 !6-noded prism element
 	integer,parameter::tet4=27 !4-noded tetrahedron element
 	integer,parameter::tet10=28 !10-noded tetrahedron element
+	integer,parameter::brick8=29,brick20=30
 	!structure element
 	integer,parameter::BAR=301 !3D 2-noded bar element
 	integer,parameter::BAR2D=311 !2D 2-noded bar element
@@ -93,6 +94,8 @@
 	integer, parameter::ZT4_SPG2 = 130 !6 - NODED ZEROTHICKNESS 3D SEEPAGE ELEMENT, SIMLATING A 3D CUT - OFF WALL.(考虑平行单元的流动)
 	integer, parameter::ZT6_SPG = 131 !4 - NODED ZEROTHICKNESS 2D SEEPAGE ELEMENT, SIMULATING A 2D CUT - OFF WALL.(一维流单元, 忽略平行单元的流动)
 	integer, parameter::ZT6_SPG2 = 132 !6 - NODED ZEROTHICKNESS 3D SEEPAGE ELEMENT, SIMLATING A 3D CUT - OFF WALL.(考虑平行单元的流动)
+	integer,parameter::brick8_spg=150 !8节点的六面体单元
+	integer, parameter::brick20_spg = 151 !20节点的六面体单元
 	!pipe flow
 	integer,parameter::pipe2=401 !2-noded line element for pipe flow simulation
 	integer,parameter::wellbore=402 !4-noded line element for perforated wellbore inflow simulation

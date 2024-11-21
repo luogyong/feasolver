@@ -447,7 +447,11 @@ END SUBROUTINE
         CASE(CPE15,CPE15_SPG,CPE15_CPL,CPS15)
              GETGMSHET=23
         CASE(PRM15,PRM15_SPG,PRM15_CPL)
-             GETGMSHET=18        
+             GETGMSHET=18
+        CASE(BRICK8,BRICK8_SPG)
+            GETGMSHET=5
+        CASE(BRICK20,BRICK20_SPG)
+            GETGMSHET=17            
         CASE DEFAULT
             PRINT *, 'NO SUCH ELEMENT TYPE. FUNC=GETGMSHET.'
             PAUSE
@@ -1171,9 +1175,9 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 				Elttype(ET).FACEEDGE(:,:)=RESHAPE([4,-3,-2,-1,-4,&
 												   4,5,6,7,8,&
 												   4,1,10,-5,-9,&
-												   4,2,11,6,-10,&
-												   4,3,4,12,-7,&
-												   4,4,9,-8,-12],(/5,18/))
+												   4,2,11,-6,-10,&
+												   4,3,12,-7,-11,&
+												   4,4,9,-8,-12],(/5,6/))
 				Elttype(ET).TET(:,:)=RESHAPE([1,2,3,6,&
 												1,7,5,6,&
 												1,3,7,6,&
@@ -1181,7 +1185,68 @@ SUBROUTINE ET_GMSH_EDGE_FACE()
 												1,7,3,8,&
 												1,5,7,8],&
                                                 (/4,6/))
-			
+			CASE(17) !HEXAHEDRON-20
+!refer to gmsh                                
+!Hexahedron:             Hexahedron20:          Hexahedron27:
+!
+!       v
+!4----------3            4----14----3           3----13----2
+!|\     ^   |\           |\         |\          |\         |\
+!| \    |   | \          | 16       | 15        |15    24  | 14
+!|  \   |   |  \        10  \       12 \        9  \ 20    11 \
+!|   8------+---7        |   8----20+---7       |   7----19+---6
+!|   |  +-- |-- | -> u   |   |      |   |       |22 |  26  | 23|
+!1---+---\--2   |        1---+-9----2   |       0---+-8----1   |
+! \  |    \  \  |         \  18      \  19       \ 17    25 \  18
+!  \ |     \  \ |         11 |        13|        10 |  21    12|
+!   \|      w  \|           \|         \|          \|         \|
+!    5----------6            5----17----6           4----16----5            
+                ELTTYPE(ET).NNODE=20;ELTTYPE(ET).ESHAPE=308;ELTTYPE(ET).NMIDPNT=1
+				Elttype(ET).NEDGE=12;Elttype(ET).NFACE=6;Elttype(ET).NTET=23;ELTTYPE(ET).DIM=3
+				ALLOCATE(Elttype(ET).EDGE(2,Elttype(ET).NEDGE),Elttype(ET).FACE(0:4,Elttype(ET).NFACE),&
+						 Elttype(ET).FACEEDGE(0:4,Elttype(ET).NFACE),Elttype(ET).TET(4,Elttype(ET).NTET),&
+                         Elttype(ET).MIDPNT(ELTTYPE(ET).NMIDPNT,Elttype(ET).NEDGE))				
+				Elttype(ET).EDGE(:,:)=RESHAPE([1,2,2,3,3,4,4,1,&
+											   5,6,6,7,7,8,8,5,&
+											   1,5,2,6,3,7,4,8],(/2,12/))
+                Elttype(ET).MIDPNT(:,:)=RESHAPE([9,12,14,10,17,19,20,18,11,13,15,16],(/1,12/))
+				Elttype(ET).FACE(:,:)=RESHAPE([4,4,3,2,1,&
+											   4,5,6,7,8,&
+											   4,1,2,6,5,&
+											   4,2,3,7,6,&
+											   4,3,4,8,7,&
+											   4,4,1,5,8],(/5,6/))
+											   	
+				Elttype(ET).FACEEDGE(:,:)=RESHAPE([4,-3,-2,-1,-4,&
+												   4,5,6,7,8,&
+												   4,1,10,-5,-9,&
+												   4,2,11,-6,-10,&
+												   4,3,12,-7,-11,&
+												   4,4,9,-8,-12],(/5,6/))
+				Elttype(ET).TET(:,:)=RESHAPE([10,14,16,20,&
+                                            12,19,10,13,&
+                                            19,6,17,13,&
+                                            1,11,9,10,&
+                                            10,14,4,16,&
+                                            20,8,16,18,&
+                                            11,16,20,10,&
+                                            16,11,20,18,&
+                                            3,15,14,12,&
+                                            11,18,5,17,&
+                                            19,11,13,17,&
+                                            19,11,20,10,&
+                                            12,10,9,13,&
+                                            7,19,20,15,&
+                                            11,9,10,13,&
+                                            10,14,20,12,&
+                                            19,10,20,12,&
+                                            15,19,20,12,&
+                                            20,14,15,12,&
+                                            9,12,13,2,&
+                                            19,11,17,20,&
+                                            20,11,17,18,&
+                                            11,19,13,10],&
+                                                (/4,23/))
 			CASE(6) !6-NODE PRISM
                 ELTTYPE(ET).NNODE=6;ELTTYPE(ET).ESHAPE=306
 				Elttype(ET).NEDGE=9;Elttype(ET).NFACE=5;Elttype(ET).NTET=3;ELTTYPE(ET).DIM=3

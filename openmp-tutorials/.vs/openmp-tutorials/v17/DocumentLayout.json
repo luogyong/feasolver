@@ -1,0 +1,37 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "F:\\program\\Intel\\feasolver\\sources\\openmp-tutorials\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{63189A4D-3F46-4DC7-82E9-30EE889D2754}|openmp-tutorials.vfproj|f:\\program\\intel\\feasolver\\sources\\openmp-tutorials\\openmp.f90||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{63189A4D-3F46-4DC7-82E9-30EE889D2754}|openmp-tutorials.vfproj|solutionrelative:openmp.f90||{8B382828-6202-11D1-8870-0000F87579D2}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "openMP.f90",
+              "DocumentMoniker": "F:\\program\\Intel\\feasolver\\sources\\openmp-tutorials\\openMP.f90",
+              "RelativeDocumentMoniker": "openMP.f90",
+              "ToolTip": "F:\\program\\Intel\\feasolver\\sources\\openmp-tutorials\\openMP.f90",
+              "RelativeToolTip": "openMP.f90",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAUAAAAbAAAA",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAGeSURBVDhP7ZS/SwJhGMe/nRodHhkUFIKRInZFQ1JOTbq0tTmG0KBI1OBig4sJTa0hzv0VhSi0OZTQFEKTGAWFCl506N3l\u002B/rKdXXljxr7wMM93\u002Bd9\u002BcJzz8MLTdNQKpUwLOl0\u002BkSSJNUsiNkEMVQUJSDL8jCuj91odcPbvHmGpmq0SBBWZmC122AwLJfLqNVq7IoRi8UCURThdrupvpg/h9Jq05ywdbUDx8YcrExTisUiCoUCU0Y4joPf70ckEoHH46G1yQUe4vEmzfklgX4Nhn2y2SzLdBqNBlKpFDXtG7ZfZNyf3sJ7tI7J2SlytsrRk0\u002B4XK4v4XQ6ya9Bu623qSkq3h5eoUgdqiuVyp2p4bDYvQ5sP\u002B1icW\u002BZVb5p2Qye5xEOh\u002BlgCO7DNVinbTTP5/OX3YFeU0Gm3Ol0AmSPMpmMGgwGTXfsp4jFYvvUrMvYLUejUSSTSaZ0xjas1\u002BtoNptM6fxqKGb8G/aoVqsDQ1VVdtuI6WLH43GWjY7BMBQKwefzMTUYQei9MB8Z9YE1JZFIHORyuTOSU8O/A3gHjAvzDFBvvjUAAAAASUVORK5CYII=",
+              "WhenOpened": "2024-09-08T14:01:51.06Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

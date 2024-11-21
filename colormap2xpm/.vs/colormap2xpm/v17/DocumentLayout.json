@@ -1,0 +1,53 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "F:\\program\\Intel\\feasolver\\sources\\colormap2xpm\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{6645E608-9871-4C84-B71B-908A413DDC46}|colormap2xpm.vfproj|f:\\program\\github\\xpmfortran\\xpm.f90||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6645E608-9871-4C84-B71B-908A413DDC46}|colormap2xpm.vfproj|f:\\program\\intel\\feasolver\\sources\\colormap2xpm\\colormap2xpm.f90||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{6645E608-9871-4C84-B71B-908A413DDC46}|colormap2xpm.vfproj|solutionrelative:colormap2xpm.f90||{8B382828-6202-11D1-8870-0000F87579D2}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "XPM.f90",
+              "DocumentMoniker": "F:\\program\\github\\xpmfortran\\XPM.f90",
+              "RelativeDocumentMoniker": "..\\..\\..\\..\\github\\xpmfortran\\XPM.f90",
+              "ToolTip": "F:\\program\\github\\xpmfortran\\XPM.f90",
+              "RelativeToolTip": "..\\..\\..\\..\\github\\xpmfortran\\XPM.f90",
+              "ViewState": "AQIAAFoAAAAAAAAAAAAAACAAAAAoAAAA",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAJ2SURBVFhH7ZhNiFJRFMdPkQQvZmKGItRB55U1MjNkBcYUSImbgbZtQphaDy2lICVc6CZmIS1auCoQBqF1UH5EGCpktgl0oYafoAxK6jPxs3fvXAfsFe/OjM24eD/4c885lwt/3v149z0YDocwGAz2ZLFYYFKYzeYNjuMGtEJmTpKxUwHXag1PoCeENCKVSm3m8/kHJD0o3z0ez3an01l0u92vfxU4\u002BLbxkXQJmV2dh9WXt3EsMNTtdl/0er3DzttOIpH40Gw2u3q9/iGXrsOnq29Jl5C5tQtwK3APx/80lM1mIRAIkCo9CoUCdDodyOXyCp92eC1MxFAkEgGn00mq9CiVSjCZTGAwGJApXPvT0Pn1BWDYWZIBMIszwD5ewfHEF3WxWIRgMAihUAjK5TKpjqN6tAQrW2t7GplBUBtSqVSg0WhExTAMFAoF8Pv9EI1GyehxuEwdfsZ3sFo/GrjGb4BOPB7/egpnFNhsNrw\u002BxLDb7RCLxaBUKkEmkyHVcZLPvpCIX3P3L8K1N3ehUqmU\u002BWnWT9U5hJAMIS7brsPNd\u002BtYl57qSHWXYzGETuZzdxRYM8tzpLoL9aKmxWg0glarxTHLsriVzZ\u002BGK89v4BhxZuksbsPh8Gefz/cexY1Go45a6oORfydR7bL94HK5tqxW6xOSYo5kytrtNj4KRqrVaqRHyJEYqlar\u002BHwaKZlMkh4h0rYXQzIkhmRIDMmQGJIhMabOEPX1w\u002BFwgEwmI9n\u002B4G8QJBKH\u002BgnlcjlIp9MHEhpLy9RN2cQ/pWlAX7ZqtfqvF7T/9bOBCipDvJnNfr9/2N8xVHi93m3\u002BavyKpBiBoeMGG5oeAH4DuOeaMQkJoGIAAAAASUVORK5CYII=",
+              "WhenOpened": "2024-07-14T14:52:05.541Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "colormap2xpm.f90",
+              "DocumentMoniker": "F:\\program\\Intel\\feasolver\\sources\\colormap2xpm\\colormap2xpm.f90",
+              "RelativeDocumentMoniker": "colormap2xpm.f90",
+              "ToolTip": "F:\\program\\Intel\\feasolver\\sources\\colormap2xpm\\colormap2xpm.f90",
+              "RelativeToolTip": "colormap2xpm.f90",
+              "ViewState": "AQIAAAkAAACQmZmZmZk3wCEAAAAsAAAA",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAJ2SURBVFhH7ZhNiFJRFMdPkQQvZmKGItRB55U1MjNkBcYUSImbgbZtQphaDy2lICVc6CZmIS1auCoQBqF1UH5EGCpktgl0oYafoAxK6jPxs3fvXAfsFe/OjM24eD/4c885lwt/3v149z0YDocwGAz2ZLFYYFKYzeYNjuMGtEJmTpKxUwHXag1PoCeENCKVSm3m8/kHJD0o3z0ez3an01l0u92vfxU4\u002BLbxkXQJmV2dh9WXt3EsMNTtdl/0er3DzttOIpH40Gw2u3q9/iGXrsOnq29Jl5C5tQtwK3APx/80lM1mIRAIkCo9CoUCdDodyOXyCp92eC1MxFAkEgGn00mq9CiVSjCZTGAwGJApXPvT0Pn1BWDYWZIBMIszwD5ewfHEF3WxWIRgMAihUAjK5TKpjqN6tAQrW2t7GplBUBtSqVSg0WhExTAMFAoF8Pv9EI1GyehxuEwdfsZ3sFo/GrjGb4BOPB7/egpnFNhsNrw\u002BxLDb7RCLxaBUKkEmkyHVcZLPvpCIX3P3L8K1N3ehUqmU\u002BWnWT9U5hJAMIS7brsPNd\u002BtYl57qSHWXYzGETuZzdxRYM8tzpLoL9aKmxWg0glarxTHLsriVzZ\u002BGK89v4BhxZuksbsPh8Gefz/cexY1Go45a6oORfydR7bL94HK5tqxW6xOSYo5kytrtNj4KRqrVaqRHyJEYqlar\u002BHwaKZlMkh4h0rYXQzIkhmRIDMmQGJIhMabOEPX1w\u002BFwgEwmI9n\u002B4G8QJBKH\u002BgnlcjlIp9MHEhpLy9RN2cQ/pWlAX7ZqtfqvF7T/9bOBCipDvJnNfr9/2N8xVHi93m3\u002BavyKpBiBoeMGG5oeAH4DuOeaMQkJoGIAAAAASUVORK5CYII=",
+              "WhenOpened": "2024-07-14T14:39:57.531Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
