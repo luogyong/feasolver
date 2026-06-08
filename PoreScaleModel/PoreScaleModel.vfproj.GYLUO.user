@@ -3,10 +3,10 @@
 	<Configurations>
 		<Configuration Name="Debug|Win32">
 		</Configuration>
-		<Configuration Name="Debug|x64" CommandArguments="random_2000.mes">
+		<Configuration Name="Debug|x64" CommandArguments="brick_891ball_create.PSM">
 		</Configuration>
 		<Configuration Name="Release|Win32">
 		</Configuration>
-		<Configuration Name="Release|x64">
+		<Configuration Name="Release|x64" CommandArguments="brick_891ball_create.PSM">
 		</Configuration>
 	</Configurations></VisualStudioUserFile>

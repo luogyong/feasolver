@@ -289,7 +289,7 @@ SUBROUTINE SPG_KT_UPDATE(KT,HHEAD,HJ,NHH,IENUM,IGP,ISTEP,IITER)
     
     
 	
-	IF(MINVAL(HHEAD-NODE(ELEMENT(IENUM).NODE(1:NHH)).COORD(NDIMENSION))>-1.D-4) THEN
+	IF(MINVAL(HHEAD-NODE(ELEMENT(IENUM).NODE(1:NHH)).COORD(NDIMENSION))>1.D-4) THEN
         LAMDA=1.0D0
     ELSE
 	    call lamda_spg(ienum,hj,element(ienum).xygp(ndimension,IGP),lamda,ISTEP)                   						

@@ -9,6 +9,7 @@ module PoreScaleModel
     use VTK_CELLTYPE
     use CGAL_Polyhedra
     use obj_io
+    use voropp
     
     implicit none
     
@@ -16,7 +17,8 @@ module PoreScaleModel
     
     private
     
- 
+    integer::maxthreads=128
+    
     type pore_tydef
         integer::ntet=0,nface=0,np=0 !该pore包含的tet单元的个数,>1表明该pore由多个tet合并而成,<0,表示该pore已经被pore(-ntet)合并
         integer::id=0 !>0,模型有效节点的id
@@ -90,7 +92,7 @@ module PoreScaleModel
     
     type PSM_tydef
         integer::nnode=0,nelt=0,mtype=3,nbc,np,ismerged=2,mis_method=0,isoutbigball=0 !mtype=模型类型，nbc=边界数，np为模型内的颗粒数(不含边界球)
-        integer::isgenbigball=1,dis_bigball=100
+        integer::isgenbigball=1,dis_bigball=100,isvoropp=0 !isvoropp,=1,利用voro++ 生成voro多面体后读入vol文件并输出vtu文件.
         character(8)::vtkformat='ascii'  ![ascii,raw,bin]
         real(8)::box(6),gamma=0.25,alpha=0.1 !model box=[xmin,xmax,ymin,ymax,zmin,zmax]
         !gamma=pore与pore合并规则3的参数,即两者重叠距离与小者直径之比的限值，当实际值大于gamma时，合并。
@@ -99,6 +101,7 @@ module PoreScaleModel
         !假定由以下命令生成tetgen生成weighted deluanay 及 对应的voronoi时
         !tetgen -wvfenn *.node
         !即命令行中一定要包含参数"wvfenn"  
+        type(voropp_data_typdef)::voroppdata
         type(particle_typdef),allocatable::particle(:) !including six bigalls
         type(pore_tydef),allocatable::pore(:)
         type(particle_typdef)::bigball(6)
@@ -138,6 +141,8 @@ module PoreScaleModel
             &   10) isremoveduplicates--输出voro_vtu文件时,是否移除重复的节点:[0(NO)|1(Yes,默认)] \n & 
             &   11) isgenbigball--是否将box的6个面按打球进行模拟:[0(NO)|1(Yes,默认)] \n & 
             &   12) dis_bigball--边界球球面距离边界面的最大距离为rmin/dis_bigball(rmin为模型颗粒的最小半径):[默认100] \n &     
+            &   13) isvoropp--是否利用 voro++ 生成voro多面体后读入vol文件并输出vtu文件. \n&
+            &                 0=NO;±1=输出模型参数,生成vol文件后读入;±2=仅读入同名的vol文件.默认0.如果<0,输出vtu文件后退出程序.\n &
             & "C 
     contains
         procedure,nopass::help=>write_help
@@ -220,8 +225,8 @@ module PoreScaleModel
         implicit none
         class(PSM_tydef)::self
         real(8)::para2(4,4),pc1(4),t1,tet1(3,4),shpfun1(4),t2
-        integer::I,j,k,n1,n2,ipore1(2),nc1,nc2
-        logical::tof1
+        integer::I,j,k,n1,n2,ipore1(2),nc1,nc2,tid,nthreads
+        logical::tof1,ISUNIQUE,ISOCCUPIED(SELF.TETGENDATA.NELT)
         
         
         associate(tet=>self.tetgendata,tfi=>self.tetfaceinfo,pore=>self.pore)
@@ -278,7 +283,7 @@ module PoreScaleModel
             if(OMP_get_thread_num()==0) then
                 print *, 'used num_threads=', OMP_get_num_threads()
             endif
-            !$OMP DO SCHEDULE(STATIC)
+            !$OMP DO SCHEDULE(DYNAMIC,1)
             do i=1,tet.nelt
                 if(pore(i).ntet>1) then
                     call self.update_pore_center(i)
@@ -350,10 +355,10 @@ module PoreScaleModel
                 enddo
                 
                 !为便于边界条件处理，假定内部pore(marker==0)不能与边界pore(marker>0)的合并
-                if(any(pore(ipore1).marker>0).and.any(pore(ipore1).marker==0)) then
-                    tfi(i).state=2 !不再合并两边的孔
-                    cycle
-                endif  
+                !if(any(pore(ipore1).marker>0).and.any(pore(ipore1).marker==0)) then
+                !    tfi(i).state=2 !不再合并两边的孔
+                !    cycle
+                !endif  
                 
                 if(tof1) then
                 
@@ -377,32 +382,64 @@ module PoreScaleModel
             !n1=count(tfi.state==0)
             where(tfi%state==0) tfi%state=1
             nc1=0
-            do i=1,tet.nface
+            !ISOCCUPIED = .FALSE.  
+            !j=-1
+            !!$OMP PARALLEL PRIVATE(IPORE1,TOF1) SHARED(ISOCCUPIED,NC1,j)  
+            !!tid = omp_get_thread_num()+1 !0-BASED  
+            !!nthreads= OMP_get_num_threads()  
+            !!$OMP DO SCHEDULE(DYNAMIC,1) 
+            do i=1,TET.NFACE  
                 
-                if(tfi(i).state/=1) cycle
-                call get_merged_pore(i,ipore1)
-                if(tfi(i).state/=1) cycle 
-                tfi(i).state=0
+                if (tfi(i).state /= 1) cycle                 
+                call get_merged_pore(i, ipore1)
+                if (tfi(i).state /= 1) cycle 
                 
-                t1=norm2(pore(ipore1(1)).x(1:3)-pore(ipore1(2)).x(1:3))
+            
                 
-                t1=t1-sum(pore(ipore1).x(4))
+                !do 
+                !    !$OMP FLUSH(ISOCCUPIED) 
+                !    !$OMP CRITICAL
+                !    TOF1=ALL(ISOCCUPIED==.TRUE.)
+                !    TOF1=TOF1.OR.(ISOCCUPIED(IPORE1(1)) == .FALSE. .AND. ISOCCUPIED(IPORE1(2)) == .FALSE.)                    
+                !    !$OMP END CRITICAL
+                !    IF(TOF1) EXIT
+                !end do    
+                !if (tfi(i).state /= 1) cycle 
                 
-                tof1=.false.
-                if(t1<0.0d0) then
-                    t1=-0.5*t1/minval(pore(ipore1).x(4))
-                    if(t1>=self.gamma) tof1=.true.
-                endif
+                !!$OMP CRITICAL
+                !ISOCCUPIED(IPORE1(1)) = .TRUE.  
+                !ISOCCUPIED(IPORE1(2)) = .TRUE.  
+                !!$OMP END CRITICAL  
+
+
                 
-                if(tof1) then
-                    nc1=nc1+1
-                    call self.pore_merge_handle(ipore1(1),ipore1(2))
-                    !let .state=1,make it to be in the check list
-                    !n2=pore(ipore1(1)).nface
-                    !tfi(pore(ipore1(1)).face(1:n2)).state=1                    
-                endif
-                                    
-            enddo
+                tfi(i).state = 0  
+                
+                t1 = norm2(pore(ipore1(1)).x(1:3) - pore(ipore1(2)).x(1:3))  
+                t1 = t1 - sum(pore(ipore1).x(4))  
+
+                tof1 = .FALSE.  
+                if (t1 < 0.0d0) then  
+                    t1 = -0.5 * t1 / minval(pore(ipore1).x(4))  
+                    if (t1 >= self.gamma) tof1 = .TRUE.  
+                endif  
+
+                if (tof1) then  
+                    !!$OMP CRITICAL (C_NC) 
+                    nc1 = nc1 + 1  
+                    !!$OMP END CRITICAL (C_NC) 
+                    call self.pore_merge_handle(ipore1(1), ipore1(2))  
+                endif  
+
+                !!$OMP CRITICAL  
+                !ISOCCUPIED(IPORE1(1)) = .FALSE.  
+                !ISOCCUPIED(IPORE1(2)) = .FALSE.  
+                !!$OMP END CRITICAL  
+
+            end do  
+            !!$OMP END DO  
+            !!$OMP END PARALLEL
+  
             print *, 'By Criterion 3, Merged pores: ',nc1
             
             !check pore validity
@@ -411,6 +448,8 @@ module PoreScaleModel
         end associate
     
     contains
+     
+    
         subroutine get_merged_pore(iface,mpore)
             implicit none
             integer,intent(in)::iface
@@ -1386,6 +1425,8 @@ module PoreScaleModel
         REAL(8)::AR(DNMAX),t1,rmin1,rmax1,pc1(2)
         INTEGER :: CSTAT, ESTAT
         CHARACTER(100) :: CMSG
+        character(16):: substr1(6) 
+        character(1024)::cmd1
         
         print *, 'Reading pore scale model data...'
         call self.help(self.helpstring)
@@ -1415,6 +1456,8 @@ module PoreScaleModel
                 self.isgenbigball=int(property(i).value) 
             case('dis_bigball')
                 self.dis_bigball=int(property(i).value)
+            case('isvoro++','isvoropp')
+                self.isvoropp=int(property(i).value)
             case default
                 call Err_msg(property(i).name)
             end select
@@ -1469,12 +1512,47 @@ module PoreScaleModel
         do i=1,self.np+nbb1
             write(20,'(i,4(e24.16,x))') i,self.particle(i).x(1:3),self.particle(i).x(4)**2
         enddo
+        close(20)
+        if(self.isvoropp/=0) then
+            
+            if(abs(self.isvoropp)==1) then
+                
+                open(20,file=trim(self.file)//'.prtcl',status='replace')
+                !write(20,'(i,i,i,i)') self.np+nbb1,3,1,0
+                do i=1,self.np
+                    write(20,'(i,4(e24.16,x))') i,self.particle(i).x(1:3),self.particle(i).x(4)
+                enddo
+                close(20)
+            
+                do i=1,6
+                    write(substr1(i),'(f15.7,X)') self.box(i)                
+                enddo
+                cmd1='voro++ -r -o -p '//trim(adjustl(substr1(1)))//' ' &
+                                                //trim(adjustl(substr1(2)))//' ' &
+                                                //trim(adjustl(substr1(3)))//' ' &
+                                                //trim(adjustl(substr1(4)))//' ' &
+                                                //trim(adjustl(substr1(5)))//' ' &
+                                                //trim(adjustl(substr1(6)))//' ' &
+                                                //trim(self.file)//'.prtcl'
+                call self.voroppdata.gen_vppdata(cmd1)
+            
+            endif
+            
+            print *, 'to read in voro++ data...'
+            
+            call self.voroppdata.read(file=trim(self.file)//'.vol')
+            call self.voroppdata.out(trim(self.file),trim(self.vtkformat))
+            
+            if(self.isvoropp<0) stop
+            
+        endif
+        
         !do i=1,6
         !    write(20,'(i,3f,e)') i,self.bigball(i).x,self.bigball(i).y,self.bigball(i).z,self.bigball(i).r**2
         !enddo
-        close(20)
         
-        print *,'run tetgen with com to generate data...'
+        
+        print *,'run tetgen to generate data...'
         
         CALL EXECUTE_COMMAND_LINE ('tetgen -wvfennIT1.e-10 '//trim(self.file)//'.node', EXITSTAT=ESTAT,CMDSTAT=CSTAT, CMDMSG=CMSG)
         
@@ -1782,7 +1860,7 @@ module PoreScaleModel
         integer::np1,i
         
         isoverlap=.false.
-        pre1=-minval(self.particle(p).x(4))*1.e-4
+        pre1=-minval(self.particle(p).x(4))*1.e-1
         np1=size(p,dim=1)
         do i=1,np1
             

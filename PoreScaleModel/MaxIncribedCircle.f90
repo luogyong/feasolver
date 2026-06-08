@@ -109,7 +109,7 @@ module maximum_inscribed_circle
             allocate(ar(self.dim+1+self.nv))
         endif
         
-        maxProbes=100000
+        maxProbes=1000000
         if(present(maxiter)) maxProbes=maxiter
         
         if(self.fstype==0) then

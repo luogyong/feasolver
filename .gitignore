@@ -63,3 +63,8 @@ x64/
 /IFSolver.opensdf
 /sources.udb
 /~WRD0949.tmp
+*.prtcl
+*.cell
+*.vol
+/PoreScaleModel/random_2000.v.cell
+/PoreScaleModel.zip

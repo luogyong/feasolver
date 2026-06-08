@@ -176,11 +176,14 @@ subroutine solve_SLD()
 						!write(99,20) iincs,iiter,STOP_TIME-START_TIME
                     else
 						! Factor the matrix.！MKL_DSS_POSITIVE_DEFINITE
-                        
-                        error = DSS_FACTOR_REAL( handle, MKL_DSS_POSITIVE_DEFINITE,km)
-                        IF (error /= MKL_DSS_SUCCESS) THEN
-                            !PRINT *, 'MKL_DSS_POSITIVE_DEFINITE FAILED.TRY MKL_DSS_INDEFINITE OPTION.'
-						    error = DSS_FACTOR_REAL( handle, MKL_DSS_INDEFINITE,km)
+                        IF(SOLVER_CONTROL.TYPE/=STOKES) THEN
+							error = DSS_FACTOR_REAL( handle, MKL_DSS_POSITIVE_DEFINITE,km)
+							IF (error /= MKL_DSS_SUCCESS) THEN
+								!PRINT *, 'MKL_DSS_POSITIVE_DEFINITE FAILED.TRY MKL_DSS_INDEFINITE OPTION.'
+								error = DSS_FACTOR_REAL( handle, MKL_DSS_INDEFINITE,km)
+							ENDIF
+                        ELSE
+                            error = DSS_FACTOR_REAL( handle, MKL_DSS_INDEFINITE,km)
                         ENDIF
                         
 						IF (error /= MKL_DSS_SUCCESS) call mkl_solver_error(error)			

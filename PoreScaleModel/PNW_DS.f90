@@ -26,7 +26,7 @@ module meshDS
 	!parameter(maxstk=2000,um=1e15)
     integer::maxnadjlist=10
     INTERFACE ENLARGE_AR
-        MODULE PROCEDURE I_ENLARGE_AR,R_ENLARGE_AR,ADJLIST_ENLARGE_AR
+        MODULE PROCEDURE I_ENLARGE_AR,R_ENLARGE_AR,ADJLIST_ENLARGE_AR,R_ENLARGE_AR2D
     END INTERFACE 
 
 	type property_tydef
@@ -90,111 +90,236 @@ module meshDS
    !unit为文件号
    !每次只读入一个有效行（不以'/'开头的行）
    !每行后面以'/'开始的后面的字符是无效的。
-   subroutine  strtoint(unit,ar,nmax,n1,num_read,isall)
-	  implicit none
-	  integer::i,j,k,strl,ns,ne,n1,n2,n3,step,nmax,num_read,unit,ef,n4
-	  logical::tof1,tof2
-	  real(8)::ar(nmax),t1
-	  character*4096::string
-	  character*32::substring
-	  character*16::legalC
-	  logical::isall
-	  optional::isall
+   !subroutine  strtoint(unit,ar,nmax,n1,num_read,isall)
+	  !implicit none
+	  !integer::i,j,k,strl,ns,ne,n1,n2,n3,step,nmax,num_read,unit,ef,n4
+	  !logical::tof1,tof2
+	  !real(8)::ar(nmax),t1
+	  !character*4096::string
+	  !character*32::substring
+	  !character*16::legalC
+	  !logical::isall
+	  !optional::isall
+   !
+	  !LegalC='0123456789.-+eE*'
+   !
+   !
+	  !n1=0
+	  !ar=0
+   !
+	  !do while(.true.)
+		 !read(unit,'(a)',iostat=ef) string
+		 !if(ef<0) then
+			!print *, 'file ended unexpended. sub strtoint()'
+			!stop
+		 !end if
+		 !string=adjustL(string)
+		 !strL=len_trim(string)
+		 !if(strL==0) cycle
+   !      if(string(1:1)=='#'.or.string(1:1)=='/') cycle
+   !
+		 !if(string(1:2)/='//') then
+			!
+			!!每行后面以'/'开始的后面的字符是无效的。
+			!if(index(string,'//')/=0) then
+			!	strL=index(string,'//')-1
+			!	string=string(1:strL)
+			!	!string=adjustL(adjustR(string))
+			!	strL=len_trim(string)
+			!end if
+			!		
+			!i=1			
+			!do while(i<=strL)
+			!   if(index(legalc,string(i:i))/=0) then
+			!	  ns=i
+			!
+			!	  if(i<strL) then
+			!		 do j=i+1,strl
+			!			if(index(legalc,string(j:j))==0) then
+			!			   ne=j-1
+			!			   exit
+			!			end if
+			!			if(j==strL) ne=strL
+			!		 end do
+			!	  else
+			!		 ne=i
+			!		 j=i
+			!	  end if
+   !
+			!	  substring=string(ns:ne)
+			!	  n2=len_trim(substring)
+			!	  n3=index(substring,'-')
+			!	  n4=index(substring,'*')
+			!	    tof1=.false.
+			!	    if(n3>1) then
+			!	         tof1=(substring(n3-1:n3-1)/='e'.and.substring(n3-1:n3-1)/='E')
+			!	    end if				  
+			!	  if(tof1) then !处理类似于'1-5'这样的形式的读入数据
+			!		 read(substring(1:n3-1),'(i8)') ns
+			!		 read(substring(n3+1:n2),'(i8)') ne
+			!		 if(ns>ne) then
+			!			step=-1
+			!		 else
+			!			step=1
+			!		 end if
+			!		 do k=ns,ne,step
+			!			n1=n1+1
+			!			ar(n1)=k
+			!		 end do				     	
+			!	  else
+   !                         tof2=.false.
+			!	         if(n4>1) then
+			!	             tof2=(substring(n4-1:n4-1)/='e'.and.substring(n4-1:n4-1)/='E')
+			!	         end if					 
+			!		 if(tof2) then !处理类似于'1*5'(表示5个1)这样的形式的读入数据
+			!			 read(substring(1:n4-1),*) t1
+			!			 read(substring(n4+1:n2),'(i8)') ne
+			!			 ar((n1+1):(n1+ne))=t1
+			!			 n1=n1+ne
+			!		 else
+			!			n1=n1+1
+			!			read(string(ns:ne),*) ar(n1)
+			!		 end if
+			!
+			!	  end if
+			!	
+			!	  i=j+1
+			!   else
+			!	  i=i+1
+			!   end if
+			!
+			!end do
+		 !else
+			!cycle
+		 !end if
+		 !
+		 !if(n1<=num_read) then
+			! if(present(isall)) then
+			!	if(isall.and.n1==num_read) exit
+			! else
+			!	exit
+			! end if
+		 !else
+		 !   if(n1>num_read)  print *, 'error!nt2>num_read. i=',n1
+		 !end if
+	  !
+	  !end do	
+   !
+   !end subroutine
+   subroutine  strtoint(unit,ar,nmax,n1,num_read,set,maxset,nset,ef1,isall)
+		implicit none
+		INTEGER,INTENT(IN)::unit,nmax,num_read
+		INTEGER,INTENT(INOUT)::N1
+		INTEGER,OPTIONAL::EF1,maxset,NSET
+		REAL(8),INTENT(INOUT)::ar(nmax)
+		character(*),optional::set(:)
+		logical::tof1,tof2
+		integer::i,j,k,strl,ns,ne,n2,n3,n4,step,& 
+				ef,n5,nsubs
+		real(8)::t1	  
+		character(20000)::string
+		character(512)::substring(1000)
+		character(16)::legalC,SC
+		logical,optional::isall
 
-	  LegalC='0123456789.-+eE*'
-
-
-	  n1=0
-	  ar=0
-
+		LegalC='0123456789.-+eE*'
+		sc=',;() '//char(9)
+		n1=0
+		if(present(nset)) nset=0
+		ar=0
+		!set(1:maxset)=''
 	  do while(.true.)
 		 read(unit,'(a)',iostat=ef) string
+         
 		 if(ef<0) then
-			print *, 'file ended unexpended. sub strtoint()'
-			stop
+            if(present(ef1))  then
+                ef1=ef
+            else
+			    print *, 'file ended unexpected. sub strtoint()'
+			    stop
+            endif
 		 end if
+
 		 string=adjustL(string)
 		 strL=len_trim(string)
-		 if(strL==0) cycle
-         if(string(1:1)=='#'.or.string(1:1)=='/') cycle
+		 
+		do i=1,strL !remove 'Tab'
+			if(string(i:i)/=char(9)) exit
+		end do
+		string=string(i:strL)
+		string=adjustl(string)
+		strL=len_trim(string)
+		if(strL==0) cycle
 
-		 if(string(1:2)/='//') then
+		 if(string(1:2)/='//'.and.string(1:1)/='#') then
 			
 			!每行后面以'/'开始的后面的字符是无效的。
 			if(index(string,'//')/=0) then
 				strL=index(string,'//')-1
 				string=string(1:strL)
-				!string=adjustL(adjustR(string))
 				strL=len_trim(string)
 			end if
-					
-			i=1			
-			do while(i<=strL)
-			   if(index(legalc,string(i:i))/=0) then
-				  ns=i
-			
-				  if(i<strL) then
-					 do j=i+1,strl
-						if(index(legalc,string(j:j))==0) then
-						   ne=j-1
-						   exit
-						end if
-						if(j==strL) ne=strL
-					 end do
-				  else
-					 ne=i
-					 j=i
-				  end if
 
-				  substring=string(ns:ne)
-				  n2=len_trim(substring)
-				  n3=index(substring,'-')
-				  n4=index(substring,'*')
-				    tof1=.false.
-				    if(n3>1) then
-				         tof1=(substring(n3-1:n3-1)/='e'.and.substring(n3-1:n3-1)/='E')
-				    end if				  
-				  if(tof1) then !处理类似于'1-5'这样的形式的读入数据
-					 read(substring(1:n3-1),'(i8)') ns
-					 read(substring(n3+1:n2),'(i8)') ne
-					 if(ns>ne) then
+			nsubs=0
+			n5=1
+			do i=2,strL+1
+				if(index(sc,string(i:i))/=0.and.index(sc,string(i-1:i-1))==0) then
+					nsubs=nsubs+1					
+					substring(nsubs)=string(n5:i-1)					
+				end if
+				if(index(sc,string(i:i))/=0) n5=i+1
+			end do
+			
+			do i=1, nsubs
+				substring(i)=adjustl(substring(i))				
+				n2=len_trim(substring(i))
+				!the first character should not be a number if the substring is a set.
+				if(index('0123456789-+.', substring(i)(1:1))==0) then
+					!set
+					nset=nset+1
+					set(nset)=substring(i)
+					cycle
+				end if
+				n3=index(substring(i),'-')
+				n4=index(substring(i),'*')
+				tof1=.false.
+				if(n3>1) then
+				    tof1=(substring(i)(n3-1:n3-1)/='e'.and.substring(i)(n3-1:n3-1)/='E')
+				end if
+				if(tof1) then !处理类似于'1-5'这样的形式的读入数据
+					read(substring(i)(1:n3-1),'(i8)') ns
+					read(substring(i)(n3+1:n2),'(i8)') ne
+					if(ns>ne) then
 						step=-1
-					 else
+					else
 						step=1
-					 end if
-					 do k=ns,ne,step
+					end if
+					do k=ns,ne,step
 						n1=n1+1
 						ar(n1)=k
-					 end do				     	
-				  else
-                            tof2=.false.
-				         if(n4>1) then
-				             tof2=(substring(n4-1:n4-1)/='e'.and.substring(n4-1:n4-1)/='E')
-				         end if					 
-					 if(tof2) then !处理类似于'1*5'(表示5个1)这样的形式的读入数据
-						 read(substring(1:n4-1),*) t1
-						 read(substring(n4+1:n2),'(i8)') ne
-						 ar((n1+1):(n1+ne))=t1
-						 n1=n1+ne
-					 else
+					end do				     	
+				else
+				     tof2=.false.
+				     if(n4>1) then
+				             tof2=(substring(i)(n4-1:n4-1)/='e'.and.substring(i)(n4-1:n4-1)/='E')
+				     end if
+					if(tof2) then !处理类似于'1*5'(表示5个1)这样的形式的读入数据
+						read(substring(i)(1:n4-1),*) t1
+						read(substring(i)(n4+1:n2),'(i8)') ne
+						ar((n1+1):(n1+ne))=t1
+						n1=n1+ne
+					else
 						n1=n1+1
-						read(string(ns:ne),*) ar(n1)
-					 end if
-			
-				  end if
-				
-				  i=j+1
-			   else
-				  i=i+1
-			   end if
-			
+						read(substring(i),*) ar(n1)
+					end if	
+				end if			
 			end do
 		 else
 			cycle
 		 end if
 		
 		 if(n1<=num_read) then
-			 if(present(isall)) then
+			if(present(isall)) then
 				if(isall.and.n1==num_read) exit
 			 else
 				exit
@@ -205,8 +330,7 @@ module meshDS
 	
 	  end do	
 
-   end subroutine
-
+   end subroutine 
 subroutine Err_msg(cstring)
 	use dflib
 	implicit none
@@ -268,6 +392,24 @@ ENDSUBROUTINE
         !AVAL(UB1+1:UB1+10)=0
         DEALLOCATE(VAL1)
     END SUBROUTINE
+    
+     SUBROUTINE R_ENLARGE_AR2D(AVAL,DSTEP)
+        REAL(8),ALLOCATABLE,INTENT(INOUT)::AVAL(:,:)
+        INTEGER,INTENT(IN)::DSTEP
+        REAL(8),ALLOCATABLE::VAL1(:,:)
+        INTEGER::LB1=0,UB1=0,I,LB2,UB2
+    
+        LB1=LBOUND(AVAL,DIM=2);UB1=UBOUND(AVAL,DIM=2)
+        ALLOCATE(VAL1,SOURCE=AVAL)
+        DEALLOCATE(AVAL)
+        LB2=LBOUND(AVAL,DIM=1);UB2=UBOUND(AVAL,DIM=1)
+        ALLOCATE(AVAL(LB2:UB2,LB1:UB1+DSTEP))
+        DO I=LB2,UB2
+            AVAL(I,LB1:UB1)=VAL1(I,LB1:UB1)
+        ENDDO
+        !AVAL(UB1+1:UB1+10)=0
+        DEALLOCATE(VAL1)
+    END SUBROUTINE 
  
     SUBROUTINE ADJLIST_ENLARGE_AR(AVAL,DSTEP)
         TYPE(ADJLIST_tydef),ALLOCATABLE,INTENT(INOUT)::AVAL(:)

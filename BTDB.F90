@@ -1,4 +1,4 @@
-!calculate the B materix ELB(ielb=element.nd,jelb=element.ndof,kelb=element.ngn) for element(ienum)
+﻿!calculate the B materix ELB(ielb=element.nd,jelb=element.ndof,kelb=element.ngn) for element(ienum)
 !calculate the determinant of Jacobian matrix in each gauss point, Djacm(idjacm=element.ngp)
 subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
  
@@ -54,7 +54,7 @@ subroutine JACOB2(ienum,ELB,ielb,jelb,kelb,Djacm,idjacm)
                 xy(:,ia1(4,n1))=xy(:,ia1(4,n1))+1.d-3*v2/t2
                 element(ienum).property(1)=t2*1.0d-3/6.0
             else
-                !4�㹲��
+                !4点共点
                 xy=0.d0
                 xy(1,2)=1.0d-3
                 xy(2,3)=1.0d-3
@@ -305,7 +305,7 @@ subroutine EL_SFR2(ET)
 								
 		case(CPE6,cps6,CAX6,&
 				 CPE6_SPG,CAX6_SPG, &
-				 CPE6_CPL,CAX6_CPL)
+				 CPE6_CPL,CAX6_CPL,cpe6_st)
 			ecp(et).nshape=6
 			ecp(et).ndim=2
 			ecp(et).ngp=3
@@ -658,7 +658,7 @@ subroutine EL_SFR2(ET)
             ecp(et).gp(:,7)=root3
 			ecp(et).gp(:,8)=[-root3,root3,root3]           
             
-		case(tet10,tet10_spg,tet10_cpl)
+		case(tet10,tet10_spg,tet10_cpl,tet10_st)
 			ecp(et).nshape=10
 			ecp(et).ndim=3
 			ecp(et).ngp=4
@@ -1148,19 +1148,19 @@ subroutine shapefunction_cal(et,gp,Ni,Nni,ndim)
         Ni(7)=0.125d0*(1.d0+xi)*(1.d0+eda)*(1.d0+zta)*(-2.0d0+xi+eda+zta)
         Ni(8)=0.125d0*(1.d0-xi)*(1.d0+eda)*(1.d0+zta)*(-2.0d0-xi+eda+zta)
 		
-        !xi==0���ĸ��м�ڵ�
+        !xi==0的四个中间节点
         Ni(9)=0.25d0*(1.d0-xi**2)*(1.0d0-eda)*(1.d0-zta)
         Ni(14)=0.25d0*(1.d0-xi**2)*(1.0d0+eda)*(1.d0-zta)
         Ni(17)=0.25d0*(1.d0-xi**2)*(1.0d0-eda)*(1.d0+zta)
         Ni(20)=0.25d0*(1.d0-xi**2)*(1.0d0+eda)*(1.d0+zta)
         
-        !eda==0���ĸ��м�ڵ�
+        !eda==0的四个中间节点
         Ni(10)=0.25d0*(1.d0-xi)*(1.0d0-eda**2)*(1.d0-zta)
         Ni(18)=0.25d0*(1.d0-xi)*(1.0d0-eda**2)*(1.d0+zta)
         Ni(19)=0.25d0*(1.d0+xi)*(1.0d0-eda**2)*(1.d0+zta)
         Ni(12)=0.25d0*(1.d0+xi)*(1.0d0-eda**2)*(1.d0-zta) 
         
-        !zta==0���ĸ��м�ڵ�
+        !zta==0的四个中间节点
         Ni(11)=0.25d0*(1.d0-xi)*(1.0d0-eda)*(1.d0-zta**2)
         Ni(13)=0.25d0*(1.d0+xi)*(1.0d0-eda)*(1.d0-zta**2)
         Ni(15)=0.25d0*(1.d0+xi)*(1.0d0+eda)*(1.d0-zta**2)
@@ -1614,5 +1614,329 @@ subroutine multermxy15N(termval)
 	end do
 	
 end subroutine
+    
+subroutine BT_Stokes_UP(ienum, ELK_up, ielk, jelk)
+!===============================================================================
+!> \brief Build element-level velocity–pressure coupling matrix K_up
+!>        for Stokes flow (2D/3D P2–P1 Taylor–Hood elements).
+!------------------------------------------------------------------------------
+!> \details
+!> 本子程序用于构造 Stokes 方程有限元离散中，单元级的
+!> 速度–压力耦合矩阵 K_up^(e)：
+!>
+!>   [K_up^(e)]_( (a,α), j )
+!>      = - ∫_{Ω_e} N_j^(p) · ∂N_a^(u) / ∂x_α dΩ
+!>
+!> 其中：
+!>   - 速度采用 P2 插值：
+!>       * 3D: TET10_ST，10 个二次速度形函数；
+!>       * 2D: CPE6_ST/CPS6_ST，6 个二次速度形函数；
+!>   - 压力采用 P1 插值：
+!>       * 3D: TET4，4 个线性压力形函数；
+!>       * 2D: TRI3，3 个线性压力形函数。
+!>
+!> 在数值上通过 Gauss 积分逼近上式：
+!>
+!>   [K_up^(e)]_( (a,α), j )
+!>     ≈ - Σ_g N_j^(p)(ξ_g,η_g[,ζ_g])
+!>              * (∂N_a^(u)/∂x_α)(ξ_g,η_g[,ζ_g])
+!>              * w_g * detJ_g * r_g
+!>
+!> 其中：
+!>   - g: Gauss 点编号；
+!>   - (ξ_g,η_g[,ζ_g]): 参考单元上的 Gauss 点坐标；
+!>   - w_g: 参考单元 Gauss 权重；
+!>   - J_g = ∂x/∂ξ: 参考单元到物理单元映射的 Jacobian；
+!>   - detJ_g: Jacobian 行列式；
+!>   - r_g: 轴对称情形下的半径因子，纯 2D/3D 情形下 r_g = 1。
+!>
+!> 行列索引约定：
+!>   - 行：iu = ndim * (a - 1) + α
+!>       * a = 1..nshape_u：P2 速度形函数节点号；
+!>       * α = 1..ndim   ：速度分量方向：
+!>           - 2D: α = 1 → u_x, α = 2 → u_y；
+!>           - 3D: α = 1 → u_x, α = 2 → u_y, α = 3 → u_z。
+!>   - 列：jp = 1..nshape_p
+!>       * 2D: nshape_p = 3 → TRI3 三个压力顶点；
+!>       * 3D: nshape_p = 4 → TET4 四个压力顶点。
+!>
+!> 支持的典型单元组合：
+!>   - 3D: TET10_ST (P2 速度) – TET4 (P1 压力)，
+!>         ec = C3D, ndim = 3, nshape_u = 10, nshape_p = 4；
+!>   - 2D: CPE6_ST/CPS6_ST (P2 速度) – TRI3 (P1 压力)，
+!>         ec = CPE/CPS/CAX/CAX_SPG, ndim = 2, nshape_u = 6, nshape_p = 3。
+!>
+!> 注意：
+!>   - 本子程序仅构造 K_up^(e)（速度–压力耦合块），不构造黏性刚度 K_uu
+!>     和压力块 K_pp；
+!>   - K_pu^(e) = (K_up^(e))^T 通常在装配阶段由 K_up 转置获得。
+!------------------------------------------------------------------------------
+!> \param[in]  ienum  当前单元在 element 数组中的索引号。
+!> \param[in]  ielk   ELK_up 的第一维长度（行数），需满足
+!>                    ielk >= ndim * nshape_u：
+!>                      - 3D: ielk >= 3*10 = 30
+!>                      - 2D: ielk >= 2*6  = 12
+!> \param[in]  jelk   ELK_up 的第二维长度（列数），需满足
+!>                    jelk >= nshape_p：
+!>                      - 3D: jelk >= 4
+!>                      - 2D: jelk >= 3
+!>
+!> \param[in,out] ELK_up(ielk, jelk)
+!>   单元级速度–压力耦合矩阵：
+!>     - 输入时：可带有已有累加量，本子程序在其上继续累加；
+!>               若希望从零开始构造，应在调用前将 ELK_up 清零；
+!>     - 输出时：包含当前单元对 K_up 的所有 Gauss 点贡献。
+!------------------------------------------------------------------------------
+!> \note
+!> - 仅支持连续体单元：ec ∈ {C3D, CPE, CPS, CAX, CAX_SPG}。
+!> - 目前假定：
+!>     - 3D: 使用 TET10 P2 速度 + TET4 P1 压力；
+!>     - 2D: 使用 CPE6/CPS6 P2 速度 + TRI3 P1 压力；
+!>   其他 Pk–Pl 组合尚未支持。
+!> - 内部使用 allocate/deallocate 管理局部工作数组，如需进一步优化
+!>   内存/性能，可在外部预分配并传入工作空间。
+!===============================================================================
 
+    use solverds
+    use solvermath
+    implicit none
+    !---------------------------
+    ! 输入参数
+    !---------------------------
+    integer, intent(in) :: ienum      ! 当前单元号
+    integer, intent(in) :: ielk       ! ELK_up 第一维 (>= ndim*nshape_u)
+    integer, intent(in) :: jelk       ! ELK_up 第二维 (>= nshape_p)
+
+    !---------------------------
+    ! 输出参数
+    !---------------------------
+    real(8), intent(inout) :: ELK_up(ielk, jelk)
+    ! 说明：ELK_up 在外部可已初始化为 0.0，本子程序在其上累加 K_up^(e)
+
+    !---------------------------
+    ! 局部变量
+    !---------------------------
+    integer :: et, ec                 ! 单元类型号、单元类别 (C3D/CPE/...)
+    integer :: ngp                    ! 高斯点数
+    integer :: nshape_u               ! 速度形函数个数 (3D:10, 2D:6)
+    integer :: nshape_p               ! 压力形函数个数 (3D:4, 2D:3)
+    integer :: ndim                   ! 空间维数 (3D:3, 2D:2)
+    integer :: nnode                  ! 几何节点数 (= nshape_u)
+    integer :: g                      ! 高斯点索引
+    integer :: a                      ! 速度节点索引
+    integer :: alpha                  ! 方向索引（未直接使用，逻辑上为 1..ndim）
+    integer :: j                      ! 压力节点索引
+
+    real(8), allocatable :: Jacm(:,:) ! Jacobian 矩阵 J (ndim x ndim)
+    real(8), allocatable :: xy(:,:)   ! 单元节点物理坐标 (ndim x nnode)
+    real(8), allocatable :: dNdx(:,:) ! 物理坐标梯度 dN_a/dx_i (nshape_u x ndim)
+    real(8), allocatable :: dNref(:,:) ! 参考坐标梯度 dN_a/dξ_i (nshape_u x ndim)
+    real(8), allocatable :: gp(:)     ! 当前 Gauss 点参考坐标 (ndim)
+    real(8), allocatable :: Np(:)     ! 压力 P1 形函数值 (nshape_p)
+
+    real(8) :: detJ                   ! det(J)
+    real(8) :: weight_g               ! 当前 Gauss 点权重 w_g * detJ * r1
+    real(8) :: r1                     ! 轴对称半径因子
+
+    ! 参考坐标 (ξ,η,ζ) 及重心坐标 L1..L4
+    real(8) :: xi, eta, zeta
+    real(8) :: L1, L2, L3, L4
+
+    !---------------------------
+    ! 基本信息获取
+    !---------------------------
+    et       = element(ienum).et      ! 单元类型号
+    ec       = element(ienum).ec      ! 单元类别 (C3D/CPE/CPS/CAX/...)
+    ngp      = ecp(et).ngp            ! Gauss 点个数
+    nshape_u = ecp(et).nshape         ! P2 速度形函数个数
+    ndim     = ecp(et).ndim           ! 空间维数
+    nnode    = element(ienum).nnum    ! 单元几何节点数
+
+    ! 判定压力形函数个数：
+    !   2D → TRI3: nshape_p = 3
+    !   3D → TET4: nshape_p = 4
+    select case(ndim)
+    case(2)
+        nshape_p = 3                  ! 2D: 线性三角形压力 (TRI3)
+    case(3)
+        nshape_p = 4                  ! 3D: 线性四面体压力 (TET4)
+    case default
+        write(*,*) 'BT_Stokes_UP: unsupported ndim =', ndim
+        stop
+    end select
+
+    ! 基本尺寸检查：ELK_up 必须够大
+    if (ielk < ndim*nshape_u .or. jelk < nshape_p) then
+        write(*,*) 'BT_Stokes_UP: ELK_up dimension too small. ielk, jelk =', &
+                   ielk, jelk
+        stop
+    end if
+
+    !
+    if (ec /= stokes.and.ec /= stokes2d) then
+        write(*,*) 'BT_Stokes_UP: only stokes flow elements (stokes, stokes2d) ', &
+                   'are supported, et =', et
+        stop
+    end if
+
+    ! 对不同维度的单元类型做基本形函数个数检查
+    if (ndim == 3) then
+        ! 3D: 期望 TET10 P2 速度 (10 形函数)
+        if (nshape_u /= 10) then
+            write(*,*) 'BT_Stokes_UP: expect 3D TET10 (nshape=10), et =', et
+            stop
+        end if
+    else if (ndim == 2) then
+        ! 2D: 期望 CPE6/CPS6 P2 速度 (6 形函数)
+        if (nshape_u /= 6) then
+            write(*,*) 'BT_Stokes_UP: expect 2D CPE6 (nshape=6), et =', et
+            stop
+        end if
+    end if
+
+    !---------------------------
+    ! 分配局部工作数组
+    !---------------------------
+    allocate(Jacm(ndim,ndim))
+    allocate(xy(ndim,nnode))
+    allocate(dNdx(nshape_u,ndim))
+    allocate(dNref(nshape_u,ndim))
+    allocate(gp(ndim))
+    allocate(Np(nshape_p))
+
+    !---------------------------
+    ! 拷贝单元节点的物理坐标 xy(:,a)
+    !---------------------------
+    xy = 0.0d0
+    do a = 1, nnode
+        ! node(id).coord(1:ndim) 存储该节点的 (x,y[,z]) 坐标
+        xy(1:ndim,a) = node( element(ienum).node(a) ).coord(1:ndim)
+    end do
+
+    !---------------------------
+    ! Gauss 点积分主循环
+    !---------------------------
+    do g = 1, ngp
+
+        ! 1) 参考坐标下 P2 形函数导数 dNref(a,i)
+        !    i = 1..ndim 对应 ξ, η [, ζ]
+        dNref(:,1) = ecp(et).Lderiv(:,1,g)
+        if (ndim >= 2) dNref(:,2) = ecp(et).Lderiv(:,2,g)
+        if (ndim == 3) dNref(:,3) = ecp(et).Lderiv(:,3,g)
+
+        ! 2) 构造 Jacobian 矩阵 J = ∂x/∂ξ
+        Jacm = 0.0d0
+        do a = 1, nnode
+            ! 对每个节点，将 dNref(a,:) 与节点坐标 xy(:,a) 叠加
+            Jacm(1,1) = Jacm(1,1) + dNref(a,1) * xy(1,a)
+            if (ndim >= 2) then
+                Jacm(1,2) = Jacm(1,2) + dNref(a,2) * xy(1,a)
+                Jacm(2,1) = Jacm(2,1) + dNref(a,1) * xy(2,a)
+                Jacm(2,2) = Jacm(2,2) + dNref(a,2) * xy(2,a)
+            end if
+            if (ndim == 3) then
+                Jacm(1,3) = Jacm(1,3) + dNref(a,3) * xy(1,a)
+                Jacm(2,3) = Jacm(2,3) + dNref(a,3) * xy(2,a)
+                Jacm(3,1) = Jacm(3,1) + dNref(a,1) * xy(3,a)
+                Jacm(3,2) = Jacm(3,2) + dNref(a,2) * xy(3,a)
+                Jacm(3,3) = Jacm(3,3) + dNref(a,3) * xy(3,a)
+            end if
+        end do
+
+        ! 3) 计算 detJ 并求 J^{-1}
+        detJ = determinant(Jacm)
+        if (detJ <= 0.d0) then
+            write(*,*) 'BT_Stokes_UP: detJ <= 0, ienum =', ienum, ' g =', g
+            stop
+        end if
+        call invert(Jacm)   ! 现在 Jacm 存储的是 J^{-1}
+
+        ! 4) 物理坐标下梯度 dNdx = dNref * J^{-T}
+        !    即 ∂N/∂x_i = Σ_j (∂N/∂ξ_j) * (J^{-1})_{ij}
+        do a = 1, nshape_u
+            ! x 方向导数
+            dNdx(a,1) = dNref(a,1)*Jacm(1,1)
+            if (ndim >= 2) then
+                dNdx(a,1) = dNdx(a,1) + dNref(a,2)*Jacm(2,1)
+                ! y 方向导数 (2D/3D 通用部分)
+                dNdx(a,2) = dNref(a,1)*Jacm(1,2) + dNref(a,2)*Jacm(2,2)
+            end if
+            if (ndim == 3) then
+                ! 3D 情况：x,y 方向还需考虑 dN/dζ * (J^{-1})_{3,1}, (J^{-1})_{3,2}
+                dNdx(a,1) = dNdx(a,1) + dNref(a,3)*Jacm(3,1)
+                dNdx(a,2) = dNdx(a,2) + dNref(a,3)*Jacm(3,2)
+                ! z 方向导数
+                dNdx(a,3) = dNref(a,1)*Jacm(1,3) + &
+                            dNref(a,2)*Jacm(2,3) + &
+                            dNref(a,3)*Jacm(3,3)
+            end if
+        end do
+
+        ! 5) 构造当前 Gauss 点的 P1 压力形函数 Np(j)
+        !    2D: TRI3; 3D: TET4
+        gp(1:ndim) = ecp(et).gp(1:ndim, g)
+        xi  = gp(1)
+        eta = gp(2)
+        if (ndim == 3) zeta = gp(3)
+
+        if (ndim == 2) then
+            ! 2D 线性三角形：L1 + L2 + L3 = 1
+            ! 常见定义：L1 = 1 - xi - eta, L2 = xi, L3 = eta
+            L2 = xi
+            L3 = eta
+            L1 = 1.0d0 - L2 - L3
+            Np(1) = L1
+            Np(2) = L2
+            Np(3) = L3
+        else
+            ! 3D 线性四面体：L1 + L2 + L3 + L4 = 1
+            L2 = xi
+            L3 = eta
+            L4 = zeta
+            L1 = 1.0d0 - L2 - L3 - L4
+            Np(1) = L1
+            Np(2) = L2
+            Np(3) = L3
+            Np(4) = L4
+        end if
+
+        ! 6) 当前 Gauss 点权重：w_g * detJ * (轴对称时再乘半径)
+        weight_g = ecp(et).weight(g) * detJ
+        r1 = 1.0d0
+        if (et == cax6_st) then
+            ! 轴对称：使用当前 Gauss 点物理半径修正
+            r1 = abs( element(ienum).xygp(1,g) )
+            if (abs(r1) < 1d-7) r1 = 1d-7
+        end if
+        weight_g = weight_g * r1
+
+        ! 7) 累加 K_up：
+        !    行：iu = ndim*(a-1) + alpha, alpha=1..ndim
+        !    列：jp = 1..nshape_p
+        do a = 1, nshape_u
+            do j = 1, nshape_p
+                ! x 方向分量 (α = 1)
+                ELK_up(ndim*(a-1)+1, j) = ELK_up(ndim*(a-1)+1, j) - &
+                                          Np(j) * dNdx(a,1) * weight_g
+                if (ndim >= 2) then
+                    ! y 方向分量 (α = 2)
+                    ELK_up(ndim*(a-1)+2, j) = ELK_up(ndim*(a-1)+2, j) - &
+                                              Np(j) * dNdx(a,2) * weight_g
+                end if
+                if (ndim == 3) then
+                    ! z 方向分量 (α = 3)
+                    ELK_up(ndim*(a-1)+3, j) = ELK_up(ndim*(a-1)+3, j) - &
+                                              Np(j) * dNdx(a,3) * weight_g
+                end if
+            end do
+        end do
+
+    end do   ! g = 1..ngp
+
+    !---------------------------
+    ! 释放局部工作数组
+    !---------------------------
+    deallocate(Jacm, xy, dNdx, dNref, gp, Np)
+
+end subroutine BT_Stokes_UP
 

@@ -2,6 +2,7 @@ module voropp
     use DS_Gmsh2Solver,only:lowcase,strtoint,enlarge_ar,incount
     use tetgen_io,only:read_tetgen_file,element_tg,nelt_tg
     implicit none   
+    private
     public::voropp_handle 
 
 ! // The Voronoi diagram is the geometric dual of the Delaunay triangulation.   //
@@ -16,7 +17,7 @@ module voropp
 ! // vertex belonging to the convex hull.                                       //
 
     
-    private
+    
     
     INTERFACE VENLARGE_AR
         MODULE PROCEDURE VEDGE_TYDEF_ENLARGE_AR
@@ -200,7 +201,7 @@ module voropp
         endif
         
         
-        call write_mesh_zone() 
+        call write_mesh_zone1() 
    
         
         close(unit1)
@@ -290,7 +291,7 @@ module voropp
 82  format(20(i<incount(voroppcell(i).nf)>,'*',i<incount(i)>))    
     end subroutine
     
-    subroutine write_mesh_zone()
+    subroutine write_mesh_zone1()
         
         integer::i,j,k,nc1
         

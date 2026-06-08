@@ -96,7 +96,7 @@ CONTAINS
 									        5,6,6,7,7,8,8,5,&
 									        1,5,2,6,3,7,4,8],tri),([2,12]))                                    
         CASE DEFAULT
-            error stop "no such eshape. error in=triangulation_neighbor_triangles."
+            error stop "no such eshape1. error in=triangulation_neighbor_triangles."
         END SELECT
 
         do iedge1=1,triangle_node(9,TRI)

@@ -326,6 +326,14 @@ subroutine inp_ch_c_to_int_c(str,istr,value,cvalue)
 			value=tet4_cpl
 		case('tet10')
 			value=tet10
+        case('tet10_st')
+			value=tet10_st
+        case('cpe6_st')
+			value=cpe6_st
+        case('cax6_st')
+			value=cax6_st
+        case('stokes')
+			value=stokes
 		case('tet10_spg')
 			value=tet10_spg
 		case('tet10_cpl')

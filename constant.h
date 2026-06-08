@@ -129,7 +129,10 @@
 	integer,parameter::PRM15_CPL=225  !15-noded prism element	
 	integer,parameter::tet4_cpl=227 !4-noded tetrahedron element
 	integer,parameter::tet10_cpl=228 !10-noded tetrahedron element	
-	
+	integer, parameter::tet10_st = 230 !10 - noded tetrahedron element for stokes flow simulation
+	integer, parameter::cpe6_st = 231 !6 - noded triangle element for stokes flow simulation
+	integer, parameter::cax6_st = 232 !6 - noded triangle element for stokes flow simulation
+
 
 	integer,parameter::LBZT4=47	!4-node discontinuite element for low bound analysis
 	integer,parameter::LB3=48	!3-node triangular element for low bound analysis 	
@@ -329,6 +332,8 @@ integer, parameter::spring = 15 !spring like element
 integer, parameter::soilspring = 16 !soil spring
 integer, parameter::CAX_CPL = 17
 integer,parameter::SSA=18 !SLOPE STABILITY ANALYSIS
+integer, parameter::Stokes = 19 !stokes flow element
+integer, parameter::Stokes2D = 20 !stokes flow element
 
 !element shape type
 integer,parameter::Tri3=1

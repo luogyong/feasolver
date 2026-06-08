@@ -3103,7 +3103,7 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1,eshape1)
             ENDIF
 			call EL_SFR2(ET1)
 
-		case(CPE6_SPG,CAX6_SPG,CPE6_CPL,CAX6_CPL)
+		case(CPE6_SPG,CAX6_SPG,CPE6_CPL,CAX6_CPL,cpe6_st)
 			nnum1=6
 			!ndof1=6
 			ngp1=3
@@ -3122,6 +3122,9 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1,eshape1)
 			if(et1==CAX6_CPL) THEN
 				EC1=CAX_CPL;NDOF1=18;nd1=4
             ENDIF
+			if(et1==CPE6_ST.or.et1==CAX6_ST) THEN
+				EC1=stokes2d;NDOF1=15;nd1=2
+			endif
 			call EL_SFR2(ET1)			
 		case(CPE4_SPG,cax4_SPG,CPE4_CPL,cax4_CPL,ZT4_SPG,ZT4_SPG2)
 			nnum1=4
@@ -3314,13 +3317,16 @@ subroutine ettonnum(et1,nnum1,ndof1,ngp1,nd1,stype,EC1,eshape1)
 			stype='FETETRAHEDRON'
 			
 			IF(ET1==TET10_SPG) THEN
-			ec1=SPG;NDOF1=10;nd1=3
+				ec1=SPG;NDOF1=10;nd1=3
 			ENDIF
 			IF(ET1==TET10_CPL) THEN
-			ec1=CPL;NDOF1=40;;nd1=6
+				ec1=CPL;NDOF1=40;;nd1=6
 			ENDIF
 			IF(ET1==TET10) THEN
-			ec1=C3D;NDOF1=30;nd1=6
+				ec1=C3D;NDOF1=30;nd1=6
+            ENDIF
+            IF(ET1==TET10_ST) THEN
+				ec1=Stokes;NDOF1=34;nd1=6
 			ENDIF
 			CALL EL_SFR2(ET1)	
 		case(BAR) !3d BAR ELEMENT

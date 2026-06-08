@@ -7841,8 +7841,10 @@ end function loadtxt2
 
     n = size(x)
     sort = x
-    if ((.not. present(order)) .or. (order .eq. 1)) then
-      call quicksort(sort, n, 1)
+    if (.not. present(order) ) then
+      call quicksort(sort, n, 1)      
+    elseif(order .eq. 1) then
+        call quicksort(sort, n, 1)
     elseif (order .eq. 2) then
       call quicksort(sort, n, 2)
     end if

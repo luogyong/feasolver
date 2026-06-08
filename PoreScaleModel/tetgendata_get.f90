@@ -227,7 +227,15 @@ module tetgendata
             ix1(n1)=self.vcell(i).marker
         enddo
         error = a_vtk_file%xml_writer%write_dataarray(data_name='Marker', x=ix1) 
-        deallocate(ix1)
+  
+        n1=0
+        do i=1,self.nvcell
+            if(self.vcell(i).isclose<1) cycle
+            n1=n1+1
+            ix1(n1)=i
+        enddo
+        error = a_vtk_file%xml_writer%write_dataarray(data_name='iParticle', x=ix1) 
+        deallocate(ix1)        
         !error = a_vtk_file%xml_writer%write_dataarray(data_name='Rh_t(喉水力半径)', x=self.elt(1:self.nelt).rht)
         !error = a_vtk_file%xml_writer%write_dataarray(data_name='V_t(喉体积)', x=self.elt(1:self.nelt).pv)
         !error = a_vtk_file%xml_writer%write_dataarray(data_name='Ap_t(单元颗粒表面积)', x=self.elt(1:self.nelt).pa)
@@ -854,7 +862,7 @@ module tetgendata
         class(tetgendata_tydef)::self   
         real(8)::av1(3,3)    
         integer::i,j,e1,v1(2),n1,n2,n3,ic=0,if1
-        integer::node1(100),ischeck1(100),edge1(100)
+        integer::node1(100),ischeck1(100) !,edge1(100)
           
            
         !set face node
@@ -866,7 +874,7 @@ module tetgendata
             do while(any(ischeck1(:self.vface(if1).nedge)==0))
                 ic=ic+1
                 if(ic>self.vface(if1).nedge**2) then
-                    error stop 'failed to order the node.sub=update_face'                
+                    error stop 'failed to order the node.sub=vfnode_setup'                
                 endif
                 i=mod(ic-1,self.vface(if1).nedge)+1
                 if(ischeck1(i)==1) cycle
@@ -880,18 +888,18 @@ module tetgendata
                     node1(1:2)=v1
                     n1=2
                     ischeck1(i)=1
-                    edge1(1)=self.vface(if1).edge(i)
+                    !edge1(1)=self.vface(if1).edge(i)
                 else
                     do j=1,2
                         if(node1(n1)==v1(j)) then
                             n2=mod(j,2)+1
                             n1=n1+1
                             node1(n1)=v1(n2)
-                            if(n2==2) then
-                                edge1(n1-1)=self.vface(if1).edge(i)
-                            else
-                                edge1(n1-1)=-self.vface(if1).edge(i)
-                            endif
+                            !if(n2==2) then
+                            !    edge1(n1-1)=self.vface(if1).edge(i)
+                            !else
+                            !    edge1(n1-1)=-self.vface(if1).edge(i)
+                            !endif
                             ischeck1(i)=1
                             exit
                         elseif(node1(1)==v1(j)) then
@@ -899,12 +907,12 @@ module tetgendata
                             n1=n1+1
                             node1(n1:2:-1)=node1(n1-1:1:-1)
                             node1(1)=v1(n2)
-                            edge1(n1-1:2:-1)=edge1(n1-2:1:-1)
-                            if(n2==2) then
-                                edge1(1)=-self.vface(if1).edge(i)
-                            else
-                                edge1(1)=self.vface(if1).edge(i)
-                            endif
+                            !edge1(n1-1:2:-1)=edge1(n1-2:1:-1)
+                            !if(n2==2) then
+                            !    edge1(1)=-self.vface(if1).edge(i)
+                            !else
+                            !    edge1(1)=self.vface(if1).edge(i)
+                            !endif
                             ischeck1(i)=1
                             exit
                         endif

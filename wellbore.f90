@@ -85,8 +85,29 @@ SUBROUTINE INI_WELLBORE(IELT)
         ORG1(3),AREA1,XYLMT(2,3),SR1,try1,try2,TRY0
     REAL(8),ALLOCATABLE::RDIS2(:),SPT1(:,:)
     
-    if(.not.IS_WELL_GEO_INI) CALL WELL_GEO_INI(.false.)
+    if(.not.IS_WELL_GEO_INI) THEN
+        CALL WELL_GEO_INI(.false.)
+  
+        !借用sign标识井轴附属单元
+        element.sign=0
+        !!找出井轴附属单元(2个节点在井轴上的四面体单元),这些单元只属于该井轴
+        do i=1,enum
+            if(element(i).et==wellbore.or.element(i).et==WELLBORE_SPGFACE) then
+                n1=abs(element(i).edge(3)) !命名iedge为第三边3-4
+                do j=1,sedge(n1).enum
+                    n2=sedge(n1).element(j)
+                    n3=getgmshet(element(n2).et)
+                    if(elttype(n3).dim==3.and.element(n2).ec==spg) then
+                        element(n2).sign=-i !井轴附属单元(2个节点在井轴上的四面体单元)
+                    endif
+                enddo                
+            endif
+        enddo        
+       
+        
+    endif
     
+
     
     
     IEDGE1=ABS(ELEMENT(IELT).EDGE(3))
@@ -126,7 +147,8 @@ SUBROUTINE INI_WELLBORE(IELT)
             CALL calangle(IELT1)
             !call wellbore_area(IELT1,SEDGE(IEDGE1).V(I),SEDGE(IEDGE1).V(mod(i,2)+1),wr1)
         ENDDO    
-    ENDDO
+    ENDDO   
+    
     
     N1=0;HK1=0.D0
     DO I=1,SEDGE(IEDGE1).ENUM
@@ -157,6 +179,13 @@ SUBROUTINE INI_WELLBORE(IELT)
         STOP
     ENDIF
     PHI1=TPHI1/SIZE(ELEMENT(IELT).ANGLE)
+    
+    !直接模拟线单元，不考虑阻力修正的情况
+    if(solver_control.WELLMETHOD<0) then
+        element(IELT).property(1:3)=1d-8 !阻力很小
+        element(IELT).km=km_wellbore(1./element(IELT).property(1),1./element(IELT).property(2),1./element(IELT).property(3))!单刚
+        return
+    endif
     
     !LOCAL COORDINATE SYSTEM
     !以wellbore单元，3节点为原点，3-4为z轴的局部坐标系。
@@ -1390,12 +1419,32 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
     implicit none
     integer,intent(in)::ielt,iiter
     real(8),intent(in),optional::hh(*)
-    integer::i,j,k,ielt1,iedge1,gmet1,subid1,af1(2),n1,n2,n3,k1,n4
+    integer::i,j,k,ielt1,iedge1,gmet1,subid1,af1(2),n1,n2,n3,k1,n4,debugid1
     real(8)::d1,t1,t2,hk(2),tphi,wr1,area,sk,L1,weight1,sfactor1
     logical::isp1,isweighted
     
+    debugid1=1
+    
+    
     if(.not.IS_WELL_GEO_INI) then
-        CALL WELL_GEO_INI(.false.)        
+        CALL WELL_GEO_INI(.false.)
+        if(debugid1>0) then
+            !借用sign标识井轴附属单元
+            element.sign=0
+            !!找出井轴附属单元(2个节点在井轴上的四面体单元),这些单元只属于该井轴
+            do i=1,enum
+                if(element(i).et==wellbore.or.element(i).et==WELLBORE_SPGFACE) then
+                    n1=abs(element(i).edge(3)) !命名iedge为第三边3-4
+                    do j=1,sedge(n1).enum
+                        n2=sedge(n1).element(j)
+                        n3=getgmshet(element(n2).et)
+                        if(elttype(n3).dim==3.and.element(n2).ec==spg) then
+                            element(n2).sign=-i !井轴附属单元(2个节点在井轴上的四面体单元)
+                        endif
+                    enddo                
+                endif
+            enddo        
+        end if
     endif
     
     iedge1=abs(element(ielt).edge(3)) !命名iedge为第三边3-4
@@ -1411,15 +1460,19 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
 
     tphi=0
     sk=0
-   
-    !open(66,file='test.txt',status='replace')
-    !借用sign
-    !where(element.sign>0)  element.sign=0 
+    
+    
     if(.not.present(hh)) then
-        call cal_well_weight(iiter)
+        if(debugid1==0) then
+            call cal_well_weight(ielt,iiter)
+        elseif(debugid1==1) then            
+            call cal_well_weight2(ielt,iiter)
+        else
+            call cal_well_weight3(ielt,iiter)
+        endif
     else
-        call cal_well_scalefactor2(ielt,iiter,hh)
-        !call cal_well_weight(iiter,hh)
+        !call cal_well_scalefactor2(ielt,iiter,hh)
+        call cal_well_weight2(ielt,iiter,hh)
     endif
     
     n1=0
@@ -1432,8 +1485,18 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
             if(element(ielt1).sign==0) cycle
             if(element(ielt1).sign<0.and.element(ielt1).sign/=-ielt) cycle  !去除完全属于其他井单元的单元
             if(i==2.and.element(ielt1).sign==-ielt) cycle !只计算一次
-             
-            weight1=element(ielt1).property(6)*L1/element(ielt1).property(5)/element(ielt).ww !weights
+            
+            if(debugid1==0) then 
+                t1=element(ielt1).property(6)*L1/element(ielt1).property(5)
+                weight1=t1/element(ielt).ww !weights
+                !write(99,10,ADVANCE="NO") debugid1,ielt1,ielt,weight1,t1,element(ielt).ww,L1,element(ielt1).property(5),element(ielt1).property(6),sedge(iedge1).v(i)
+            else
+                weight1=element(ielt1).property(6)/element(ielt).ww !weights
+                !write(99,20,ADVANCE="NO") debugid1,ielt1,ielt,weight1,element(ielt1).property(6),element(ielt).ww,sedge(iedge1).v(i)
+
+            endif
+            if(abs(weight1)<1.d-8) cycle !skip the zero weight element
+            
             isweighted=.true.
             if(isweighted)then
                 isp1=element(ielt1).sign<0
@@ -1444,7 +1507,7 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
                 endif
             
             endif
-            sk=sk+element(ielt1).fd*weight1/(2*pi()*wr1*L1)
+            sk=sk+element(ielt1).fd*weight1 !/(2*pi()*wr1*L1)
                 
         enddo    
     enddo
@@ -1470,8 +1533,8 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
     !element(ielt).property(3)=1/sk(2)
     element(ielt).km=km_wellbore(1./element(ielt).property(1),1./element(ielt).property(2),1./element(ielt).property(3))!单刚
     
-    
-    
+10 format('idebug=',i4,' itet=',i7,' wellelement=',i7,' weight1=',F9.6,' wi=',F9.6,' ww=',F9.6,' Elen=',F9.6,' Tlen=',F9.6,' qi=',F9.6,' inode=',i7,/)    
+20 format('idebug=',i4,' itet=',i7,' wellelement=',i7,' weight1=',F9.6,' wi=',F9.6,' ww=',F9.6,' inode=',i7,/)    
     endsubroutine   
     
     subroutine cal_well_scalefactor(ielt,iiter,head) 
@@ -1753,13 +1816,13 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
                   
     end subroutine 
     
-    subroutine cal_well_weight(iiter,head)
+    subroutine cal_well_weight(ielt,iiter,head)
 
         USE MESHADJ,ONLY:SEDGE,NSEDGE,SNADJL,GETGMSHET,ELTTYPE                       
         USE solverds,ONLY:NODE,ELEMENT,NDIMENSION,WELLBORE,WELLBORE_SPGFACE,ENUM,NNUM,spg,material,ww_cal_nc,solver_control
         use SolverMath,only:line_exp_point_dist_3d
         IMPLICIT NONE
-        integer,intent(in)::iiter
+        integer,intent(in)::ielt,iiter
         real,intent(in),optional::head(*)
         INTEGER I,J,K,N1,N2,N3,N4,v1,v2,k1
         REAL(8)::xy1(3,4),wr1,area1,l1,r1(4),t1
@@ -1806,6 +1869,15 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
                     endif
                 enddo
             
+            endif
+        enddo  
+        
+        do i=1,enum
+            if(element(i).et==wellbore.or.element(i).et==WELLBORE_SPGFACE) then 
+                n1=abs(element(i).edge(3)) !命名iedge为第三边3-4
+                wr1=material(element(i).mat).property(1)
+                l1=norm2(node(sedge(n1).v(1)).coord-node(sedge(n1).v(2)).coord)
+                
                 do j=1,2
                    
                     do k=1,snadjl(sedge(n1).v(j)).enum
@@ -1839,10 +1911,7 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
                             element(n2).property(5)=element(n2).property(5)+L1 !共享单元，流量按井流单元长度比分配，确定权重,此处计算所有共享此单元的井线长度和
                         endif
                     enddo
-                enddo
-            
-            
-            
+                enddo            
             endif
         enddo    
         !total weights
@@ -1865,6 +1934,298 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
         enddo     
     
         ww_cal_nc=iiter
+                  
+    end subroutine
+    
+        
+    subroutine cal_well_weight2(ielt,iiter,head)
+
+        USE MESHADJ,ONLY:SEDGE,NSEDGE,SNADJL,GETGMSHET,ELTTYPE                       
+        USE solverds,ONLY:NODE,ELEMENT,NDIMENSION,WELLBORE,WELLBORE_SPGFACE,ENUM,NNUM,spg,material,ww_cal_nc,solver_control
+        use SolverMath,only:line_exp_point_dist_3d
+        IMPLICIT NONE
+        integer,intent(in)::ielt,iiter
+        real,intent(in),optional::head(*)
+        INTEGER I,J,K,N1,N2,N3,N4,v1,v2,k1
+        REAL(8)::xy1(3,4),wr1,area1,l1,r1(4),t1
+
+        i=ielt
+        element(i).ww=0.d0
+        
+        n1=abs(element(i).edge(3)) !命名iedge为第三边3-4
+        wr1=material(element(i).mat).property(1)
+        l1=norm2(node(sedge(n1).v(1)).coord-node(sedge(n1).v(2)).coord)
+        !统计以井流单元为边的单元数
+        do j=1,sedge(n1).enum
+            n2=sedge(n1).element(j)
+            n3=getgmshet(element(n2).et)
+            if(elttype(n3).dim==3.and.element(n2).ec==spg) then
+                v1=minloc(abs(element(n2).node-sedge(n1).v(1)),dim=1)
+                v2=minloc(abs(element(n2).node-sedge(n1).v(2)),dim=1)
+                if(solver_control.wm4_weight_method>0) then
+                    IF(.NOT.ALLOCATED(ELEMENT(N2).ANGLE)) CALL calangle(N2) 
+                    element(n2).property(6)=element(n2).angle(v1)+element(n2).angle(v2)
+                else
+                    if(present(head)) then
+                        r1=head(element(n2).g)
+                    else
+                        do k=1,4
+                            call line_exp_point_dist_3d ( node(sedge(n1).v(1)).coord, node(sedge(n1).v(2)).coord, node(element(n2).node(k)).coord, r1(k) )
+                            !r1(k)=norm2(node(element(n2).node(k)).coord(1:2)-node(element(n2).node(v1)).coord(1:2))
+                            if(r1(k)<wr1) r1(k)=wr1
+                            r1(k)=wr1*log(r1(k)/wr1)
+                        enddo
+                    endif
+                        
+                    element(n2).property(6)=dot_product(element(n2).km(v1,:),r1) + dot_product(element(n2).km(v2,:),r1)
+                    element(i).ww=element(i).ww+element(n2).property(6)
+                endif
+                       
+                !element(n2).sign=-i !井轴附属单元(2个节点在井轴上的四面体单元)
+                !element(n2).property(5)=L1
+                !if(.not.allocated(element(n2).angle)) call calangle(n2)
+            endif
+        enddo
+            
+        do j=1,2
+                   
+            !计算共享此节点的井流单元长度
+            t1=l1
+            do k=1,snadjl(sedge(n1).v(j)).enum
+                n2=snadjl(sedge(n1).v(j)).element(k)
+                if(n2/=i.and.(element(n2).et==wellbore.or.element(n2).et==WELLBORE_SPGFACE)) then
+                    n3=abs(element(n2).edge(3)) !命名iedge为第三边3-4                
+                    t1=t1+norm2(node(sedge(n3).v(1)).coord-node(sedge(n3).v(2)).coord)
+                endif
+            enddo
+                    
+            do k=1,snadjl(sedge(n1).v(j)).enum
+                    
+                n2=snadjl(sedge(n1).v(j)).element(k)
+                if(element(n2).sign<0) cycle !跳过井轴附属单元
+                n3=getgmshet(element(n2).et)
+                if(elttype(n3).dim==3.and.element(n2).ec==spg) then
+                    !if(element(n2).sign==0) then
+                        v1=minloc(abs(element(n2).node-sedge(n1).v(j)),dim=1)
+                        if(solver_control.wm4_weight_method>0) then
+                            IF(.NOT.ALLOCATED(ELEMENT(N2).ANGLE)) CALL calangle(N2) 
+                            element(n2).property(6)=element(n2).angle(v1)
+                        else
+                            if(present(head)) then
+                                r1=head(element(n2).g)
+                            else                                    
+                                do k1=1,4
+                                    call line_exp_point_dist_3d ( node(sedge(n1).v(1)).coord, node(sedge(n1).v(2)).coord, node(element(n2).node(k1)).coord, r1(k1) )
+                                    !r1(k1)=norm2(node(element(n2).node(k1)).coord(1:2)-node(element(n2).node(v1)).coord(1:2))
+                                    if(r1(k1)<wr1) r1(k1)=wr1
+                                    r1(k1)=wr1*log(r1(k1)/wr1)
+                                enddo                                    
+                            endif
+                            element(n2).property(5)=L1/t1
+                            element(n2).property(6)=dot_product(element(n2).km(v1,:),r1)*element(n2).property(5) !共享单元，流量按井流单元长度比分配，确定权重
+                                                                        
+                            element(i).ww=element(i).ww+element(n2).property(6) 
+                        endif
+                    !endif
+                    element(n2).sign=element(n2).sign+1
+                        
+                    !if(element(n2).sign==1) element(n2).property(5)=0.d0
+                    !element(n2).property(5)=element(n2).property(5)+L1 !共享单元，流量按井流单元长度比分配，确定权重,此处计算所有共享此单元的井线长度和
+                endif
+            enddo
+        enddo
+                  
+    end subroutine
+     
+        
+    subroutine cal_well_weight3(ielt,iiter,head)
+    !计算井流单元权重，流量按井流单元长度比分配，确定权重
+    !双井节点单元与单井节点单元统一处理，即认为井轴单元不再只属于一个井单元，这点与cal_well_weight2不同。
+        USE MESHADJ,ONLY:SEDGE,NSEDGE,SNADJL,GETGMSHET,ELTTYPE                       
+        USE solverds,ONLY:NODE,ELEMENT,NDIMENSION,WELLBORE,WELLBORE_SPGFACE,ENUM,NNUM,spg,material,ww_cal_nc,solver_control
+        use SolverMath,only:line_exp_point_dist_3d
+        IMPLICIT NONE
+        integer,intent(in)::ielt,iiter
+        real,intent(in),optional::head(*)
+        INTEGER I,J,K,N1,N2,N3,N4,v1,v2,k1
+        REAL(8)::xy1(3,4),wr1,area1,l1,r1(4),t1,t2
+
+        i=ielt
+        element(i).ww=0.d0
+        
+        n1=abs(element(i).edge(3)) !命名iedge为第三边3-4
+        wr1=material(element(i).mat).property(1)
+        l1=norm2(node(sedge(n1).v(1)).coord-node(sedge(n1).v(2)).coord)
+        
+        do j=1,2
+                   
+            !作必要的清零和标记处理            
+            do k=1,snadjl(sedge(n1).v(j)).enum
+                n2=snadjl(sedge(n1).v(j)).element(k)
+                n3=getgmshet(element(n2).et)
+                if(elttype(n3).dim==3.and.element(n2).ec==spg) then
+                    element(n2).property(6)=0.d0
+                    element(n2).sign=0 
+                endif
+            enddo
+        enddo
+        
+                    
+        do j=1,2
+                   
+            !计算共享此节点的井流单元长度,流量按井流单元长度比分配，确定权重
+            t1=l1
+            do k=1,snadjl(sedge(n1).v(j)).enum
+                n2=snadjl(sedge(n1).v(j)).element(k)
+                if(n2/=i.and.(element(n2).et==wellbore.or.element(n2).et==WELLBORE_SPGFACE)) then
+                    n3=abs(element(n2).edge(3)) !命名iedge为第三边3-4                
+                    t1=t1+norm2(node(sedge(n3).v(1)).coord-node(sedge(n3).v(2)).coord)
+                endif
+            enddo
+                    
+            do k=1,snadjl(sedge(n1).v(j)).enum
+                    
+                n2=snadjl(sedge(n1).v(j)).element(k)
+                n3=getgmshet(element(n2).et)
+                if(elttype(n3).dim==3.and.element(n2).ec==spg) then
+                    
+                    v1=minloc(abs(element(n2).node-sedge(n1).v(j)),dim=1)
+                    if(solver_control.wm4_weight_method>0) then
+                        IF(.NOT.ALLOCATED(ELEMENT(N2).ANGLE)) CALL calangle(N2) 
+                        element(n2).property(6)=element(n2).angle(v1)
+                    else
+                        if(present(head)) then
+                            r1=head(element(n2).g)
+                        else                                    
+                            do k1=1,4
+                                call line_exp_point_dist_3d ( node(sedge(n1).v(1)).coord, node(sedge(n1).v(2)).coord, node(element(n2).node(k1)).coord, r1(k1) )
+                                !r1(k1)=norm2(node(element(n2).node(k1)).coord(1:2)-node(element(n2).node(v1)).coord(1:2))
+                                if(r1(k1)<wr1) r1(k1)=wr1
+                                r1(k1)=wr1*log(r1(k1)/wr1)
+                            enddo                                    
+                        endif
+                        
+                        t2=dot_product(element(n2).km(v1,:),r1)*L1/t1 !共享单元，流量按井流单元长度比分配，确定权重,此处计算所有共享此单元的井线长度和
+                        element(n2).property(6)=element(n2).property(6)+t2 
+                        element(i).ww=element(i).ww+t2
+                    endif
+                    
+                    element(n2).sign=element(n2).sign+1 
+                    if(element(n2).sign>1) element(n2).sign=-i !-i表明此单元为井轴附属单元(双井节点单元);1,表此单元为单井节点单元
+                        
+                    !if(element(n2).sign==1) element(n2).property(5)=0.d0
+                    !element(n2).property(5)=element(n2).property(5)+L1 !共享单元，流量按井流单元长度比分配，确定权重,此处计算所有共享此单元的井线长度和
+                endif
+            enddo
+        enddo
+                  
+    end subroutine
+   
+            
+    subroutine cal_well_weight4(ielt,iiter,head)
+    !计算井流单元权重，单井节点单元按其形心投影所在井单元确定其归属
+        USE MESHADJ,ONLY:SEDGE,NSEDGE,SNADJL,GETGMSHET,ELTTYPE                       
+        USE solverds,ONLY:NODE,ELEMENT,NDIMENSION,WELLBORE,WELLBORE_SPGFACE,ENUM,NNUM,spg,material,ww_cal_nc,solver_control
+        use SolverMath,only:line_exp_point_dist_3d
+        IMPLICIT NONE
+        integer,intent(in)::ielt,iiter
+        real,intent(in),optional::head(*)
+        INTEGER I,J,K,N1,N2,N3,N4,v1,v2,k1
+        REAL(8)::xy1(3,4),wr1,area1,l1,r1(4),t1,xc1(3)
+
+        i=ielt
+        element(i).ww=0.d0
+        
+        n1=abs(element(i).edge(3)) !命名iedge为第三边3-4
+        wr1=material(element(i).mat).property(1)
+        l1=norm2(node(sedge(n1).v(1)).coord-node(sedge(n1).v(2)).coord)
+        !统计以井流单元为边的单元数
+        do j=1,sedge(n1).enum
+            n2=sedge(n1).element(j)
+            n3=getgmshet(element(n2).et)
+            if(elttype(n3).dim==3.and.element(n2).ec==spg) then
+                v1=minloc(abs(element(n2).node-sedge(n1).v(1)),dim=1)
+                v2=minloc(abs(element(n2).node-sedge(n1).v(2)),dim=1)
+                if(solver_control.wm4_weight_method>0) then
+                    IF(.NOT.ALLOCATED(ELEMENT(N2).ANGLE)) CALL calangle(N2) 
+                    element(n2).property(6)=element(n2).angle(v1)+element(n2).angle(v2)
+                else
+                    if(present(head)) then
+                        r1=head(element(n2).g)
+                    else
+                        do k=1,4
+                            call line_exp_point_dist_3d ( node(sedge(n1).v(1)).coord, node(sedge(n1).v(2)).coord, node(element(n2).node(k)).coord, r1(k) )
+                            !r1(k)=norm2(node(element(n2).node(k)).coord(1:2)-node(element(n2).node(v1)).coord(1:2))
+                            if(r1(k)<wr1) r1(k)=wr1
+                            r1(k)=wr1*log(r1(k)/wr1)
+                        enddo
+                    endif
+                        
+                    element(n2).property(6)=dot_product(element(n2).km(v1,:),r1) + dot_product(element(n2).km(v2,:),r1)
+                    element(i).ww=element(i).ww+element(n2).property(6)
+                endif
+                       
+                !element(n2).sign=-i !井轴附属单元(2个节点在井轴上的四面体单元)
+                !element(n2).property(5)=L1
+                !if(.not.allocated(element(n2).angle)) call calangle(n2)
+            endif
+        enddo
+            
+        do j=1,2
+                   
+            !!计算共享此节点的井流单元长度
+            !t1=l1
+            !do k=1,snadjl(sedge(n1).v(j)).enum
+            !    n2=snadjl(sedge(n1).v(j)).element(k)
+            !    if(n2/=i.and.(element(n2).et==wellbore.or.element(n2).et==WELLBORE_SPGFACE)) then
+            !        n3=abs(element(n2).edge(3)) !命名iedge为第三边3-4                
+            !        t1=t1+norm2(node(sedge(n3).v(1)).coord-node(sedge(n3).v(2)).coord)
+            !    endif
+            !enddo
+                    
+            do k=1,snadjl(sedge(n1).v(j)).enum
+                    
+                n2=snadjl(sedge(n1).v(j)).element(k)
+                if(element(n2).sign<0) cycle !跳过井轴附属单元
+                n3=getgmshet(element(n2).et)
+                if(elttype(n3).dim==3.and.element(n2).ec==spg) then
+                    !计算形心投影是否处于此井单元上
+                    xc1(3)=sum(node(element(n2).node(1:element(n2).nnum)).coord(3))/element(n2).nnum
+                    
+                    if((node(element(i).node(3)).coord(3)-xc1(3))*(node(element(i).node(4)).coord(3)-xc1(3))<=0.d0) then
+                        t1=1.0d0
+                    else                        
+                        element(n2).property(6)=0.d0
+                        cycle
+                    endif
+                    
+                    
+                    v1=minloc(abs(element(n2).node-sedge(n1).v(j)),dim=1)
+                    if(solver_control.wm4_weight_method>0) then
+                        IF(.NOT.ALLOCATED(ELEMENT(N2).ANGLE)) CALL calangle(N2) 
+                        element(n2).property(6)=element(n2).angle(v1)
+                    else
+                        if(present(head)) then
+                            r1=head(element(n2).g)
+                        else                                    
+                            do k1=1,4
+                                call line_exp_point_dist_3d ( node(sedge(n1).v(1)).coord, node(sedge(n1).v(2)).coord, node(element(n2).node(k1)).coord, r1(k1) )
+                                !r1(k1)=norm2(node(element(n2).node(k1)).coord(1:2)-node(element(n2).node(v1)).coord(1:2))
+                                if(r1(k1)<wr1) r1(k1)=wr1
+                                r1(k1)=wr1*log(r1(k1)/wr1)
+                            enddo                                    
+                        endif
+                        element(n2).property(6)=dot_product(element(n2).km(v1,:),r1)*t1
+                        element(i).ww=element(i).ww+element(n2).property(6) 
+                    endif
+                    
+                    element(n2).sign=element(n2).sign+1
+                        
+                    !if(element(n2).sign==1) element(n2).property(5)=0.d0
+                    !element(n2).property(5)=element(n2).property(5)+L1 !共享单元，流量按井流单元长度比分配，确定权重,此处计算所有共享此单元的井线长度和
+                endif
+            enddo
+        enddo
                   
     end subroutine
     
@@ -1899,7 +2260,7 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
    
     km1=element(ielt).km
     ia1=[v1,v2]   
-    alpha1=-rw/(ki)*log(r/rw) !!! -,解析解的流量正负与数值解相反
+    alpha1=-rw/(ki*area)*log(r/rw) !!! -,解析解的流量正负与数值解相反
     node1(1:element(ielt).nnum)=element(ielt).node(1:element(ielt).nnum)
     do i=1,2       
         n1=minloc(abs(node1(1:element(ielt).nnum)-ia1(i)),dim=1)
@@ -1923,25 +2284,26 @@ SUBROUTINE DIRECTION_K(KR,IEL,IWN,Vec)
         
     if(isp1) then !2个节点都在井轴上
         
-        t1=weight*area-(km1(1,3)+km1(2,3))*alpha1(3)-(km1(1,4)+km1(2,4))*alpha1(4)
+        t1=weight-(km1(1,3)+km1(2,3))*alpha1(3)-(km1(1,4)+km1(2,4))*alpha1(4)
         t2=km1(1,1)+Km1(1,2)+km1(2,1)+Km1(2,2)
         !t3=1.0d0
         !area=area/2.0
     else
         !if(v1==3) area=area/2.0
-        t1=(weight*area-dot_product(km1(1,2:4),alpha1(2:4)))
-        t2=km1(1,1)
+        t1=(weight-dot_product(km1(1,2:4),alpha1(2:4))*element(ielt).property(5))
+        t2=km1(1,1)*element(ielt).property(5) !property(5)是此单元的流量占比
         !t3=1.d0
     endif
     if(abs(t2)>1.d-8) then 
         !element(ielt).fd=-t3*area*(t1/t2)
-        element(ielt).fd=-(t1/t2)
+        element(ielt).fd=-(t1/t2) !注意这个负号要保留
     else
         element(ielt).fd=0.d0
     endif
 
     !write(66,*)'r(1-4)=',r,'v=', vol1,'bi=',cofactor1(1,2),'sb=',sb,'si=',si
 endsubroutine     
+
 
 
 

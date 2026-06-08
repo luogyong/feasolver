@@ -376,6 +376,7 @@ end subroutine
 subroutine E2N_stress_strain(ISTEP,isubts)
 	use solverds
     use stress_failure_ratio
+    use omp_lib
 	implicit none
 	integer::i,j,k,n1,n2,ISTEP,isubts
 	real(8)::un(50)=0.0D0,vangle(15)=0.0,C1,PHI1,dis1(3),T2,ts1,SFR_MAX1=-1.D20,SIGMA1(6),MU1,SFR1(9),DCOS1(3,3),t1
@@ -383,6 +384,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
     if(isubts==1) call NodalWeight(ISTEP) !同一步中单元的生死不发生改变
     
 	!clear zero
+    !$OMP PARALLEL DO 
 	do i=1,nnum
         IF(NODE(I).ISACTIVE==0) CYCLE
         IF(solver_control.i2ncal/=SPR) THEN
@@ -402,9 +404,11 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 		IF(ALLOCATED(NODE(I).PSIGMA)) NODE(I).PSIGMA=0.D0
 		node(i).q=0.0d0
         !node(i).sfr(1)=-1.0d6
-	end do
-	
+    end do
+	!$OMP END PARALLEL DO 
+    
 	!averaged simplily at nodes
+    !$OMP PARALLEL DO 
 	do i=1,enum
 		IF(ELEMENT(I).ISACTIVE==0) CYCLE
         
@@ -503,9 +507,11 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 				print *, 'Not Completed in E2N_stress_strain. EC=', element(i).ec
 		end select
 		
-	end do
-
+    end do
+	!$OMP END PARALLEL DO 
+    
 	! generalized shear stress and strain
+    
 	do i=1,nnum
 		!shear strain
         if(node(i).isactive==0) cycle
@@ -545,7 +551,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
                     NODE(I).SFR(1)=NODE(I).SFR(1)-SFR1(1)
                     
                 endif 
-                IF(NODE(I).SFR(1)>SFR_MAX1) SFR_MAX1=NODE(I).SFR(1)
+                !IF(NODE(I).SFR(1)>SFR_MAX1) SFR_MAX1=NODE(I).SFR(1)
 			ENDIF
 		end if
 		!total generalized shear stain
@@ -570,8 +576,10 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 
 		
 		
-	end do
+    end do
+    !$OMP END PARALLEL DO 
     
+    !$OMP PARALLEL DO 
 	DO i=1,nnum
 		
         if(node(i).isactive==0) cycle
@@ -600,7 +608,7 @@ subroutine E2N_stress_strain(ISTEP,isubts)
 			ENDIF
 		ENDIF
 	ENDDO
-	
+	!$OMP END PARALLEL DO 
 	
 	
 end subroutine
@@ -677,6 +685,7 @@ end subroutine
 
 subroutine NodalWeight(ISTEP)
 	use solverds
+    USE OMP_LIB
 	implicit none
     integer,intent(in)::istep
 	integer::i,j,k,n1,CESET1=0
@@ -685,6 +694,7 @@ subroutine NodalWeight(ISTEP)
 	
 	
 	node.nelist=0;node.nelist_SPG=0;node.angle=0
+    !$OMP PARALLEL DO
 	do i=1,enum
         if(solver_control.i2nweight==weight_angle.OR.solver_control.I2NCAL==SPR) then
             if(.not.allocated(element(i).angle))    then
@@ -700,18 +710,22 @@ subroutine NodalWeight(ISTEP)
 		ISSPG1=ELEMENT(I).EC==SPG.OR.ELEMENT(I).EC==SPG2D.OR.ELEMENT(I).EC==CAX_SPG
 		do j=1,element(i).nnum
 			n1=element(i).node(j)
+            !$OMP ATOMIC
 			node(n1).nelist=node(n1).nelist+1
 			IF(ISSPG1) THEN
+                !$OMP ATOMIC
 				node(n1).nelist_SPG=node(n1).nelist_SPG+1
 			ENDIF
             if(allocated(element(i).angle)) THEN
                 CESET1=ESET(ELEMENT(I).SET).COUPLESET
                 IF(.NOT.(CESET1>0.AND.CESET1<ELEMENT(I).SET)) THEN
+                    !$OMP ATOMIC
                     node(n1).angle=node(n1).angle+element(i).angle(j)
                 ENDIF
             ENDIF
 		end do
-	end do
+    end do
+    !$OMP PARALLEL DO
     
 	!do i=1,nnum
 	!	allocate(node(i).elist(node(i).nelist),node(i).elist_SPG(node(i).nelist_SPG))
@@ -802,7 +816,7 @@ subroutine calangle(ienum)
             !    enddo
             !    element(ienum).angle(i)=solidangle(AR1(:,1:4))            
             !enddo
-            do j=1,8
+            do j=1,ELEMENT(IENUM).NNUM
 				ar1(:,j)=node(element(ienum).node(j)).coord
             enddo
             call tetrahedron_solid_angles_3d(ar1(:,1:4),element(ienum).angle(1:4))

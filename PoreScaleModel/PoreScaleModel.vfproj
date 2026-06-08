@@ -5,7 +5,7 @@
 		<Platform Name="x64"/>
 	</Platforms>
 	<Configurations>
-		<Configuration Name="Debug|Win32">
+		<Configuration Name="Debug|Win32" UseCompiler="ifortCompiler">
 			<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" WarnInterfaces="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtMultiThreadedDebugDLL"/>
 			<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemConsole"/>
 			<Tool Name="VFResourceCompilerTool"/>
@@ -16,7 +16,7 @@
 			<Tool Name="VFPostBuildEventTool"/>
 			<Tool Name="VFManifestTool" SuppressStartupBanner="true"/>
 		</Configuration>
-		<Configuration Name="Debug|x64">
+		<Configuration Name="Debug|x64" UseCompiler="ifortCompiler">
 			<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" AdditionalIncludeDirectories="f:\program\github\VTKFortran\vsproject\VTKFortran\x64\Release\" OpenMP="OpenMPParallelCode" FPS4Filenames="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtMultiThreadedDebugDLL"/>
 			<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="f:\program\github\VTKFortran\vsproject\VTKFortran\x64\Release\;f:\program\github\Fortran---CGAL-polyhedra\build\lib\Release\" GenerateDebugInformation="true" SubSystem="subSystemConsole" ImportLibrary="$(TargetDir)$(TargetName).lib " AdditionalDependencies="VTKFortran.lib  PiPolyhedron.lib"/>
 			<Tool Name="VFResourceCompilerTool"/>
@@ -27,7 +27,7 @@
 			<Tool Name="VFPostBuildEventTool"/>
 			<Tool Name="VFManifestTool" SuppressStartupBanner="true"/>
 		</Configuration>
-		<Configuration Name="Release|Win32">
+		<Configuration Name="Release|Win32" UseCompiler="ifortCompiler">
 			<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" RuntimeLibrary="rtMultiThreadedDLL"/>
 			<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" SubSystem="subSystemConsole"/>
 			<Tool Name="VFResourceCompilerTool"/>
@@ -38,7 +38,7 @@
 			<Tool Name="VFPostBuildEventTool"/>
 			<Tool Name="VFManifestTool" SuppressStartupBanner="true"/>
 		</Configuration>
-		<Configuration Name="Release|x64">
+		<Configuration Name="Release|x64" UseCompiler="ifortCompiler">
 			<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" AdditionalIncludeDirectories="f:\program\github\VTKFortran\vsproject\VTKFortran\x64\Release\" OpenMP="OpenMPParallelCode" FPS4Filenames="true" RuntimeLibrary="rtQuickWin"/>
 			<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="f:\program\github\VTKFortran\vsproject\VTKFortran\x64\Release\;f:\program\github\Fortran---CGAL-polyhedra\build\lib\Release\" SubSystem="subSystemWindows" ImportLibrary="$(TargetDir)$(TargetName).lib f:\program\github\Fortran---CGAL-polyhedra\build\lib\Release\PiPolyhedron.lib" AdditionalDependencies="VTKFortran.lib  PiPolyhedron.lib"/>
 			<Tool Name="VFResourceCompilerTool"/>
@@ -54,15 +54,16 @@
 		<Filter Name="Header Files" Filter="fi;fd;h;inc"/>
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
-		<File RelativePath="..\..\..\..\github\Fortran---CGAL-polyhedra\cgal_polyhedra.f90"/>
-		<File RelativePath=".\MaxIncribedCircle.f90"/>
-		<File RelativePath="..\..\..\..\github\SDFGen\fortran-sdf\obj_io.f90"/>
-		<File RelativePath=".\PNW_DS.f90"/>
-		<File RelativePath=".\PNW_IO.f90"/>
-		<File RelativePath=".\PoreScaleModel.f90"/>
-		<File RelativePath=".\quicksort.f90"/>
-		<File RelativePath=".\tetgendata_get.f90"/>
-		<File RelativePath=".\vtk_celltype.f90"/></Filter>
+			<File RelativePath="..\..\..\..\github\Fortran---CGAL-polyhedra\cgal_polyhedra.f90"/>
+			<File RelativePath=".\MaxIncribedCircle.f90"/>
+			<File RelativePath=".\PNW_DS.f90"/>
+			<File RelativePath=".\PNW_IO.f90"/>
+			<File RelativePath=".\PoreScaleModel.f90"/>
+			<File RelativePath=".\quicksort.f90"/>
+			<File RelativePath=".\tetgendata_get.f90"/>
+			<File RelativePath=".\voropp_psm.f90"/>
+			<File RelativePath=".\vtk_celltype.f90"/>
+		</Filter>
 	</Files>
 	<Globals/>
 </VisualStudioProject>

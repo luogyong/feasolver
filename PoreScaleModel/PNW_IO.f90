@@ -17,7 +17,7 @@ program PNWmain
 	real(8)::r_t !  外包三角形的内接圆半径，r_t=5*（包含边界关键点的最小圆半径）
 	real(8)::x_t,y_t
 	real(8)::t1,t2,t3
-	integer(4)::length,result,msg,status
+	integer(4)::length,result,msg,status,cnt
 	character(256)::nme,filename
 	CHARACTER(3)        drive
 	CHARACTER(256)      dir
@@ -33,7 +33,16 @@ program PNWmain
 	!result = SETWSIZEQQ(QWIN$FRAMEWINDOW, winfo)
 	!result=SETWSIZEQQ(0, winfo) 
 	!term=''
+    cnt = command_argument_count ()
+    if(cnt==0) then
+        call psmodel.help(psmodel.helpstring)
+        stop
+    endif
     call get_command_argument (1, filename, length, status)
+    if(trim(adjustl(filename))=='-h'.or.trim(adjustl(filename))=='-help') then
+        call psmodel.help(psmodel.helpstring)
+        stop
+    endif
 	open(1,file=filename(1:length),status='old' )
 	inquire(1,name=nme)
 	length = SPLITPATHQQ(nme, drive, dir, name, ext)

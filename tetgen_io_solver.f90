@@ -2,10 +2,10 @@ module tetgen_io
     use solverds,only:lowcase,strtoint,incount
     use GeoMetricAlgorithm
     implicit none
-    
+    private
     public::read_tetgen_file,tetgen_to_tecplot,element_tg,nelt_tg
     
-    private
+    
     integer::nnode_tg=0,ndim_tg=0,nelt_tg=0,nve_tg=0,nvf_tg=0,nvc_tg=0,nvnode_tg=0,nface_tg=0,nedge_tg=0,nneigh_tg=0
     integer::order=1
     character(512)::tec_title,filepath
@@ -690,7 +690,7 @@ module tetgen_io
             write(unit1,50) (vcell_tg(vface_tg(container.vf_tec2vf_tg(i)).cell(1)).isclose,i=1,container.nvf_tec)
         endif
         
-        call write_mesh_zone() 
+        call write_mesh_zone1() 
    
         
         close(unit1)
@@ -717,7 +717,7 @@ module tetgen_io
 80  format(i<incount(nc1)>,'*0.')
     contains
     
-    subroutine write_mesh_zone()
+    subroutine write_mesh_zone1()
         
         integer::i,j,nc1
         

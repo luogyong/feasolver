@@ -563,10 +563,10 @@ module DS_Gmsh2Solver
                     ELEMENT(IEL1).NNODE=2*ELEMENT(IEL1).NNODE
                     IF(PHYSICALGROUP(N1).ET_GMSH==1) THEN
                         NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE,NODE(ELEMENT(IEL1).NODE([2,1])).N1]
-                        PHYSICALGROUP(N1).ET_GMSH=3 !按四节点的四边形单元输出
+                        !PHYSICALGROUP(N1).ET_GMSH=3 !按四节点的四边形单元输出
                     ELSE
                         NODE1(1:ELEMENT(IEL1).NNODE)=[ELEMENT(IEL1).NODE(1:2),NODE(ELEMENT(IEL1).NODE([2,1])).N1,ELEMENT(IEL1).NODE(3),NODE(ELEMENT(IEL1).NODE(3)).N1]
-                        PHYSICALGROUP(N1).ET_GMSH=9 !按六节点-三角形单元输出
+                        !PHYSICALGROUP(N1).ET_GMSH=9 !按六节点-三角形单元输出
                     ENDIF
                     DEALLOCATE(ELEMENT(IEL1).NODE)
                     N2=ELEMENT(IEL1).NNODE
@@ -600,7 +600,7 @@ module DS_Gmsh2Solver
                 !    PHYSICALGROUP(N1).ET_GMSH=3
                 !ENDSELECT
             ENDDO
-        
+            
         ENDDO
 
      

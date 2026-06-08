@@ -15,9 +15,10 @@ subroutine Initialization()
 !**************************************************************************************************************
 	use solverds
     USE SolverMath
+    use omp_lib
     !USE MESHGEO
 	implicit none
-	integer::i,j,k,nj,p,j1,j2,iset1,i1
+	integer::i,j,k,nj,p,j1,j2,iset1,i1,K1,NK1,NK2,ndof1,udof1
 	integer::n1,n2,n3,n4
 	real(kind=DPN)::t1=0,vcos=0,vsin=0,rpi,coord1(3,4)=0,trans1(12,12)=0,c1(3,3)=0,b2(3),c2(3),R1,R2,R3,R4,G1,t2
 	real(kind=DPN)::km1(6,6)=0.d0
@@ -30,27 +31,67 @@ subroutine Initialization()
 
 	!open(2,file='fea_dug.dat',status='replace')
     j1=0;j2=enum+1
+    
+    
     do i=1,enum
         do k=1,ndimension
 		    element(i).bbox(1,k)=MINVAL(NODE(element(i).node).COORD(K))
             element(i).bbox(2,k)=MAXVAL(NODE(element(i).node).COORD(K))
         enddo
         !wellbore的初始化对其他单元有依赖，放在最后
-        if(any([pipe2,wellbore,WELLBORE_SPGFACE]-element(i).et==0)) then
+        
+        if(any([pipe2,wellbore,WELLBORE_SPGFACE,SEMI_SPHFLOW,SPHFLOW]-element(i).et==0)) then            
 			j2=j2-1
-            elt1(j2)=i
-        else
-			j1=j1+1
-			elt1(j1)=i
-        endif
+			elt1(j2)=i            
+        else            
+            j1=j1+1
+			elt1(j1)=i            		
+        endif        
     ENDDO
-	
-	do i1=1,enum
+    
+  !  !$OMP PARALLEL DEFAULT(NONE)  PRIVATE(I)
+		!!$OMP MASTER
+  !      PRINT*,'TOTAL NUMBER OF THREADS=',OMP_GET_NUM_THREADS()
+		!!$OMP END MASTER
+		!!$OMP DO SCHEDULE(STATIC)
+		!DO I=1,50
+		!	PRINT*,'HELLO FROM PARALLEL THREAD TID=',omp_get_thread_num()
+		!END DO
+		!!$OMP END DO
+  !  !$OMP END PARALLEL 
+	 !
+  !  PAUSE 'Initialization: Element stiffness matrix assembly started.'
+    
+    DO K1=1,2
+        
+       IF(K1==1) THEN
+           NK1=1;NK2=J1
+       ELSE
+           NK1=J2;NK2=ENUM
+       ENDIF
+
+    !-----------------------------------------------------------------
+    !  K1 == 1 时并行，K1 /= 1 时串行执行该循环
+    !-----------------------------------------------------------------
+    !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(DYNAMIC,10) IF (K1 == 1)     &
+    !$OMP& PRIVATE(i1, i, j, k, n1, n2, n3, n4, p,                       &
+    !$OMP&         t1, t2, vcos, vsin,                                   &
+    !$OMP&         coord1, trans1, c1, b2, c2,                           &
+    !$OMP&         R1, R2, R3, R4, G1,                                   &
+    !$OMP&         km1,dof1,ermsg,                                      &
+    !$OMP&         ndof1, udof1)                                         &
+    !$OMP& SHARED(NK1, NK2, elt1,                                       &
+    !$OMP&        element, node, material, ecp,                         &
+    !$OMP&        ndimension, solver_control,                           &
+    !$OMP&        isporeflow,coordinate,                        &
+    !$OMP&        OUTVAR,rpi)
+
+	do i1=NK1,NK2
 		i=elt1(i1)
         
 		select case(element(i).et)
 			case(CONDUCT1D) !activated dof is 4
-				node(element(i).node(1:element(i).nnum)).dof(4)=0
+				
 				!initialize element stiffness matrix
 				allocate(element(i).km(element(i).ndof,element(i).ndof))
 				t1=0
@@ -67,9 +108,7 @@ subroutine Initialization()
 				element(i).km(2,1)=-1/t1
 				element(i).km(2,2)=1/t1
 			case(UB3)
-				 do j=1,2
-					node(element(i).node(1:element(i).nnum)).dof(j)=0
-				 end do
+				 
 				 allocate(element(i).km(3,element(i).ndof))
 				 p=int(material(element(i).mat).property(1))
 				 allocate(element(i).a12(3,p))
@@ -95,9 +134,7 @@ subroutine Initialization()
 				end do
 				element(i).a12=-element(i).a12
 			case(LB3)
-				do j=1,3
-					node(element(i).node(1:element(i).nnum)).dof(j)=0
-				end do
+				
 				allocate(element(i).km(2,element(i).ndof))
 				element(i).km=0.0D0
 				do j=1,3
@@ -121,9 +158,7 @@ subroutine Initialization()
 				
 				
 			case(UBZT4)
-				do j=1,2
-					node(element(i).node(1:element(i).nnum)).dof(j)=0
-				end do
+				
 				allocate(element(i).km(4,element(i).ndof))
 				allocate(element(i).a12(4,4))
 				!calculate the angle between the element and the x-axial.
@@ -169,9 +204,7 @@ subroutine Initialization()
 				element(i).a12(4,4)=element(i).a12(2,1)
 				element(i).a12=-element(i).a12
 			case(LBZT4)
-				do j=1,3
-					node(element(i).node(1:element(i).nnum)).dof(j)=0
-				end do
+				
 				allocate(element(i).km(4,element(i).ndof))
 				!calculate the angle between the element and the x-axial.
 				t1=0
@@ -194,12 +227,7 @@ subroutine Initialization()
 				element(i).km(3:4,7:9)=element(i).km(1:2,1:3)
 				element(i).km(3:4,10:12)=-element(i).km(1:2,1:3)
 			case(bar,bar2D)
-				do j=1,ndimension
-					node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
-				end do
-				!km
-
-		
+						
 				allocate(element(i).km(2*ndimension,2*ndimension),element(i).g2l(3,3),element(i).gforce(2*ndimension),&
 				element(i).gforceILS(2),element(i).Dgforce(2*ndimension))
 				element(i).gforce=0.d0
@@ -279,7 +307,7 @@ subroutine Initialization()
                     !if(element(i).km(j,j)==0) element(i).km(j,j)=1.0D0
                 end do
                 
-                CALL BARFAMILY_EXTREMEVALUE(I)
+                
 				
 				!write(2,'(6e15.7)') (element(i).property(1)*element(i).km(j,1:6),j=1,6) passed	
 			case(soilspringx,soilspringy,soilspringz,springx,springy,springz,springmx,springmy,springmz)
@@ -294,15 +322,10 @@ subroutine Initialization()
 				element(i).gforceILS=0.0D0
 				element(i).Dgforce=0.D0
 				if(element(i).ec==soilspring) then
-					node(element(i).node(1)).dof(element(i).et-soilspringx+1)=0
+					
 					element(i).km(1,1)=element(i).property(4)
 					
-				else
-					if(element(i).et>=springmx) then
-						node(element(i).node(1)).dof(element(i).et-springx+2)=0
-					else
-					    node(element(i).node(1)).dof(element(i).et-springx+1)=0
-                    endif
+				else					
 					IF(ELEMENT(I).MAT>0) THEN
 						element(i).km(1,1)=material(element(i).mat).property(1)
                         element(i).gforce(1)=material(element(i).mat).property(4)
@@ -315,25 +338,15 @@ subroutine Initialization()
 				
 			case(beam,beam2d,ssp2d)
 			
-				do j=1,ndimension
-					node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
-				end do
+				
 				if(element(i).et==beam) then
-					do j=5,7
-						node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
-					end do
+					
 					allocate(element(i).km(12,12),element(i).gforce(12),element(i).gforceILS(12),element(i).Dgforce(12))
 				else
-					node(element(i).node(1:element(i).nnum)).dof(7)=0 !beam2d Mz/=0
+					
 					allocate(element(i).km(6,6),element(i).gforce(6),element(i).Dgforce(6),element(i).gforceILS(6))
 				end if
-				
-				if(element(i).ifreedof>0) then
-                    n1=freedof(element(i).ifreedof).newnode
-					node(n1).dof=inactive
-					node(n1).dof(freedof(element(i).ifreedof).dof)=0
-                endif
-                
+								               
 				element(i).gforce=0.D0
 				element(i).Dgforce=0.D0
 				element(i).gforceILS=0.0D0
@@ -476,196 +489,180 @@ subroutine Initialization()
                 !endif    
 				!write(2,'(i7,X,<element(i).ndof>e15.7)') (i,element(i).property(1)*element(i).km(j,1:element(i).ndof),j=1,element(i).ndof) 
                 
-                CALL BARFAMILY_EXTREMEVALUE(I)
-			
-			!case(lme2d)
-			!	do j=1,ndimension
-			!		node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
-			!	end do
-			!	node(element(i).node(3)).dof(8:9)=0 !接触单元局部坐标下的接触力Nx,Ny,即拉氏乘子。
-			!	allocate(element(i).km(6,6))
-			!	element(i).km=0.d0
-			case(pe_ssp2d) 
-				node(element(i).node(1:2)).dof(1)=0
-				allocate(element(i).km(2,2),element(i).gforce(2),element(i).Dgforce(2),element(i).gforceILS(2))
-				element(i).gforce=0.D0
-				element(i).Dgforce=0.D0
-				element(i).gforceILS=0.0D0
-				element(i).property(1)=1.0d0
-				element(i).km(1,1)=um
-				element(i).km(2,2)=um
-				element(i).km(1,2)=-um
-				element(i).km(2,1)=-um
-				
-				!每个点对点的罚单元，对应一个slave-master节点对
-				!假定slave-master节点对是一一对应的，两节点之间是唯一对应的。
-				do j=1, nsmnp
-					if(smnp(j).master==element(i).node(1).or.smnp(j).master==element(i).node(2)) then
-						smnp(j).pe=i
-						element(i).ngp=j !借用ngp
-						cycle
-					end if				
-				end do
-				
-				
-			case(ssp2d1)  !master-slaver method，假定局部坐标与整体坐标一样，
-				do j=1,ndimension
-					node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
-				end do
-				node(element(i).node(1:element(i).nnum)).dof(7)=0 ! Mz/=0
-				node(element(i).node(1:element(i).nnum)).dof(8)=0	!x' for ssp2d
-				node(element(i).node(1:element(i).nnum)).dof(9)=0	!theta' for ssp2d
-				allocate(element(i).km(10,10),element(i).gforce(10),element(i).Dgforce(10),element(i).gforceILS(10))
-
-				element(i).gforce=0.D0
-				element(i).Dgforce=0.D0
-				element(i).gforceILS=0.0D0
-				
-				element(i).property(1)=0.d0
-				do j=1,ndimension
-					element(i).property(1)=element(i).property(1)+(node(element(i).node(1)).coord(j)-node(element(i).node(2)).coord(j))**2 
-				end do
-				element(i).property(1)=element(i).property(1)**0.5	
-				
-				element(i).km=0.0D0	
-				km1=0.d0
-				R1=material(element(i).mat).property(1)*material(element(i).mat).property(2)/element(i).property(1)
-				R2=material(element(i).mat).property(1)*material(element(i).mat).property(5)/element(i).property(1)**3
-
-				km1(1,1)=R1
-				km1(2,2)=12*R2
-				km1(3,3)=4*R2*element(i).property(1)**2
-				do j=1,3
-					km1(j+3,j+3)=km1(j,j)					
-				end do
-				km1(2,3)=6*R2*element(i).property(1)
-				km1(1,4)=-km1(1,1)
-				km1(2,5)=-km1(2,2)
-				km1(3,5)=-km1(2,3)
-				km1(2,6)=km1(2,3)
-				km1(3,6)=2*R2*element(i).property(1)**2
-				km1(5,6)=-km1(2,3)
-				
-				n1=6
-
-				
-
-				!!轴偏移引起的变化项，Ref. 傅永华, 关于偏心梁单元刚度矩阵的几点说明. 力学与实践, 1996(02): 65-67.
-				km1(3,3)=km1(3,3)+R1*material(element(i).mat).property(19)**2
-				km1(3,6)=km1(3,6)-R1*material(element(i).mat).property(19)**2
-				km1(6,6)=km1(3,3)
-				
-				
-			
-				
-				do j=1,n1
-					do k=1,j-1
-						km1(j,k)=km1(k,j)
-					end do
-				end do	
-				
-				
-				do j=1,2
-					if(j==1) then
-						dof1(1:6)=(/1,2,3,6,7,8/)
-						km1(1,6)=R1*material(element(i).mat).property(19)
-					else
-						dof1(1:6)=(/4,2,5,9,7,10/)
-						km1(1,6)=-km1(1,6)
-					end if
-					km1(3,4)=km1(1,6)
-					km1(1,3)=-km1(1,6)
-					km1(4,6)=km1(1,3)
-					!对称项
-					km1(6,1)=km1(1,6)
-					km1(4,3)=km1(3,4)
-					km1(3,1)=km1(1,3)
-					km1(6,4)=km1(4,6)
-					
-					
-					do k=1,6
-						do j1=1,6
-							element(i).km(dof1(k),dof1(j1))=element(i).km(dof1(k),dof1(j1))+km1(k,j1)
-						end do
-					end do
-					
-				end do
-				
-				!!初始化为两梁固定
-				!ELEMENT(I).KM(1,1)=ELEMENT(I).KM(1,1)+UM
-				!ELEMENT(I).KM(4,4)=ELEMENT(I).KM(4,4)+UM				
-				!ELEMENT(I).KM(1,4)=ELEMENT(I).KM(1,4)+UM
-				!ELEMENT(I).KM(4,1)=ELEMENT(I).KM(1,4)
-				
-				!ELEMENT(I).KM(6,6)=ELEMENT(I).KM(6,6)+UM
-				!ELEMENT(I).KM(9,9)=ELEMENT(I).KM(9,9)+UM				
-				!ELEMENT(I).KM(6,9)=ELEMENT(I).KM(6,9)+UM
-				!ELEMENT(I).KM(9,6)=ELEMENT(I).KM(6,9)				
-				
-				!the local system for beam element:
-				!x',along the elementand the positive directioin along the increasing one of xi 
-				!for beam, y',provided by the user , obtained by element.system(2,1:3)
-				!z',determined by the right-hand rule.
-				!To complete the transformation maxtrix from the global system to the local system 
-				!
-				
-				!determine the direction of x'.
-				do j=1,ndimension
-					t1=node(element(i).node(2)).coord(j)-node(element(i).node(1)).coord(j)		
-					if(abs(t1)>1e-7) then
-						if(t1<0) then
-							n1=1
-							n2=2
-						else
-							n1=2
-							n2=1
-						end if
-						exit
-					end if
-				end do
-				
-				!调整单元节点顺序，使局部坐标的x'由节点1指向节点2
-				if(n1==1) then
-					n3=element(i).node(1)
-					element(i).node(1)=element(i).node(2)
-					element(i).node(2)=n3
-				end if
-				
-				c1=0.d0
-				c1(1,1)=(node(element(i).node(2)).coord(1)-node(element(i).node(1)).coord(1))/element(i).property(1)
-				c1(1,2)=(node(element(i).node(2)).coord(2)-node(element(i).node(1)).coord(2))/element(i).property(1)
-				c1(2,1)=-c1(1,2)
-				c1(2,2)=c1(1,1)
-				c1(3,3)=1.0d0
-				n1=2
-				n2=6
-
-				
-				!complete the local system
-				allocate(element(i).g2l(3,3))
-				element(i).g2l=c1
-				!trans1=0.0d0
-				!do j=1,n1					
-				!	trans1((j-1)*3+1:j*3,(j-1)*3+1:j*3)=c1
-				!end do
-
-				!element(i).km=matmul(transpose(trans1(1:n2,1:n2)),matmul(element(i).km,trans1(1:n2,1:n2)))
-                !element(i).property(2)=element(i).property(1)
-				!element(i).property(1)=1.0d0
-				!!write(2,'(12e15.7)') (element(i).property(1)*element(i).km(j,1:12),j=1,12) 
                 
-                CALL BARFAMILY_EXTREMEVALUE(I)					
-				
+			
+			
+			!case(pe_ssp2d) 
+			!	node(element(i).node(1:2)).dof(1)=0
+			!	allocate(element(i).km(2,2),element(i).gforce(2),element(i).Dgforce(2),element(i).gforceILS(2))
+			!	element(i).gforce=0.D0
+			!	element(i).Dgforce=0.D0
+			!	element(i).gforceILS=0.0D0
+			!	element(i).property(1)=1.0d0
+			!	element(i).km(1,1)=um
+			!	element(i).km(2,2)=um
+			!	element(i).km(1,2)=-um
+			!	element(i).km(2,1)=-um
+			!	
+			!	!每个点对点的罚单元，对应一个slave-master节点对
+			!	!假定slave-master节点对是一一对应的，两节点之间是唯一对应的。
+			!	do j=1, nsmnp
+			!		if(smnp(j).master==element(i).node(1).or.smnp(j).master==element(i).node(2)) then
+			!			smnp(j).pe=i !并行可能引发冲突
+			!			element(i).ngp=j !借用ngp
+			!			cycle
+			!		end if				
+			!	end do
+			!	
+			!	
+			!case(ssp2d1)  !master-slaver method，假定局部坐标与整体坐标一样，
+			!	
+			!	allocate(element(i).km(10,10),element(i).gforce(10),element(i).Dgforce(10),element(i).gforceILS(10))
+   !
+			!	element(i).gforce=0.D0
+			!	element(i).Dgforce=0.D0
+			!	element(i).gforceILS=0.0D0
+			!	
+			!	element(i).property(1)=0.d0
+			!	do j=1,ndimension
+			!		element(i).property(1)=element(i).property(1)+(node(element(i).node(1)).coord(j)-node(element(i).node(2)).coord(j))**2 
+			!	end do
+			!	element(i).property(1)=element(i).property(1)**0.5	
+			!	
+			!	element(i).km=0.0D0	
+			!	km1=0.d0
+			!	R1=material(element(i).mat).property(1)*material(element(i).mat).property(2)/element(i).property(1)
+			!	R2=material(element(i).mat).property(1)*material(element(i).mat).property(5)/element(i).property(1)**3
+   !
+			!	km1(1,1)=R1
+			!	km1(2,2)=12*R2
+			!	km1(3,3)=4*R2*element(i).property(1)**2
+			!	do j=1,3
+			!		km1(j+3,j+3)=km1(j,j)					
+			!	end do
+			!	km1(2,3)=6*R2*element(i).property(1)
+			!	km1(1,4)=-km1(1,1)
+			!	km1(2,5)=-km1(2,2)
+			!	km1(3,5)=-km1(2,3)
+			!	km1(2,6)=km1(2,3)
+			!	km1(3,6)=2*R2*element(i).property(1)**2
+			!	km1(5,6)=-km1(2,3)
+			!	
+			!	n1=6
+   !
+			!	
+   !
+			!	!!轴偏移引起的变化项，Ref. 傅永华, 关于偏心梁单元刚度矩阵的几点说明. 力学与实践, 1996(02): 65-67.
+			!	km1(3,3)=km1(3,3)+R1*material(element(i).mat).property(19)**2
+			!	km1(3,6)=km1(3,6)-R1*material(element(i).mat).property(19)**2
+			!	km1(6,6)=km1(3,3)
+			!	
+			!	
+			!
+			!	
+			!	do j=1,n1
+			!		do k=1,j-1
+			!			km1(j,k)=km1(k,j)
+			!		end do
+			!	end do	
+			!	
+			!	
+			!	do j=1,2
+			!		if(j==1) then
+			!			dof1(1:6)=(/1,2,3,6,7,8/)
+			!			km1(1,6)=R1*material(element(i).mat).property(19)
+			!		else
+			!			dof1(1:6)=(/4,2,5,9,7,10/)
+			!			km1(1,6)=-km1(1,6)
+			!		end if
+			!		km1(3,4)=km1(1,6)
+			!		km1(1,3)=-km1(1,6)
+			!		km1(4,6)=km1(1,3)
+			!		!对称项
+			!		km1(6,1)=km1(1,6)
+			!		km1(4,3)=km1(3,4)
+			!		km1(3,1)=km1(1,3)
+			!		km1(6,4)=km1(4,6)
+			!		
+			!		
+			!		do k=1,6
+			!			do j1=1,6
+			!				element(i).km(dof1(k),dof1(j1))=element(i).km(dof1(k),dof1(j1))+km1(k,j1)
+			!			end do
+			!		end do
+			!		
+			!	end do
+			!	
+			!	!!初始化为两梁固定
+			!	!ELEMENT(I).KM(1,1)=ELEMENT(I).KM(1,1)+UM
+			!	!ELEMENT(I).KM(4,4)=ELEMENT(I).KM(4,4)+UM				
+			!	!ELEMENT(I).KM(1,4)=ELEMENT(I).KM(1,4)+UM
+			!	!ELEMENT(I).KM(4,1)=ELEMENT(I).KM(1,4)
+			!	
+			!	!ELEMENT(I).KM(6,6)=ELEMENT(I).KM(6,6)+UM
+			!	!ELEMENT(I).KM(9,9)=ELEMENT(I).KM(9,9)+UM				
+			!	!ELEMENT(I).KM(6,9)=ELEMENT(I).KM(6,9)+UM
+			!	!ELEMENT(I).KM(9,6)=ELEMENT(I).KM(6,9)				
+			!	
+			!	!the local system for beam element:
+			!	!x',along the elementand the positive directioin along the increasing one of xi 
+			!	!for beam, y',provided by the user , obtained by element.system(2,1:3)
+			!	!z',determined by the right-hand rule.
+			!	!To complete the transformation maxtrix from the global system to the local system 
+			!	!
+			!	
+			!	!determine the direction of x'.
+			!	do j=1,ndimension
+			!		t1=node(element(i).node(2)).coord(j)-node(element(i).node(1)).coord(j)		
+			!		if(abs(t1)>1e-7) then
+			!			if(t1<0) then
+			!				n1=1
+			!				n2=2
+			!			else
+			!				n1=2
+			!				n2=1
+			!			end if
+			!			exit
+			!		end if
+			!	end do
+			!	
+			!	!调整单元节点顺序，使局部坐标的x'由节点1指向节点2
+			!	if(n1==1) then
+			!		n3=element(i).node(1)
+			!		element(i).node(1)=element(i).node(2)
+			!		element(i).node(2)=n3
+			!	end if
+			!	
+			!	c1=0.d0
+			!	c1(1,1)=(node(element(i).node(2)).coord(1)-node(element(i).node(1)).coord(1))/element(i).property(1)
+			!	c1(1,2)=(node(element(i).node(2)).coord(2)-node(element(i).node(1)).coord(2))/element(i).property(1)
+			!	c1(2,1)=-c1(1,2)
+			!	c1(2,2)=c1(1,1)
+			!	c1(3,3)=1.0d0
+			!	n1=2
+			!	n2=6
+   !
+			!	
+			!	!complete the local system
+			!	allocate(element(i).g2l(3,3))
+			!	element(i).g2l=c1
+			!	!trans1=0.0d0
+			!	!do j=1,n1					
+			!	!	trans1((j-1)*3+1:j*3,(j-1)*3+1:j*3)=c1
+			!	!end do
+   !
+			!	!element(i).km=matmul(transpose(trans1(1:n2,1:n2)),matmul(element(i).km,trans1(1:n2,1:n2)))
+   !             !element(i).property(2)=element(i).property(1)
+			!	!element(i).property(1)=1.0d0
+			!	!!write(2,'(12e15.7)') (element(i).property(1)*element(i).km(j,1:12),j=1,12) 
+   !             
+   !             				
+			!	
 				
 				
 				
 			case(shell3)
-				do j=1,3
-					node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
-				end do
-				do j=5,7
-					node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
-				end do
+				
 				!h, shell thickness
 				allocate(element(i).km(18,18),element(i).gforce(18),element(i).Dgforce(18),element(i).gforceILS(18), &
 							element(i).g2l(3,3))
@@ -721,7 +718,7 @@ subroutine Initialization()
                 CALL BARFAMILY_EXTREMEVALUE(I)
             case(shell3_kjb)
             case(poreflow)
-				node(element(i).node(1:element(i).nnum)).dof(4)=0
+				
 				allocate(element(i).km(element(i).nnum,element(i).nnum))
 				element(i).km=0.0D0
 				!the length of throat. 
@@ -758,7 +755,7 @@ subroutine Initialization()
                 ELEMENT(I).KR=[1.0D0]
                 
 			case(pipe2,wellbore,WELLBORE_SPGFACE)
-				node(element(i).node(1:element(i).nnum)).dof(4)=0
+				
 				allocate(element(i).km(element(i).nnum,element(i).nnum))
 				element(i).km=0.0D0
                 IF(element(i).et/=WELLBORE_SPGFACE) THEN
@@ -780,10 +777,10 @@ subroutine Initialization()
                     ELEMENT(I).PROPERTY(1)=1.D10 !模拟不透水,大阻力
                 ENDIF
                 
-                if(element(i).et==WELLBORE.or.element(i).et==WELLBORE_SPGFACE) then
+                if(element(i).et==WELLBORE.or.element(i).et==WELLBORE_SPGFACE) then                    
 					IF(SOLVER_CONTROL.WELLMETHOD/=4) THEN
 						CALL INI_WELLBORE(I)      
-                    ELSE
+					ELSE
 						if(solver_control.wm4_iteration) CALL INI_WELLBORE(I) 
 						CALL wellbore_element(I,0)
                     ENDIF
@@ -793,10 +790,9 @@ subroutine Initialization()
                     ELEMENT(I).KM(1,2)=-1.D0;ELEMENT(I).KM(2,1)=-1.D0
                     ELEMENT(I).KM=ELEMENT(I).KM/ELEMENT(I).PROPERTY(1)
                 endif
-                ISOUT_WELL_FILE=.TRUE.
-                
+
             CASE(SEMI_SPHFLOW,SPHFLOW)
-                node(element(i).node(1:element(i).nnum)).dof(4)=0
+                
 				allocate(element(i).km(element(i).nnum,element(i).nnum))
 				element(i).km=0.0D0
                 IF(SOLVER_CONTROL.WELLMETHOD/=4) THEN 
@@ -804,30 +800,63 @@ subroutine Initialization()
                 ELSE
                     CALL sphere_flow_element(I)
                 ENDIF
-                ISOUT_WELL_FILE=.TRUE.
+
                 
 			CASE(ZT4_SPG,ZT6_SPG) !assume no flow occurs in the diections parallel to element faces.
-				node(element(i).node(1:element(i).nnum)).dof(4)=0
+                CALL ZT_SPG_INI2(I)                
+            case(tet10_st,cpe6_st,cax6_st)
                 
-               
-                CALL ZT_SPG_INI2(I)
+                call el_alloc_room(i)
+				!according to the material,initialize d
+				call el_ini_D(i)
+				!calculate the globe co-ordinates for the gassian point
+				call xygp(i)				
+				!n1=element(i).ngp+element(i).nnum				
+				n1=element(i).ngp               
 				
+                udof1=12
+                ndof1=element(i).ndof
+                if (element(i).et==tet10_st) then                    
+					udof1=30
+                endif
+                
+				! 1) 分配 34x34 km 已经由 el_alloc_room 做过了，这里先清零
+				element(i).km = 0.0d0
+
+				! 2) 只针对速度 DOF 构造 JACOB2 / B 矩阵
+				!    JACOB2 内部还是按 "3*nshape=30" 构造 B，你可以额外传一个 ndof_u=30
+				call JACOB2(i, element(i).b, element(i).nd, udof1, element(i).ngp, &
+								   element(i).detjac, element(i).ngp)
+				
+
+				! 3) 用一个局部的 30×30 矩阵承接 K_uu，再拷贝进 element(i).km(1:30,1:30)
+				
+				
+				call BTDB(element(i).b, element(i).nd, udof1, element(i).ngp, &
+						  element(i).d, element(i).nd, element(i).nd, &
+						  element(i).km(1:udof1,1:udof1), udof1, udof1, &
+						  ecp(element(i).et).weight, ecp(element(i).et).ngp, &
+						  element(i).detjac, element(i).ngp, i)
+
+				
+
+				! 4) 计算 K_up (30x4) 并拷贝到 km 的右上角、下三角				
+				
+				call BT_Stokes_UP(i, element(i).km(1:udof1,udof1+1:ndof1), udof1, ndof1-udof1)
+
+				
+
+				! 填入 K_pu 子块 = (K_up)^T
+				do j = 1, udof1
+					do k = udof1+1,ndof1
+						element(i).km(k, j) = element(i).km(j, k)
+					end do
+				end do
+				! K_pp 保持 0
+                
 				
 			case default
-				select case(element(i).ec)
-					case(spg2d,spg,CAX_SPG)
-						node(element(i).node(1:element(i).nnum)).dof(4)=0
-					case(cpl,CAX_CPL)
-						do j=1,NDIMENSION
-							node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
-						end do
-						node(element(i).node(1:element(i).nnum)).dof(4)=0
-					case(c3d,cpe,cps,cax)
-						do j=1,NDIMENSION
-							node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
-						end do						
-																	
-                end select
+				
 				
                 IF(ELEMENT(I).ET==ZT4_SPG2.OR.ELEMENT(I).ET==ZT6_SPG2) CALL ZT_SPG_INI2(I)    
                     
@@ -874,8 +903,172 @@ subroutine Initialization()
 
 
 		end select
-	end do
+    end do
+	!$OMP END PARALLEL DO 
+    
+    ENDDO
+    
+    !activate the DOF
+    do i=1,enum		
+        
+		select case(element(i).et)
+			case(CONDUCT1D) !activated dof is 4
+				node(element(i).node(1:element(i).nnum)).dof(4)=0				
+			case(UB3)
+				 do j=1,2
+					node(element(i).node(1:element(i).nnum)).dof(j)=0
+				 end do				 
+			case(LB3)
+				do j=1,3
+					node(element(i).node(1:element(i).nnum)).dof(j)=0
+				end do				
+			case(UBZT4)
+				do j=1,2
+					node(element(i).node(1:element(i).nnum)).dof(j)=0
+				end do
+				
+			case(LBZT4)
+				do j=1,3
+					node(element(i).node(1:element(i).nnum)).dof(j)=0
+				end do
+				
+			case(bar,bar2D)
+				do j=1,ndimension
+					node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
+				end do
+				CALL BARFAMILY_EXTREMEVALUE(I)
+			case(soilspringx,soilspringy,soilspringz,springx,springy,springz,springmx,springmy,springmz)
+				
+				if(element(i).ec==soilspring) then
+					node(element(i).node(1)).dof(element(i).et-soilspringx+1)=0
+				else
+					if(element(i).et>=springmx) then
+						node(element(i).node(1)).dof(element(i).et-springx+2)=0
+					else
+					    node(element(i).node(1)).dof(element(i).et-springx+1)=0
+                    endif					
+				endif
+				
 
+				
+			case(beam,beam2d,ssp2d)
+			
+				do j=1,ndimension
+					node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
+				end do
+				if(element(i).et==beam) then
+					do j=5,7
+						node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
+					end do
+					
+				else
+					node(element(i).node(1:element(i).nnum)).dof(7)=0 !beam2d Mz/=0
+					
+				end if
+				
+				if(element(i).ifreedof>0) then
+                    n1=freedof(element(i).ifreedof).newnode
+					node(n1).dof=inactive
+					node(n1).dof(freedof(element(i).ifreedof).dof)=0
+                endif                
+				CALL BARFAMILY_EXTREMEVALUE(I)
+			case(pe_ssp2d) 
+				node(element(i).node(1:2)).dof(1)=0
+				
+				
+			case(ssp2d1)  !master-slaver method，假定局部坐标与整体坐标一样，
+				do j=1,ndimension
+					node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
+				end do
+				node(element(i).node(1:element(i).nnum)).dof(7)=0 ! Mz/=0
+				node(element(i).node(1:element(i).nnum)).dof(8)=0	!x' for ssp2d
+				node(element(i).node(1:element(i).nnum)).dof(9)=0	!theta' for ssp2d
+				
+				
+			case(shell3)
+				do j=1,3
+					node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
+				end do
+				do j=5,7
+					node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
+				end do				
+                
+                CALL BARFAMILY_EXTREMEVALUE(I)
+            case(poreflow,pipe2,wellbore,WELLBORE_SPGFACE,SEMI_SPHFLOW,SPHFLOW,ZT4_SPG,ZT6_SPG)
+				node(element(i).node(1:element(i).nnum)).dof(4)=0
+                                
+            case(tet10_st,cpe6_st,cax6_st)
+                
+                
+				do j=1,NDIMENSION
+					node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF                            
+                end do
+				node(element(i).node(1:3)).dof(4)=0
+
+                if (element(i).et==tet10_st) then
+                    node(element(i).node(4)).dof(4)=0					
+                endif
+                                
+				
+			case default
+				select case(element(i).ec)
+					case(spg2d,spg,CAX_SPG)
+						node(element(i).node(1:element(i).nnum)).dof(4)=0
+					case(cpl,CAX_CPL)
+						do j=1,NDIMENSION
+							node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
+						end do
+						node(element(i).node(1:element(i).nnum)).dof(4)=0
+					case(c3d,cpe,cps,cax)
+						do j=1,NDIMENSION
+							node(element(i).node(1:element(i).nnum)).dof(j)=0 !ACTIVATIVE THE NODAL DOF
+						end do						
+					
+                end select				
+            end select
+            
+            
+            select case(element(i).ec)
+				case(spg2d,spg,CAX_spg)					
+					do j=1,element(i).nnum
+						if(.not.allocated(node(element(i).node(j)).igrad)) then
+							allocate(node(element(i).node(j)).igrad(ndimension))
+							allocate(node(element(i).node(j)).velocity(ndimension))
+						end if				
+					end do
+					
+				case(CPE,CPS,c3d,CPL,CAX,CAX_CPL,stokes,stokes2d)
+					
+					do j=1,element(i).nnum
+						if(.not.allocated(node(element(i).node(j)).stress)) then
+							allocate(node(element(i).node(j)).stress(6))
+							allocate(node(element(i).node(j)).strain(6))
+							allocate(node(element(i).node(j)).pstrain(6))
+							IF(OUTVAR(SFR).VALUE>0) then
+								allocate(node(element(i).node(j)).sfr(12))
+								!node(element(i).node(j)).sfr(9)=SOLVER_CONTROL.slidedirection
+							endif
+							IF(OUTVAR(PSIGMA).VALUE>0) allocate(node(element(i).node(j)).PSIGMA(13))
+						end if				
+					end do			
+			end select
+            
+            
+    end do
+    
+    
+    ISOUT_WELL_FILE = .FALSE.
+	! ... 完成两个 K1 循环，所有 element(i).et 已经就位
+
+	if ( any(element(1:enum).et == pipe2)          .or. &
+		 any(element(1:enum).et == wellbore)       .or. &
+		 any(element(1:enum).et == WELLBORE_SPGFACE) .or. &
+		 any(element(1:enum).et == SEMI_SPHFLOW)   .or. &
+		 any(element(1:enum).et == SPHFLOW) ) then
+		ISOUT_WELL_FILE = .TRUE.
+	end if
+    
+    
 	! calculate the dof number of each node,and number it
 	! set ndof value
 	
@@ -1008,7 +1201,7 @@ subroutine Initialization()
 
 			case(CPE3_CPL,CPE6_CPL,CPE4_CPL,CPE8_CPL,CPE4R_CPL,CPE8R_CPL,CPE15_CPL, &
 					 CPS4_CPL,CPS4R_CPL,CPS8_CPL,CPS8R_CPL,CPS6_CPL,CPS15_CPL, &	
-					 CAX4_CPL,CAX4R_CPL,CAX6_CPL,CAX15_CPL,CAX8_CPL,CAX8R_CPL)
+					 CAX4_CPL,CAX4R_CPL,CAX6_CPL,CAX15_CPL,CAX8_CPL,CAX8R_CPL,CPE6_ST,CAX6_ST)
 				dof1=0
 				dof1(1)=1
 				dof1(2)=2
@@ -1016,7 +1209,7 @@ subroutine Initialization()
 				!allocate(element(i).g(element(i).ndof))
 				call fepv(i,dof1)
 				call dofbw(i)
-			case(PRM6_CPL,PRM15_CPL,TET4_CPL,TET10_CPL)
+			case(PRM6_CPL,PRM15_CPL,TET4_CPL,TET10_CPL,TET10_ST)
 				dof1=0
 				dof1(1)=1
 				dof1(2)=2
@@ -1173,16 +1366,40 @@ subroutine fepv(ienum,dof1)
 	
 	allocate(element(ienum).g(element(ienum).ndof))
 	n1=1
-	do j=1,element(ienum).nnum
-		n2=1
-		do while(n2<=MNDOF)
-			if(dof1(n2)>0) then
-			 	element(ienum).g(n1)=node(element(ienum).node(j)).dof(dof1(n2))
-				n1=n1+1			
-			end if
-			n2=n2+1	
-		end do	
-	end do
+    IF(ELEMENT(IENUM).ET==tet10_st.or.ELEMENT(IENUM).ET==cpe6_st.or.element(ienum).et==cax6_st) THEN
+        !先速度自由度
+		do j=1,element(ienum).nnum
+            n2=1
+            do while(n2<=ndimension)
+                if(dof1(n2)>0) then
+             		element(ienum).g(n1)=node(element(ienum).node(j)).dof(dof1(n2))
+                    n1=n1+1			
+                end if
+                n2=n2+1	
+            end do	
+        end do
+		!后压力自由度
+		do j=1,ndimension+1 !三角形单元和四面体单元
+            n2=4
+            if(dof1(n2)>0) then
+             	element(ienum).g(n1)=node(element(ienum).node(j)).dof(dof1(n2))
+                n1=n1+1			
+            end if           
+        end do
+        
+    else
+            
+		do j=1,element(ienum).nnum
+			n2=1
+			do while(n2<=MNDOF)
+				if(dof1(n2)>0) then
+			 		element(ienum).g(n1)=node(element(ienum).node(j)).dof(dof1(n2))
+					n1=n1+1			
+				end if
+				n2=n2+1	
+			end do	
+		end do
+    end if
 end subroutine
 
 !according element connection, calculate the bandwidth.
@@ -1293,7 +1510,13 @@ subroutine el_alloc_room(ienum)
 	
 	allocate(element(ienum).km(element(ienum).ndof,element(ienum).ndof))
 	element(ienum).km=0.0D0
-	allocate(element(ienum).b(element(ienum).nd,element(ienum).ndof,element(ienum).ngp))
+    if (element(ienum).et==tet10_st) then
+		allocate(element(ienum).b(element(ienum).nd,30,element(ienum).ngp))
+    else if (element(ienum).et==cpe6_st.or.element(ienum).et==cax6_st) then
+        allocate(element(ienum).b(element(ienum).nd,12,element(ienum).ngp))
+	else	
+		allocate(element(ienum).b(element(ienum).nd,element(ienum).ndof,element(ienum).ngp))
+    endif
 	element(ienum).b=0.0D0
 	allocate(element(ienum).d(element(ienum).nd,element(ienum).nd))
 	allocate(element(ienum).detjac(element(ienum).ngp))
@@ -1317,17 +1540,17 @@ subroutine el_alloc_room(ienum)
             
 			!allocate(element(ienum).lamda(element(ienum).ngp))
 			!element(ienum).lamda=1.0
-			do i=1,element(ienum).nnum
-				if(.not.allocated(node(element(ienum).node(i)).igrad)) then
-					allocate(node(element(ienum).node(i)).igrad(ndimension))
-					allocate(node(element(ienum).node(i)).velocity(ndimension))
-				end if				
-			end do
+			!do i=1,element(ienum).nnum
+			!	if(.not.allocated(node(element(ienum).node(i)).igrad)) then
+			!		allocate(node(element(ienum).node(i)).igrad(ndimension))
+			!		allocate(node(element(ienum).node(i)).velocity(ndimension))
+			!	end if				
+			!end do
 			!if(.not.stepinfo(1).issteady) then
 			!	allocate(element(ienum).cmm(element(ienum).nnum,element(ienum).nnum))
 			!	element(ienum).cmm=0.0D0
 			!end if
-		case(CPE,CPS,c3d,CPL,CAX,CAX_CPL)
+		case(CPE,CPS,c3d,CPL,CAX,CAX_CPL,stokes,stokes2d)
 			allocate(element(ienum).stress(6,element(ienum).ngp+element(ienum).nnum))
 			allocate(element(ienum).Dstress(6,element(ienum).ngp+element(ienum).nnum))
 			element(ienum).stress=0.0D0
@@ -1347,18 +1570,18 @@ subroutine el_alloc_room(ienum)
 			element(ienum).e=0.0
             element(ienum).uw=0.0
 			element(ienum).sfr=0.d0
-			do i=1,element(ienum).nnum
-				if(.not.allocated(node(element(ienum).node(i)).stress)) then
-					allocate(node(element(ienum).node(i)).stress(6))
-					allocate(node(element(ienum).node(i)).strain(6))
-					allocate(node(element(ienum).node(i)).pstrain(6))
-					IF(OUTVAR(SFR).VALUE>0) then
-                        allocate(node(element(ienum).node(i)).sfr(12))
-                        !node(element(ienum).node(i)).sfr(9)=SOLVER_CONTROL.slidedirection
-                    endif
-					IF(OUTVAR(PSIGMA).VALUE>0) allocate(node(element(ienum).node(i)).PSIGMA(13))
-				end if				
-			end do			
+			!do i=1,element(ienum).nnum
+			!	if(.not.allocated(node(element(ienum).node(i)).stress)) then
+			!		allocate(node(element(ienum).node(i)).stress(6))
+			!		allocate(node(element(ienum).node(i)).strain(6))
+			!		allocate(node(element(ienum).node(i)).pstrain(6))
+			!		IF(OUTVAR(SFR).VALUE>0) then
+   !                     allocate(node(element(ienum).node(i)).sfr(12))
+   !                     !node(element(ienum).node(i)).sfr(9)=SOLVER_CONTROL.slidedirection
+   !                 endif
+			!		IF(OUTVAR(PSIGMA).VALUE>0) allocate(node(element(ienum).node(i)).PSIGMA(13))
+			!	end if				
+			!end do			
 	end select
 	
 
@@ -1371,11 +1594,21 @@ subroutine el_ini_D(ienum)
 	implicit none
 	integer::ienum
 	integer::nd1,mat1,isys1,i
-	real(8)::t1=0,t2=0,VSIN1,VCOS1,V1(3,3)
+	real(8)::t1=0,t2=0,VSIN1,VCOS1,V1(3,3),coordinate1(3,3)
 	
 	nd1=element(ienum).nd
 	mat1=element(ienum).mat
 	select case(element(ienum).ec)
+		case(stokes,stokes2d)
+			element(ienum).d=0.0D0
+            t1=material(mat1).property(1)*2.0
+			element(ienum).d(4,4)=t1
+            if (size(element(ienum).d,1)>4) then
+				element(ienum).d(5,5)=t1
+				element(ienum).d(6,6)=t1
+            endif
+        
+        
 		case(cps)
 			element(ienum).d=0.0D0
 			element(ienum).d(1,1)=1.0
@@ -1417,13 +1650,15 @@ subroutine el_ini_D(ienum)
                 T1=NORM2(GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1)))
                 VCOS1=GNODE(1,ELEMENT(IENUM).NODE2(4))-GNODE(1,ELEMENT(IENUM).NODE2(1))/T1
                 VSIN1=GNODE(2,ELEMENT(IENUM).NODE2(4))-GNODE(2,ELEMENT(IENUM).NODE2(1))/T1
-                coordinate(isys1).c(1,1)=VCOS1;coordinate(isys1).c(2,2)=VCOS1;
-                coordinate(isys1).c(2,1)=VSIN1;coordinate(isys1).c(1,2)=-VSIN1;
+                !coordinate(isys1).c(1,1)=VCOS1;coordinate(isys1).c(2,2)=VCOS1;
+                !coordinate(isys1).c(2,1)=VSIN1;coordinate(isys1).c(1,2)=-VSIN1;
+                coordinate1(1,1)=VCOS1;coordinate1(2,2)=VCOS1;
+				coordinate1(2,1)=VSIN1;coordinate1(1,2)=-VSIN1;
             ENDIF
 			if(isys1/=0.AND.ABS(element(ienum).d(1,1)-element(ienum).d(2,2))>.1D-7) then
-                
-				element(ienum).d(1:nd1,1:nd1)=matmul(matmul(coordinate(isys1).c(1:nd1,1:nd1), &
-													element(ienum).d(1:nd1,1:nd1)),transpose(coordinate(isys1).c(1:nd1,1:nd1)))
+                if(isys1/=-1) coordinate1=coordinate(isys1).c                
+				element(ienum).d(1:nd1,1:nd1)=matmul(matmul(coordinate1(1:nd1,1:nd1), &
+													element(ienum).d(1:nd1,1:nd1)),transpose(coordinate1(1:nd1,1:nd1)))
 			end if
 		case(spg)
 			element(ienum).d=0.0D0
@@ -1434,17 +1669,18 @@ subroutine el_ini_D(ienum)
             IF(element(ienum).ET==ZT6_SPG2.AND.(element(ienum).d(1,1)-element(ienum).d(3,3))>.1D-7) THEN
                 ISYS1=-1
                 T1=NORM2(GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1)))
-                coordinate(isys1).c(1,:)=GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1))/T1
+                coordinate1(1,:)=GNODE(:,ELEMENT(IENUM).NODE2(4))-GNODE(:,ELEMENT(IENUM).NODE2(1))/T1
                 T1=NORM2(GNODE(:,ELEMENT(IENUM).NODE2(2))-GNODE(:,ELEMENT(IENUM).NODE2(1)))
-                coordinate(isys1).c(2,:)=GNODE(:,ELEMENT(IENUM).NODE2(2))-GNODE(:,ELEMENT(IENUM).NODE2(1))/T1
-                v1(:,1)=coordinate(isys1).c(1,:);v1(:,2)=coordinate(isys1).c(2,:);v1(:,3)=0.d0
-                coordinate(isys1).c(3,:)=NORMAL_TRIFACE(v1)
-                coordinate(isys1).c(3,:)=coordinate(isys1).c(3,:)/norm2(coordinate(isys1).c(3,:))
-                coordinate(isys1).c=transpose(coordinate(isys1).c)
+                coordinate1(2,:)=GNODE(:,ELEMENT(IENUM).NODE2(2))-GNODE(:,ELEMENT(IENUM).NODE2(1))/T1
+                v1(:,1)=coordinate1(1,:);v1(:,2)=coordinate1(2,:);v1(:,3)=0.d0
+                coordinate1(3,:)=NORMAL_TRIFACE(v1)
+                coordinate1(3,:)=coordinate1(3,:)/norm2(coordinate1(3,:))
+                coordinate1=transpose(coordinate1)
             ENDIF            
 			if(isys1/=0) then
-				element(ienum).d(1:nd1,1:nd1)=matmul(matmul(coordinate(isys1).c(1:nd1,1:nd1), &
-													element(ienum).d(1:nd1,1:nd1)),transpose(coordinate(isys1).c(1:nd1,1:nd1)))
+				if(isys1/=-1) coordinate1=coordinate(isys1).c
+				element(ienum).d(1:nd1,1:nd1)=matmul(matmul(coordinate1(1:nd1,1:nd1), &
+													element(ienum).d(1:nd1,1:nd1)),transpose(coordinate1(1:nd1,1:nd1)))
 			end if
 	end select
 end subroutine

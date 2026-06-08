@@ -236,7 +236,7 @@ module solverds
 	
 	!solution control
 	type solver_tydef
-		integer::type=SLD !problem type,=SLD,solid;=SPG,seepage;=CPL,coupled.
+		integer::type=SLD !problem type,=SLD,solid;=SPG,seepage;=CPL,coupled;=STOKES.
 		integer::solver=N_R !solution method, =-2, upper bound analysis,the default solver is N_R
 		integer::bfgm=continuum,bfgm_spg=continuum  !body force generation method(stress update algorithm) if the INISTIFF method is applied.
 		integer::niteration=100  !Maximum number of iterations allowed for each increment
@@ -589,11 +589,22 @@ module solverds
             REAL(8)::PARA(3)
         END FUNCTION
         
-		subroutine cal_well_weight(iiter,head)
-			integer,intent(in)::iiter
+		subroutine cal_well_weight(ielt,iiter,head)
+			integer,intent(in)::ielt,iiter
 			real(8),intent(in),optional::head(*)
         endsubroutine
-        
+		subroutine cal_well_weight2(ielt,iiter,head)
+			integer,intent(in)::ielt,iiter
+			real(8),intent(in),optional::head(*)
+        endsubroutine 
+		subroutine cal_well_weight3(ielt,iiter,head)
+			integer,intent(in)::ielt,iiter
+			real(8),intent(in),optional::head(*)
+        endsubroutine
+        subroutine cal_well_weight4(ielt,iiter,head)
+			integer,intent(in)::ielt,iiter
+			real(8),intent(in),optional::head(*)
+        endsubroutine 
         subroutine wellbore_element(ielt,iiter,head)
 			integer,intent(in)::ielt,iiter
 			real(8),intent(in),optional::head(*)
@@ -1747,8 +1758,24 @@ subroutine enlarge_Gnode(ENEL)
 	allocate(GNODE,SOURCE=ELEMENT1)
 	deallocate(element1)
 	
-endsubroutine
+    endsubroutine
 
+    
+module omp_config
+  implicit none
+  integer :: omp_num_threads = 0
+contains
+  subroutine init_omp(nthreads)
+    use omp_lib
+    integer, intent(in), optional :: nthreads
+    if (present(nthreads)) then
+      call omp_set_num_threads(nthreads)
+      omp_num_threads = nthreads
+    else
+      omp_num_threads = omp_get_max_threads()
+    end if
+  end subroutine
+end module omp_config    
     
 
 

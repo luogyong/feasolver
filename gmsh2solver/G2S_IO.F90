@@ -1200,7 +1200,7 @@ subroutine Tosolver()
 		write(unit,130) nnodalbc
 		write(unit, 132) 
 		do i=1,nnodalBC
-			write(unit,131) node(nodalBC(i).node).inode,nodalBC(i).dof,nodalBC(i).value,nodalBC(i).sf,nodalBC(i).spg_isdual
+			write(unit,131) node(nodalBC(i).node).inode,nodalBC(i).dof,nodalBC(i).value,nodalBC(i).sf,nodalBC(i).spg_isdual,node(nodalBC(i).node).xy(1:modeldimension)
 		end do
 	end if
 
@@ -1288,8 +1288,8 @@ subroutine Tosolver()
 124 FORMAT(<ITEM>(I7,1X),<MODELDIMENSION>(F24.15,1X))
 
 130 FORMAT(/'BC,NUM=',I7,',ISINC=0') 
-131 FORMAT(I7,1X,I2,1X,F24.15,1X,I4,1X,I4)
-132 FORMAT("// ","NODE DOF VALUE [STEPFUNC.,SPG_ISDUAL]")
+131 FORMAT(I7,1X,I2,1X,F24.15,1X,I4,1X,I4,<MODELDIMENSION>(F24.15,1X))
+132 FORMAT("// ","NODE DOF VALUE [STEPFUNC.,SPG_ISDUAL,X,Y,Z]")
 
 133 FORMAT(/'BC,NUM=',I7,',ISINC=0,ISWELLHEAD=1') 
 

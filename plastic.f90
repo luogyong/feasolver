@@ -2,6 +2,7 @@
 subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 	use solverds
     use PoreNetWork
+    use omp_lib
 	implicit none
 	logical::iscon,tof1,tof2
 	integer::i,j,k,n1,iiter,n2=0,istep,ayf=0,ayf1=0,i1,j1,k1,isubts
@@ -12,6 +13,15 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 	logical::isBCdis(ndof)
 					
 	integer::nd1=0,nbload=100
+    
+    ! ========== 新增：线程局部数组（bdylds 用） ==========
+    real(kind=dpn), allocatable :: thread_bdylds(:,:)  ! (ndof, nthreads)
+    integer :: tid, nthreads
+    
+    ! ========== 新增：子程序返回值（用于 REDUCTION） ==========
+    real(kind=dpn) :: Q1_thread, SFR_thread, Qwan_thread  ! SPG_Q_UPDATE 返回
+    real(kind=dpn) :: pstrain_thread                       ! bload_inistress_update 返回
+    integer :: npstress_thread                             ! bload_inistress_update 返回
 
 10	format('iiter',X,'  i ',X,'isdead',X,' dof ',X,'       Q       ',X,'     Phead     ')
 20	format(i5,x,i4,x,i6,x,i6,x,f15.7,X,f15.7)
@@ -31,13 +41,48 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 		dt1=timestep(istep).subts(isubts)
 	end if
 	if(pnw.isclogging>0) call pnw.cal_cc(stepdis,istep,isubts,iiter)
+    
+     ! ========== 并行区开始 ==========
+    !$OMP PARALLEL DEFAULT(NONE) &
+    !$OMP& PRIVATE(i, n1, nd1, bload, un, stress1, strain1, gforce1, &
+    !$OMP&         t1, t2, art1, r1, slope1, sita1, hj, hj_ini, &
+    !$OMP&         lamda, inihead, tof1, tof2, nbload, tid, &
+    !$OMP&         Q1_thread, SFR_thread, Qwan_thread, &
+    !$OMP&         pstrain_thread, npstress_thread) &
+    !$OMP& SHARED(enum, element, stepdis, inivaluedof, dt1, istep, &
+    !$OMP&        iiter, iscon, stepinfo, solver_control, &
+    !$OMP&        node, ndimension, material, &
+    !$OMP&        thread_bdylds, nthreads) &
+    !$OMP& REDUCTION(+:Qstored, QWAN, PSTRAIN, NPSTRESS) &
+    !$OMP& REDUCTION(max:MAXSFR)
+    
+    
+    ! ========== 主线程初始化线程局部数组 ==========
+    !$OMP MASTER
+        nthreads = OMP_GET_NUM_THREADS()
+        allocate(thread_bdylds(ndof, nthreads))
+        thread_bdylds = 0.0d0
+    !$OMP END MASTER
+    !$OMP BARRIER
+        
+    ! 每个线程获取自己的 ID
+    tid = OMP_GET_THREAD_NUM() + 1
+    ! ========== 主循环 ==========
+    !$OMP DO SCHEDULE(DYNAMIC, 100)
 	do i=1,enum
 		if(element(i).isactive==0) cycle
 
 		n1=element(i).ngp
 		nd1=element(i).nd
 		bload=0.0
-		  !1
+        
+        ! 初始化线程局部返回值
+        Q1_thread = 0.0d0
+        SFR_thread = -1.0D20
+        Qwan_thread = 0.0d0
+        pstrain_thread = 0.0d0
+        npstress_thread = 0
+        
 		select case(element(i).ec)
 
 			case(SPG,SPG2D,CAX_SPG)
@@ -82,8 +127,13 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 				un(1:element(i).ndof)=stepdis(element(i).g)  
 				element(i).Dgforce(1:element(i).ndof)=element(i).property(1)*matmul(element(i).km,un)
 				gforce1(1:element(i).ndof)=element(i).gforce(1:element(i).ndof)+element(i).Dgforce(1:element(i).ndof)
+                bload(1:element(i).ndof)=bload(1:element(i).ndof)+gforce1(1:element(i).ndof)
 				!call ssp_slave_master_contact_force_cal(istep,isubts,iiter,i,gforce1,element(i).ndof,un)
-				
+            case(stokes,stokes2d)
+				un(1:element(i).ndof)=stepdis(element(i).g)
+				element(i).Dgforce(1:element(i).ndof)=matmul(element(i).km,un)
+				gforce1(1:element(i).ndof)=element(i).gforce(1:element(i).ndof)+element(i).Dgforce(1:element(i).ndof)
+                bload(1:element(i).ndof)=bload(1:element(i).ndof)+gforce1(1:element(i).ndof)
 			case default
 				un(1:element(i).ndof)=stepdis(element(i).g)
 				!if(solver_control.bfgm==inistress)then
@@ -91,10 +141,37 @@ subroutine bload_consistent(iiter,iscon,bdylds,stepdis,istep,isubts)
 				!else
 				!	call Continuum_stress_update(iiter,iscon,istep,i,bload,un,nbload)
 				!endif
-		end select
-		
-		bdylds(element(i).g)=bdylds(element(i).g)+bload(1:element(i).ndof)
-	end do
+				
+                ! REDUCTION 子句会自动累加
+                !PSTRAIN = PSTRAIN + pstrain_thread
+                !NPSTRESS = NPSTRESS + npstress_thread    
+                    
+                    
+            end select
+  !      ! 修复数据竞争：用 CRITICAL 保护数组累加
+		!!$OMP CRITICAL (update_bdylds)
+  !      bdylds(element(i).g) = bdylds(element(i).g) + bload(1:element(i).ndof)
+		!!$OMP END CRITICAL (update_bdylds)
+            
+        ! 累加到线程局部的 bdylds（数组不支持 REDUCTION，只能手动）
+        thread_bdylds(element(i)%g, tid) = thread_bdylds(element(i)%g, tid) + &
+                                            bload(1:element(i)%ndof)    
+            
+    end do
+    !$OMP END DO
+    !$OMP END PARALLEL 
+    
+    ! ========== 串行区：合并所有线程的 bdylds ==========
+    do tid = 1, nthreads
+        bdylds = bdylds + thread_bdylds(:, tid)
+    end do
+    
+    deallocate(thread_bdylds)
+    
+    ! 此时 Qstored, MAXSFR, QWAN, PSTRAIN, NPSTRESS 已经由 REDUCTION 自动合并完成
+
+    
+    
 	!if the freedom i is constrained,the bodyforce, bdylds(i) at the freedom is set to zero
 	!for that pload(i)=0 at the case.
 	!it will speed the convergence but not affect the result.

@@ -1,7 +1,7 @@
 
 SUBROUTINE INI_SPHFLOW(IELT)
     
-    USE MESHADJ
+    USE MESHADJ,ONLY:SNADJL,POINTlOC_BC_SOLVER
     USE solverds
     USE SolverMath
     USE MESHGEO,ONLY:getval_solver
@@ -28,8 +28,7 @@ SUBROUTINE INI_SPHFLOW(IELT)
         .OR.ELEMENT(IELT1).ET==WELLBORE_SPGFACE) CYCLE !ITSELF EXCLUDED
         
         IF(ELEMENT(IELT1).EC/=SPG) CYCLE
-        IF(ALLOCATED(ELEMENT(IELT1).ANGLE)) CYCLE
-        CALL calangle(IELT1)
+        IF(.NOT.ALLOCATED(ELEMENT(IELT1).ANGLE)) CALL calangle(IELT1)
         !AVERAGED K, ASSUME ISOTROPIC        
         IF(ELEMENT(IELT).ET==SEMI_SPHFLOW) THEN
             !centroid
@@ -40,7 +39,7 @@ SUBROUTINE INI_SPHFLOW(IELT)
             XV1=XV1/ELEMENT(IELT1).NNUM
             !print *, j,xv1
             XV1=XV1-NODE(N1).COORD
-            T1=DOT_PRODUCT(XV1(1:NDIMENSION),DV1(1:NDIMENSION))/ &
+            T1=DOT_PRODUCT(XV1(1:NDIMENSION),DV1(1:NDIMENSION ))/ &
             (NORM2(XV1(1:NDIMENSION))*NORM2(DV1(1:NDIMENSION)))
             IF(T1<0.D0) CYCLE
         ENDIF
@@ -226,8 +225,8 @@ SUBROUTINE SPHFLOW_Q_K_SPMETHOD(STEPDIS,IELT,ISTEP,IITER)
     
     INTEGER::I,J,K,IELT1,N1,N2,N3,ANODE1
     REAL(8)::XV1(3),T1,HK1,PHI1,TPHI1,WR1,L1,DV1(3),PI1,RO1,Q1,X1(3),H1,LAMDA1,K1,KM1(2,2),NHEAD1(2),NHEAD2(10,1)
-    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1,SPH1(10),QN1(2),T2
-    LOGICAL::ISISOTROPIC=.FALSE.
+    REAL(8)::SITA1(3),KX1,KY1,KZ1,KR1,SPH1(10),QN1(2),T2,sqrt_kzx,sqrt_kzy,SCALE1,WR2,ax1,bx1,cx1
+    LOGICAL::ISANISOTROPIC=.FALSE.
    
         
     N1=ELEMENT(IELT).NODE(2)
@@ -255,18 +254,31 @@ SUBROUTINE SPHFLOW_Q_K_SPMETHOD(STEPDIS,IELT,ISTEP,IITER)
             CALL GETVAL_SOLVER(X1,IELT1,SPH1(1:1),NHEAD2(1:N2,:))            
  
             H1=SPH1(1)
+            XV1=(X1-NODE(N1).COORD)           
+            sqrt_kzx=(MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(3)/MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(1))**0.5
+            sqrt_kzy=(MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(3)/MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(2))**0.5
+            ISANISOTROPIC=abs(sqrt_kzx-1.0)>1.e-6.or.abs(sqrt_kzy-1.0)>1.e-6
+            SCALE1=1.D0
             
-            XV1=X1-NODE(N1).COORD !ORIGIN .
-            RO1=NORM2(XV1)
-            IF(RO1<WR1) CYCLE
-            KR1=0.D0             
+            IF(ISANISOTROPIC) THEN
+                XV1=xv1*[SQRT_KZX,SQRT_KZY,1.0] 
+                RO1=NORM2(XV1)
+                SCALE1=RO1/NORM2(X1-NODE(N1).COORD)
+            ELSE                  
+                RO1=NORM2(XV1)
+            ENDIF
+            WR2=WR1*SCALE1
+            IF(RO1<WR2) CYCLE
+            
+            !KR1=0.D0             
  
-            SITA1=XV1/RO1            
-            K1=0.D0
-            DO I=1,3
-                K1=K1+1.0/MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(I)*(SITA1(I))**2
-            ENDDO
-            KR1=1/K1;
+            !SITA1=XV1/RO1            
+            !K1=0.D0
+            !DO I=1,3
+            !    K1=K1+1.0/MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(I)*(SITA1(I))**2
+            !ENDDO
+            !KR1=1/K1;
+            KR1=(MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(1)*MATERIAL(ELEMENT(IELT1).MAT).PROPERTY(2))**0.5
                 
             IF(H1>X1(NDIMENSION)) THEN
                 LAMDA1=1.0
@@ -280,8 +292,10 @@ SUBROUTINE SPHFLOW_Q_K_SPMETHOD(STEPDIS,IELT,ISTEP,IITER)
                 IF(T1<0.D0) CYCLE
             ENDIF
             !H1=SUM(STEPDIS(ELEMENT(IELT1).G))/ELEMENT(IELT1).NNUM        
-            !PHI1=ELEMENT(IELT1).ANGLE(SNADJL(N1).SUBID(J)) 
+            !PHI1=ELEMENT(IELT1).ANGLE(SNADJL(N1).SUBID(J))
+                           
             PHI1=1.D0
+            
             TPHI1=TPHI1+PHI1
             IF(SOLVER_CONTROL.well_bottom_type==0) THEN
                 T2=4.0
@@ -289,7 +303,7 @@ SUBROUTINE SPHFLOW_Q_K_SPMETHOD(STEPDIS,IELT,ISTEP,IITER)
                 T2=2.0*PI1
             ENDIF
 
-            Q1=Q1+(H1-NHEAD1(1))*T2*KR1/(1/WR1-1/RO1)*PHI1    
+            Q1=Q1+(H1-NHEAD1(1))*T2*KR1/(1/WR2-1/RO1)*PHI1    
                         
                    
 
